@@ -32,8 +32,6 @@ export const fr = {
     pee: 'Pipi',
     poop: 'Caca',
     food: 'Nourriture',
-    water: 'Eau',
-    nap: 'Sieste',
     walk: 'Promenade',
     weight: 'Poids',
     medication: 'Médicament',

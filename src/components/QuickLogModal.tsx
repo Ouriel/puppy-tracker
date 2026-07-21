@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import type { Activity, ActivityType, Caretaker, FoodType, PottyLocation, StoolConsistency } from '../types';
-import { X, Droplet, Footprints, Utensils, GlassWater, Moon, Activity as WalkIcon, Scale, Pill, Check } from 'lucide-react';
+import { X, Droplet, Footprints, Utensils, Activity as WalkIcon, Scale, Pill, Check } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
 interface QuickLogModalProps {
@@ -34,7 +34,6 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
   const [quantityGrams, setQuantityGrams] = useState<number>(80);
   const [quantityCups, setQuantityCups] = useState<number>(0.75);
 
-  const [waterAmountMl, setWaterAmountMl] = useState<number>(100);
   const [durationMinutes, setDurationMinutes] = useState<number>(30);
   const [weightKg, setWeightKg] = useState<number>(8.5);
   const [medicationName, setMedicationName] = useState<string>('Flea & Tick Prevention');
@@ -74,9 +73,7 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
       newActivity.foodType = foodType;
       newActivity.quantityGrams = quantityGrams;
       newActivity.quantityCups = quantityCups;
-    } else if (type === 'water') {
-      newActivity.waterAmountMl = waterAmountMl;
-    } else if (type === 'nap' || type === 'walk') {
+    } else if (type === 'walk') {
       newActivity.durationMinutes = durationMinutes;
     } else if (type === 'weight') {
       newActivity.weightKg = weightKg;
@@ -92,8 +89,6 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
     { type: 'pee', label: 'Pee', icon: <Droplet className="w-5 h-5" />, color: 'hover:bg-sky-500/20 hover:text-sky-400' },
     { type: 'poop', label: 'Poop', icon: <Footprints className="w-5 h-5" />, color: 'hover:bg-amber-500/20 hover:text-amber-400' },
     { type: 'food', label: 'Food', icon: <Utensils className="w-5 h-5" />, color: 'hover:bg-purple-500/20 hover:text-purple-400' },
-    { type: 'water', label: 'Water', icon: <GlassWater className="w-5 h-5" />, color: 'hover:bg-cyan-500/20 hover:text-cyan-400' },
-    { type: 'nap', label: 'Nap', icon: <Moon className="w-5 h-5" />, color: 'hover:bg-indigo-500/20 hover:text-indigo-400' },
     { type: 'walk', label: 'Walk', icon: <WalkIcon className="w-5 h-5" />, color: 'hover:bg-emerald-500/20 hover:text-emerald-400' },
     { type: 'weight', label: 'Weight', icon: <Scale className="w-5 h-5" />, color: 'hover:bg-pink-500/20 hover:text-pink-400' },
     { type: 'medication', label: 'Meds', icon: <Pill className="w-5 h-5" />, color: 'hover:bg-red-500/20 hover:text-red-400' },
@@ -121,7 +116,7 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
             <label className="block text-xs font-semibold text-slate-400 mb-2">
               Select Activity Type
             </label>
-            <div className="grid grid-cols-4 gap-2.5">
+            <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
               {activityTypes.map((item) => (
                 <button
                   type="button"
@@ -282,33 +277,7 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
             </div>
           )}
 
-          {type === 'water' && (
-            <div className="bg-slate-950/40 p-4 rounded-xl border border-slate-800">
-              <label className="block text-xs font-semibold text-slate-400 mb-1">
-                Water Amount (ml)
-              </label>
-              <input
-                type="number"
-                value={waterAmountMl}
-                onChange={(e) => setWaterAmountMl(Number(e.target.value))}
-                className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-base text-slate-100 focus:outline-none focus:border-indigo-500"
-              />
-              <div className="flex gap-2 mt-2">
-                {[50, 100, 150, 250].map((ml) => (
-                  <button
-                    type="button"
-                    key={ml}
-                    onClick={() => setWaterAmountMl(ml)}
-                    className="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded-lg border border-slate-700 cursor-pointer"
-                  >
-                    {ml} ml
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {(type === 'nap' || type === 'walk') && (
+          {type === 'walk' && (
             <div className="bg-slate-950/40 p-4 rounded-xl border border-slate-800">
               <label className="block text-xs font-semibold text-slate-400 mb-1">
                 Duration (Minutes)

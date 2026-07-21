@@ -1,4 +1,4 @@
-export type ActivityType = 'pee' | 'poop' | 'food' | 'water' | 'nap' | 'walk' | 'weight' | 'medication';
+export type ActivityType = 'pee' | 'poop' | 'food' | 'walk' | 'weight' | 'medication';
 
 export type PottyLocation = 'outside' | 'indoor_pad' | 'indoor_accident';
 
@@ -20,7 +20,6 @@ export interface Activity {
   foodType?: FoodType;
   quantityGrams?: number;
   quantityCups?: number;
-  waterAmountMl?: number;
   durationMinutes?: number;
   weightKg?: number;
   medicationName?: number | string;
@@ -69,9 +68,6 @@ export interface PredictionResult {
   nextFoodExpectedAt: Date | null;
   foodUrgency: 'safe' | 'soon' | 'overdue';
   foodReason: string;
-
-  hoursAwake: number;
-  lastNapEndedAt: Date | null;
 }
 
 export interface PottyStats {

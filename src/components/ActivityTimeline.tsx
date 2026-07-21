@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import type { Activity, ActivityType, Caretaker } from '../types';
-import { Droplet, Footprints, Utensils, GlassWater, Moon, Activity as WalkIcon, Scale, Pill, Trash2 } from 'lucide-react';
+import { Droplet, Footprints, Utensils, Activity as WalkIcon, Scale, Pill, Trash2 } from 'lucide-react';
 
 interface ActivityTimelineProps {
   activities: Activity[];
@@ -13,7 +13,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
   caretakers,
   onDeleteActivity,
 }) => {
-  const [filter, setFilter] = useState<'all' | 'potty' | 'food' | 'nap_walk'>('all');
+  const [filter, setFilter] = useState<'all' | 'potty' | 'food' | 'walk'>('all');
 
   const getIcon = (type: ActivityType) => {
     switch (type) {
@@ -23,10 +23,6 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
         return <Footprints className="w-4 h-4 text-amber-400" />;
       case 'food':
         return <Utensils className="w-4 h-4 text-purple-400" />;
-      case 'water':
-        return <GlassWater className="w-4 h-4 text-cyan-400" />;
-      case 'nap':
-        return <Moon className="w-4 h-4 text-indigo-400" />;
       case 'walk':
         return <WalkIcon className="w-4 h-4 text-emerald-400" />;
       case 'weight':
@@ -43,8 +39,8 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
 
   const filtered = activities.filter((a) => {
     if (filter === 'potty') return a.type === 'pee' || a.type === 'poop';
-    if (filter === 'food') return a.type === 'food' || a.type === 'water';
-    if (filter === 'nap_walk') return a.type === 'nap' || a.type === 'walk';
+    if (filter === 'food') return a.type === 'food';
+    if (filter === 'walk') return a.type === 'walk';
     return true;
   });
 
@@ -115,14 +111,14 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
             Meals 🍖
           </button>
           <button
-            onClick={() => setFilter('nap_walk')}
+            onClick={() => setFilter('walk')}
             className={`px-3 py-1 text-xs font-semibold rounded-lg transition cursor-pointer ${
-              filter === 'nap_walk'
+              filter === 'walk'
                 ? 'bg-indigo-600 text-white shadow'
                 : 'text-slate-400 hover:text-slate-200'
             }`}
           >
-            Activity 🐾
+            Walks 🐾
           </button>
         </div>
       </div>
@@ -167,7 +163,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
                       )}
                       {item.pottyLocation === 'indoor_pad' && (
                         <span className="bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[10px] font-bold px-2 py-0.5 rounded-full">
-                          🟨 Pee Pad
+                          🟨 Pad (Déconseillé)
                         </span>
                       )}
                       {item.pottyLocation === 'indoor_accident' && (
@@ -194,13 +190,6 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
                       {item.durationMinutes && (
                         <span className="bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-[10px] font-bold px-2 py-0.5 rounded-full">
                           {item.durationMinutes} mins
-                        </span>
-                      )}
-
-                      {/* Water ml */}
-                      {item.waterAmountMl && (
-                        <span className="bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 text-[10px] font-bold px-2 py-0.5 rounded-full">
-                          {item.waterAmountMl} ml
                         </span>
                       )}
 

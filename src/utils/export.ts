@@ -14,7 +14,6 @@ export function exportActivitiesToCSV(activities: Activity[], profile: PuppyProf
     if (a.quantityCups) qty += `(${a.quantityCups} cups) `;
     if (a.durationMinutes) qty += `${a.durationMinutes} mins `;
     if (a.weightKg) qty += `${a.weightKg} kg `;
-    if (a.waterAmountMl) qty += `${a.waterAmountMl} ml `;
 
     return [
       new Date(a.timestamp).toLocaleString(),

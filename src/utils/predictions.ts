@@ -72,7 +72,6 @@ export function calculatePredictions(
   const lastPee = sorted.find((a) => a.type === 'pee');
   const lastPoop = sorted.find((a) => a.type === 'poop');
   const lastFood = sorted.find((a) => a.type === 'food');
-  const lastNap = sorted.find((a) => a.type === 'nap');
 
   const { months } = getPuppyAge(profile.birthDate);
   const baseBladderHours = Math.max(1, Math.min(months, 4));
@@ -183,7 +182,5 @@ export function calculatePredictions(
     nextFoodExpectedAt,
     foodUrgency,
     foodReason,
-    hoursAwake: 2,
-    lastNapEndedAt: lastNap ? new Date(lastNap.timestamp) : null,
   };
 }

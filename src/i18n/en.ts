@@ -18,7 +18,7 @@ export const en = {
   },
   dashboard: {
     welcomeTitle: 'Welcome to PupPace!',
-    welcomeSubtitle: 'Your household has no dog profiles registered yet. Add your puppy to start tracking potty schedules, meals, and naps!',
+    welcomeSubtitle: 'Your household has no dog profiles registered yet. Add your puppy to start tracking potty schedules and meals!',
     registerDog: 'Register First Dog Profile',
     pottyTrainingScore: 'Potty Training Success Score',
     todaysNutrition: "Today's Nutrition",
@@ -32,8 +32,6 @@ export const en = {
     pee: 'Pee',
     poop: 'Poop',
     food: 'Food',
-    water: 'Water',
-    nap: 'Nap',
     walk: 'Walk',
     weight: 'Weight',
     medication: 'Medication',
