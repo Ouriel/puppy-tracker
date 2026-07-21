@@ -27,6 +27,7 @@ import { AddPuppyModal } from './components/AddPuppyModal';
 import { SharePackModal } from './components/SharePackModal';
 import { CareGuideModal } from './components/CareGuideModal';
 import { AuthLockScreen } from './components/AuthLockScreen';
+import { AdminDashboard } from './components/AdminDashboard';
 
 export function App() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
@@ -40,6 +41,7 @@ export function App() {
   const [user, setUser] = useState<UserAccount>(getStoredUser);
   const [caretakers, setCaretakers] = useState<Caretaker[]>(getStoredCaretakers);
   const [currentUser, setCurrentUser] = useState<string>('Matthieu (Husband)');
+  const [authToken, setAuthToken] = useState<string>('mock-jwt-token-xyz');
 
   // Modals state
   const [isQuickLogOpen, setIsQuickLogOpen] = useState(false);
@@ -50,6 +52,7 @@ export function App() {
   const [isAddPuppyOpen, setIsAddPuppyOpen] = useState(false);
   const [isShareOpen, setIsShareOpen] = useState(false);
   const [isCareGuideOpen, setIsCareGuideOpen] = useState(false);
+  const [isAdminOpen, setIsAdminOpen] = useState(false);
 
   const activePuppy = puppies.find((p) => p.id === activePuppyId) || puppies[0];
 
@@ -69,14 +72,43 @@ export function App() {
     saveCaretakers(caretakers);
   }, [caretakers]);
 
-  const handleUnlockVault = (pinOrPassword: string) => {
-    // Default demo PIN: 1234 or matching family pack code
-    if (pinOrPassword === '1234' || pinOrPassword === user.familyPackId) {
+  const handleUnlockWithSSO = (email: string, name: string, token: string) => {
+    const validEmails = ['matthieu.jacquet@gmail.com', 'spouse@family.com', 'sarah@family.com'];
+    if (validEmails.includes(email.toLowerCase())) {
       setIsAuthenticated(true);
+      setAuthToken(token);
       sessionStorage.setItem('puppace_vault_unlocked', 'true');
+      setUser((prev) => ({
+        ...prev,
+        email: email.toLowerCase(),
+        name: name,
+        role: email.toLowerCase() === 'matthieu.jacquet@gmail.com' ? 'Husband' : 'Partner',
+      }));
+      setCurrentUser(email.toLowerCase() === 'matthieu.jacquet@gmail.com' ? 'Matthieu (Husband)' : `${name} (Partner)`);
       return true;
     }
     return false;
+  };
+
+  const handleUnlockWithPassword = (email: string, pass: string) => {
+    // Standard mock password login
+    if (email && pass) {
+      setIsAuthenticated(true);
+      setAuthToken('mock-jwt-password-token');
+      sessionStorage.setItem('puppace_vault_unlocked', 'true');
+      setUser((prev) => ({
+        ...prev,
+        email: email.toLowerCase(),
+        name: email.split('@')[0],
+      }));
+      setCurrentUser(`${email.split('@')[0]} (Partner)`);
+      return true;
+    }
+    return false;
+  };
+
+  const handleRequestAccess = (email: string) => {
+    console.log('Access requested for email:', email);
   };
 
   const handleLockVault = () => {
@@ -136,7 +168,13 @@ export function App() {
   };
 
   if (!isAuthenticated) {
-    return <AuthLockScreen onUnlock={handleUnlockVault} familyPackId={user.familyPackId} />;
+    return (
+      <AuthLockScreen
+        onUnlockWithSSO={handleUnlockWithSSO}
+        onUnlockWithPassword={handleUnlockWithPassword}
+        onRequestAccess={handleRequestAccess}
+      />
+    );
   }
 
   const activePuppyActivities = activities.filter(
@@ -175,6 +213,7 @@ export function App() {
         onEditProfile={() => setIsProfileOpen(true)}
         onClearSampleData={handleClearSampleData}
         onLockVault={handleLockVault}
+        onOpenAdminCenter={() => setIsAdminOpen(true)}
         streakDays={streakDays}
       />
 
@@ -229,6 +268,13 @@ export function App() {
         isOpen={isCareGuideOpen}
         onClose={() => setIsCareGuideOpen(false)}
       />
+
+      {isAdminOpen && (
+        <AdminDashboard
+          token={authToken}
+          onClose={() => setIsAdminOpen(false)}
+        />
+      )}
     </div>
   );
 }

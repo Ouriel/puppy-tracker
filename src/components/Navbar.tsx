@@ -1,6 +1,6 @@
 import React from 'react';
 import type { PuppyProfile, Caretaker, UserAccount } from '../types';
-import { Users, FileText, BookOpen, Flame, Plus, Dog, Shield, Trash2, Lock } from 'lucide-react';
+import { Users, FileText, BookOpen, Flame, Plus, Dog, Shield, Trash2, Lock, ShieldAlert } from 'lucide-react';
 
 interface NavbarProps {
   puppies: PuppyProfile[];
@@ -18,6 +18,7 @@ interface NavbarProps {
   onEditProfile: () => void;
   onClearSampleData: () => void;
   onLockVault: () => void;
+  onOpenAdminCenter: () => void;
   streakDays: number;
 }
 
@@ -37,8 +38,12 @@ export const Navbar: React.FC<NavbarProps> = ({
   onEditProfile,
   onClearSampleData,
   onLockVault,
+  onOpenAdminCenter,
   streakDays,
 }) => {
+  // Back-end check mock: Check if logged in user is the super admin
+  const isSuperAdmin = user.email.toLowerCase() === 'matthieu.jacquet@gmail.com';
+
   return (
     <header className="sticky top-0 z-30 bg-slate-900/95 backdrop-blur-md border-b border-slate-800 text-slate-100 shadow-xl">
       <div className="max-w-6xl mx-auto px-4 py-3 space-y-3">
@@ -55,7 +60,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   PupPace
                 </span>
                 <span className="text-[10px] bg-indigo-950/90 text-indigo-300 border border-indigo-700/50 px-2 py-0.5 rounded-full font-semibold">
-                  Cocker Spaniel Edition 🐾
+                  SaaS Platform 🐾
                 </span>
               </div>
               <p className="text-[11px] text-slate-400">Family Puppy Activity & Potty Sync</p>
@@ -64,6 +69,16 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           {/* Family Account & Pack Info */}
           <div className="flex items-center gap-2 flex-wrap">
+            {isSuperAdmin && (
+              <button
+                onClick={onOpenAdminCenter}
+                className="flex items-center gap-1 bg-red-950/50 hover:bg-red-900/60 text-red-300 border border-red-700/50 px-2.5 py-1 rounded-xl text-xs font-semibold transition cursor-pointer"
+              >
+                <ShieldAlert className="w-3.5 h-3.5" />
+                <span>Admin Center</span>
+              </button>
+            )}
+
             <button
               onClick={onOpenShareModal}
               className="flex items-center gap-1.5 bg-slate-800/90 hover:bg-slate-700/90 text-slate-200 border border-slate-700/80 px-2.5 py-1 rounded-xl text-xs transition cursor-pointer"
