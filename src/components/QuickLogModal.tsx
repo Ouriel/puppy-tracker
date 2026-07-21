@@ -36,7 +36,7 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
 
   const [waterAmountMl, setWaterAmountMl] = useState<number>(100);
   const [durationMinutes, setDurationMinutes] = useState<number>(30);
-  const [weightKg, setWeightKg] = useState<number>(6.5);
+  const [weightKg, setWeightKg] = useState<number>(8.5);
   const [medicationName, setMedicationName] = useState<string>('Flea & Tick Prevention');
 
   useEffect(() => {
@@ -89,43 +89,45 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
   };
 
   const activityTypes: { type: ActivityType; label: string; icon: React.ReactNode; color: string }[] = [
-    { type: 'pee', label: 'Pee', icon: <Droplet className="w-4 h-4" />, color: 'hover:bg-sky-500/20 hover:text-sky-400' },
-    { type: 'poop', label: 'Poop', icon: <Footprints className="w-4 h-4" />, color: 'hover:bg-amber-500/20 hover:text-amber-400' },
-    { type: 'food', label: 'Food', icon: <Utensils className="w-4 h-4" />, color: 'hover:bg-purple-500/20 hover:text-purple-400' },
-    { type: 'water', label: 'Water', icon: <GlassWater className="w-4 h-4" />, color: 'hover:bg-cyan-500/20 hover:text-cyan-400' },
-    { type: 'nap', label: 'Nap', icon: <Moon className="w-4 h-4" />, color: 'hover:bg-indigo-500/20 hover:text-indigo-400' },
-    { type: 'walk', label: 'Walk', icon: <WalkIcon className="w-4 h-4" />, color: 'hover:bg-emerald-500/20 hover:text-emerald-400' },
-    { type: 'weight', label: 'Weight', icon: <Scale className="w-4 h-4" />, color: 'hover:bg-pink-500/20 hover:text-pink-400' },
-    { type: 'medication', label: 'Meds', icon: <Pill className="w-4 h-4" />, color: 'hover:bg-red-500/20 hover:text-red-400' },
+    { type: 'pee', label: 'Pee', icon: <Droplet className="w-5 h-5" />, color: 'hover:bg-sky-500/20 hover:text-sky-400' },
+    { type: 'poop', label: 'Poop', icon: <Footprints className="w-5 h-5" />, color: 'hover:bg-amber-500/20 hover:text-amber-400' },
+    { type: 'food', label: 'Food', icon: <Utensils className="w-5 h-5" />, color: 'hover:bg-purple-500/20 hover:text-purple-400' },
+    { type: 'water', label: 'Water', icon: <GlassWater className="w-5 h-5" />, color: 'hover:bg-cyan-500/20 hover:text-cyan-400' },
+    { type: 'nap', label: 'Nap', icon: <Moon className="w-5 h-5" />, color: 'hover:bg-indigo-500/20 hover:text-indigo-400' },
+    { type: 'walk', label: 'Walk', icon: <WalkIcon className="w-5 h-5" />, color: 'hover:bg-emerald-500/20 hover:text-emerald-400' },
+    { type: 'weight', label: 'Weight', icon: <Scale className="w-5 h-5" />, color: 'hover:bg-pink-500/20 hover:text-pink-400' },
+    { type: 'medication', label: 'Meds', icon: <Pill className="w-5 h-5" />, color: 'hover:bg-red-500/20 hover:text-red-400' },
   ];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-fadeIn">
-      <div className="bg-slate-900 border border-slate-700/80 rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-950/70 backdrop-blur-sm animate-fadeIn">
+      <div className="bg-slate-900 border-t sm:border border-slate-700/80 rounded-t-3xl sm:rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl pb-safe">
+        {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800 bg-slate-900/50">
           <h2 className="text-lg font-bold text-slate-100 flex items-center gap-2">
             <span>Log Puppy Activity</span>
           </h2>
           <button
             onClick={onClose}
-            className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition cursor-pointer"
+            className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition cursor-pointer"
           >
-            <X className="w-5 h-5" />
+            <X className="w-6 h-6" />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-5">
+        <form onSubmit={handleSubmit} className="p-6 space-y-5 max-h-[75vh] overflow-y-auto">
+          {/* Activity Type Selector Grid - Optimized touch heights */}
           <div>
             <label className="block text-xs font-semibold text-slate-400 mb-2">
               Select Activity Type
             </label>
-            <div className="grid grid-cols-4 gap-2">
+            <div className="grid grid-cols-4 gap-2.5">
               {activityTypes.map((item) => (
                 <button
                   type="button"
                   key={item.type}
                   onClick={() => setType(item.type)}
-                  className={`flex flex-col items-center justify-center p-2.5 rounded-xl border text-xs font-medium transition-all cursor-pointer ${
+                  className={`flex flex-col items-center justify-center py-3.5 rounded-xl border text-xs font-semibold transition-all cursor-pointer ${
                     type === item.type
                       ? 'bg-indigo-600 border-indigo-500 text-white shadow-md shadow-indigo-600/30'
                       : `bg-slate-800/60 border-slate-700/60 text-slate-300 ${item.color}`
@@ -138,6 +140,7 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
             </div>
           </div>
 
+          {/* Dynamic Inputs Based on Activity Type */}
           {(type === 'pee' || type === 'poop') && (
             <div className="space-y-4 bg-slate-950/40 p-4 rounded-xl border border-slate-800">
               <div>
@@ -148,29 +151,29 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
                   <button
                     type="button"
                     onClick={() => setPottyLocation('outside')}
-                    className={`py-2 px-3 rounded-xl text-xs font-bold border transition cursor-pointer ${
+                    className={`py-3 px-3 rounded-xl text-xs font-bold border transition cursor-pointer ${
                       pottyLocation === 'outside'
                         ? 'bg-emerald-600 text-white border-emerald-500 shadow'
                         : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'
                     }`}
                   >
-                    🌳 Outside Success
+                    🌳 Outside
                   </button>
                   <button
                     type="button"
                     onClick={() => setPottyLocation('indoor_pad')}
-                    className={`py-2 px-3 rounded-xl text-xs font-bold border transition cursor-pointer ${
+                    className={`py-3 px-3 rounded-xl text-xs font-bold border transition cursor-pointer ${
                       pottyLocation === 'indoor_pad'
                         ? 'bg-amber-600 text-white border-amber-500 shadow'
                         : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'
                     }`}
                   >
-                    🟨 Pee Pad
+                    🟨 Pad
                   </button>
                   <button
                     type="button"
                     onClick={() => setPottyLocation('indoor_accident')}
-                    className={`py-2 px-3 rounded-xl text-xs font-bold border transition cursor-pointer ${
+                    className={`py-3 px-3 rounded-xl text-xs font-bold border transition cursor-pointer ${
                       pottyLocation === 'indoor_accident'
                         ? 'bg-red-600 text-white border-red-500 shadow'
                         : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'
@@ -192,7 +195,7 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
                         type="button"
                         key={c}
                         onClick={() => setStoolConsistency(c)}
-                        className={`py-1.5 px-2 rounded-lg text-xs capitalize border cursor-pointer ${
+                        className={`py-2.5 px-2 rounded-lg text-xs capitalize border cursor-pointer ${
                           stoolConsistency === c
                             ? 'bg-amber-600 text-white border-amber-500 font-bold'
                             : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'
@@ -219,7 +222,7 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
                       type="button"
                       key={ft}
                       onClick={() => setFoodType(ft)}
-                      className={`py-1.5 px-3 rounded-lg text-xs capitalize border cursor-pointer ${
+                      className={`py-2.5 px-3.5 rounded-lg text-xs capitalize border cursor-pointer ${
                         foodType === ft
                           ? 'bg-purple-600 text-white border-purple-500 font-bold'
                           : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'
@@ -244,7 +247,7 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
                       setQuantityGrams(g);
                       setQuantityCups(Number((g / 110).toFixed(2)));
                     }}
-                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-indigo-500"
+                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-base text-slate-100 focus:outline-none focus:border-indigo-500"
                   />
                   <div className="flex gap-1.5 mt-2">
                     {[50, 75, 100, 120].map((g) => (
@@ -255,7 +258,7 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
                           setQuantityGrams(g);
                           setQuantityCups(Number((g / 110).toFixed(2)));
                         }}
-                        className="text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-0.5 rounded border border-slate-700 cursor-pointer"
+                        className="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-2.5 py-1 rounded border border-slate-700 cursor-pointer"
                       >
                         {g}g
                       </button>
@@ -272,7 +275,7 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
                     step="0.1"
                     value={quantityCups}
                     onChange={(e) => setQuantityCups(Number(e.target.value))}
-                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-indigo-500"
+                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-base text-slate-100 focus:outline-none focus:border-indigo-500"
                   />
                 </div>
               </div>
@@ -288,7 +291,7 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
                 type="number"
                 value={waterAmountMl}
                 onChange={(e) => setWaterAmountMl(Number(e.target.value))}
-                className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-indigo-500"
+                className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-base text-slate-100 focus:outline-none focus:border-indigo-500"
               />
               <div className="flex gap-2 mt-2">
                 {[50, 100, 150, 250].map((ml) => (
@@ -296,7 +299,7 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
                     type="button"
                     key={ml}
                     onClick={() => setWaterAmountMl(ml)}
-                    className="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-2.5 py-1 rounded-lg border border-slate-700 cursor-pointer"
+                    className="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded-lg border border-slate-700 cursor-pointer"
                   >
                     {ml} ml
                   </button>
@@ -314,7 +317,7 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
                 type="number"
                 value={durationMinutes}
                 onChange={(e) => setDurationMinutes(Number(e.target.value))}
-                className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-indigo-500"
+                className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-base text-slate-100 focus:outline-none focus:border-indigo-500"
               />
               <div className="flex gap-2 mt-2">
                 {[15, 30, 45, 60, 90, 120].map((m) => (
@@ -322,7 +325,7 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
                     type="button"
                     key={m}
                     onClick={() => setDurationMinutes(m)}
-                    className="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-2.5 py-1 rounded-lg border border-slate-700 cursor-pointer"
+                    className="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded-lg border border-slate-700 cursor-pointer"
                   >
                     {m} min
                   </button>
@@ -341,7 +344,7 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
                 step="0.1"
                 value={weightKg}
                 onChange={(e) => setWeightKg(Number(e.target.value))}
-                className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-indigo-500"
+                className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-base text-slate-100 focus:outline-none focus:border-indigo-500"
               />
             </div>
           )}
@@ -355,7 +358,7 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
                 type="text"
                 value={medicationName}
                 onChange={(e) => setMedicationName(e.target.value)}
-                className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-indigo-500"
+                className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-base text-slate-100 focus:outline-none focus:border-indigo-500"
               />
             </div>
           )}
@@ -369,7 +372,7 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
                 type="datetime-local"
                 value={timestamp}
                 onChange={(e) => setTimestamp(e.target.value)}
-                className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-indigo-500"
+                className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-xs text-slate-100 focus:outline-none focus:border-indigo-500"
               />
             </div>
 
@@ -380,7 +383,7 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
               <select
                 value={loggedBy}
                 onChange={(e) => setLoggedBy(e.target.value)}
-                className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-indigo-500 cursor-pointer"
+                className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-xs text-slate-100 focus:outline-none focus:border-indigo-500 cursor-pointer"
               >
                 {caretakers.map((c) => (
                   <option key={c.id} value={`${c.name} (${c.role})`}>
@@ -397,27 +400,27 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
             </label>
             <input
               type="text"
-              placeholder="e.g. Peed within 2 minutes after treat praise..."
+              placeholder="e.g. Peed within 2 minutes..."
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-indigo-500"
+              className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-base text-slate-100 focus:outline-none focus:border-indigo-500"
             />
           </div>
 
-          <div className="flex items-center justify-end gap-3 pt-2">
+          <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-800">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-xs font-semibold text-slate-400 hover:text-slate-200 transition cursor-pointer"
+              className="px-5 py-3 text-xs font-bold text-slate-400 hover:text-slate-200 transition cursor-pointer"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs py-2 px-5 rounded-xl shadow-lg shadow-indigo-600/30 transition active:scale-95 cursor-pointer"
+              className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs py-3 px-6 rounded-xl shadow-lg shadow-indigo-600/30 transition active:scale-95 cursor-pointer"
             >
               <Check className="w-4 h-4" />
-              <span>Save Activity Log</span>
+              <span>Save Log</span>
             </button>
           </div>
         </form>
