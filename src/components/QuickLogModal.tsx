@@ -355,8 +355,8 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
                 className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-xs text-slate-100 focus:outline-none focus:border-indigo-500 cursor-pointer"
               >
                 {caretakers.map((c) => (
-                  <option key={c.id} value={`${c.name} (${c.role})`}>
-                    {c.name} ({c.role})
+                  <option key={c.id} value={c.name}>
+                    {c.name}
                   </option>
                 ))}
               </select>
