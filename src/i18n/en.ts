@@ -3,7 +3,7 @@ export const en = {
   tagline: 'Smart Family Puppy Activity Tracker & Potty Predictor',
   headerSubtitle: 'Real-Time Family Care & Potty Tracker 🐾',
   nav: {
-    dashboard: 'Dashboard',
+    dashboard: 'Daily Log',
     dogs: 'Dogs',
     household: 'Household',
     carnetDeSante: 'Carnet de Santé',
@@ -108,7 +108,7 @@ export const en = {
   careGuide: {
     title: 'Puppy Care & Training Guide',
     subtitle: 'Breed-specific potty training tips, veterinary health milestones, and nutrition recommendations',
-    backToDashboard: 'Back to Dashboard',
+    backToDashboard: 'Back to Daily Log',
     breedGuides: 'Breed-Specific Care Guides',
     generalTips: 'Potty Housebreaking Best Practices',
   },

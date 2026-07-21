@@ -3,7 +3,7 @@ import type { PuppyProfile, Caretaker, UserAccount } from '../types';
 import { FileText, BookOpen, Flame, Plus, Dog, LogOut, ShieldAlert, LayoutDashboard, Home, Syringe } from 'lucide-react';
 import type { Language } from '../i18n';
 
-export type MainTabType = 'dashboard' | 'puppies' | 'household' | 'carnetdesante' | 'admin' | 'careguide';
+export type MainTabType = 'dashboard' | 'carnetdesante' | 'puppies' | 'household' | 'careguide' | 'admin';
 
 interface NavbarProps {
   activeMainTab: MainTabType;
@@ -44,6 +44,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   t,
 }) => {
   const isSuperAdmin = user.email.toLowerCase() === 'matthieu.jacquet@gmail.com';
+  const showDogSelector = activeMainTab === 'dashboard' || activeMainTab === 'carnetdesante';
 
   return (
     <header className="sticky top-0 z-30 bg-slate-900/95 backdrop-blur-md border-b border-slate-800 text-slate-100 shadow-xl">
@@ -92,7 +93,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               </button>
             </div>
 
-            {/* Active User Switcher (Clean Name Only, No (Role)) */}
+            {/* Active User Switcher */}
             <div className="flex items-center bg-slate-800/80 border border-slate-700/80 rounded-xl px-2.5 py-1 text-xs">
               <span className="text-slate-400 mr-1.5 hidden sm:inline">{t.nav.activeUser}</span>
               <select
@@ -120,10 +121,11 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
         </div>
 
-        {/* Bottom row: Main Page Tabs & Quick Actions */}
+        {/* Bottom row: Main Page Tabs & Contextual Quick Actions */}
         <div className="flex flex-wrap items-center justify-between gap-3">
-          {/* Main Navigation Tabs */}
+          {/* Re-organized Tab Order based on everyday usage */}
           <div className="flex items-center gap-1 bg-slate-950/60 p-1 rounded-xl border border-slate-800/80 overflow-x-auto">
+            {/* 1. Daily Log / Suivi Quotidien */}
             <button
               onClick={() => onSelectMainTab('dashboard')}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
@@ -136,30 +138,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               <span>{t.nav.dashboard}</span>
             </button>
 
-            <button
-              onClick={() => onSelectMainTab('puppies')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
-                activeMainTab === 'puppies'
-                  ? 'bg-indigo-600 text-white shadow'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              <Dog className="w-3.5 h-3.5" />
-              <span>{t.nav.dogs} ({puppies.length})</span>
-            </button>
-
-            <button
-              onClick={() => onSelectMainTab('household')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
-                activeMainTab === 'household'
-                  ? 'bg-indigo-600 text-white shadow'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              <Home className="w-3.5 h-3.5" />
-              <span>{t.nav.household} ({caretakers.length})</span>
-            </button>
-
+            {/* 2. Carnet de Santé */}
             <button
               onClick={() => onSelectMainTab('carnetdesante')}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
@@ -172,6 +151,46 @@ export const Navbar: React.FC<NavbarProps> = ({
               <span>{t.nav.carnetDeSante}</span>
             </button>
 
+            {/* 3. Dog Profiles / Mes Chiens */}
+            <button
+              onClick={() => onSelectMainTab('puppies')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                activeMainTab === 'puppies'
+                  ? 'bg-indigo-600 text-white shadow'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <Dog className="w-3.5 h-3.5" />
+              <span>{t.nav.dogs} ({puppies.length})</span>
+            </button>
+
+            {/* 4. Household / Foyer */}
+            <button
+              onClick={() => onSelectMainTab('household')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                activeMainTab === 'household'
+                  ? 'bg-indigo-600 text-white shadow'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <Home className="w-3.5 h-3.5" />
+              <span>{t.nav.household} ({caretakers.length})</span>
+            </button>
+
+            {/* 5. Care Guide */}
+            <button
+              onClick={() => onSelectMainTab('careguide')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                activeMainTab === 'careguide'
+                  ? 'bg-indigo-600 text-white shadow'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <BookOpen className="w-3.5 h-3.5" />
+              <span>{t.nav.careGuide}</span>
+            </button>
+
+            {/* 6. Admin (Super Admin only) */}
             {isSuperAdmin && (
               <button
                 onClick={() => onSelectMainTab('admin')}
@@ -185,24 +204,12 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <span>{t.nav.admin}</span>
               </button>
             )}
-
-            <button
-              onClick={() => onSelectMainTab('careguide')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
-                activeMainTab === 'careguide'
-                  ? 'bg-indigo-600 text-white shadow'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              <BookOpen className="w-3.5 h-3.5" />
-              <span>{t.nav.careGuide}</span>
-            </button>
           </div>
 
           {/* Quick Log & Export Actions */}
           <div className="flex items-center gap-2 flex-wrap">
-            {/* Active Puppy Switcher dropdown in navbar */}
-            {puppies.length > 0 && activePuppy && (
+            {/* Show Active Dog Selector ONLY on Dog-Specific Views (Daily Log & Carnet de Sante) */}
+            {showDogSelector && puppies.length > 0 && activePuppy && (
               <div className="flex items-center bg-slate-800/80 border border-slate-700/80 rounded-xl px-2.5 py-1 text-xs">
                 <span className="text-slate-400 mr-1.5">{t.nav.dog}</span>
                 <select
@@ -219,14 +226,18 @@ export const Navbar: React.FC<NavbarProps> = ({
               </div>
             )}
 
-            <div
-              title={`${streakDays} days clean!`}
-              className="flex items-center gap-1 bg-amber-950/40 border border-amber-500/30 text-amber-300 px-2.5 py-1 rounded-xl text-xs font-semibold"
-            >
-              <Flame className="w-3.5 h-3.5 text-amber-400" />
-              <span>{streakDays}d {t.nav.cleanStreak}</span>
-            </div>
+            {/* Potty Clean Streak Badge */}
+            {showDogSelector && (
+              <div
+                title={`${streakDays} days clean!`}
+                className="flex items-center gap-1 bg-amber-950/40 border border-amber-500/30 text-amber-300 px-2.5 py-1 rounded-xl text-xs font-semibold"
+              >
+                <Flame className="w-3.5 h-3.5 text-amber-400" />
+                <span>{streakDays}d {t.nav.cleanStreak}</span>
+              </div>
+            )}
 
+            {/* Export Vet PDF Summary button */}
             <button
               onClick={onOpenVetReport}
               title="Export Vet Summary PDF"
@@ -235,6 +246,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               <FileText className="w-4 h-4" />
             </button>
 
+            {/* Quick Log Event Button */}
             {puppies.length > 0 && (
               <button
                 onClick={onOpenQuickLog}
