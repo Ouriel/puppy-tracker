@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Lock, Mail, ShieldCheck, ArrowRight, Eye, EyeOff, UserPlus, LogIn, CheckCircle2, Settings, FileText, Shield, Sparkles, ChevronDown, ChevronUp } from 'lucide-react';
+import { Lock, Mail, ShieldCheck, ArrowRight, Eye, EyeOff, UserPlus, LogIn, CheckCircle2, FileText, Shield, Sparkles, ChevronDown, ChevronUp } from 'lucide-react';
 import { PrivacyPolicyModal } from './PrivacyPolicyModal';
 import { TermsOfServiceModal } from './TermsOfServiceModal';
 
@@ -22,8 +22,6 @@ export const AuthLockScreen: React.FC<AuthLockScreenProps> = ({
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const [isConfiguringClientId, setIsConfiguringClientId] = useState(false);
-  const [customClientIdInput, setCustomClientIdInput] = useState('');
   const [showAboutDetails, setShowAboutDetails] = useState(false);
 
   const [isPrivacyOpen, setIsPrivacyOpen] = useState(false);
@@ -34,8 +32,8 @@ export const AuthLockScreen: React.FC<AuthLockScreenProps> = ({
   // Production Client ID fallback
   const defaultProductionClientId = '8924902082-52mf1l272khij6ac2racnh4p34h7fh08.apps.googleusercontent.com';
   const googleClientId =
-    localStorage.getItem('puppace_google_client_id') ||
     (import.meta.env.VITE_GOOGLE_CLIENT_ID as string) ||
+    localStorage.getItem('puppace_google_client_id') ||
     defaultProductionClientId;
 
   useEffect(() => {
@@ -77,17 +75,6 @@ export const AuthLockScreen: React.FC<AuthLockScreenProps> = ({
       }
     }
   }, [activeTab, onUnlockWithSSO, googleClientId]);
-
-  const handleSaveClientId = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!customClientIdInput.trim()) return;
-    const cleanId = customClientIdInput.trim();
-    localStorage.setItem('puppace_google_client_id', cleanId);
-    setIsConfiguringClientId(false);
-    setSuccess('Google OAuth Client ID updated successfully!');
-    setTimeout(() => setSuccess(''), 3000);
-    window.location.reload();
-  };
 
   const handlePasswordLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -191,52 +178,10 @@ export const AuthLockScreen: React.FC<AuthLockScreenProps> = ({
           <div className="space-y-5 relative z-10">
             {/* Google SSO Container */}
             <div>
-              <div className="flex items-center justify-between mb-2">
-                <label className="text-[11px] font-semibold text-slate-400">
-                  Sign in with Google OAuth
-                </label>
-                <button
-                  type="button"
-                  onClick={() => setIsConfiguringClientId(!isConfiguringClientId)}
-                  className="text-[10px] text-indigo-400 hover:text-indigo-300 flex items-center gap-1 cursor-pointer"
-                >
-                  <Settings className="w-3 h-3" />
-                  <span>OAuth Key Settings</span>
-                </button>
-              </div>
-
-              {isConfiguringClientId ? (
-                <form onSubmit={handleSaveClientId} className="bg-slate-950/60 p-3 rounded-xl border border-slate-800 space-y-2">
-                  <label className="block text-[10px] text-slate-400">
-                    Update Google OAuth Client ID:
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="8924902082-xxxx.apps.googleusercontent.com"
-                    value={customClientIdInput}
-                    onChange={(e) => setCustomClientIdInput(e.target.value)}
-                    className="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-100 font-mono focus:outline-none focus:border-indigo-500"
-                    required
-                  />
-                  <div className="flex justify-end gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setIsConfiguringClientId(false)}
-                      className="text-xs text-slate-400 px-2 py-1"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="submit"
-                      className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold px-3 py-1 rounded-lg cursor-pointer"
-                    >
-                      Save Key
-                    </button>
-                  </div>
-                </form>
-              ) : (
-                <div ref={googleBtnRef} className="w-full flex justify-center min-h-[44px]" />
-              )}
+              <label className="block text-[11px] font-semibold text-slate-400 mb-2">
+                Sign in with Google OAuth
+              </label>
+              <div ref={googleBtnRef} className="w-full flex justify-center min-h-[44px]" />
             </div>
 
             <div className="relative flex py-1 items-center">
