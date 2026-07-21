@@ -1,6 +1,6 @@
 import React from 'react';
 import type { PuppyProfile, Caretaker, UserAccount } from '../types';
-import { FileText, BookOpen, Flame, Plus, Dog, Lock, ShieldAlert, LayoutDashboard, Home, Syringe } from 'lucide-react';
+import { FileText, BookOpen, Flame, Plus, Dog, LogOut, ShieldAlert, LayoutDashboard, Home, Syringe } from 'lucide-react';
 import type { Language } from '../i18n';
 
 export type MainTabType = 'dashboard' | 'puppies' | 'household' | 'carnetdesante' | 'admin' | 'careguide';
@@ -68,7 +68,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             </div>
           </div>
 
-          {/* Controls: i18n Language Toggle, Active User Account & Lock */}
+          {/* Controls: i18n Language Toggle, Active User Account & Sign Out */}
           <div className="flex items-center gap-2 flex-wrap">
             {/* Language Switcher */}
             <div className="flex items-center bg-slate-950/80 border border-slate-700/80 rounded-xl p-0.5 text-xs font-semibold">
@@ -108,14 +108,14 @@ export const Navbar: React.FC<NavbarProps> = ({
               </select>
             </div>
 
-            {/* Lock App */}
+            {/* Sign Out Button */}
             <button
               onClick={onLockVault}
-              title={t.nav.lock}
-              className="p-1.5 rounded-xl bg-indigo-950/80 hover:bg-indigo-900 border border-indigo-700/60 text-indigo-300 transition cursor-pointer flex items-center gap-1 text-xs font-semibold"
+              title={t.nav.signOut}
+              className="p-1.5 rounded-xl bg-red-950/80 hover:bg-red-900 border border-red-800/60 text-red-300 transition cursor-pointer flex items-center gap-1 text-xs font-semibold"
             >
-              <Lock className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">{t.nav.lock}</span>
+              <LogOut className="w-3.5 h-3.5 text-red-400" />
+              <span className="hidden sm:inline">{t.nav.signOut}</span>
             </button>
           </div>
         </div>
