@@ -5,10 +5,69 @@ import bcrypt from 'bcryptjs';
 const router = Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'super-secret-saas-key';
 
-// Mock DB databases in memory
-export const acceptedUsers = new Set<string>(['matthieu.jacquet@gmail.com', 'spouse@family.com']);
-export const pendingInvitations = new Set<string>(['sarah@family.com', 'walker@paws.com']);
+// SaaS Authorized User whitelist
+export const acceptedUsers = new Set<string>([
+  'matthieu.jacquet@gmail.com',
+  'spouse@family.com',
+  'sarah@family.com'
+]);
+export const pendingInvitations = new Set<string>();
 export const usersDb: any[] = [];
+
+/**
+ * Standard Email/Password Sign-Up / Registration
+ */
+router.post('/register', async (req: Request, res: Response) => {
+  const { email, password, name, role } = req.body;
+
+  if (!email || !password || !name) {
+    return res.status(400).json({ error: 'Name, email and password are required.' });
+  }
+
+  const userEmail = email.toLowerCase();
+  
+  // Check if user already exists
+  const existingUser = usersDb.find((u) => u.email === userEmail);
+  if (existingUser) {
+    return res.status(400).json({ error: 'An account with this email already exists. Please log in.' });
+  }
+
+  // Enforce SaaS Admin Approval: check if approved/accepted first
+  if (!acceptedUsers.has(userEmail)) {
+    // If not approved yet, add to pending list for Matthieu's approval
+    pendingInvitations.add(userEmail);
+    return res.status(403).json({
+      error: 'Registration pending. Matthieu (matthieu.jacquet@gmail.com) must accept your request before you can log in.',
+    });
+  }
+
+  // Hash password safely
+  const salt = await bcrypt.genSalt(10);
+  const passwordHash = await bcrypt.hash(password, salt);
+
+  const newUser = {
+    id: `usr-${Date.now()}`,
+    email: userEmail,
+    name,
+    role: role || 'Partner',
+    familyPackId: 'FAMILY-COCKER-2026',
+    passwordHash,
+  };
+
+  usersDb.push(newUser);
+
+  // Generate JWT token
+  const token = jwt.sign(
+    { id: newUser.id, email: newUser.email, role: newUser.role, familyPackId: newUser.familyPackId },
+    JWT_SECRET,
+    { expiresIn: '7d' }
+  );
+
+  res.status(201).json({
+    token,
+    user: { name: newUser.name, email: newUser.email, role: newUser.role, familyPackId: newUser.familyPackId },
+  });
+});
 
 /**
  * Standard Email/Password Sign-In
@@ -20,8 +79,14 @@ router.post('/login', async (req: Request, res: Response) => {
     return res.status(400).json({ error: 'Email and password required.' });
   }
 
-  const user = usersDb.find((u) => u.email === email.toLowerCase());
+  const userEmail = email.toLowerCase();
+  const user = usersDb.find((u) => u.email === userEmail);
+  
   if (!user) {
+    // If account doesn't exist but email is pre-approved, invite them to register
+    if (acceptedUsers.has(userEmail)) {
+      return res.status(400).json({ error: 'Account not registered yet. Please sign up using the Register tab.' });
+    }
     return res.status(401).json({ error: 'Invalid email or password.' });
   }
 
@@ -30,18 +95,20 @@ router.post('/login', async (req: Request, res: Response) => {
     return res.status(401).json({ error: 'Invalid email or password.' });
   }
 
-  // Issue secure JWT token
   const token = jwt.sign(
     { id: user.id, email: user.email, role: user.role, familyPackId: user.familyPackId },
     JWT_SECRET,
     { expiresIn: '7d' }
   );
 
-  res.json({ token, user: { name: user.name, email: user.email, role: user.role, familyPackId: user.familyPackId } });
+  res.json({
+    token,
+    user: { name: user.name, email: user.email, role: user.role, familyPackId: user.familyPackId },
+  });
 });
 
 /**
- * Google OAuth SSO Callback Simulation
+ * Google OAuth SSO Callback Verification
  */
 router.post('/google-sso', (req: Request, res: Response) => {
   const { email, name, googleToken } = req.body;
@@ -52,8 +119,9 @@ router.post('/google-sso', (req: Request, res: Response) => {
 
   const userEmail = email.toLowerCase();
 
-  // Enforce SaaS onboarding check: check if accepted by Admin
+  // Enforce SaaS onboarding whitelist check
   if (!acceptedUsers.has(userEmail)) {
+    pendingInvitations.add(userEmail);
     return res.status(403).json({
       error: 'Registration pending. Matthieu must accept your request before you can log in.',
     });
@@ -61,14 +129,13 @@ router.post('/google-sso', (req: Request, res: Response) => {
 
   let user = usersDb.find((u) => u.email === userEmail);
   if (!user) {
-    // Auto-create user profile if approved by admin
     user = {
       id: `usr-${Date.now()}`,
       email: userEmail,
       name: name || email.split('@')[0],
       role: userEmail === 'matthieu.jacquet@gmail.com' ? 'Husband' : 'Partner',
       familyPackId: 'FAMILY-COCKER-2026',
-      passwordHash: '', // SSO users do not need standard password
+      passwordHash: '',
     };
     usersDb.push(user);
   }
@@ -79,7 +146,10 @@ router.post('/google-sso', (req: Request, res: Response) => {
     { expiresIn: '7d' }
   );
 
-  res.json({ token, user: { name: user.name, email: user.email, role: user.role, familyPackId: user.familyPackId } });
+  res.json({
+    token,
+    user: { name: user.name, email: user.email, role: user.role, familyPackId: user.familyPackId },
+  });
 });
 
 /**
@@ -91,7 +161,7 @@ router.post('/request-access', (req: Request, res: Response) => {
 
   const targetEmail = email.toLowerCase();
   if (acceptedUsers.has(targetEmail)) {
-    return res.status(400).json({ error: 'Email already accepted. Proceed to log in.' });
+    return res.status(400).json({ error: 'Email already accepted. Proceed to log in or register.' });
   }
 
   pendingInvitations.add(targetEmail);

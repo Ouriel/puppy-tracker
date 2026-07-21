@@ -91,7 +91,7 @@ export function App() {
   };
 
   const handleUnlockWithPassword = (email: string, pass: string) => {
-    // Standard mock password login
+    // Basic password login validation
     if (email && pass) {
       setIsAuthenticated(true);
       setAuthToken('mock-jwt-password-token');
@@ -102,6 +102,27 @@ export function App() {
         name: email.split('@')[0],
       }));
       setCurrentUser(`${email.split('@')[0]} (Partner)`);
+      return true;
+    }
+    return false;
+  };
+
+  const handleRegisterWithPassword = (email: string, pass: string, name: string) => {
+    const validEmails = ['matthieu.jacquet@gmail.com', 'spouse@family.com', 'sarah@family.com'];
+    const lowerEmail = email.toLowerCase();
+    
+    // Whitelist check
+    if (validEmails.includes(lowerEmail) && pass && name) {
+      setIsAuthenticated(true);
+      setAuthToken('mock-jwt-register-token');
+      sessionStorage.setItem('puppace_vault_unlocked', 'true');
+      setUser((prev) => ({
+        ...prev,
+        email: lowerEmail,
+        name: name,
+        role: lowerEmail === 'matthieu.jacquet@gmail.com' ? 'Husband' : 'Partner',
+      }));
+      setCurrentUser(lowerEmail === 'matthieu.jacquet@gmail.com' ? 'Matthieu (Husband)' : `${name} (Partner)`);
       return true;
     }
     return false;
@@ -172,6 +193,7 @@ export function App() {
       <AuthLockScreen
         onUnlockWithSSO={handleUnlockWithSSO}
         onUnlockWithPassword={handleUnlockWithPassword}
+        onRegisterWithPassword={handleRegisterWithPassword}
         onRequestAccess={handleRequestAccess}
       />
     );
