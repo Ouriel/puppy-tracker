@@ -1,8 +1,5 @@
 import type { Activity, PredictionResult, PuppyProfile } from '../types';
 
-/**
- * Calculates puppy age in weeks and months
- */
 export function getPuppyAge(birthDateIso: string): { weeks: number; months: number; text: string } {
   const birth = new Date(birthDateIso);
   const now = new Date();
@@ -21,7 +18,47 @@ export function getPuppyAge(birthDateIso: string): { weeks: number; months: numb
 }
 
 /**
- * Calculates predictive potty & feeding schedules for a puppy
+ * Calculates adaptive average interval between activities based on history
+ */
+export function calculateLearnedIntervalMinutes(
+  activities: Activity[],
+  type: 'pee' | 'poop',
+  fallbackMinutes: number
+): { intervalMins: number; sampleCount: number; isLearned: boolean } {
+  const sortedLogs = [...activities]
+    .filter((a) => a.type === type)
+    .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+
+  if (sortedLogs.length < 2) {
+    return { intervalMins: fallbackMinutes, sampleCount: sortedLogs.length, isLearned: false };
+  }
+
+  // Calculate gaps between consecutive logs occurring on the same day (ignoring overnight gaps >8h)
+  const intervals: number[] = [];
+  for (let i = 1; i < sortedLogs.length; i++) {
+    const prev = new Date(sortedLogs[i - 1].timestamp).getTime();
+    const curr = new Date(sortedLogs[i].timestamp).getTime();
+    const diffMins = (curr - prev) / (1000 * 60);
+
+    // Filter reasonable daytime gaps (15 mins to 6 hours)
+    if (diffMins >= 15 && diffMins <= 360) {
+      intervals.push(diffMins);
+    }
+  }
+
+  if (intervals.length === 0) {
+    return { intervalMins: fallbackMinutes, sampleCount: 0, isLearned: false };
+  }
+
+  const avg = Math.round(intervals.reduce((sum, v) => sum + v, 0) / intervals.length);
+  // Blend 70% learned average + 30% baseline for stability
+  const blended = Math.round(avg * 0.7 + fallbackMinutes * 0.3);
+
+  return { intervalMins: blended, sampleCount: intervals.length, isLearned: true };
+}
+
+/**
+ * Calculates adaptive predictive potty & feeding schedules for a puppy
  */
 export function calculatePredictions(
   activities: Activity[],
@@ -37,9 +74,13 @@ export function calculatePredictions(
   const lastFood = sorted.find((a) => a.type === 'food');
   const lastNap = sorted.find((a) => a.type === 'nap');
 
-  // Age based max bladder hold rule of thumb: ~1 hour per month of age up to 4 hours max for young pup
   const { months } = getPuppyAge(profile.birthDate);
   const baseBladderHours = Math.max(1, Math.min(months, 4));
+  const fallbackPeeIntervalMins = baseBladderHours * 60;
+
+  // Learn personalized pee & poop intervals
+  const learnedPee = calculateLearnedIntervalMinutes(activities, 'pee', fallbackPeeIntervalMins);
+  const learnedPoop = calculateLearnedIntervalMinutes(activities, 'poop', 300); // 5h fallback
 
   // 1. Pee Prediction
   let nextPeeExpectedAt: Date | null = null;
@@ -48,20 +89,21 @@ export function calculatePredictions(
 
   if (lastPee) {
     const lastPeeTime = new Date(lastPee.timestamp).getTime();
-    let targetIntervalMinutes = baseBladderHours * 60;
 
     if (lastFood && new Date(lastFood.timestamp).getTime() > lastPeeTime) {
       const foodTime = new Date(lastFood.timestamp).getTime();
       const postFoodPee = new Date(foodTime + 25 * 60 * 1000);
-      if (postFoodPee.getTime() < lastPeeTime + targetIntervalMinutes * 60 * 1000) {
+      if (postFoodPee.getTime() < lastPeeTime + learnedPee.intervalMins * 60 * 1000) {
         nextPeeExpectedAt = postFoodPee;
         peeReason = 'Pup fed recently (pees ~20-30 min post-meal)';
       }
     }
 
     if (!nextPeeExpectedAt) {
-      nextPeeExpectedAt = new Date(lastPeeTime + targetIntervalMinutes * 60 * 1000);
-      peeReason = `Based on ~${Math.round(targetIntervalMinutes)} min bladder capacity`;
+      nextPeeExpectedAt = new Date(lastPeeTime + learnedPee.intervalMins * 60 * 1000);
+      peeReason = learnedPee.isLearned
+        ? `Adaptive AI: Learned ~${learnedPee.intervalMins}m avg gap from ${learnedPee.sampleCount} logs`
+        : `Based on ~${Math.round(learnedPee.intervalMins)}m age bladder capacity`;
     }
 
     const minsUntilPee = (nextPeeExpectedAt.getTime() - now.getTime()) / (1000 * 60);
@@ -83,7 +125,6 @@ export function calculatePredictions(
 
   if (lastPoop) {
     const lastPoopTime = new Date(lastPoop.timestamp).getTime();
-    let targetPoopIntervalMins = 5 * 60;
 
     if (lastFood && new Date(lastFood.timestamp).getTime() > lastPoopTime) {
       const foodTime = new Date(lastFood.timestamp).getTime();
@@ -91,8 +132,10 @@ export function calculatePredictions(
       nextPoopExpectedAt = postFoodPoop;
       poopReason = 'Pup ate recently (poop gastrocolic reflex in 30-45 min)';
     } else {
-      nextPoopExpectedAt = new Date(lastPoopTime + targetPoopIntervalMins * 60 * 1000);
-      poopReason = 'Standard digestive interval';
+      nextPoopExpectedAt = new Date(lastPoopTime + learnedPoop.intervalMins * 60 * 1000);
+      poopReason = learnedPoop.isLearned
+        ? `Adaptive AI: Learned ~${Math.round(learnedPoop.intervalMins / 60)}h avg digest time`
+        : 'Standard digestive interval';
     }
 
     const minsUntilPoop = (nextPoopExpectedAt.getTime() - now.getTime()) / (1000 * 60);
