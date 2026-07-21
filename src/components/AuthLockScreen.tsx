@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Lock, Mail, ShieldCheck, ArrowRight, Eye, EyeOff, UserPlus, LogIn, CheckCircle2, Settings } from 'lucide-react';
+import { Lock, Mail, ShieldCheck, ArrowRight, Eye, EyeOff, UserPlus, LogIn, CheckCircle2, Settings, FileText, Shield } from 'lucide-react';
+import { PrivacyPolicyModal } from './PrivacyPolicyModal';
+import { TermsOfServiceModal } from './TermsOfServiceModal';
 
 interface AuthLockScreenProps {
   onUnlockWithSSO: (email: string, name: string, token: string) => { success: boolean; message?: string };
@@ -22,13 +24,13 @@ export const AuthLockScreen: React.FC<AuthLockScreenProps> = ({
   const [success, setSuccess] = useState('');
   const [isConfiguringClientId, setIsConfiguringClientId] = useState(false);
   const [customClientIdInput, setCustomClientIdInput] = useState('');
+
+  const [isPrivacyOpen, setIsPrivacyOpen] = useState(false);
+  const [isTermsOpen, setIsTermsOpen] = useState(false);
   
   const googleBtnRef = useRef<HTMLDivElement>(null);
 
-  // Dynamic Google Client ID resolution
-  const [googleClientId, setGoogleClientId] = useState<string>(() => {
-    return localStorage.getItem('puppace_google_client_id') || (import.meta.env.VITE_GOOGLE_CLIENT_ID as string) || '';
-  });
+  const googleClientId = (import.meta.env.VITE_GOOGLE_CLIENT_ID as string) || '';
 
   useEffect(() => {
     if (activeTab === 'signin' && googleClientId && window.google) {
@@ -75,10 +77,10 @@ export const AuthLockScreen: React.FC<AuthLockScreenProps> = ({
     if (!customClientIdInput.trim()) return;
     const cleanId = customClientIdInput.trim();
     localStorage.setItem('puppace_google_client_id', cleanId);
-    setGoogleClientId(cleanId);
     setIsConfiguringClientId(false);
     setSuccess('Google OAuth Client ID configured successfully!');
     setTimeout(() => setSuccess(''), 3000);
+    window.location.reload();
   };
 
   const handlePasswordLogin = (e: React.FormEvent) => {
@@ -115,7 +117,7 @@ export const AuthLockScreen: React.FC<AuthLockScreenProps> = ({
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center p-4 selection:bg-indigo-500 selection:text-white">
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center p-4 selection:bg-indigo-500 selection:text-white flex-col">
       <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-3xl p-8 shadow-2xl space-y-6 relative overflow-hidden">
         {/* Glow Background */}
         <div className="absolute -top-24 -left-24 w-48 h-48 bg-indigo-600/20 rounded-full blur-3xl pointer-events-none" />
@@ -389,6 +391,28 @@ export const AuthLockScreen: React.FC<AuthLockScreenProps> = ({
           <span>Accounts require activation by Super Admin Matthieu</span>
         </div>
       </div>
+
+      {/* Public Legal Links (Required for Google OAuth Verification) */}
+      <div className="mt-4 flex items-center gap-4 text-xs text-slate-400 font-medium">
+        <button
+          onClick={() => setIsPrivacyOpen(true)}
+          className="hover:text-indigo-300 transition flex items-center gap-1 cursor-pointer"
+        >
+          <Shield className="w-3.5 h-3.5 text-slate-400" />
+          <span>Privacy Policy</span>
+        </button>
+        <span>•</span>
+        <button
+          onClick={() => setIsTermsOpen(true)}
+          className="hover:text-indigo-300 transition flex items-center gap-1 cursor-pointer"
+        >
+          <FileText className="w-3.5 h-3.5 text-slate-400" />
+          <span>Terms of Service</span>
+        </button>
+      </div>
+
+      <PrivacyPolicyModal isOpen={isPrivacyOpen} onClose={() => setIsPrivacyOpen(false)} />
+      <TermsOfServiceModal isOpen={isTermsOpen} onClose={() => setIsTermsOpen(false)} />
     </div>
   );
 };
