@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Lock, Mail, ShieldCheck, ArrowRight, Eye, EyeOff, UserPlus, LogIn, CheckCircle2, Settings, FileText, Shield } from 'lucide-react';
+import { Lock, Mail, ShieldCheck, ArrowRight, Eye, EyeOff, UserPlus, LogIn, CheckCircle2, Settings, FileText, Shield, Info, Heart, Calendar, Dog } from 'lucide-react';
 import { PrivacyPolicyModal } from './PrivacyPolicyModal';
 import { TermsOfServiceModal } from './TermsOfServiceModal';
 
@@ -122,18 +122,18 @@ export const AuthLockScreen: React.FC<AuthLockScreenProps> = ({
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center p-4 selection:bg-indigo-500 selection:text-white flex-col">
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center p-4 selection:bg-indigo-500 selection:text-white flex-col py-8">
       <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-3xl p-8 shadow-2xl space-y-6 relative overflow-hidden">
         {/* Glow Background */}
         <div className="absolute -top-24 -left-24 w-48 h-48 bg-indigo-600/20 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute -bottom-24 -right-24 w-48 h-48 bg-purple-600/20 rounded-full blur-3xl pointer-events-none" />
 
-        {/* Mascot & Header */}
+        {/* Mascot & Header - Exact Match "PupPace" */}
         <div className="text-center space-y-2 relative z-10">
           <div className="relative inline-block">
             <img
               src="/cocker_spaniel_mascot.jpg"
-              alt="Cocker Spaniel Mascot"
+              alt="PupPace Mascot"
               className="w-20 h-20 rounded-full object-cover mx-auto ring-4 ring-indigo-500/50 shadow-xl"
             />
             <div className="absolute bottom-0 right-0 p-1.5 bg-indigo-600 text-white rounded-full shadow-lg ring-2 ring-slate-900">
@@ -141,12 +141,37 @@ export const AuthLockScreen: React.FC<AuthLockScreenProps> = ({
             </div>
           </div>
 
-          <h1 className="text-2xl font-extrabold text-white tracking-tight">
+          <h1 className="text-3xl font-extrabold text-white tracking-tight">
             PupPace
           </h1>
           <p className="text-xs text-slate-400 max-w-xs mx-auto">
-            Smart family puppy activity tracker & potty predictor.
+            Smart Family Puppy Activity Tracker & Potty Predictor
           </p>
+        </div>
+
+        {/* App Purpose Description Box (Required for Google OAuth Approval) */}
+        <div className="bg-slate-950/70 border border-slate-800 p-4 rounded-2xl space-y-2 text-xs text-slate-300 relative z-10">
+          <div className="flex items-center gap-1.5 font-bold text-indigo-300">
+            <Info className="w-4 h-4 text-indigo-400 shrink-0" />
+            <span>About PupPace Application</span>
+          </div>
+          <p className="leading-relaxed text-[11px] text-slate-400">
+            <strong>PupPace</strong> is a smart puppy activity tracking platform built for dog owners and family caretakers. It allows families to log potty events, meals, naps, and health metrics, using adaptive statistics to predict next expected potty breaks. Signing in via Google SSO securely verifies household members for real-time family sync.
+          </p>
+          <div className="grid grid-cols-3 gap-1.5 pt-1.5 text-[10px] text-slate-400 font-medium">
+            <div className="bg-slate-900 p-1.5 rounded-lg border border-slate-800 text-center flex items-center justify-center gap-1">
+              <Dog className="w-3 h-3 text-amber-400" />
+              <span>Potty Logs</span>
+            </div>
+            <div className="bg-slate-900 p-1.5 rounded-lg border border-slate-800 text-center flex items-center justify-center gap-1">
+              <Calendar className="w-3 h-3 text-indigo-400" />
+              <span>Predictions</span>
+            </div>
+            <div className="bg-slate-900 p-1.5 rounded-lg border border-slate-800 text-center flex items-center justify-center gap-1">
+              <Heart className="w-3 h-3 text-pink-400" />
+              <span>Family Sync</span>
+            </div>
+          </div>
         </div>
 
         {/* Clean 2-Tab Switcher */}
