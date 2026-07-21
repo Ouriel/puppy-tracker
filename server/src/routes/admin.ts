@@ -1,61 +1,75 @@
 import { Router, Response } from 'express';
 import { authenticateToken, requireSuperAdmin, AuthenticatedRequest } from '../middleware/auth';
-import { acceptedUsers, pendingInvitations } from './auth';
+import { usersDb } from './auth';
 
 const router = Router();
 
 /**
- * GET Admin Overview
- * Restricted to matthieu.jacquet@gmail.com
+ * GET Admin Overview & User Status
+ * Strictly restricted to matthieu.jacquet@gmail.com
  */
 router.get('/overview', authenticateToken, requireSuperAdmin, (req: AuthenticatedRequest, res: Response) => {
+  const active = usersDb.filter((u) => u.status === 'ACTIVE');
+  const pending = usersDb.filter((u) => u.status === 'PENDING_APPROVAL');
+
   res.json({
-    accepted: Array.from(acceptedUsers),
-    pending: Array.from(pendingInvitations),
+    activeUsers: active.map((u) => ({ id: u.id, email: u.email, name: u.name, role: u.role })),
+    pendingUsers: pending.map((u) => ({ id: u.id, email: u.email, name: u.name, role: u.role, createdAt: u.createdAt })),
   });
 });
 
 /**
- * POST Accept User Access Request
- * Restricted to matthieu.jacquet@gmail.com
+ * POST Activate Account Endpoint
+ * Strictly restricted to matthieu.jacquet@gmail.com
  */
-router.post('/accept', authenticateToken, requireSuperAdmin, (req: AuthenticatedRequest, res: Response) => {
+router.post('/activate', authenticateToken, requireSuperAdmin, (req: AuthenticatedRequest, res: Response) => {
   const { email } = req.body;
 
   if (!email) {
     return res.status(400).json({ error: 'Target email is required.' });
   }
 
-  const targetEmail = email.toLowerCase();
-  pendingInvitations.delete(targetEmail);
-  acceptedUsers.add(targetEmail);
+  const targetEmail = email.toLowerCase().trim();
+  const user = usersDb.find((u) => u.email === targetEmail);
+
+  if (!user) {
+    return res.status(404).json({ error: 'User account not found.' });
+  }
+
+  user.status = 'ACTIVE';
+
+  const active = usersDb.filter((u) => u.status === 'ACTIVE');
+  const pending = usersDb.filter((u) => u.status === 'PENDING_APPROVAL');
 
   res.json({
-    message: `Successfully accepted user ${targetEmail}! They can now log in using SSO or password.`,
-    accepted: Array.from(acceptedUsers),
-    pending: Array.from(pendingInvitations),
+    message: `Account for ${targetEmail} activated successfully! They can now log in.`,
+    activeUsers: active.map((u) => ({ id: u.id, email: u.email, name: u.name, role: u.role })),
+    pendingUsers: pending.map((u) => ({ id: u.id, email: u.email, name: u.name, role: u.role })),
   });
 });
 
 /**
- * POST Send Direct Registration Invitation
- * Restricted to matthieu.jacquet@gmail.com
+ * POST Deactivate / Revoke Access
  */
-router.post('/invite', authenticateToken, requireSuperAdmin, (req: AuthenticatedRequest, res: Response) => {
+router.post('/deactivate', authenticateToken, requireSuperAdmin, (req: AuthenticatedRequest, res: Response) => {
   const { email } = req.body;
 
   if (!email) {
-    return res.status(400).json({ error: 'Target invitation email is required.' });
+    return res.status(400).json({ error: 'Target email is required.' });
   }
 
-  const targetEmail = email.toLowerCase();
-  acceptedUsers.add(targetEmail);
+  const targetEmail = email.toLowerCase().trim();
 
-  res.json({
-    message: `Sent invitation to ${targetEmail}! User has been pre-approved.`,
-    accepted: Array.from(acceptedUsers),
-    pending: Array.from(pendingInvitations),
-  });
+  if (targetEmail === 'matthieu.jacquet@gmail.com') {
+    return res.status(400).json({ error: 'Cannot deactivate the Super Admin owner account.' });
+  }
+
+  const user = usersDb.find((u) => u.email === targetEmail);
+  if (user) {
+    user.status = 'PENDING_APPROVAL';
+  }
+
+  res.json({ message: `Access for ${targetEmail} has been revoked.` });
 });
 
 export default router;

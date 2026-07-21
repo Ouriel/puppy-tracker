@@ -43,6 +43,12 @@ export function App() {
   const [currentUser, setCurrentUser] = useState<string>('Matthieu (Husband)');
   const [authToken, setAuthToken] = useState<string>('mock-jwt-token-xyz');
 
+  // Whitelist of active accounts for activation checking
+  const [activeEmails, setActiveEmails] = useState<string[]>([
+    'matthieu.jacquet@gmail.com',
+    'spouse@family.com',
+  ]);
+
   // Modals state
   const [isQuickLogOpen, setIsQuickLogOpen] = useState(false);
   const [quickLogType, setQuickLogType] = useState<ActivityType>('pee');
@@ -73,63 +79,64 @@ export function App() {
   }, [caretakers]);
 
   const handleUnlockWithSSO = (email: string, name: string, token: string) => {
-    const validEmails = ['matthieu.jacquet@gmail.com', 'spouse@family.com', 'sarah@family.com'];
-    if (validEmails.includes(email.toLowerCase())) {
+    const lower = email.toLowerCase().trim();
+    if (activeEmails.includes(lower)) {
       setIsAuthenticated(true);
       setAuthToken(token);
       sessionStorage.setItem('puppace_vault_unlocked', 'true');
       setUser((prev) => ({
         ...prev,
-        email: email.toLowerCase(),
+        email: lower,
         name: name,
-        role: email.toLowerCase() === 'matthieu.jacquet@gmail.com' ? 'Husband' : 'Partner',
+        role: lower === 'matthieu.jacquet@gmail.com' ? 'Husband' : 'Partner',
       }));
-      setCurrentUser(email.toLowerCase() === 'matthieu.jacquet@gmail.com' ? 'Matthieu (Husband)' : `${name} (Partner)`);
-      return true;
+      setCurrentUser(lower === 'matthieu.jacquet@gmail.com' ? 'Matthieu (Husband)' : `${name} (Partner)`);
+      return { success: true };
     }
-    return false;
+    return {
+      success: false,
+      message: 'Account Pending Activation: Super Admin Matthieu (matthieu.jacquet@gmail.com) must activate your account before you can log in.',
+    };
   };
 
-  const handleUnlockWithPassword = (email: string, pass: string) => {
-    // Basic password login validation
-    if (email && pass) {
+  const handleUnlockWithPassword = (email: string, _pass: string) => {
+    const lower = email.toLowerCase().trim();
+    if (activeEmails.includes(lower)) {
       setIsAuthenticated(true);
       setAuthToken('mock-jwt-password-token');
       sessionStorage.setItem('puppace_vault_unlocked', 'true');
       setUser((prev) => ({
         ...prev,
-        email: email.toLowerCase(),
-        name: email.split('@')[0],
+        email: lower,
+        name: lower.split('@')[0],
       }));
-      setCurrentUser(`${email.split('@')[0]} (Partner)`);
-      return true;
+      setCurrentUser(`${lower.split('@')[0]} (Partner)`);
+      return { success: true };
     }
-    return false;
+    return {
+      success: false,
+      message: 'Account Pending Activation: Super Admin Matthieu must activate your account before you can log in.',
+    };
   };
 
-  const handleRegisterWithPassword = (email: string, pass: string, name: string) => {
-    const validEmails = ['matthieu.jacquet@gmail.com', 'spouse@family.com', 'sarah@family.com'];
-    const lowerEmail = email.toLowerCase();
-    
-    // Whitelist check
-    if (validEmails.includes(lowerEmail) && pass && name) {
+  const handleRegisterAccount = (email: string, _pass: string, name: string, _role: string) => {
+    const lower = email.toLowerCase().trim();
+    const isSuperAdmin = lower === 'matthieu.jacquet@gmail.com';
+
+    if (isSuperAdmin) {
+      if (!activeEmails.includes(lower)) setActiveEmails((prev) => [...prev, lower]);
       setIsAuthenticated(true);
-      setAuthToken('mock-jwt-register-token');
+      setAuthToken('mock-jwt-token');
       sessionStorage.setItem('puppace_vault_unlocked', 'true');
-      setUser((prev) => ({
-        ...prev,
-        email: lowerEmail,
-        name: name,
-        role: lowerEmail === 'matthieu.jacquet@gmail.com' ? 'Husband' : 'Partner',
-      }));
-      setCurrentUser(lowerEmail === 'matthieu.jacquet@gmail.com' ? 'Matthieu (Husband)' : `${name} (Partner)`);
-      return true;
+      setUser((prev) => ({ ...prev, email: lower, name, role: 'Husband' }));
+      return { success: true, isPending: false };
     }
-    return false;
-  };
 
-  const handleRequestAccess = (email: string) => {
-    console.log('Access requested for email:', email);
+    return {
+      success: false,
+      isPending: true,
+      message: 'Account Created! Your account is pending activation by Super Admin Matthieu (matthieu.jacquet@gmail.com). You will be able to log in as soon as he activates it.',
+    };
   };
 
   const handleLockVault = () => {
@@ -193,8 +200,7 @@ export function App() {
       <AuthLockScreen
         onUnlockWithSSO={handleUnlockWithSSO}
         onUnlockWithPassword={handleUnlockWithPassword}
-        onRegisterWithPassword={handleRegisterWithPassword}
-        onRequestAccess={handleRequestAccess}
+        onRegisterAccount={handleRegisterAccount}
       />
     );
   }

@@ -5,58 +5,81 @@ import bcrypt from 'bcryptjs';
 const router = Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'super-secret-saas-key';
 
-// SaaS Authorized User whitelist
-export const acceptedUsers = new Set<string>([
-  'matthieu.jacquet@gmail.com',
-  'spouse@family.com',
-  'sarah@family.com'
-]);
-export const pendingInvitations = new Set<string>();
-export const usersDb: any[] = [];
+export interface UserRecord {
+  id: string;
+  email: string;
+  name: string;
+  role: string;
+  familyPackId: string;
+  passwordHash?: string;
+  status: 'ACTIVE' | 'PENDING_APPROVAL';
+  createdAt: string;
+}
+
+// In-memory database with pre-activated Super Admin account
+export const usersDb: UserRecord[] = [
+  {
+    id: 'usr-admin-1',
+    email: 'matthieu.jacquet@gmail.com',
+    name: 'Matthieu',
+    role: 'Husband',
+    familyPackId: 'FAMILY-COCKER-2026',
+    status: 'ACTIVE',
+    createdAt: new Date().toISOString(),
+  },
+];
 
 /**
- * Standard Email/Password Sign-Up / Registration
+ * Single Unified Account Creation Endpoint
+ * New accounts start as PENDING_APPROVAL until activated by Matthieu
  */
 router.post('/register', async (req: Request, res: Response) => {
   const { email, password, name, role } = req.body;
 
   if (!email || !password || !name) {
-    return res.status(400).json({ error: 'Name, email and password are required.' });
+    return res.status(400).json({ error: 'Name, email, and password are required.' });
   }
 
-  const userEmail = email.toLowerCase();
-  
-  // Check if user already exists
+  const userEmail = email.toLowerCase().trim();
+
+  // Check if account already exists
   const existingUser = usersDb.find((u) => u.email === userEmail);
   if (existingUser) {
-    return res.status(400).json({ error: 'An account with this email already exists. Please log in.' });
-  }
-
-  // Enforce SaaS Admin Approval: check if approved/accepted first
-  if (!acceptedUsers.has(userEmail)) {
-    // If not approved yet, add to pending list for Matthieu's approval
-    pendingInvitations.add(userEmail);
-    return res.status(403).json({
-      error: 'Registration pending. Matthieu (matthieu.jacquet@gmail.com) must accept your request before you can log in.',
-    });
+    if (existingUser.status === 'PENDING_APPROVAL') {
+      return res.status(403).json({
+        error: 'Account already created and is currently awaiting activation by Super Admin Matthieu.',
+      });
+    }
+    return res.status(400).json({ error: 'An account with this email already exists. Please sign in.' });
   }
 
   // Hash password safely
   const salt = await bcrypt.genSalt(10);
   const passwordHash = await bcrypt.hash(password, salt);
 
-  const newUser = {
+  // New accounts default to PENDING_APPROVAL unless it is Matthieu's email
+  const isSuperAdmin = userEmail === 'matthieu.jacquet@gmail.com';
+  const newUser: UserRecord = {
     id: `usr-${Date.now()}`,
     email: userEmail,
-    name,
+    name: name.trim(),
     role: role || 'Partner',
     familyPackId: 'FAMILY-COCKER-2026',
     passwordHash,
+    status: isSuperAdmin ? 'ACTIVE' : 'PENDING_APPROVAL',
+    createdAt: new Date().toISOString(),
   };
 
   usersDb.push(newUser);
 
-  // Generate JWT token
+  if (!isSuperAdmin) {
+    return res.status(201).json({
+      status: 'PENDING_APPROVAL',
+      message: 'Account created! Your account is currently pending activation by Super Admin Matthieu. You will be able to log in once activated.',
+    });
+  }
+
+  // Auto-token for Super Admin
   const token = jwt.sign(
     { id: newUser.id, email: newUser.email, role: newUser.role, familyPackId: newUser.familyPackId },
     JWT_SECRET,
@@ -64,13 +87,15 @@ router.post('/register', async (req: Request, res: Response) => {
   );
 
   res.status(201).json({
+    status: 'ACTIVE',
     token,
     user: { name: newUser.name, email: newUser.email, role: newUser.role, familyPackId: newUser.familyPackId },
   });
 });
 
 /**
- * Standard Email/Password Sign-In
+ * Standard Email/Password Sign-In Endpoint
+ * Enforces admin activation check
  */
 router.post('/login', async (req: Request, res: Response) => {
   const { email, password } = req.body;
@@ -79,20 +104,24 @@ router.post('/login', async (req: Request, res: Response) => {
     return res.status(400).json({ error: 'Email and password required.' });
   }
 
-  const userEmail = email.toLowerCase();
+  const userEmail = email.toLowerCase().trim();
   const user = usersDb.find((u) => u.email === userEmail);
-  
+
   if (!user) {
-    // If account doesn't exist but email is pre-approved, invite them to register
-    if (acceptedUsers.has(userEmail)) {
-      return res.status(400).json({ error: 'Account not registered yet. Please sign up using the Register tab.' });
-    }
-    return res.status(401).json({ error: 'Invalid email or password.' });
+    return res.status(401).json({ error: 'Account not found. Please create an account first.' });
   }
 
-  const validPassword = await bcrypt.compare(password, user.passwordHash);
-  if (!validPassword) {
-    return res.status(401).json({ error: 'Invalid email or password.' });
+  if (user.status === 'PENDING_APPROVAL') {
+    return res.status(403).json({
+      error: 'Account Pending Activation: Matthieu (matthieu.jacquet@gmail.com) must activate your account before you can log in.',
+    });
+  }
+
+  if (user.passwordHash) {
+    const validPassword = await bcrypt.compare(password, user.passwordHash);
+    if (!validPassword) {
+      return res.status(401).json({ error: 'Invalid email or password.' });
+    }
   }
 
   const token = jwt.sign(
@@ -102,13 +131,15 @@ router.post('/login', async (req: Request, res: Response) => {
   );
 
   res.json({
+    status: 'ACTIVE',
     token,
     user: { name: user.name, email: user.email, role: user.role, familyPackId: user.familyPackId },
   });
 });
 
 /**
- * Google OAuth SSO Callback Verification
+ * Google OAuth SSO Callback Endpoint
+ * Enforces admin activation check
  */
 router.post('/google-sso', (req: Request, res: Response) => {
   const { email, name, googleToken } = req.body;
@@ -117,27 +148,27 @@ router.post('/google-sso', (req: Request, res: Response) => {
     return res.status(400).json({ error: 'Google SSO credentials incomplete.' });
   }
 
-  const userEmail = email.toLowerCase();
-
-  // Enforce SaaS onboarding whitelist check
-  if (!acceptedUsers.has(userEmail)) {
-    pendingInvitations.add(userEmail);
-    return res.status(403).json({
-      error: 'Registration pending. Matthieu must accept your request before you can log in.',
-    });
-  }
-
+  const userEmail = email.toLowerCase().trim();
   let user = usersDb.find((u) => u.email === userEmail);
+
   if (!user) {
+    const isSuperAdmin = userEmail === 'matthieu.jacquet@gmail.com';
     user = {
       id: `usr-${Date.now()}`,
       email: userEmail,
       name: name || email.split('@')[0],
-      role: userEmail === 'matthieu.jacquet@gmail.com' ? 'Husband' : 'Partner',
+      role: isSuperAdmin ? 'Husband' : 'Partner',
       familyPackId: 'FAMILY-COCKER-2026',
-      passwordHash: '',
+      status: isSuperAdmin ? 'ACTIVE' : 'PENDING_APPROVAL',
+      createdAt: new Date().toISOString(),
     };
     usersDb.push(user);
+  }
+
+  if (user.status === 'PENDING_APPROVAL') {
+    return res.status(403).json({
+      error: 'Account Pending Activation: Matthieu must activate your account before you can log in.',
+    });
   }
 
   const token = jwt.sign(
@@ -147,25 +178,10 @@ router.post('/google-sso', (req: Request, res: Response) => {
   );
 
   res.json({
+    status: 'ACTIVE',
     token,
     user: { name: user.name, email: user.email, role: user.role, familyPackId: user.familyPackId },
   });
-});
-
-/**
- * Request Access / Registration Onboarding
- */
-router.post('/request-access', (req: Request, res: Response) => {
-  const { email } = req.body;
-  if (!email) return res.status(400).json({ error: 'Email required.' });
-
-  const targetEmail = email.toLowerCase();
-  if (acceptedUsers.has(targetEmail)) {
-    return res.status(400).json({ error: 'Email already accepted. Proceed to log in or register.' });
-  }
-
-  pendingInvitations.add(targetEmail);
-  res.json({ message: 'Request sent! Matthieu has been notified to accept your account.' });
 });
 
 export default router;
