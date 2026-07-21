@@ -4,11 +4,10 @@ export const en = {
   headerSubtitle: 'Real-Time Family Care & Potty Tracker 🐾',
   nav: {
     dashboard: 'Daily Log',
-    dogs: 'Dogs',
-    household: 'Household',
     carnetDeSante: 'Carnet de Santé',
-    admin: 'Admin Center',
+    settings: 'Settings & Household',
     careGuide: 'Care Guide',
+    admin: 'Admin Center',
     logEvent: 'Log Event',
     signOut: 'Sign Out',
     activeUser: 'Active User:',

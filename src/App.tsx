@@ -20,8 +20,7 @@ import { PredictorWidget } from './components/PredictorWidget';
 import { ActivityTimeline } from './components/ActivityTimeline';
 import { StatsAnalytics } from './components/StatsAnalytics';
 import { AuthLockScreen } from './components/AuthLockScreen';
-import { PuppiesView } from './views/PuppiesView';
-import { HouseholdView } from './views/HouseholdView';
+import { HouseholdSettingsView } from './views/HouseholdSettingsView';
 import { AdminView } from './views/AdminView';
 import { CareGuideView } from './views/CareGuideView';
 import { CarnetDeSanteView } from './views/CarnetDeSanteView';
@@ -258,19 +257,14 @@ export function App() {
       {/* Main Content Area */}
       <main className="flex-1 max-w-6xl w-full mx-auto px-4 py-6">
         {/* Render Active Tab Page */}
-        {activeMainTab === 'puppies' && (
-          <PuppiesView
+        {activeMainTab === 'settings' && (
+          <HouseholdSettingsView
             puppies={puppies}
             activePuppyId={activePuppyId}
             onSelectPuppy={handleSelectPuppy}
             onAddPuppy={handleAddPuppy}
             onUpdatePuppy={handleUpdatePuppy}
             onDeletePuppy={handleDeletePuppy}
-          />
-        )}
-
-        {activeMainTab === 'household' && (
-          <HouseholdView
             user={user}
             caretakers={caretakers}
             currentUser={currentUser}
@@ -308,7 +302,7 @@ export function App() {
                   {t.dashboard.welcomeSubtitle}
                 </p>
                 <button
-                  onClick={() => setActiveMainTab('puppies')}
+                  onClick={() => setActiveMainTab('settings')}
                   className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs px-6 py-3 rounded-xl shadow-lg transition active:scale-95 cursor-pointer inline-flex items-center gap-2"
                 >
                   <Plus className="w-4 h-4" />

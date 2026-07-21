@@ -1,9 +1,9 @@
 import React from 'react';
 import type { PuppyProfile, Caretaker, UserAccount } from '../types';
-import { FileText, BookOpen, Flame, Plus, Dog, LogOut, ShieldAlert, LayoutDashboard, Home, Syringe } from 'lucide-react';
+import { FileText, BookOpen, Flame, Plus, Dog, LogOut, ShieldAlert, LayoutDashboard, Settings, Syringe } from 'lucide-react';
 import type { Language } from '../i18n';
 
-export type MainTabType = 'dashboard' | 'carnetdesante' | 'puppies' | 'household' | 'careguide' | 'admin';
+export type MainTabType = 'dashboard' | 'carnetdesante' | 'settings' | 'careguide' | 'admin';
 
 interface NavbarProps {
   activeMainTab: MainTabType;
@@ -151,33 +151,20 @@ export const Navbar: React.FC<NavbarProps> = ({
               <span>{t.nav.carnetDeSante}</span>
             </button>
 
-            {/* 3. Dog Profiles / Mes Chiens */}
+            {/* 3. Paramètres & Foyer (Combined Dogs & Household) */}
             <button
-              onClick={() => onSelectMainTab('puppies')}
+              onClick={() => onSelectMainTab('settings')}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
-                activeMainTab === 'puppies'
+                activeMainTab === 'settings'
                   ? 'bg-indigo-600 text-white shadow'
                   : 'text-slate-400 hover:text-slate-200'
               }`}
             >
-              <Dog className="w-3.5 h-3.5" />
-              <span>{t.nav.dogs} ({puppies.length})</span>
+              <Settings className="w-3.5 h-3.5" />
+              <span>{t.nav.settings}</span>
             </button>
 
-            {/* 4. Household / Foyer */}
-            <button
-              onClick={() => onSelectMainTab('household')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
-                activeMainTab === 'household'
-                  ? 'bg-indigo-600 text-white shadow'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              <Home className="w-3.5 h-3.5" />
-              <span>{t.nav.household} ({caretakers.length})</span>
-            </button>
-
-            {/* 5. Care Guide */}
+            {/* 4. Care Guide */}
             <button
               onClick={() => onSelectMainTab('careguide')}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
@@ -190,7 +177,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               <span>{t.nav.careGuide}</span>
             </button>
 
-            {/* 6. Admin (Super Admin only) */}
+            {/* 5. Admin (Super Admin only) */}
             {isSuperAdmin && (
               <button
                 onClick={() => onSelectMainTab('admin')}

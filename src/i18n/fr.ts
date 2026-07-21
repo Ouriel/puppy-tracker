@@ -4,11 +4,10 @@ export const fr = {
   headerSubtitle: 'Le carnet de santé & propreté de votre chiot 🐾',
   nav: {
     dashboard: 'Suivi Quotidien',
-    dogs: 'Mes Chiens',
-    household: 'Foyer',
     carnetDeSante: 'Carnet de Santé',
-    admin: 'Administration',
+    settings: 'Paramètres & Foyer',
     careGuide: 'Guide de Soins',
+    admin: 'Administration',
     logEvent: 'Ajouter Activité',
     signOut: 'Déconnexion',
     activeUser: 'Utilisateur Actif :',
