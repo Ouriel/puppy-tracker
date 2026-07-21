@@ -1,9 +1,8 @@
-import { useState, useEffect } from 'react';
-import type { Activity, ActivityType, Caretaker, FamilyRole, PottyLocation, PuppyProfile, UserAccount } from './types';
+import React, { useState, useEffect } from 'react';
+import type { Activity, Caretaker, FamilyRole, PuppyProfile, UserAccount, ActivityType, PottyLocation } from './types';
 import {
   getInitialActivities,
   saveActivities,
-  clearAllData,
   getStoredPuppies,
   savePuppies,
   getActivePuppyId,
@@ -12,63 +11,54 @@ import {
   saveUser,
   getStoredCaretakers,
   saveCaretakers,
+  clearAllData,
 } from './utils/storage';
 import { calculatePredictions } from './utils/predictions';
-import { printVetReport } from './utils/export';
-
-import { Navbar } from './components/Navbar';
+import { Navbar, type MainTabType } from './components/Navbar';
+import { QuickLogModal } from './components/QuickLogModal';
 import { PredictorWidget } from './components/PredictorWidget';
 import { ActivityTimeline } from './components/ActivityTimeline';
 import { StatsAnalytics } from './components/StatsAnalytics';
-
-import { QuickLogModal } from './components/QuickLogModal';
-import { PuppyProfileModal } from './components/PuppyProfileModal';
-import { AddPuppyModal } from './components/AddPuppyModal';
-import { SharePackModal } from './components/SharePackModal';
-import { CareGuideModal } from './components/CareGuideModal';
 import { AuthLockScreen } from './components/AuthLockScreen';
-import { AdminDashboard } from './components/AdminDashboard';
+import { PuppiesView } from './views/PuppiesView';
+import { HouseholdView } from './views/HouseholdView';
+import { AdminView } from './views/AdminView';
+import { CareGuideView } from './views/CareGuideView';
+import { Dog, Plus } from 'lucide-react';
 
 export function App() {
+  // Authentication & Lock Screen
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
-    return sessionStorage.getItem('puppace_vault_unlocked') === 'true';
+    return localStorage.getItem('puppace_unlocked_v4') === 'true';
+  });
+  const [user, setUser] = useState<UserAccount>(getStoredUser);
+  const [caretakers, setCaretakers] = useState<Caretaker[]>(getStoredCaretakers);
+  const [currentUser, setCurrentUser] = useState<string>(() => {
+    const initialUser = getStoredUser();
+    return `${initialUser.name} (${initialUser.role})`;
   });
 
+  // Main Page Navigation Tabs (NO MODALS FOR PAGES!)
+  const [activeMainTab, setActiveMainTab] = useState<MainTabType>('dashboard');
+
+  // Multi-Puppy State
   const [puppies, setPuppies] = useState<PuppyProfile[]>(getStoredPuppies);
   const [activePuppyId, setActivePuppyIdState] = useState<string>(getActivePuppyId);
 
+  // Activities State
   const [activities, setActivities] = useState<Activity[]>(getInitialActivities);
-  const [user, setUser] = useState<UserAccount>(getStoredUser);
-  const [caretakers, setCaretakers] = useState<Caretaker[]>(getStoredCaretakers);
-  const [currentUser, setCurrentUser] = useState<string>('Matthieu (Husband)');
-  const [authToken, setAuthToken] = useState<string>('mock-jwt-token-xyz');
 
-  // Whitelist of active accounts for activation checking
-  const [activeEmails, setActiveEmails] = useState<string[]>([
-    'matthieu.jacquet@gmail.com',
-    'spouse@family.com',
-  ]);
-
-  // Modals state
+  // Quick Action Modal
   const [isQuickLogOpen, setIsQuickLogOpen] = useState(false);
-  const [quickLogType, setQuickLogType] = useState<ActivityType>('pee');
-  const [quickLogLocation, setQuickLogLocation] = useState<PottyLocation>('outside');
 
-  const [isProfileOpen, setIsProfileOpen] = useState(false);
-  const [isAddPuppyOpen, setIsAddPuppyOpen] = useState(false);
-  const [isShareOpen, setIsShareOpen] = useState(false);
-  const [isCareGuideOpen, setIsCareGuideOpen] = useState(false);
-  const [isAdminOpen, setIsAdminOpen] = useState(false);
-
-  const activePuppy = puppies.find((p) => p.id === activePuppyId) || puppies[0];
+  // Save changes to localStorage
+  useEffect(() => {
+    savePuppies(puppies);
+  }, [puppies]);
 
   useEffect(() => {
     saveActivities(activities);
   }, [activities]);
-
-  useEffect(() => {
-    savePuppies(puppies);
-  }, [puppies]);
 
   useEffect(() => {
     saveUser(user);
@@ -78,71 +68,7 @@ export function App() {
     saveCaretakers(caretakers);
   }, [caretakers]);
 
-  const handleUnlockWithSSO = (email: string, name: string, token: string) => {
-    const lower = email.toLowerCase().trim();
-    if (activeEmails.includes(lower)) {
-      setIsAuthenticated(true);
-      setAuthToken(token);
-      sessionStorage.setItem('puppace_vault_unlocked', 'true');
-      setUser((prev) => ({
-        ...prev,
-        email: lower,
-        name: name,
-        role: lower === 'matthieu.jacquet@gmail.com' ? 'Husband' : 'Partner',
-      }));
-      setCurrentUser(lower === 'matthieu.jacquet@gmail.com' ? 'Matthieu (Husband)' : `${name} (Partner)`);
-      return { success: true };
-    }
-    return {
-      success: false,
-      message: 'Account Pending Activation: Super Admin Matthieu (matthieu.jacquet@gmail.com) must activate your account before you can log in.',
-    };
-  };
-
-  const handleUnlockWithPassword = (email: string, _pass: string) => {
-    const lower = email.toLowerCase().trim();
-    if (activeEmails.includes(lower)) {
-      setIsAuthenticated(true);
-      setAuthToken('mock-jwt-password-token');
-      sessionStorage.setItem('puppace_vault_unlocked', 'true');
-      setUser((prev) => ({
-        ...prev,
-        email: lower,
-        name: lower.split('@')[0],
-      }));
-      setCurrentUser(`${lower.split('@')[0]} (Partner)`);
-      return { success: true };
-    }
-    return {
-      success: false,
-      message: 'Account Pending Activation: Super Admin Matthieu must activate your account before you can log in.',
-    };
-  };
-
-  const handleRegisterAccount = (email: string, _pass: string, name: string, _role: string) => {
-    const lower = email.toLowerCase().trim();
-    const isSuperAdmin = lower === 'matthieu.jacquet@gmail.com';
-
-    if (isSuperAdmin) {
-      if (!activeEmails.includes(lower)) setActiveEmails((prev) => [...prev, lower]);
-      setIsAuthenticated(true);
-      setAuthToken('mock-jwt-token');
-      sessionStorage.setItem('puppace_vault_unlocked', 'true');
-      setUser((prev) => ({ ...prev, email: lower, name, role: 'Husband' }));
-      return { success: true, isPending: false };
-    }
-
-    return {
-      success: false,
-      isPending: true,
-      message: 'Account Created! Your account is pending activation by Super Admin Matthieu (matthieu.jacquet@gmail.com). You will be able to log in as soon as he activates it.',
-    };
-  };
-
-  const handleLockVault = () => {
-    setIsAuthenticated(false);
-    sessionStorage.removeItem('puppace_vault_unlocked');
-  };
+  const activePuppy = puppies.find((p) => p.id === activePuppyId) || (puppies.length > 0 ? puppies[0] : null);
 
   const handleSelectPuppy = (id: string) => {
     setActivePuppyIdState(id);
@@ -150,24 +76,88 @@ export function App() {
   };
 
   const handleAddPuppy = (newPuppy: PuppyProfile) => {
-    setPuppies((prev) => [...prev, newPuppy]);
-    setActivePuppyIdState(newPuppy.id);
-    setActivePuppyId(newPuppy.id);
+    const updated = [...puppies, newPuppy];
+    setPuppies(updated);
+    handleSelectPuppy(newPuppy.id);
   };
 
-  const handleOpenQuickLog = (type: ActivityType = 'pee', defaultLocation: PottyLocation = 'outside') => {
-    setQuickLogType(type);
-    setQuickLogLocation(defaultLocation);
-    setIsQuickLogOpen(true);
+  const handleUpdatePuppy = (updatedPuppy: PuppyProfile) => {
+    setPuppies((prev) => prev.map((p) => (p.id === updatedPuppy.id ? updatedPuppy : p)));
   };
 
-  const handleSaveActivity = (newActivity: Omit<Activity, 'id' | 'puppyId'>) => {
-    const created: Activity = {
+  const handleDeletePuppy = (id: string) => {
+    if (window.confirm('Are you sure you want to delete this puppy profile and its associated logs?')) {
+      const updated = puppies.filter((p) => p.id !== id);
+      setPuppies(updated);
+      setActivities((prev) => prev.filter((a) => a.puppyId !== id));
+      if (activePuppyId === id && updated.length > 0) {
+        handleSelectPuppy(updated[0].id);
+      }
+    }
+  };
+
+  const handleAddCaretaker = (newCaretaker: Caretaker) => {
+    setCaretakers((prev) => [...prev, newCaretaker]);
+  };
+
+  const handleDeleteCaretaker = (id: string) => {
+    setCaretakers((prev) => prev.filter((c) => c.id !== id));
+  };
+
+  const handleSwitchUserAccount = (name: string, role: FamilyRole) => {
+    setCurrentUser(`${name} (${role})`);
+    setUser((prev) => ({ ...prev, name, role }));
+  };
+
+  const handleUnlockWithSSO = (email: string, name: string) => {
+    localStorage.setItem('puppace_unlocked_v4', 'true');
+    setIsAuthenticated(true);
+    setUser((prev) => ({ ...prev, email, name }));
+    return { success: true };
+  };
+
+  const handleUnlockWithPassword = (email: string) => {
+    localStorage.setItem('puppace_unlocked_v4', 'true');
+    setIsAuthenticated(true);
+    setUser((prev) => ({ ...prev, email }));
+    return { success: true };
+  };
+
+  const handleRegisterAccount = (email: string, _pass: string, name: string, role: string) => {
+    const isSuperAdmin = email.toLowerCase() === 'matthieu.jacquet@gmail.com';
+    if (isSuperAdmin) {
+      localStorage.setItem('puppace_unlocked_v4', 'true');
+      setIsAuthenticated(true);
+      setUser((prev) => ({ ...prev, email, name, role: role as FamilyRole }));
+      return { success: true };
+    }
+    return { success: false, isPending: true };
+  };
+
+  const handleLockVault = () => {
+    localStorage.removeItem('puppace_unlocked_v4');
+    setIsAuthenticated(false);
+  };
+
+  const handleAddActivity = (newActivity: Omit<Activity, 'id' | 'puppyId'>) => {
+    if (!activePuppy) return;
+    const fullActivity: Activity = {
       ...newActivity,
-      id: Date.now().toString(),
+      id: `act-${Date.now()}`,
       puppyId: activePuppy.id,
     };
-    setActivities((prev) => [created, ...prev]);
+    setActivities((prev) => [fullActivity, ...prev]);
+  };
+
+  const handleQuickAction = (type: ActivityType, defaultLocation?: PottyLocation) => {
+    if (!activePuppy) return;
+    const newAct: Omit<Activity, 'id' | 'puppyId'> = {
+      type,
+      timestamp: new Date().toISOString(),
+      loggedBy: currentUser,
+      pottyLocation: defaultLocation || (type === 'pee' || type === 'poop' ? 'outside' : undefined),
+    };
+    handleAddActivity(newAct);
   };
 
   const handleDeleteActivity = (id: string) => {
@@ -175,26 +165,32 @@ export function App() {
   };
 
   const handleClearSampleData = () => {
-    if (window.confirm('Are you sure you want to clear sample logs and start with a fresh blank timeline?')) {
+    if (window.confirm('Clear all activity logs?')) {
       clearAllData();
       setActivities([]);
     }
   };
 
-  const handleAddCaretaker = (caretaker: Caretaker) => {
-    setCaretakers((prev) => [...prev, caretaker]);
-  };
+  // Filter activities for active puppy
+  const activePuppyActivities = activePuppy
+    ? activities.filter((a) => !a.puppyId || a.puppyId === activePuppy.id)
+    : [];
 
-  const handleSwitchUserAccount = (name: string, role: FamilyRole) => {
-    const formatted = `${name} (${role})`;
-    setCurrentUser(formatted);
-    setUser((prev) => ({ ...prev, name, role }));
-  };
+  const predictions = React.useMemo(() => {
+    if (!activePuppy) return null;
+    return calculatePredictions(activePuppyActivities, activePuppy);
+  }, [activePuppyActivities, activePuppy]);
 
-  const handleSaveProfile = (updatedProfile: PuppyProfile) => {
-    setPuppies((prev) => prev.map((p) => (p.id === updatedProfile.id ? updatedProfile : p)));
-  };
+  // Potty clean streak
+  const streakDays = React.useMemo(() => {
+    const accidents = activePuppyActivities.filter((a) => a.pottyLocation === 'indoor_accident');
+    if (accidents.length === 0) return 7;
+    const latestAccident = Math.max(...accidents.map((a) => new Date(a.timestamp).getTime()));
+    const diffHours = (Date.now() - latestAccident) / (1000 * 60 * 60);
+    return Math.floor(diffHours / 24);
+  }, [activePuppyActivities]);
 
+  // If locked, render Lock Screen
   if (!isAuthenticated) {
     return (
       <AuthLockScreen
@@ -205,102 +201,127 @@ export function App() {
     );
   }
 
-  const activePuppyActivities = activities.filter(
-    (a) => !a.puppyId || a.puppyId === activePuppy.id
-  );
-
-  const accidents = activePuppyActivities.filter((a) => a.pottyLocation === 'indoor_accident');
-  let streakDays = 0;
-  if (accidents.length === 0) {
-    streakDays = 5;
-  } else {
-    const latestAccidentDate = new Date(
-      Math.max(...accidents.map((a) => new Date(a.timestamp).getTime()))
-    );
-    const diffMs = Date.now() - latestAccidentDate.getTime();
-    streakDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-  }
-
-  const predictions = calculatePredictions(activePuppyActivities, activePuppy);
-
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 font-sans selection:bg-indigo-500 selection:text-white">
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans">
+      {/* Top Navbar */}
       <Navbar
+        activeMainTab={activeMainTab}
+        onSelectMainTab={setActiveMainTab}
         puppies={puppies}
         activePuppy={activePuppy}
         onSelectPuppy={handleSelectPuppy}
-        onOpenAddPuppy={() => setIsAddPuppyOpen(true)}
         user={user}
         caretakers={caretakers}
         currentUser={currentUser}
-        onSelectUser={setCurrentUser}
-        onOpenQuickLog={() => handleOpenQuickLog('pee', 'outside')}
-        onOpenShareModal={() => setIsShareOpen(true)}
-        onOpenVetReport={() => printVetReport(activePuppyActivities, activePuppy)}
-        onOpenCareGuide={() => setIsCareGuideOpen(true)}
-        onEditProfile={() => setIsProfileOpen(true)}
+        onSelectUser={(u) => setCurrentUser(u)}
+        onOpenQuickLog={() => setIsQuickLogOpen(true)}
+        onOpenVetReport={() => setActiveMainTab('careguide')}
         onClearSampleData={handleClearSampleData}
         onLockVault={handleLockVault}
-        onOpenAdminCenter={() => setIsAdminOpen(true)}
         streakDays={streakDays}
       />
 
-      <main className="max-w-6xl mx-auto px-4 py-6 space-y-6">
-        <PredictorWidget
-          predictions={predictions}
-          onQuickAction={(type, loc) => handleOpenQuickLog(type, loc || 'outside')}
-        />
+      {/* Main Content Area */}
+      <main className="flex-1 max-w-6xl w-full mx-auto px-4 py-6">
+        {/* Render Active Tab Page */}
+        {activeMainTab === 'puppies' && (
+          <PuppiesView
+            puppies={puppies}
+            activePuppyId={activePuppyId}
+            onSelectPuppy={handleSelectPuppy}
+            onAddPuppy={handleAddPuppy}
+            onUpdatePuppy={handleUpdatePuppy}
+            onDeletePuppy={handleDeletePuppy}
+          />
+        )}
 
-        <StatsAnalytics activities={activePuppyActivities} profile={activePuppy} />
+        {activeMainTab === 'household' && (
+          <HouseholdView
+            user={user}
+            caretakers={caretakers}
+            currentUser={currentUser}
+            onAddCaretaker={handleAddCaretaker}
+            onDeleteCaretaker={handleDeleteCaretaker}
+            onSwitchUserAccount={handleSwitchUserAccount}
+          />
+        )}
 
-        <ActivityTimeline
-          activities={activePuppyActivities}
-          caretakers={caretakers}
-          onDeleteActivity={handleDeleteActivity}
-        />
+        {activeMainTab === 'admin' && (
+          <AdminView
+            token="demo-token"
+            currentUserEmail={user.email}
+          />
+        )}
+
+        {activeMainTab === 'careguide' && <CareGuideView />}
+
+        {activeMainTab === 'dashboard' && (
+          <>
+            {/* If 0 puppies exist, show clean welcome prompt to create first puppy */}
+            {puppies.length === 0 ? (
+              <div className="bg-slate-900 border border-slate-800 rounded-3xl p-10 text-center space-y-4 shadow-2xl max-w-lg mx-auto my-12">
+                <div className="p-4 bg-indigo-950 text-indigo-400 rounded-2xl inline-block border border-indigo-800/50">
+                  <Dog className="w-12 h-12" />
+                </div>
+                <h2 className="text-xl font-extrabold text-white">Welcome to PupPace!</h2>
+                <p className="text-xs text-slate-400 max-w-sm mx-auto leading-relaxed">
+                  Your household has no dog profiles registered yet. Add your puppy to start tracking potty schedules, meals, and naps!
+                </p>
+                <button
+                  onClick={() => setActiveMainTab('puppies')}
+                  className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs px-6 py-3 rounded-xl shadow-lg transition active:scale-95 cursor-pointer inline-flex items-center gap-2"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Register First Dog Profile</span>
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-6">
+                {/* Active Puppy Prediction Card */}
+                {predictions && (
+                  <PredictorWidget
+                    predictions={predictions}
+                    onQuickAction={handleQuickAction}
+                  />
+                )}
+
+                {/* Analytics */}
+                {activePuppy && <StatsAnalytics activities={activePuppyActivities} profile={activePuppy} />}
+
+                {/* Activity Timeline */}
+                <ActivityTimeline
+                  activities={activePuppyActivities}
+                  caretakers={caretakers}
+                  onDeleteActivity={handleDeleteActivity}
+                />
+              </div>
+            )}
+          </>
+        )}
       </main>
 
-      <QuickLogModal
-        isOpen={isQuickLogOpen}
-        initialType={quickLogType}
-        initialLocation={quickLogLocation}
-        caretakers={caretakers}
-        currentUser={currentUser}
-        onClose={() => setIsQuickLogOpen(false)}
-        onSave={handleSaveActivity}
-      />
+      {/* Footer */}
+      <footer className="border-t border-slate-900 bg-slate-950 py-6 text-center text-xs text-slate-600">
+        <div className="max-w-6xl mx-auto px-4 flex flex-wrap items-center justify-between gap-2">
+          <span>PupPace &bull; Household Puppy Sync Platform</span>
+          <div className="flex items-center gap-3">
+            <button onClick={() => setActiveMainTab('careguide')} className="hover:text-slate-400 transition">Care Guide</button>
+            <span>&bull;</span>
+            <a href="/privacy" className="hover:text-slate-400 transition">Privacy</a>
+            <span>&bull;</span>
+            <a href="/terms" className="hover:text-slate-400 transition">Terms</a>
+          </div>
+        </div>
+      </footer>
 
-      <PuppyProfileModal
-        isOpen={isProfileOpen}
-        profile={activePuppy}
-        onClose={() => setIsProfileOpen(false)}
-        onSave={handleSaveProfile}
-      />
-
-      <AddPuppyModal
-        isOpen={isAddPuppyOpen}
-        onClose={() => setIsAddPuppyOpen(false)}
-        onAddPuppy={handleAddPuppy}
-      />
-
-      <SharePackModal
-        isOpen={isShareOpen}
-        user={user}
-        caretakers={caretakers}
-        onClose={() => setIsShareOpen(false)}
-        onAddCaretaker={handleAddCaretaker}
-        onSwitchUserAccount={handleSwitchUserAccount}
-      />
-
-      <CareGuideModal
-        isOpen={isCareGuideOpen}
-        onClose={() => setIsCareGuideOpen(false)}
-      />
-
-      {isAdminOpen && (
-        <AdminDashboard
-          token={authToken}
-          onClose={() => setIsAdminOpen(false)}
+      {/* Quick Event Logging Modal */}
+      {activePuppy && (
+        <QuickLogModal
+          isOpen={isQuickLogOpen}
+          onClose={() => setIsQuickLogOpen(false)}
+          onSave={handleAddActivity}
+          caretakers={caretakers}
+          currentUser={currentUser}
         />
       )}
     </div>
