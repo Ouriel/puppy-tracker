@@ -1,0 +1,47 @@
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 10
+    groups:
+      # Minor and patch updates grouped together (safe to batch)
+      minor-patch:
+        update-types:
+          - "minor"
+          - "patch"
+        exclude-patterns:
+          - "typescript"
+          - "vite"
+          - "@types/*"
+      # TypeScript & Types ecosystem together
+      typescript:
+        patterns:
+          - "typescript"
+          - "@types/*"
+      # React & Vite ecosystem together
+      frontend:
+        patterns:
+          - "react"
+          - "react-dom"
+          - "@types/react*"
+          - "vite"
+          - "@vitejs/*"
+    # Major versions get individual PRs (not grouped)
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+
+  - package-ecosystem: "npm"
+    directory: "/server"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
