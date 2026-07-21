@@ -1,13 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Shield, Mail, Send, Users, AlertCircle, UserCheck, UserX, Trash2, Key } from 'lucide-react';
-
-interface UserAccountItem {
-  id: string;
-  email: string;
-  name: string;
-  role: string;
-  status: 'ACTIVE' | 'PENDING_APPROVAL';
-}
+import { getStoredRegisteredUsers, saveRegisteredUsers, type RegisteredUserItem } from '../utils/storage';
 
 interface AdminViewProps {
   token: string;
@@ -17,18 +10,19 @@ interface AdminViewProps {
 export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail }) => {
   const isSuperAdmin = currentUserEmail.toLowerCase() === 'matthieu.jacquet@gmail.com';
 
-  const [users, setUsers] = useState<UserAccountItem[]>([
-    { id: '1', email: 'matthieu.jacquet@gmail.com', name: 'Matthieu', role: 'Husband', status: 'ACTIVE' },
-    { id: '2', email: 'sarah@family.com', name: 'Sarah', role: 'Wife', status: 'PENDING_APPROVAL' },
-    { id: '3', email: 'alex@dogwalkers.com', name: 'Alex', role: 'Dog Walker', status: 'PENDING_APPROVAL' },
-  ]);
+  const [users, setUsers] = useState<RegisteredUserItem[]>(getStoredRegisteredUsers);
   const [newInviteEmail, setNewInviteEmail] = useState('');
   const [statusMessage, setStatusMessage] = useState('');
-  
+  const [userToDelete, setUserToDelete] = useState<RegisteredUserItem | null>(null);
+
   const [googleClientId, setGoogleClientId] = useState<string>(() => {
     return localStorage.getItem('puppace_google_client_id') || '';
   });
   const [clientIdInput, setClientIdInput] = useState(googleClientId);
+
+  useEffect(() => {
+    saveRegisteredUsers(users);
+  }, [users]);
 
   if (!isSuperAdmin) {
     return (
@@ -52,29 +46,32 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail }) => {
   };
 
   const handleActivate = (email: string) => {
-    setUsers((prev) =>
-      prev.map((u) => (u.email === email ? { ...u, status: 'ACTIVE' } : u))
-    );
+    const updated = users.map((u) => (u.email === email ? { ...u, status: 'ACTIVE' as const } : u));
+    setUsers(updated);
     setStatusMessage(`Activated account for ${email}! They can now log in.`);
     setTimeout(() => setStatusMessage(''), 3500);
   };
 
   const handleDeactivate = (email: string) => {
-    if (email === 'matthieu.jacquet@gmail.com') return;
-    setUsers((prev) =>
-      prev.map((u) => (u.email === email ? { ...u, status: 'PENDING_APPROVAL' } : u))
-    );
+    if (email.toLowerCase() === 'matthieu.jacquet@gmail.com') return;
+    const updated = users.map((u) => (u.email === email ? { ...u, status: 'PENDING_APPROVAL' as const } : u));
+    setUsers(updated);
     setStatusMessage(`Revoked access for ${email}.`);
     setTimeout(() => setStatusMessage(''), 3500);
   };
 
-  const handleDeleteUser = (id: string, email: string) => {
-    if (email === 'matthieu.jacquet@gmail.com') return;
-    if (window.confirm(`Are you sure you want to permanently delete user account ${email}?`)) {
-      setUsers((prev) => prev.filter((u) => u.id !== id));
-      setStatusMessage(`Deleted user account ${email}.`);
-      setTimeout(() => setStatusMessage(''), 3500);
+  const confirmDeleteUser = () => {
+    if (!userToDelete) return;
+    if (userToDelete.email.toLowerCase() === 'matthieu.jacquet@gmail.com') {
+      setUserToDelete(null);
+      return;
     }
+
+    const updated = users.filter((u) => u.id !== userToDelete.id && u.email !== userToDelete.email);
+    setUsers(updated);
+    setStatusMessage(`Successfully deleted account ${userToDelete.email}.`);
+    setUserToDelete(null);
+    setTimeout(() => setStatusMessage(''), 3500);
   };
 
   const handlePreApproveInvite = (e: React.FormEvent) => {
@@ -87,10 +84,14 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail }) => {
       existing.status = 'ACTIVE';
       setUsers([...users]);
     } else {
-      setUsers((prev) => [
-        ...prev,
-        { id: `usr-${Date.now()}`, email, name: email.split('@')[0], role: 'Partner', status: 'ACTIVE' },
-      ]);
+      const newUser: RegisteredUserItem = {
+        id: `usr-${Date.now()}`,
+        email,
+        name: email.split('@')[0],
+        role: 'Partner',
+        status: 'ACTIVE',
+      };
+      setUsers((prev) => [...prev, newUser]);
     }
 
     setNewInviteEmail('');
@@ -123,6 +124,37 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail }) => {
       {statusMessage && (
         <div className="bg-emerald-950/40 border border-emerald-800/50 text-emerald-400 p-3 rounded-xl text-xs text-center font-semibold">
           {statusMessage}
+        </div>
+      )}
+
+      {/* Delete User Confirmation Modal */}
+      {userToDelete && (
+        <div className="bg-red-950/40 border border-red-800/80 p-4 rounded-2xl space-y-3 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <AlertCircle className="w-5 h-5 text-red-400 shrink-0" />
+            <div>
+              <div className="text-xs font-bold text-white">
+                Delete account <span className="font-mono text-red-300">{userToDelete.email}</span>?
+              </div>
+              <div className="text-[11px] text-slate-400">This action is permanent and cannot be undone.</div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setUserToDelete(null)}
+              className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-semibold cursor-pointer"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={confirmDeleteUser}
+              className="px-3 py-1.5 bg-red-600 hover:bg-red-500 text-white rounded-xl text-xs font-bold transition flex items-center gap-1 cursor-pointer"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>Confirm Delete</span>
+            </button>
+          </div>
         </div>
       )}
 
@@ -198,7 +230,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail }) => {
                     <span>Activate</span>
                   </button>
                   <button
-                    onClick={() => handleDeleteUser(u.id, u.email)}
+                    onClick={() => setUserToDelete(u)}
                     title="Delete User Account"
                     className="p-1.5 text-slate-500 hover:text-red-400 hover:bg-red-950/40 rounded-lg transition cursor-pointer"
                   >
@@ -254,7 +286,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail }) => {
                 <div className="text-[11px] text-slate-400 font-mono">{u.email}</div>
               </div>
 
-              {u.email === 'matthieu.jacquet@gmail.com' ? (
+              {u.email.toLowerCase() === 'matthieu.jacquet@gmail.com' ? (
                 <span className="text-[10px] bg-indigo-950 text-indigo-300 border border-indigo-700 px-2.5 py-0.5 rounded font-semibold">
                   Super Admin Owner
                 </span>
@@ -268,7 +300,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail }) => {
                     <span>Revoke</span>
                   </button>
                   <button
-                    onClick={() => handleDeleteUser(u.id, u.email)}
+                    onClick={() => setUserToDelete(u)}
                     title="Delete User Account"
                     className="p-1.5 text-slate-500 hover:text-red-400 hover:bg-red-950/40 rounded-lg transition cursor-pointer"
                   >
