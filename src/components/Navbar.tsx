@@ -1,6 +1,7 @@
 import React from 'react';
 import type { PuppyProfile, Caretaker, UserAccount } from '../types';
 import { FileText, BookOpen, Flame, Plus, Dog, Lock, ShieldAlert, LayoutDashboard, Home, Syringe } from 'lucide-react';
+import type { Language } from '../i18n';
 
 export type MainTabType = 'dashboard' | 'puppies' | 'household' | 'carnetdesante' | 'admin' | 'careguide';
 
@@ -19,6 +20,9 @@ interface NavbarProps {
   onClearSampleData: () => void;
   onLockVault: () => void;
   streakDays: number;
+  lang: Language;
+  onLanguageChange: (lang: Language) => void;
+  t: any;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -35,13 +39,16 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenVetReport,
   onLockVault,
   streakDays,
+  lang,
+  onLanguageChange,
+  t,
 }) => {
   const isSuperAdmin = user.email.toLowerCase() === 'matthieu.jacquet@gmail.com';
 
   return (
     <header className="sticky top-0 z-30 bg-slate-900/95 backdrop-blur-md border-b border-slate-800 text-slate-100 shadow-xl">
       <div className="max-w-6xl mx-auto px-4 py-3 space-y-3">
-        {/* Top row: Brand & Active User */}
+        {/* Top row: Brand, Language Switcher & Active User */}
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800/60 pb-2.5">
           {/* Brand Logo */}
           <div className="flex items-center gap-2.5">
@@ -51,21 +58,43 @@ export const Navbar: React.FC<NavbarProps> = ({
             <div>
               <div className="flex items-center gap-2">
                 <span className="text-base font-extrabold tracking-tight bg-gradient-to-r from-amber-300 via-indigo-300 to-pink-300 bg-clip-text text-transparent">
-                  PupPace
+                  {t.brand}
                 </span>
                 <span className="text-[10px] bg-indigo-950/90 text-indigo-300 border border-indigo-700/50 px-2 py-0.5 rounded-full font-semibold">
                   Smart Puppy Tracker 🐾
                 </span>
               </div>
-              <p className="text-[11px] text-slate-400">Household & Multi-User Activity Sync</p>
+              <p className="text-[11px] text-slate-400">{t.headerSubtitle}</p>
             </div>
           </div>
 
-          {/* Active User Account & Lock */}
+          {/* Controls: i18n Language Toggle, Active User Account & Lock */}
           <div className="flex items-center gap-2 flex-wrap">
+            {/* Language Switcher */}
+            <div className="flex items-center bg-slate-950/80 border border-slate-700/80 rounded-xl p-0.5 text-xs font-semibold">
+              <button
+                onClick={() => onLanguageChange('en')}
+                className={`px-2 py-0.5 rounded-lg transition cursor-pointer flex items-center gap-1 ${
+                  lang === 'en' ? 'bg-indigo-600 text-white font-bold' : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                <span>🇬🇧</span>
+                <span>EN</span>
+              </button>
+              <button
+                onClick={() => onLanguageChange('fr')}
+                className={`px-2 py-0.5 rounded-lg transition cursor-pointer flex items-center gap-1 ${
+                  lang === 'fr' ? 'bg-indigo-600 text-white font-bold' : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                <span>🇫🇷</span>
+                <span>FR</span>
+              </button>
+            </div>
+
             {/* Active User Switcher */}
             <div className="flex items-center bg-slate-800/80 border border-slate-700/80 rounded-xl px-2.5 py-1 text-xs">
-              <span className="text-slate-400 mr-1.5 hidden sm:inline">Active User:</span>
+              <span className="text-slate-400 mr-1.5 hidden sm:inline">{t.nav.activeUser}</span>
               <select
                 value={currentUser}
                 onChange={(e) => onSelectUser(e.target.value)}
@@ -82,11 +111,11 @@ export const Navbar: React.FC<NavbarProps> = ({
             {/* Lock App */}
             <button
               onClick={onLockVault}
-              title="Lock Vault"
+              title={t.nav.lock}
               className="p-1.5 rounded-xl bg-indigo-950/80 hover:bg-indigo-900 border border-indigo-700/60 text-indigo-300 transition cursor-pointer flex items-center gap-1 text-xs font-semibold"
             >
               <Lock className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Lock</span>
+              <span className="hidden sm:inline">{t.nav.lock}</span>
             </button>
           </div>
         </div>
@@ -104,7 +133,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               }`}
             >
               <LayoutDashboard className="w-3.5 h-3.5" />
-              <span>Dashboard</span>
+              <span>{t.nav.dashboard}</span>
             </button>
 
             <button
@@ -116,7 +145,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               }`}
             >
               <Dog className="w-3.5 h-3.5" />
-              <span>Dogs ({puppies.length})</span>
+              <span>{t.nav.dogs} ({puppies.length})</span>
             </button>
 
             <button
@@ -128,7 +157,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               }`}
             >
               <Home className="w-3.5 h-3.5" />
-              <span>Household ({caretakers.length})</span>
+              <span>{t.nav.household} ({caretakers.length})</span>
             </button>
 
             <button
@@ -140,7 +169,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               }`}
             >
               <Syringe className="w-3.5 h-3.5" />
-              <span>Carnet de Santé</span>
+              <span>{t.nav.carnetDeSante}</span>
             </button>
 
             {isSuperAdmin && (
@@ -153,7 +182,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 }`}
               >
                 <ShieldAlert className="w-3.5 h-3.5" />
-                <span>Admin</span>
+                <span>{t.nav.admin}</span>
               </button>
             )}
 
@@ -166,7 +195,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               }`}
             >
               <BookOpen className="w-3.5 h-3.5" />
-              <span>Care Guide</span>
+              <span>{t.nav.careGuide}</span>
             </button>
           </div>
 
@@ -175,7 +204,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             {/* Active Puppy Switcher dropdown in navbar */}
             {puppies.length > 0 && activePuppy && (
               <div className="flex items-center bg-slate-800/80 border border-slate-700/80 rounded-xl px-2.5 py-1 text-xs">
-                <span className="text-slate-400 mr-1.5">Dog:</span>
+                <span className="text-slate-400 mr-1.5">{t.nav.dog}</span>
                 <select
                   value={activePuppy.id}
                   onChange={(e) => onSelectPuppy(e.target.value)}
@@ -195,7 +224,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               className="flex items-center gap-1 bg-amber-950/40 border border-amber-500/30 text-amber-300 px-2.5 py-1 rounded-xl text-xs font-semibold"
             >
               <Flame className="w-3.5 h-3.5 text-amber-400" />
-              <span>{streakDays}d Clean</span>
+              <span>{streakDays}d {t.nav.cleanStreak}</span>
             </div>
 
             <button
@@ -212,7 +241,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 className="flex items-center gap-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white px-3.5 py-1.5 rounded-xl font-bold text-xs shadow-md transition active:scale-95 cursor-pointer"
               >
                 <Plus className="w-4 h-4 stroke-[3]" />
-                <span>Log Event</span>
+                <span>{t.nav.logEvent}</span>
               </button>
             )}
           </div>

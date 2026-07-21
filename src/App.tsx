@@ -25,9 +25,12 @@ import { HouseholdView } from './views/HouseholdView';
 import { AdminView } from './views/AdminView';
 import { CareGuideView } from './views/CareGuideView';
 import { CarnetDeSanteView } from './views/CarnetDeSanteView';
+import { useI18n } from './i18n';
 import { Dog, Plus } from 'lucide-react';
 
 export function App() {
+  const { lang, changeLanguage, t } = useI18n();
+
   // Authentication & Lock Screen
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
     return localStorage.getItem('puppace_unlocked_v4') === 'true';
@@ -220,6 +223,9 @@ export function App() {
         onClearSampleData={handleClearSampleData}
         onLockVault={handleLockVault}
         streakDays={streakDays}
+        lang={lang}
+        onLanguageChange={changeLanguage}
+        t={t}
       />
 
       {/* Main Content Area */}
@@ -268,16 +274,16 @@ export function App() {
                 <div className="p-4 bg-indigo-950 text-indigo-400 rounded-2xl inline-block border border-indigo-800/50">
                   <Dog className="w-12 h-12" />
                 </div>
-                <h2 className="text-xl font-extrabold text-white">Welcome to PupPace!</h2>
+                <h2 className="text-xl font-extrabold text-white">{t.dashboard.welcomeTitle}</h2>
                 <p className="text-xs text-slate-400 max-w-sm mx-auto leading-relaxed">
-                  Your household has no dog profiles registered yet. Add your puppy to start tracking potty schedules, meals, and naps!
+                  {t.dashboard.welcomeSubtitle}
                 </p>
                 <button
                   onClick={() => setActiveMainTab('puppies')}
                   className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs px-6 py-3 rounded-xl shadow-lg transition active:scale-95 cursor-pointer inline-flex items-center gap-2"
                 >
                   <Plus className="w-4 h-4" />
-                  <span>Register First Dog Profile</span>
+                  <span>{t.dashboard.registerDog}</span>
                 </button>
               </div>
             ) : (
