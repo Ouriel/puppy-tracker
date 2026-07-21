@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Shield, Mail, Send, Users, AlertCircle, UserCheck, UserX } from 'lucide-react';
+import { Shield, Mail, Send, Users, AlertCircle, UserCheck, UserX, Key } from 'lucide-react';
 
 interface UserAccountItem {
   id: string;
@@ -22,10 +22,24 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ token, onClose }
   ]);
   const [newInviteEmail, setNewInviteEmail] = useState('');
   const [statusMessage, setStatusMessage] = useState('');
+  
+  const [googleClientId, setGoogleClientId] = useState<string>(() => {
+    return localStorage.getItem('puppace_google_client_id') || '';
+  });
+  const [clientIdInput, setClientIdInput] = useState(googleClientId);
 
   useEffect(() => {
     console.log('Fetching overview with token:', token);
   }, [token]);
+
+  const handleSaveClientId = (e: React.FormEvent) => {
+    e.preventDefault();
+    const clean = clientIdInput.trim();
+    localStorage.setItem('puppace_google_client_id', clean);
+    setGoogleClientId(clean);
+    setStatusMessage('Updated Google OAuth Client ID successfully!');
+    setTimeout(() => setStatusMessage(''), 3500);
+  };
 
   const handleActivate = (email: string) => {
     setUsers((prev) =>
@@ -75,7 +89,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ token, onClose }
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800 bg-slate-900/50">
           <h2 className="text-lg font-bold text-slate-100 flex items-center gap-2">
             <Shield className="w-5 h-5 text-indigo-400" />
-            <span>Super Admin (Matthieu) Activation Center</span>
+            <span>Super Admin (Matthieu) Control Center</span>
           </h2>
           <button
             onClick={onClose}
@@ -90,7 +104,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ token, onClose }
           <div className="bg-indigo-950/40 border border-indigo-700/40 p-3.5 rounded-xl flex items-start gap-2.5 text-xs text-slate-300">
             <AlertCircle className="w-4 h-4 text-indigo-400 shrink-0 mt-0.5" />
             <p>
-              Signed in as <strong className="text-white">matthieu.jacquet@gmail.com</strong>. You must activate new accounts before users can log in to the SaaS platform.
+              Signed in as <strong className="text-white">matthieu.jacquet@gmail.com</strong>. Manage user account activations and Google OAuth SSO keys.
             </p>
           </div>
 
@@ -99,6 +113,40 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ token, onClose }
               {statusMessage}
             </div>
           )}
+
+          {/* Google OAuth Client ID Configuration */}
+          <form onSubmit={handleSaveClientId} className="bg-slate-950/50 p-3.5 rounded-xl border border-slate-800 space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-bold text-indigo-300 flex items-center gap-1.5">
+                <Key className="w-3.5 h-3.5 text-indigo-400" />
+                <span>Google OAuth Client ID</span>
+              </label>
+              {googleClientId ? (
+                <span className="text-[10px] bg-emerald-950 text-emerald-400 border border-emerald-800/50 px-2 py-0.2 rounded font-mono font-bold">
+                  Configured
+                </span>
+              ) : (
+                <span className="text-[10px] bg-amber-950 text-amber-300 border border-amber-800/50 px-2 py-0.2 rounded font-mono font-bold">
+                  Not Configured
+                </span>
+              )}
+            </div>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                placeholder="Paste Client ID: e.g. 123-abc.apps.googleusercontent.com"
+                value={clientIdInput}
+                onChange={(e) => setClientIdInput(e.target.value)}
+                className="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs font-mono text-slate-100 focus:outline-none focus:border-indigo-500"
+              />
+              <button
+                type="submit"
+                className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs px-3.5 py-2 rounded-xl transition cursor-pointer"
+              >
+                Save OAuth Key
+              </button>
+            </div>
+          </form>
 
           {/* Pending Activations List */}
           <div>

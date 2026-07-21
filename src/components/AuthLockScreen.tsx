@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Lock, Mail, ShieldCheck, ArrowRight, Eye, EyeOff, UserPlus, LogIn, CheckCircle2 } from 'lucide-react';
+import { Lock, Mail, ShieldCheck, ArrowRight, Eye, EyeOff, UserPlus, LogIn, CheckCircle2, Settings } from 'lucide-react';
 
 interface AuthLockScreenProps {
   onUnlockWithSSO: (email: string, name: string, token: string) => { success: boolean; message?: string };
@@ -20,15 +20,21 @@ export const AuthLockScreen: React.FC<AuthLockScreenProps> = ({
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [isConfiguringClientId, setIsConfiguringClientId] = useState(false);
+  const [customClientIdInput, setCustomClientIdInput] = useState('');
+  
   const googleBtnRef = useRef<HTMLDivElement>(null);
 
-  const googleClientId = (import.meta.env.VITE_GOOGLE_CLIENT_ID as string) || '';
+  // Dynamic Google Client ID resolution
+  const [googleClientId, setGoogleClientId] = useState<string>(() => {
+    return localStorage.getItem('puppace_google_client_id') || (import.meta.env.VITE_GOOGLE_CLIENT_ID as string) || '';
+  });
 
   useEffect(() => {
-    if (activeTab === 'signin' && window.google) {
+    if (activeTab === 'signin' && googleClientId && window.google) {
       try {
         window.google.accounts.id.initialize({
-          client_id: googleClientId || 'PLACEHOLDER-CLIENT-ID.apps.googleusercontent.com',
+          client_id: googleClientId,
           callback: (response: any) => {
             const credential = response.credential;
             try {
@@ -63,6 +69,17 @@ export const AuthLockScreen: React.FC<AuthLockScreenProps> = ({
       }
     }
   }, [activeTab, onUnlockWithSSO, googleClientId]);
+
+  const handleSaveClientId = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!customClientIdInput.trim()) return;
+    const cleanId = customClientIdInput.trim();
+    localStorage.setItem('puppace_google_client_id', cleanId);
+    setGoogleClientId(cleanId);
+    setIsConfiguringClientId(false);
+    setSuccess('Google OAuth Client ID configured successfully!');
+    setTimeout(() => setSuccess(''), 3000);
+  };
 
   const handlePasswordLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -165,12 +182,59 @@ export const AuthLockScreen: React.FC<AuthLockScreenProps> = ({
           <div className="space-y-5 relative z-10">
             {/* Google SSO Container */}
             <div>
-              <label className="block text-[11px] font-semibold text-slate-400 mb-2 text-center">
-                Sign in with Google Account
-              </label>
-              {!googleClientId ? (
-                <div className="bg-slate-950/40 p-2.5 rounded-xl border border-slate-800 text-center text-[11px] text-slate-400">
-                  Google SSO Client ID configurable on Vercel environment variables.
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-[11px] font-semibold text-slate-400">
+                  Sign in with Google OAuth
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setIsConfiguringClientId(!isConfiguringClientId)}
+                  className="text-[10px] text-indigo-400 hover:text-indigo-300 flex items-center gap-1 cursor-pointer"
+                >
+                  <Settings className="w-3 h-3" />
+                  <span>Configure OAuth Client ID</span>
+                </button>
+              </div>
+
+              {isConfiguringClientId ? (
+                <form onSubmit={handleSaveClientId} className="bg-slate-950/60 p-3 rounded-xl border border-slate-800 space-y-2">
+                  <label className="block text-[10px] text-slate-400">
+                    Paste Google OAuth Client ID (from Google Cloud Console):
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="xxxx-yyyy.apps.googleusercontent.com"
+                    value={customClientIdInput}
+                    onChange={(e) => setCustomClientIdInput(e.target.value)}
+                    className="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-100 font-mono focus:outline-none focus:border-indigo-500"
+                    required
+                  />
+                  <div className="flex justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setIsConfiguringClientId(false)}
+                      className="text-xs text-slate-400 px-2 py-1"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold px-3 py-1 rounded-lg cursor-pointer"
+                    >
+                      Save ID
+                    </button>
+                  </div>
+                </form>
+              ) : !googleClientId ? (
+                <div className="bg-slate-950/40 p-3 rounded-xl border border-slate-800 text-center text-[11px] text-slate-400 space-y-2">
+                  <p>Google OAuth Client ID is not set yet.</p>
+                  <button
+                    onClick={() => setIsConfiguringClientId(true)}
+                    className="inline-flex items-center gap-1 bg-indigo-950 hover:bg-indigo-900 border border-indigo-700/60 text-indigo-300 px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer"
+                  >
+                    <Settings className="w-3.5 h-3.5" />
+                    <span>Set Google Client ID Now</span>
+                  </button>
                 </div>
               ) : (
                 <div ref={googleBtnRef} className="w-full flex justify-center" />
