@@ -92,7 +92,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               </button>
             </div>
 
-            {/* Active User Switcher */}
+            {/* Active User Switcher (Clean Name Only, No (Role)) */}
             <div className="flex items-center bg-slate-800/80 border border-slate-700/80 rounded-xl px-2.5 py-1 text-xs">
               <span className="text-slate-400 mr-1.5 hidden sm:inline">{t.nav.activeUser}</span>
               <select
@@ -101,8 +101,8 @@ export const Navbar: React.FC<NavbarProps> = ({
                 className="bg-transparent font-semibold text-pink-300 focus:outline-none cursor-pointer"
               >
                 {caretakers.map((c) => (
-                  <option key={c.id} value={`${c.name} (${c.role})`} className="bg-slate-800 text-slate-200">
-                    {c.name} ({c.role})
+                  <option key={c.id} value={c.name} className="bg-slate-800 text-slate-200">
+                    {c.name}
                   </option>
                 ))}
               </select>

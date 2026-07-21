@@ -39,7 +39,7 @@ export function App() {
   const [caretakers, setCaretakers] = useState<Caretaker[]>(getStoredCaretakers);
   const [currentUser, setCurrentUser] = useState<string>(() => {
     const initialUser = getStoredUser();
-    return `${initialUser.name} (${initialUser.role})`;
+    return initialUser.name;
   });
 
   // Main Page Navigation Tabs (NO MODALS FOR PAGES!)
@@ -109,7 +109,7 @@ export function App() {
   };
 
   const handleSwitchUserAccount = (name: string, role: FamilyRole) => {
-    setCurrentUser(`${name} (${role})`);
+    setCurrentUser(name);
     setUser((prev) => ({ ...prev, name, role }));
   };
 
