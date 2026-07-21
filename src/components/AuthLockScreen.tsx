@@ -30,7 +30,12 @@ export const AuthLockScreen: React.FC<AuthLockScreenProps> = ({
   
   const googleBtnRef = useRef<HTMLDivElement>(null);
 
-  const googleClientId = (import.meta.env.VITE_GOOGLE_CLIENT_ID as string) || '';
+  // Production Client ID fallback
+  const defaultProductionClientId = '8924902082-52mf1l272khij6ac2racnh4p34h7fh08.apps.googleusercontent.com';
+  const googleClientId =
+    localStorage.getItem('puppace_google_client_id') ||
+    (import.meta.env.VITE_GOOGLE_CLIENT_ID as string) ||
+    defaultProductionClientId;
 
   useEffect(() => {
     if (activeTab === 'signin' && googleClientId && window.google) {
@@ -78,7 +83,7 @@ export const AuthLockScreen: React.FC<AuthLockScreenProps> = ({
     const cleanId = customClientIdInput.trim();
     localStorage.setItem('puppace_google_client_id', cleanId);
     setIsConfiguringClientId(false);
-    setSuccess('Google OAuth Client ID configured successfully!');
+    setSuccess('Google OAuth Client ID updated successfully!');
     setTimeout(() => setSuccess(''), 3000);
     window.location.reload();
   };
@@ -194,18 +199,18 @@ export const AuthLockScreen: React.FC<AuthLockScreenProps> = ({
                   className="text-[10px] text-indigo-400 hover:text-indigo-300 flex items-center gap-1 cursor-pointer"
                 >
                   <Settings className="w-3 h-3" />
-                  <span>Configure OAuth Client ID</span>
+                  <span>Configure OAuth Key</span>
                 </button>
               </div>
 
               {isConfiguringClientId ? (
                 <form onSubmit={handleSaveClientId} className="bg-slate-950/60 p-3 rounded-xl border border-slate-800 space-y-2">
                   <label className="block text-[10px] text-slate-400">
-                    Paste Google OAuth Client ID (from Google Cloud Console):
+                    Update Google OAuth Client ID:
                   </label>
                   <input
                     type="text"
-                    placeholder="xxxx-yyyy.apps.googleusercontent.com"
+                    placeholder="8924902082-xxxx.apps.googleusercontent.com"
                     value={customClientIdInput}
                     onChange={(e) => setCustomClientIdInput(e.target.value)}
                     className="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-100 font-mono focus:outline-none focus:border-indigo-500"
@@ -223,23 +228,12 @@ export const AuthLockScreen: React.FC<AuthLockScreenProps> = ({
                       type="submit"
                       className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold px-3 py-1 rounded-lg cursor-pointer"
                     >
-                      Save ID
+                      Save Key
                     </button>
                   </div>
                 </form>
-              ) : !googleClientId ? (
-                <div className="bg-slate-950/40 p-3 rounded-xl border border-slate-800 text-center text-[11px] text-slate-400 space-y-2">
-                  <p>Google OAuth Client ID is not set yet.</p>
-                  <button
-                    onClick={() => setIsConfiguringClientId(true)}
-                    className="inline-flex items-center gap-1 bg-indigo-950 hover:bg-indigo-900 border border-indigo-700/60 text-indigo-300 px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer"
-                  >
-                    <Settings className="w-3.5 h-3.5" />
-                    <span>Set Google Client ID Now</span>
-                  </button>
-                </div>
               ) : (
-                <div ref={googleBtnRef} className="w-full flex justify-center" />
+                <div ref={googleBtnRef} className="w-full flex justify-center min-h-[44px]" />
               )}
             </div>
 
@@ -392,7 +386,7 @@ export const AuthLockScreen: React.FC<AuthLockScreenProps> = ({
         </div>
       </div>
 
-      {/* Public Legal Links (Required for Google OAuth Verification) */}
+      {/* Public Legal Links */}
       <div className="mt-4 flex items-center gap-4 text-xs text-slate-400 font-medium">
         <button
           onClick={() => setIsPrivacyOpen(true)}
