@@ -12,6 +12,8 @@ export interface AuthenticatedRequest extends Request {
   };
 }
 
+export type AuthRequest = AuthenticatedRequest;
+
 /**
  * Standard JWT Authentication Middleware
  * Enforces security on all API routes

@@ -10,7 +10,7 @@ export const pool = new Pool({
   ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
 });
 
-pool.on('error', (err) => {
+pool.on('error', (err: Error) => {
   console.error('Unexpected error on idle PostgreSQL client', err);
 });
 
