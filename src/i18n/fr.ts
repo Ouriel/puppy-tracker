@@ -1,7 +1,7 @@
 export const fr = {
   brand: 'PupPace',
   tagline: 'Suivi Intelligent des Activités & Prédiction Propreté du Chiot',
-  headerSubtitle: 'Synchronisation Famille & Multi-Utilisateurs',
+  headerSubtitle: 'Le carnet de santé & propreté de votre chiot 🐾',
   nav: {
     dashboard: 'Tableau de bord',
     dogs: 'Chiens',

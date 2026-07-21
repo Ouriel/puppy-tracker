@@ -1,7 +1,7 @@
 export const en = {
   brand: 'PupPace',
   tagline: 'Smart Family Puppy Activity Tracker & Potty Predictor',
-  headerSubtitle: 'Household & Multi-User Activity Sync',
+  headerSubtitle: 'Real-Time Family Care & Potty Tracker 🐾',
   nav: {
     dashboard: 'Dashboard',
     dogs: 'Dogs',
