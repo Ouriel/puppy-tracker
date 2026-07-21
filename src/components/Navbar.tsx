@@ -1,6 +1,6 @@
 import React from 'react';
 import type { PuppyProfile, Caretaker, UserAccount } from '../types';
-import { Users, FileText, BookOpen, Flame, Plus, Dog, Shield, Trash2 } from 'lucide-react';
+import { Users, FileText, BookOpen, Flame, Plus, Dog, Shield, Trash2, Lock } from 'lucide-react';
 
 interface NavbarProps {
   puppies: PuppyProfile[];
@@ -17,6 +17,7 @@ interface NavbarProps {
   onOpenCareGuide: () => void;
   onEditProfile: () => void;
   onClearSampleData: () => void;
+  onLockVault: () => void;
   streakDays: number;
 }
 
@@ -35,6 +36,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenCareGuide,
   onEditProfile,
   onClearSampleData,
+  onLockVault,
   streakDays,
 }) => {
   return (
@@ -86,6 +88,16 @@ export const Navbar: React.FC<NavbarProps> = ({
                 ))}
               </select>
             </div>
+
+            {/* Lock App button */}
+            <button
+              onClick={onLockVault}
+              title="Lock Family Vault"
+              className="p-1.5 rounded-xl bg-indigo-950/80 hover:bg-indigo-900 border border-indigo-700/60 text-indigo-300 transition cursor-pointer flex items-center gap-1 text-xs font-semibold"
+            >
+              <Lock className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Lock</span>
+            </button>
           </div>
         </div>
 

@@ -26,8 +26,13 @@ import { PuppyProfileModal } from './components/PuppyProfileModal';
 import { AddPuppyModal } from './components/AddPuppyModal';
 import { SharePackModal } from './components/SharePackModal';
 import { CareGuideModal } from './components/CareGuideModal';
+import { AuthLockScreen } from './components/AuthLockScreen';
 
 export function App() {
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
+    return sessionStorage.getItem('puppace_vault_unlocked') === 'true';
+  });
+
   const [puppies, setPuppies] = useState<PuppyProfile[]>(getStoredPuppies);
   const [activePuppyId, setActivePuppyIdState] = useState<string>(getActivePuppyId);
 
@@ -63,6 +68,21 @@ export function App() {
   useEffect(() => {
     saveCaretakers(caretakers);
   }, [caretakers]);
+
+  const handleUnlockVault = (pinOrPassword: string) => {
+    // Default demo PIN: 1234 or matching family pack code
+    if (pinOrPassword === '1234' || pinOrPassword === user.familyPackId) {
+      setIsAuthenticated(true);
+      sessionStorage.setItem('puppace_vault_unlocked', 'true');
+      return true;
+    }
+    return false;
+  };
+
+  const handleLockVault = () => {
+    setIsAuthenticated(false);
+    sessionStorage.removeItem('puppace_vault_unlocked');
+  };
 
   const handleSelectPuppy = (id: string) => {
     setActivePuppyIdState(id);
@@ -115,6 +135,10 @@ export function App() {
     setPuppies((prev) => prev.map((p) => (p.id === updatedProfile.id ? updatedProfile : p)));
   };
 
+  if (!isAuthenticated) {
+    return <AuthLockScreen onUnlock={handleUnlockVault} familyPackId={user.familyPackId} />;
+  }
+
   const activePuppyActivities = activities.filter(
     (a) => !a.puppyId || a.puppyId === activePuppy.id
   );
@@ -150,6 +174,7 @@ export function App() {
         onOpenCareGuide={() => setIsCareGuideOpen(true)}
         onEditProfile={() => setIsProfileOpen(true)}
         onClearSampleData={handleClearSampleData}
+        onLockVault={handleLockVault}
         streakDays={streakDays}
       />
 
