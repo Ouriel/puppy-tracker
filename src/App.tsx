@@ -52,8 +52,9 @@ export function App() {
   // Activities State
   const [activities, setActivities] = useState<Activity[]>(getInitialActivities);
 
-  // Quick Action Modal
+  // Quick Action Modal with selectable initial activity type
   const [isQuickLogOpen, setIsQuickLogOpen] = useState(false);
+  const [quickLogType, setQuickLogType] = useState<ActivityType>('pee');
 
   // Save changes to localStorage
   useEffect(() => {
@@ -153,7 +154,16 @@ export function App() {
     setActivities((prev) => [fullActivity, ...prev]);
   };
 
+  const handleOpenQuickLogModal = (type: ActivityType = 'pee') => {
+    setQuickLogType(type);
+    setIsQuickLogOpen(true);
+  };
+
   const handleQuickAction = (type: ActivityType, defaultLocation?: PottyLocation) => {
+    if (type === 'food') {
+      handleOpenQuickLogModal('food');
+      return;
+    }
     if (!activePuppy) return;
     const newAct: Omit<Activity, 'id' | 'puppyId'> = {
       type,
@@ -188,6 +198,14 @@ export function App() {
     if (!activePuppy) return null;
     return calculatePredictions(activePuppyActivities, activePuppy);
   }, [activePuppyActivities, activePuppy]);
+
+  // Calculate today's logged food grams
+  const todayFoodLoggedGrams = React.useMemo(() => {
+    const todayStr = new Date().toISOString().slice(0, 10);
+    return activePuppyActivities
+      .filter((a) => a.type === 'food' && a.timestamp.slice(0, 10) === todayStr)
+      .reduce((sum, a) => sum + (a.quantityGrams || 80), 0);
+  }, [activePuppyActivities]);
 
   // Potty clean streak calculation fix: 0 days if no activities!
   const streakDays = React.useMemo(() => {
@@ -227,7 +245,7 @@ export function App() {
         caretakers={caretakers}
         currentUser={currentUser}
         onSelectUser={(u) => setCurrentUser(u)}
-        onOpenQuickLog={() => setIsQuickLogOpen(true)}
+        onOpenQuickLog={() => handleOpenQuickLogModal('pee')}
         onOpenVetReport={handleExportVetSummary}
         onClearSampleData={handleClearSampleData}
         onLockVault={handleLockVault}
@@ -300,10 +318,13 @@ export function App() {
             ) : (
               <div className="space-y-6">
                 {/* Active Puppy Prediction Card */}
-                {predictions && (
+                {predictions && activePuppy && (
                   <PredictorWidget
                     predictions={predictions}
+                    profile={activePuppy}
+                    todayFoodLoggedGrams={todayFoodLoggedGrams}
                     onQuickAction={handleQuickAction}
+                    onOpenQuickLogModal={handleOpenQuickLogModal}
                   />
                 )}
 
@@ -342,6 +363,7 @@ export function App() {
       {activePuppy && (
         <QuickLogModal
           isOpen={isQuickLogOpen}
+          initialType={quickLogType}
           onClose={() => setIsQuickLogOpen(false)}
           onSave={handleAddActivity}
           caretakers={caretakers}

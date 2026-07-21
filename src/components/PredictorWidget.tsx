@@ -1,22 +1,33 @@
 import React, { useState, useEffect } from 'react';
-import type { PredictionResult, ActivityType } from '../types';
+import type { PredictionResult, ActivityType, PuppyProfile } from '../types';
 import { Droplet, Utensils, AlertCircle, Clock, CheckCircle2, Sparkles, Footprints } from 'lucide-react';
+import { useI18n } from '../i18n';
 
 interface PredictorWidgetProps {
   predictions: PredictionResult;
+  profile: PuppyProfile;
+  todayFoodLoggedGrams: number;
   onQuickAction: (type: ActivityType, defaultLocation?: 'outside' | 'indoor_accident') => void;
+  onOpenQuickLogModal: (type?: ActivityType) => void;
 }
 
 export const PredictorWidget: React.FC<PredictorWidgetProps> = ({
   predictions,
+  profile,
+  todayFoodLoggedGrams,
   onQuickAction,
+  onOpenQuickLogModal,
 }) => {
+  const { t } = useI18n();
   const [, setTick] = useState(0);
 
   useEffect(() => {
     const timer = setInterval(() => setTick((t) => t + 1), 30000);
     return () => clearInterval(timer);
   }, []);
+
+  const dailyGoal = profile.dailyFoodGramGoal || 200;
+  const remainingFoodGrams = Math.max(0, dailyGoal - todayFoodLoggedGrams);
 
   const formatCountdown = (targetDate: Date | null) => {
     if (!targetDate) return 'No log yet';
@@ -97,7 +108,7 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = ({
                 <Droplet className="w-5 h-5" />
               </div>
               <div>
-                <div className="text-xs font-semibold text-slate-400">Next Pee</div>
+                <div className="text-xs font-semibold text-slate-400">{t.potty.nextPee}</div>
                 <div className="text-lg font-bold text-slate-100">
                   {formatCountdown(predictions.nextPeeExpectedAt)}
                 </div>
@@ -116,13 +127,13 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = ({
               className="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs py-2 px-2 rounded-lg flex items-center justify-center gap-1 shadow transition active:scale-95 cursor-pointer"
             >
               <CheckCircle2 className="w-3.5 h-3.5" />
-              <span>Peed Outside</span>
+              <span>{t.potty.peedOutside}</span>
             </button>
             <button
               onClick={() => onQuickAction('pee', 'indoor_accident')}
               className="bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs py-2 px-2 rounded-lg border border-slate-700 flex items-center justify-center gap-1 transition cursor-pointer"
             >
-              <span>Accident</span>
+              <span>{t.potty.accident}</span>
             </button>
           </div>
         </div>
@@ -143,7 +154,7 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = ({
                 <Footprints className="w-5 h-5" />
               </div>
               <div>
-                <div className="text-xs font-semibold text-slate-400">Next Poop</div>
+                <div className="text-xs font-semibold text-slate-400">{t.potty.nextPoop}</div>
                 <div className="text-lg font-bold text-slate-100">
                   {formatCountdown(predictions.nextPoopExpectedAt)}
                 </div>
@@ -162,18 +173,18 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = ({
               className="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs py-2 px-2 rounded-lg flex items-center justify-center gap-1 shadow transition active:scale-95 cursor-pointer"
             >
               <CheckCircle2 className="w-3.5 h-3.5" />
-              <span>Pooped Outside</span>
+              <span>{t.potty.poopedOutside}</span>
             </button>
             <button
               onClick={() => onQuickAction('poop', 'indoor_accident')}
               className="bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs py-2 px-2 rounded-lg border border-slate-700 flex items-center justify-center gap-1 transition cursor-pointer"
             >
-              <span>Accident</span>
+              <span>{t.potty.accident}</span>
             </button>
           </div>
         </div>
 
-        {/* Next Food Card */}
+        {/* Next Food Card with Remaining Food Grams */}
         <div
           className={`relative rounded-xl p-4 border transition-all ${
             predictions.foodUrgency === 'overdue'
@@ -189,7 +200,7 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = ({
                 <Utensils className="w-5 h-5" />
               </div>
               <div>
-                <div className="text-xs font-semibold text-slate-400">Next Meal</div>
+                <div className="text-xs font-semibold text-slate-400">{t.potty.nextMeal}</div>
                 <div className="text-lg font-bold text-slate-100">
                   {formatCountdown(predictions.nextFoodExpectedAt)}
                 </div>
@@ -198,16 +209,26 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = ({
             {getUrgencyBadge(predictions.foodUrgency)}
           </div>
 
-          <p className="text-xs text-slate-400 mb-3 min-h-[32px] flex items-center">
-            {predictions.foodReason}
-          </p>
+          {/* Display Remaining Food Grams vs Daily Goal */}
+          <div className="mb-3">
+            <div className="flex justify-between text-[11px] font-semibold mb-1">
+              <span className="text-slate-400">Remaining Food Today:</span>
+              <span className="text-purple-300 font-bold">{remainingFoodGrams}g left of {dailyGoal}g</span>
+            </div>
+            <div className="w-full bg-slate-950 rounded-full h-1.5 overflow-hidden border border-slate-800">
+              <div
+                className="bg-gradient-to-r from-purple-500 to-indigo-500 h-1.5 rounded-full transition-all"
+                style={{ width: `${Math.min(100, Math.round((todayFoodLoggedGrams / dailyGoal) * 100))}%` }}
+              />
+            </div>
+          </div>
 
           <button
-            onClick={() => onQuickAction('food')}
+            onClick={() => onOpenQuickLogModal('food')}
             className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs py-2 px-3 rounded-lg flex items-center justify-center gap-1.5 shadow transition active:scale-95 cursor-pointer"
           >
             <Utensils className="w-3.5 h-3.5" />
-            <span>Feed Meal Now</span>
+            <span>Feed Meal Now ({remainingFoodGrams}g left)</span>
           </button>
         </div>
       </div>
