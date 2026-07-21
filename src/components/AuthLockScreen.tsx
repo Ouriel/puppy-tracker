@@ -142,10 +142,10 @@ export const AuthLockScreen: React.FC<AuthLockScreenProps> = ({
           </div>
 
           <h1 className="text-2xl font-extrabold text-white tracking-tight">
-            PupPace SaaS Platform
+            PupPace
           </h1>
           <p className="text-xs text-slate-400 max-w-xs mx-auto">
-            Secure multi-user puppy activity tracking & smart potty predictions.
+            Smart family puppy activity tracker & potty predictor.
           </p>
         </div>
 

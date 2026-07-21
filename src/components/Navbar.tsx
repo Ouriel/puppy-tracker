@@ -41,7 +41,6 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenAdminCenter,
   streakDays,
 }) => {
-  // Back-end check mock: Check if logged in user is the super admin
   const isSuperAdmin = user.email.toLowerCase() === 'matthieu.jacquet@gmail.com';
 
   return (
@@ -60,7 +59,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   PupPace
                 </span>
                 <span className="text-[10px] bg-indigo-950/90 text-indigo-300 border border-indigo-700/50 px-2 py-0.5 rounded-full font-semibold">
-                  SaaS Platform 🐾
+                  Smart Puppy Tracker 🐾
                 </span>
               </div>
               <p className="text-[11px] text-slate-400">Family Puppy Activity & Potty Sync</p>
