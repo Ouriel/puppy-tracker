@@ -26,11 +26,9 @@ export const AuthLockScreen: React.FC<AuthLockScreenProps> = ({
       window.google.accounts.id.initialize({
         client_id: '992015099309-mockclient.apps.googleusercontent.com', // Replace with real production client ID
         callback: (response: any) => {
-          // Google returns verified JWT payload in credential
           const credential = response.credential;
           console.log('Received secure credential from Google:', credential);
           
-          // Securely decode payload
           try {
             const base64Url = credential.split('.')[1];
             const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
@@ -166,27 +164,6 @@ export const AuthLockScreen: React.FC<AuthLockScreenProps> = ({
             
             {/* Real Google Button Container */}
             <div ref={googleBtnRef} className="w-full flex justify-center py-2" />
-            
-            {/* Standard Sandbox fallback interface for offline usage */}
-            <div className="pt-2 text-center">
-              <span className="text-[10px] text-slate-500 block mb-2">SSO Offline/Simulator Access:</span>
-              <div className="flex gap-2">
-                <input
-                  type="email"
-                  placeholder="Enter email to simulate SSO authentication"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-indigo-500"
-                />
-                <button
-                  type="button"
-                  onClick={() => onUnlockWithSSO(email.toLowerCase(), email.split('@')[0], 'mock-token')}
-                  className="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer"
-                >
-                  SSO Auth
-                </button>
-              </div>
-            </div>
           </div>
         )}
 
