@@ -1,38 +1,37 @@
 import type { Activity, Caretaker, PuppyProfile, UserAccount } from '../types';
 
-const STORAGE_KEY_ACTIVITIES = 'puppace_activities_v2';
-const STORAGE_KEY_PUPPIES = 'puppace_puppies_v2';
-const STORAGE_KEY_ACTIVE_PUPPY = 'puppace_active_puppy_v2';
-const STORAGE_KEY_USER_ACCOUNT = 'puppace_user_account_v2';
-const STORAGE_KEY_CARETAKERS = 'puppace_caretakers_v2';
+const STORAGE_KEY_ACTIVITIES = 'puppace_activities_v3';
+const STORAGE_KEY_PUPPIES = 'puppace_puppies_v3';
+const STORAGE_KEY_ACTIVE_PUPPY = 'puppace_active_puppy_v3';
+const STORAGE_KEY_USER_ACCOUNT = 'puppace_user_account_v3';
+const STORAGE_KEY_CARETAKERS = 'puppace_caretakers_v3';
 
+// Empty defaults for standard production install
 export const DEFAULT_PUPPIES: PuppyProfile[] = [
   {
-    id: 'pup-cocker-1',
-    name: 'Charlie',
-    breed: 'English Cocker Spaniel',
-    birthDate: '2026-04-15',
-    weightKg: 6.8,
+    id: 'pup-1',
+    name: 'Milo',
+    breed: 'Cocker Spaniel',
+    birthDate: '2026-05-01',
+    weightKg: 5.8,
     avatarUrl: '/cocker_spaniel_mascot.jpg',
     targetMealsPerDay: 3,
-    dailyFoodGramGoal: 210,
-    notes: 'Fluffy golden Cocker Spaniel! Loves outdoor potty praise.',
+    dailyFoodGramGoal: 200,
+    notes: 'Enter puppy notes here...',
   },
 ];
 
 export const DEFAULT_USER: UserAccount = {
-  id: 'usr-1',
-  name: 'Matthieu',
-  email: 'matthieu@family.com',
-  role: 'Husband',
+  id: 'usr-default',
+  name: 'Owner',
+  email: '',
+  role: 'Partner',
   avatarColor: '#6366F1',
-  familyPackId: 'FAMILY-COCKER-2026',
+  familyPackId: 'FAMILY-SYNC-PACK',
 };
 
 export const DEFAULT_CARETAKERS: Caretaker[] = [
-  { id: '1', name: 'Matthieu', role: 'Husband', color: '#6366F1', email: 'matthieu@family.com' },
-  { id: '2', name: 'Sarah', role: 'Wife', color: '#EC4899', email: 'sarah@family.com' },
-  { id: '3', name: 'Alex', role: 'Dog Walker', color: '#10B981', email: 'alex@dogwalkers.com' },
+  { id: '1', name: 'Owner', role: 'Partner', color: '#6366F1' },
 ];
 
 export function getStoredPuppies(): PuppyProfile[] {
@@ -70,47 +69,8 @@ export function getInitialActivities(): Activity[] {
       // Fallback
     }
   }
-
-  const now = new Date();
-  const hoursAgo = (h: number, m: number = 0) =>
-    new Date(now.getTime() - (h * 60 + m) * 60 * 1000).toISOString();
-
-  // Sample data to demonstrate UI on first launch
-  const samples: Activity[] = [
-    {
-      id: 'sample-1',
-      puppyId: 'pup-cocker-1',
-      type: 'pee',
-      timestamp: hoursAgo(1, 15),
-      loggedBy: 'Matthieu (Husband)',
-      pottyLocation: 'outside',
-      notes: 'Peed in grass right after waking up!',
-    },
-    {
-      id: 'sample-2',
-      puppyId: 'pup-cocker-1',
-      type: 'poop',
-      timestamp: hoursAgo(1, 12),
-      loggedBy: 'Matthieu (Husband)',
-      pottyLocation: 'outside',
-      stoolConsistency: 'normal',
-      notes: 'Good firm stool.',
-    },
-    {
-      id: 'sample-3',
-      puppyId: 'pup-cocker-1',
-      type: 'food',
-      timestamp: hoursAgo(3, 45),
-      loggedBy: 'Sarah (Wife)',
-      foodType: 'kibble',
-      quantityGrams: 70,
-      quantityCups: 0.65,
-      notes: 'Breakfast meal - ate enthusiastically!',
-    },
-  ];
-
-  localStorage.setItem(STORAGE_KEY_ACTIVITIES, JSON.stringify(samples));
-  return samples;
+  // Standard empty logs on clean launch
+  return [];
 }
 
 export function saveActivities(activities: Activity[]) {
