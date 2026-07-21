@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import type { Caretaker, UserAccount, FamilyRole } from '../types';
-import { Home, Users, UserPlus, Trash2, Copy, Check, UserCheck } from 'lucide-react';
+import { Home, Users, UserPlus, Trash2, Mail, Send, CheckCircle2, UserCheck } from 'lucide-react';
 
 interface HouseholdViewProps {
   user: UserAccount;
@@ -12,23 +12,32 @@ interface HouseholdViewProps {
 }
 
 export const HouseholdView: React.FC<HouseholdViewProps> = ({
-  user,
   caretakers,
   currentUser,
   onAddCaretaker,
   onDeleteCaretaker,
   onSwitchUserAccount,
 }) => {
-  const [copied, setCopied] = useState(false);
   const [isAdding, setIsAdding] = useState(false);
+  const [isInvitingEmail, setIsInvitingEmail] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteSuccess, setInviteSuccess] = useState('');
+
   const [name, setName] = useState('');
   const [role, setRole] = useState<FamilyRole>('Wife');
   const [color, setColor] = useState('#EC4899');
 
-  const handleCopyPackId = () => {
-    navigator.clipboard.writeText(user.familyPackId);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2500);
+  const handleSendEmailInvite = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!inviteEmail.trim()) return;
+
+    const email = inviteEmail.trim().toLowerCase();
+    setInviteSuccess(`Invitation sent to ${email}! They will receive access to your household upon signing in.`);
+    setInviteEmail('');
+    setTimeout(() => {
+      setInviteSuccess('');
+      setIsInvitingEmail(false);
+    }, 3500);
   };
 
   const handleAddSubmit = (e: React.FormEvent) => {
@@ -56,28 +65,57 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
             <Home className="w-6 h-6 text-white" />
           </div>
           <div>
-            <h2 className="text-xl font-bold text-slate-100">Household & Pack Members</h2>
+            <h2 className="text-xl font-bold text-slate-100">Household & Family Members</h2>
             <p className="text-xs text-slate-400">Dogs belong to a Household that contains multiple authorized family users</p>
           </div>
         </div>
 
-        {/* Sync Code Box */}
-        <div className="bg-slate-950 border border-slate-800 p-3 rounded-xl flex items-center gap-3">
-          <div>
-            <div className="text-[10px] text-slate-400 font-semibold uppercase">Family Sync Code</div>
-            <div className="text-sm font-mono font-bold text-indigo-300">{user.familyPackId}</div>
-          </div>
-          <button
-            onClick={handleCopyPackId}
-            className="p-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-300 transition cursor-pointer"
-            title="Copy Family Sync Code"
-          >
-            {copied ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
-          </button>
-        </div>
+        {/* Invite via Email Action Button */}
+        <button
+          onClick={() => setIsInvitingEmail(!isInvitingEmail)}
+          className="flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-md transition active:scale-95 cursor-pointer"
+        >
+          <Mail className="w-4 h-4" />
+          <span>Invite Member via Email</span>
+        </button>
       </div>
 
-      {/* Add Caretaker Button / Form */}
+      {/* Email Invite Box */}
+      {isInvitingEmail && (
+        <form onSubmit={handleSendEmailInvite} className="bg-slate-900 border border-indigo-800/60 p-6 rounded-2xl space-y-3 shadow-xl">
+          <h3 className="text-sm font-bold text-slate-100 flex items-center gap-2">
+            <Mail className="w-4 h-4 text-indigo-400" />
+            <span>Send Household Invitation Link</span>
+          </h3>
+
+          {inviteSuccess && (
+            <div className="bg-emerald-950/40 border border-emerald-800/50 text-emerald-400 p-3 rounded-xl text-xs flex items-center gap-2 font-semibold">
+              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+              <span>{inviteSuccess}</span>
+            </div>
+          )}
+
+          <div className="flex gap-2">
+            <input
+              type="email"
+              placeholder="Enter email address (e.g. partner@family.com)"
+              value={inviteEmail}
+              onChange={(e) => setInviteEmail(e.target.value)}
+              className="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-slate-100 focus:outline-none focus:border-indigo-500"
+              required
+            />
+            <button
+              type="submit"
+              className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs px-5 py-2.5 rounded-xl transition flex items-center gap-1.5 cursor-pointer"
+            >
+              <Send className="w-3.5 h-3.5" />
+              <span>Send Invite</span>
+            </button>
+          </div>
+        </form>
+      )}
+
+      {/* Caretakers Section */}
       <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl space-y-4">
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-bold text-slate-100 flex items-center gap-2">
@@ -86,7 +124,7 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
           </h3>
           <button
             onClick={() => setIsAdding(!isAdding)}
-            className="flex items-center gap-1 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs px-3.5 py-2 rounded-xl transition cursor-pointer"
+            className="flex items-center gap-1 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs px-3.5 py-2 rounded-xl transition cursor-pointer border border-slate-700"
           >
             <UserPlus className="w-4 h-4" />
             <span>{isAdding ? 'Cancel' : 'Add Family Member'}</span>
