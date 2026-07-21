@@ -1,8 +1,8 @@
 import React from 'react';
 import type { PuppyProfile, Caretaker, UserAccount } from '../types';
-import { FileText, BookOpen, Flame, Plus, Dog, Lock, ShieldAlert, LayoutDashboard, Home } from 'lucide-react';
+import { FileText, BookOpen, Flame, Plus, Dog, Lock, ShieldAlert, LayoutDashboard, Home, Syringe } from 'lucide-react';
 
-export type MainTabType = 'dashboard' | 'puppies' | 'household' | 'admin' | 'careguide';
+export type MainTabType = 'dashboard' | 'puppies' | 'household' | 'carnetdesante' | 'admin' | 'careguide';
 
 interface NavbarProps {
   activeMainTab: MainTabType;
@@ -93,7 +93,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
         {/* Bottom row: Main Page Tabs & Quick Actions */}
         <div className="flex flex-wrap items-center justify-between gap-3">
-          {/* Main Navigation Tabs (NO MODALS!) */}
+          {/* Main Navigation Tabs */}
           <div className="flex items-center gap-1 bg-slate-950/60 p-1 rounded-xl border border-slate-800/80 overflow-x-auto">
             <button
               onClick={() => onSelectMainTab('dashboard')}
@@ -129,6 +129,18 @@ export const Navbar: React.FC<NavbarProps> = ({
             >
               <Home className="w-3.5 h-3.5" />
               <span>Household ({caretakers.length})</span>
+            </button>
+
+            <button
+              onClick={() => onSelectMainTab('carnetdesante')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                activeMainTab === 'carnetdesante'
+                  ? 'bg-teal-600 text-white shadow'
+                  : 'text-teal-400 hover:text-teal-200'
+              }`}
+            >
+              <Syringe className="w-3.5 h-3.5" />
+              <span>Carnet de Santé</span>
             </button>
 
             {isSuperAdmin && (

@@ -24,6 +24,7 @@ import { PuppiesView } from './views/PuppiesView';
 import { HouseholdView } from './views/HouseholdView';
 import { AdminView } from './views/AdminView';
 import { CareGuideView } from './views/CareGuideView';
+import { CarnetDeSanteView } from './views/CarnetDeSanteView';
 import { Dog, Plus } from 'lucide-react';
 
 export function App() {
@@ -246,6 +247,10 @@ export function App() {
           />
         )}
 
+        {activeMainTab === 'carnetdesante' && (
+          <CarnetDeSanteView activePuppy={activePuppy} />
+        )}
+
         {activeMainTab === 'admin' && (
           <AdminView
             token="demo-token"
@@ -305,6 +310,8 @@ export function App() {
         <div className="max-w-6xl mx-auto px-4 flex flex-wrap items-center justify-between gap-2">
           <span>PupPace &bull; Household Puppy Sync Platform</span>
           <div className="flex items-center gap-3">
+            <button onClick={() => setActiveMainTab('carnetdesante')} className="hover:text-slate-400 transition">Carnet de Santé</button>
+            <span>&bull;</span>
             <button onClick={() => setActiveMainTab('careguide')} className="hover:text-slate-400 transition">Care Guide</button>
             <span>&bull;</span>
             <a href="/privacy" className="hover:text-slate-400 transition">Privacy</a>
