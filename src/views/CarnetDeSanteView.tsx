@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import type { PuppyProfile } from '../types';
-import { Syringe, ShieldCheck, Plus, Pill } from 'lucide-react';
+import { Syringe, ShieldCheck, Plus, Pill, Trash2 } from 'lucide-react';
 
 interface VaccinationEntry {
   id: string;
@@ -87,6 +87,12 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePupp
     setIsAddingVaccine(false);
   };
 
+  const handleDeleteVaccine = (id: string) => {
+    if (window.confirm('Êtes-vous sûr de vouloir supprimer cette ligne de vaccin ?')) {
+      setVaccinations((prev) => prev.filter((v) => v.id !== id));
+    }
+  };
+
   const handleAddDewormingSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!dewormAdminDate || !dewormNextDate) return;
@@ -101,6 +107,12 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePupp
 
     setDewormingLogs((prev) => [newEntry, ...prev]);
     setIsAddingDeworming(false);
+  };
+
+  const handleDeleteDeworming = (id: string) => {
+    if (window.confirm('Êtes-vous sûr de vouloir supprimer cette entrée de vermifuge ?')) {
+      setDewormingLogs((prev) => prev.filter((d) => d.id !== id));
+    }
   };
 
   if (!activePuppy) {
@@ -250,9 +262,18 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePupp
                 </div>
               </div>
 
-              <div className="text-right">
-                <div className="text-xs font-bold text-amber-300">Rappel: {v.nextDueDate}</div>
-                <div className="text-[10px] text-slate-500">Statut: Conforme</div>
+              <div className="flex items-center gap-3">
+                <div className="text-right">
+                  <div className="text-xs font-bold text-amber-300">Rappel: {v.nextDueDate}</div>
+                  <div className="text-[10px] text-slate-500">Statut: Conforme</div>
+                </div>
+                <button
+                  onClick={() => handleDeleteVaccine(v.id)}
+                  title="Supprimer la ligne de vaccin"
+                  className="p-1.5 text-slate-500 hover:text-red-400 hover:bg-red-950/40 rounded-lg transition cursor-pointer"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
               </div>
             </div>
           ))}
@@ -338,9 +359,18 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePupp
                 </div>
               </div>
 
-              <div className="text-right">
-                <div className="text-xs font-bold text-indigo-300">Prochain: {d.nextDueDate}</div>
-                <div className="text-[10px] text-slate-500">Statut: À jour</div>
+              <div className="flex items-center gap-3">
+                <div className="text-right">
+                  <div className="text-xs font-bold text-indigo-300">Prochain: {d.nextDueDate}</div>
+                  <div className="text-[10px] text-slate-500">Statut: À jour</div>
+                </div>
+                <button
+                  onClick={() => handleDeleteDeworming(d.id)}
+                  title="Supprimer la ligne de vermifuge"
+                  className="p-1.5 text-slate-500 hover:text-red-400 hover:bg-red-950/40 rounded-lg transition cursor-pointer"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
               </div>
             </div>
           ))}
