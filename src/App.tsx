@@ -175,6 +175,10 @@ export function App() {
     }
   };
 
+  const handleExportVetSummary = () => {
+    window.print();
+  };
+
   // Filter activities for active puppy
   const activePuppyActivities = activePuppy
     ? activities.filter((a) => !a.puppyId || a.puppyId === activePuppy.id)
@@ -185,10 +189,15 @@ export function App() {
     return calculatePredictions(activePuppyActivities, activePuppy);
   }, [activePuppyActivities, activePuppy]);
 
-  // Potty clean streak
+  // Potty clean streak calculation fix: 0 days if no activities!
   const streakDays = React.useMemo(() => {
+    if (activePuppyActivities.length === 0) return 0;
     const accidents = activePuppyActivities.filter((a) => a.pottyLocation === 'indoor_accident');
-    if (accidents.length === 0) return 7;
+    if (accidents.length === 0) {
+      const oldestTimestamp = Math.min(...activePuppyActivities.map((a) => new Date(a.timestamp).getTime()));
+      const diffHours = (Date.now() - oldestTimestamp) / (1000 * 60 * 60);
+      return Math.max(1, Math.floor(diffHours / 24) + 1);
+    }
     const latestAccident = Math.max(...accidents.map((a) => new Date(a.timestamp).getTime()));
     const diffHours = (Date.now() - latestAccident) / (1000 * 60 * 60);
     return Math.floor(diffHours / 24);
@@ -219,7 +228,7 @@ export function App() {
         currentUser={currentUser}
         onSelectUser={(u) => setCurrentUser(u)}
         onOpenQuickLog={() => setIsQuickLogOpen(true)}
-        onOpenVetReport={() => setActiveMainTab('careguide')}
+        onOpenVetReport={handleExportVetSummary}
         onClearSampleData={handleClearSampleData}
         onLockVault={handleLockVault}
         streakDays={streakDays}
@@ -264,7 +273,9 @@ export function App() {
           />
         )}
 
-        {activeMainTab === 'careguide' && <CareGuideView />}
+        {activeMainTab === 'careguide' && (
+          <CareGuideView onBackToDashboard={() => setActiveMainTab('dashboard')} />
+        )}
 
         {activeMainTab === 'dashboard' && (
           <>

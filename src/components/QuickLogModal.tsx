@@ -116,7 +116,7 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-5 max-h-[75vh] overflow-y-auto">
-          {/* Activity Type Selector Grid - Optimized touch heights */}
+          {/* Activity Type Selector Grid */}
           <div>
             <label className="block text-xs font-semibold text-slate-400 mb-2">
               Select Activity Type
@@ -147,7 +147,7 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
                 <label className="block text-xs font-semibold text-slate-400 mb-2">
                   Potty Location
                 </label>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                   <button
                     type="button"
                     onClick={() => setPottyLocation('outside')}
@@ -162,13 +162,13 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
                   <button
                     type="button"
                     onClick={() => setPottyLocation('indoor_pad')}
-                    className={`py-3 px-3 rounded-xl text-xs font-bold border transition cursor-pointer ${
+                    className={`py-3 px-3 rounded-xl text-[11px] font-bold border transition cursor-pointer ${
                       pottyLocation === 'indoor_pad'
                         ? 'bg-amber-600 text-white border-amber-500 shadow'
-                        : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'
+                        : 'bg-slate-800 text-amber-400 border-slate-700 hover:bg-slate-700'
                     }`}
                   >
-                    🟨 Pad
+                    🟨 Pad (Déconseillé)
                   </button>
                   <button
                     type="button"
