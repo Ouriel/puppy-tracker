@@ -1,6 +1,6 @@
 import React from 'react';
 import type { PuppyProfile, Caretaker, UserAccount } from '../types';
-import { Users, FileText, BookOpen, Flame, Plus, Dog, Shield } from 'lucide-react';
+import { Users, FileText, BookOpen, Flame, Plus, Dog, Shield, Trash2 } from 'lucide-react';
 
 interface NavbarProps {
   puppies: PuppyProfile[];
@@ -16,6 +16,7 @@ interface NavbarProps {
   onOpenVetReport: () => void;
   onOpenCareGuide: () => void;
   onEditProfile: () => void;
+  onClearSampleData: () => void;
   streakDays: number;
 }
 
@@ -33,6 +34,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenVetReport,
   onOpenCareGuide,
   onEditProfile,
+  onClearSampleData,
   streakDays,
 }) => {
   return (
@@ -138,6 +140,16 @@ export const Navbar: React.FC<NavbarProps> = ({
               <Flame className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
               <span>{streakDays}d Clean Streak</span>
             </div>
+
+            {/* Clear Sample Data button */}
+            <button
+              onClick={onClearSampleData}
+              title="Clear sample demo logs and start with a fresh blank log"
+              className="flex items-center gap-1 bg-rose-950/40 hover:bg-rose-900/60 text-rose-300 border border-rose-700/50 px-2.5 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>Clear Sample Logs</span>
+            </button>
 
             {/* Quick Action Buttons */}
             <div className="flex items-center gap-1.5">

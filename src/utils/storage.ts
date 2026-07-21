@@ -11,23 +11,12 @@ export const DEFAULT_PUPPIES: PuppyProfile[] = [
     id: 'pup-cocker-1',
     name: 'Charlie',
     breed: 'English Cocker Spaniel',
-    birthDate: '2026-04-15', // ~14 weeks
+    birthDate: '2026-04-15',
     weightKg: 6.8,
     avatarUrl: '/cocker_spaniel_mascot.jpg',
     targetMealsPerDay: 3,
     dailyFoodGramGoal: 210,
-    notes: 'Fluffy golden Cocker Spaniel! Loves outdoor potty praise & kibble toppers.',
-  },
-  {
-    id: 'pup-cocker-2',
-    name: 'Bella',
-    breed: 'American Cocker Spaniel',
-    birthDate: '2026-05-01', // ~12 weeks
-    weightKg: 5.4,
-    avatarUrl: '/cocker_spaniel_mascot.jpg',
-    targetMealsPerDay: 4,
-    dailyFoodGramGoal: 180,
-    notes: 'Black & tan Cocker Spaniel puppy. Needs potty break ~20 min post meal.',
+    notes: 'Fluffy golden Cocker Spaniel! Loves outdoor potty praise.',
   },
 ];
 
@@ -86,6 +75,7 @@ export function getInitialActivities(): Activity[] {
   const hoursAgo = (h: number, m: number = 0) =>
     new Date(now.getTime() - (h * 60 + m) * 60 * 1000).toISOString();
 
+  // Sample data to demonstrate UI on first launch
   const samples: Activity[] = [
     {
       id: 'sample-1',
@@ -117,26 +107,6 @@ export function getInitialActivities(): Activity[] {
       quantityCups: 0.65,
       notes: 'Breakfast meal - ate enthusiastically!',
     },
-    {
-      id: 'sample-4',
-      puppyId: 'pup-cocker-2',
-      type: 'pee',
-      timestamp: hoursAgo(2, 10),
-      loggedBy: 'Sarah (Wife)',
-      pottyLocation: 'outside',
-      notes: 'Bella peed outside after morning play',
-    },
-    {
-      id: 'sample-5',
-      puppyId: 'pup-cocker-2',
-      type: 'food',
-      timestamp: hoursAgo(2, 30),
-      loggedBy: 'Sarah (Wife)',
-      foodType: 'kibble',
-      quantityGrams: 50,
-      quantityCups: 0.5,
-      notes: 'Morning bowl fed',
-    },
   ];
 
   localStorage.setItem(STORAGE_KEY_ACTIVITIES, JSON.stringify(samples));
@@ -145,6 +115,10 @@ export function getInitialActivities(): Activity[] {
 
 export function saveActivities(activities: Activity[]) {
   localStorage.setItem(STORAGE_KEY_ACTIVITIES, JSON.stringify(activities));
+}
+
+export function clearAllData() {
+  localStorage.removeItem(STORAGE_KEY_ACTIVITIES);
 }
 
 export function getStoredUser(): UserAccount {

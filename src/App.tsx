@@ -3,6 +3,7 @@ import type { Activity, ActivityType, Caretaker, FamilyRole, PottyLocation, Pupp
 import {
   getInitialActivities,
   saveActivities,
+  clearAllData,
   getStoredPuppies,
   savePuppies,
   getActivePuppyId,
@@ -45,10 +46,8 @@ export function App() {
   const [isShareOpen, setIsShareOpen] = useState(false);
   const [isCareGuideOpen, setIsCareGuideOpen] = useState(false);
 
-  // Active puppy object
   const activePuppy = puppies.find((p) => p.id === activePuppyId) || puppies[0];
 
-  // Auto-save effects
   useEffect(() => {
     saveActivities(activities);
   }, [activities]);
@@ -95,6 +94,13 @@ export function App() {
     setActivities((prev) => prev.filter((a) => a.id !== id));
   };
 
+  const handleClearSampleData = () => {
+    if (window.confirm('Are you sure you want to clear sample logs and start with a fresh blank timeline?')) {
+      clearAllData();
+      setActivities([]);
+    }
+  };
+
   const handleAddCaretaker = (caretaker: Caretaker) => {
     setCaretakers((prev) => [...prev, caretaker]);
   };
@@ -109,12 +115,10 @@ export function App() {
     setPuppies((prev) => prev.map((p) => (p.id === updatedProfile.id ? updatedProfile : p)));
   };
 
-  // Filter activities for active puppy
   const activePuppyActivities = activities.filter(
     (a) => !a.puppyId || a.puppyId === activePuppy.id
   );
 
-  // Potty accident streak for active puppy
   const accidents = activePuppyActivities.filter((a) => a.pottyLocation === 'indoor_accident');
   let streakDays = 0;
   if (accidents.length === 0) {
@@ -131,7 +135,6 @@ export function App() {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 font-sans selection:bg-indigo-500 selection:text-white">
-      {/* Navigation Header */}
       <Navbar
         puppies={puppies}
         activePuppy={activePuppy}
@@ -146,21 +149,18 @@ export function App() {
         onOpenVetReport={() => printVetReport(activePuppyActivities, activePuppy)}
         onOpenCareGuide={() => setIsCareGuideOpen(true)}
         onEditProfile={() => setIsProfileOpen(true)}
+        onClearSampleData={handleClearSampleData}
         streakDays={streakDays}
       />
 
-      {/* Main Container */}
       <main className="max-w-6xl mx-auto px-4 py-6 space-y-6">
-        {/* Predictive Schedule Card */}
         <PredictorWidget
           predictions={predictions}
           onQuickAction={(type, loc) => handleOpenQuickLog(type, loc || 'outside')}
         />
 
-        {/* Analytics & Success Rates */}
         <StatsAnalytics activities={activePuppyActivities} profile={activePuppy} />
 
-        {/* Activity Timeline Feed */}
         <ActivityTimeline
           activities={activePuppyActivities}
           caretakers={caretakers}
@@ -168,7 +168,6 @@ export function App() {
         />
       </main>
 
-      {/* Modals */}
       <QuickLogModal
         isOpen={isQuickLogOpen}
         initialType={quickLogType}
