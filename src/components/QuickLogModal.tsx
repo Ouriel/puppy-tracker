@@ -10,7 +10,7 @@ interface QuickLogModalProps {
   caretakers: Caretaker[];
   currentUser: string;
   onClose: () => void;
-  onSave: (activity: Omit<Activity, 'id'>) => void;
+  onSave: (activity: Omit<Activity, 'id' | 'puppyId'>) => void;
 }
 
 export const QuickLogModal: React.FC<QuickLogModalProps> = ({
@@ -35,10 +35,8 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
   const [quantityCups, setQuantityCups] = useState<number>(0.75);
 
   const [waterAmountMl, setWaterAmountMl] = useState<number>(100);
-
   const [durationMinutes, setDurationMinutes] = useState<number>(30);
-
-  const [weightKg, setWeightKg] = useState<number>(8.5);
+  const [weightKg, setWeightKg] = useState<number>(6.5);
   const [medicationName, setMedicationName] = useState<string>('Flea & Tick Prevention');
 
   useEffect(() => {
@@ -53,7 +51,7 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    const newActivity: Omit<Activity, 'id'> = {
+    const newActivity: Omit<Activity, 'id' | 'puppyId'> = {
       type,
       timestamp: new Date(timestamp).toISOString(),
       loggedBy,
@@ -385,8 +383,8 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
                 className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-indigo-500 cursor-pointer"
               >
                 {caretakers.map((c) => (
-                  <option key={c.id} value={c.name}>
-                    {c.name}
+                  <option key={c.id} value={`${c.name} (${c.role})`}>
+                    {c.name} ({c.role})
                   </option>
                 ))}
               </select>

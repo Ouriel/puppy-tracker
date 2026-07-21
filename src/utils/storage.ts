@@ -1,27 +1,76 @@
-import type { Activity, Caretaker, PuppyProfile } from '../types';
+import type { Activity, Caretaker, PuppyProfile, UserAccount } from '../types';
 
-const STORAGE_KEY_ACTIVITIES = 'puppace_activities_v1';
-const STORAGE_KEY_PROFILE = 'puppace_profile_v1';
-const STORAGE_KEY_CARETAKERS = 'puppace_caretakers_v1';
-const STORAGE_KEY_CURRENT_USER = 'puppace_current_user_v1';
+const STORAGE_KEY_ACTIVITIES = 'puppace_activities_v2';
+const STORAGE_KEY_PUPPIES = 'puppace_puppies_v2';
+const STORAGE_KEY_ACTIVE_PUPPY = 'puppace_active_puppy_v2';
+const STORAGE_KEY_USER_ACCOUNT = 'puppace_user_account_v2';
+const STORAGE_KEY_CARETAKERS = 'puppace_caretakers_v2';
 
-export const DEFAULT_PROFILE: PuppyProfile = {
-  id: 'pup-1',
-  name: 'Luna',
-  breed: 'Golden Retriever',
-  birthDate: '2026-04-10',
-  weightKg: 8.5,
-  avatarUrl: '/puppy_mascot.jpg',
-  targetMealsPerDay: 3,
-  dailyFoodGramGoal: 240,
-  notes: 'Enthusiastic eater! Responds well to positive treat praise during potty time.',
+export const DEFAULT_PUPPIES: PuppyProfile[] = [
+  {
+    id: 'pup-cocker-1',
+    name: 'Charlie',
+    breed: 'English Cocker Spaniel',
+    birthDate: '2026-04-15', // ~14 weeks
+    weightKg: 6.8,
+    avatarUrl: '/cocker_spaniel_mascot.jpg',
+    targetMealsPerDay: 3,
+    dailyFoodGramGoal: 210,
+    notes: 'Fluffy golden Cocker Spaniel! Loves outdoor potty praise & kibble toppers.',
+  },
+  {
+    id: 'pup-cocker-2',
+    name: 'Bella',
+    breed: 'American Cocker Spaniel',
+    birthDate: '2026-05-01', // ~12 weeks
+    weightKg: 5.4,
+    avatarUrl: '/cocker_spaniel_mascot.jpg',
+    targetMealsPerDay: 4,
+    dailyFoodGramGoal: 180,
+    notes: 'Black & tan Cocker Spaniel puppy. Needs potty break ~20 min post meal.',
+  },
+];
+
+export const DEFAULT_USER: UserAccount = {
+  id: 'usr-1',
+  name: 'Matthieu',
+  email: 'matthieu@family.com',
+  role: 'Husband',
+  avatarColor: '#6366F1',
+  familyPackId: 'FAMILY-COCKER-2026',
 };
 
 export const DEFAULT_CARETAKERS: Caretaker[] = [
-  { id: '1', name: 'Matthieu', role: 'Owner', color: '#6366F1' },
-  { id: '2', name: 'Partner', role: 'Owner', color: '#EC4899' },
-  { id: '3', name: 'Dog Walker', role: 'Walker', color: '#10B981' },
+  { id: '1', name: 'Matthieu', role: 'Husband', color: '#6366F1', email: 'matthieu@family.com' },
+  { id: '2', name: 'Sarah', role: 'Wife', color: '#EC4899', email: 'sarah@family.com' },
+  { id: '3', name: 'Alex', role: 'Dog Walker', color: '#10B981', email: 'alex@dogwalkers.com' },
 ];
+
+export function getStoredPuppies(): PuppyProfile[] {
+  const stored = localStorage.getItem(STORAGE_KEY_PUPPIES);
+  if (stored) {
+    try {
+      const parsed = JSON.parse(stored);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    } catch {
+      // fallback
+    }
+  }
+  localStorage.setItem(STORAGE_KEY_PUPPIES, JSON.stringify(DEFAULT_PUPPIES));
+  return DEFAULT_PUPPIES;
+}
+
+export function savePuppies(puppies: PuppyProfile[]) {
+  localStorage.setItem(STORAGE_KEY_PUPPIES, JSON.stringify(puppies));
+}
+
+export function getActivePuppyId(): string {
+  return localStorage.getItem(STORAGE_KEY_ACTIVE_PUPPY) || DEFAULT_PUPPIES[0].id;
+}
+
+export function setActivePuppyId(id: string) {
+  localStorage.setItem(STORAGE_KEY_ACTIVE_PUPPY, id);
+}
 
 export function getInitialActivities(): Activity[] {
   const stored = localStorage.getItem(STORAGE_KEY_ACTIVITIES);
@@ -40,76 +89,53 @@ export function getInitialActivities(): Activity[] {
   const samples: Activity[] = [
     {
       id: 'sample-1',
+      puppyId: 'pup-cocker-1',
       type: 'pee',
       timestamp: hoursAgo(1, 15),
-      loggedBy: 'Matthieu',
+      loggedBy: 'Matthieu (Husband)',
       pottyLocation: 'outside',
-      notes: 'Peed right after waking up! Given treat.',
+      notes: 'Peed in grass right after waking up!',
     },
     {
       id: 'sample-2',
+      puppyId: 'pup-cocker-1',
       type: 'poop',
       timestamp: hoursAgo(1, 12),
-      loggedBy: 'Matthieu',
+      loggedBy: 'Matthieu (Husband)',
       pottyLocation: 'outside',
       stoolConsistency: 'normal',
       notes: 'Good firm stool.',
     },
     {
       id: 'sample-3',
+      puppyId: 'pup-cocker-1',
       type: 'food',
       timestamp: hoursAgo(3, 45),
-      loggedBy: 'Partner',
+      loggedBy: 'Sarah (Wife)',
       foodType: 'kibble',
-      quantityGrams: 80,
-      quantityCups: 0.75,
-      notes: 'Breakfast meal - ate with appetite!',
+      quantityGrams: 70,
+      quantityCups: 0.65,
+      notes: 'Breakfast meal - ate enthusiastically!',
     },
     {
       id: 'sample-4',
-      type: 'water',
-      timestamp: hoursAgo(3, 30),
-      loggedBy: 'Partner',
-      waterAmountMl: 150,
+      puppyId: 'pup-cocker-2',
+      type: 'pee',
+      timestamp: hoursAgo(2, 10),
+      loggedBy: 'Sarah (Wife)',
+      pottyLocation: 'outside',
+      notes: 'Bella peed outside after morning play',
     },
     {
       id: 'sample-5',
-      type: 'pee',
-      timestamp: hoursAgo(4, 10),
-      loggedBy: 'Partner',
-      pottyLocation: 'outside',
-    },
-    {
-      id: 'sample-6',
-      type: 'nap',
-      timestamp: hoursAgo(5, 0),
-      durationMinutes: 90,
-      loggedBy: 'Matthieu',
-      notes: 'Morning crate nap',
-    },
-    {
-      id: 'sample-7',
-      type: 'pee',
-      timestamp: hoursAgo(7, 30),
-      loggedBy: 'Matthieu',
-      pottyLocation: 'indoor_accident',
-      notes: 'Small accident near balcony door.',
-    },
-    {
-      id: 'sample-8',
-      type: 'walk',
-      timestamp: hoursAgo(8, 0),
-      durationMinutes: 15,
-      loggedBy: 'Matthieu',
-      notes: 'Gentle neighborhood socialization walk',
-    },
-    {
-      id: 'sample-9',
-      type: 'weight',
-      timestamp: hoursAgo(24, 0),
-      weightKg: 8.5,
-      loggedBy: 'Matthieu',
-      notes: 'Weekly weigh-in',
+      puppyId: 'pup-cocker-2',
+      type: 'food',
+      timestamp: hoursAgo(2, 30),
+      loggedBy: 'Sarah (Wife)',
+      foodType: 'kibble',
+      quantityGrams: 50,
+      quantityCups: 0.5,
+      notes: 'Morning bowl fed',
     },
   ];
 
@@ -121,8 +147,8 @@ export function saveActivities(activities: Activity[]) {
   localStorage.setItem(STORAGE_KEY_ACTIVITIES, JSON.stringify(activities));
 }
 
-export function getStoredProfile(): PuppyProfile {
-  const stored = localStorage.getItem(STORAGE_KEY_PROFILE);
+export function getStoredUser(): UserAccount {
+  const stored = localStorage.getItem(STORAGE_KEY_USER_ACCOUNT);
   if (stored) {
     try {
       return JSON.parse(stored);
@@ -130,11 +156,11 @@ export function getStoredProfile(): PuppyProfile {
       // ignore
     }
   }
-  return DEFAULT_PROFILE;
+  return DEFAULT_USER;
 }
 
-export function saveProfile(profile: PuppyProfile) {
-  localStorage.setItem(STORAGE_KEY_PROFILE, JSON.stringify(profile));
+export function saveUser(user: UserAccount) {
+  localStorage.setItem(STORAGE_KEY_USER_ACCOUNT, JSON.stringify(user));
 }
 
 export function getStoredCaretakers(): Caretaker[] {
@@ -151,12 +177,4 @@ export function getStoredCaretakers(): Caretaker[] {
 
 export function saveCaretakers(caretakers: Caretaker[]) {
   localStorage.setItem(STORAGE_KEY_CARETAKERS, JSON.stringify(caretakers));
-}
-
-export function getCurrentUser(): string {
-  return localStorage.getItem(STORAGE_KEY_CURRENT_USER) || 'Matthieu';
-}
-
-export function setCurrentUser(name: string) {
-  localStorage.setItem(STORAGE_KEY_CURRENT_USER, name);
 }

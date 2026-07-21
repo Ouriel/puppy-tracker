@@ -8,9 +8,10 @@ export type FoodType = 'kibble' | 'wet' | 'raw' | 'treats' | 'topper';
 
 export interface Activity {
   id: string;
+  puppyId: string; // Links activity to a specific puppy
   type: ActivityType;
   timestamp: string; // ISO string
-  loggedBy: string; // Caretaker name e.g. "Matthieu" or "Sarah"
+  loggedBy: string; // Caretaker name e.g. "Matthieu (Husband)"
   notes?: string;
   
   // Specific details
@@ -37,11 +38,23 @@ export interface PuppyProfile {
   notes?: string;
 }
 
+export type FamilyRole = 'Husband' | 'Wife' | 'Partner' | 'Child' | 'Dog Walker' | 'Sitter' | 'Relative';
+
+export interface UserAccount {
+  id: string;
+  name: string;
+  email: string;
+  role: FamilyRole;
+  avatarColor: string;
+  familyPackId: string;
+}
+
 export interface Caretaker {
   id: string;
   name: string;
-  role: 'Owner' | 'Partner' | 'Walker' | 'Sitter' | 'Family';
+  role: FamilyRole;
   color: string;
+  email?: string;
 }
 
 export interface PredictionResult {

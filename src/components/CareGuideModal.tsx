@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, BookOpen, CheckCircle, Clock, AlertCircle } from 'lucide-react';
+import { X, BookOpen, CheckCircle, Clock, AlertCircle, Heart } from 'lucide-react';
 
 interface CareGuideModalProps {
   isOpen: boolean;
@@ -10,12 +10,12 @@ export const CareGuideModal: React.FC<CareGuideModalProps> = ({ isOpen, onClose 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-sm animate-fadeIn">
       <div className="bg-slate-900 border border-slate-700/80 rounded-2xl w-full max-w-2xl max-h-[85vh] overflow-hidden shadow-2xl flex flex-col">
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800 shrink-0">
           <h2 className="text-lg font-bold text-slate-100 flex items-center gap-2">
             <BookOpen className="w-5 h-5 text-indigo-400" />
-            <span>Puppy Care & Potty Training Guidelines</span>
+            <span>Cocker Spaniel Puppy Care & Potty Guidelines</span>
           </h2>
           <button
             onClick={onClose}
@@ -26,6 +26,25 @@ export const CareGuideModal: React.FC<CareGuideModalProps> = ({ isOpen, onClose 
         </div>
 
         <div className="p-6 overflow-y-auto space-y-6 text-sm text-slate-300">
+          {/* Cocker Spaniel Mascot Card */}
+          <div className="flex items-center gap-4 bg-gradient-to-r from-amber-950/40 via-purple-950/40 to-slate-900 border border-amber-700/40 p-4 rounded-xl">
+            <img
+              src="/cocker_spaniel_mascot.jpg"
+              alt="Cocker Spaniel Mascot"
+              className="w-14 h-14 rounded-full object-cover ring-2 ring-amber-500 shadow-md"
+            />
+            <div>
+              <h3 className="font-bold text-amber-300 text-sm flex items-center gap-1.5">
+                <Heart className="w-4 h-4 text-pink-400 fill-pink-400" />
+                <span>Cocker Spaniel Special Care Note</span>
+              </h3>
+              <p className="text-xs text-slate-300 mt-0.5 leading-relaxed">
+                Cocker Spaniels are intelligent, gentle, and eager to please. Because of their floppy ears and enthusiastic appetite, keep ears clean after meals & water!
+              </p>
+            </div>
+          </div>
+
+          {/* Potty Rule of Thumb */}
           <div className="bg-indigo-950/40 border border-indigo-700/50 p-4 rounded-xl space-y-2">
             <h3 className="font-bold text-indigo-300 flex items-center gap-2">
               <Clock className="w-4 h-4" />
@@ -41,6 +60,7 @@ export const CareGuideModal: React.FC<CareGuideModalProps> = ({ isOpen, onClose 
             </ul>
           </div>
 
+          {/* Key Potty Triggers */}
           <div>
             <h3 className="font-bold text-slate-100 mb-3 flex items-center gap-2">
               <CheckCircle className="w-4 h-4 text-emerald-400" />
@@ -66,6 +86,7 @@ export const CareGuideModal: React.FC<CareGuideModalProps> = ({ isOpen, onClose 
             </div>
           </div>
 
+          {/* Stool Chart Reference */}
           <div>
             <h3 className="font-bold text-slate-100 mb-3 flex items-center gap-2">
               <AlertCircle className="w-4 h-4 text-amber-400" />
