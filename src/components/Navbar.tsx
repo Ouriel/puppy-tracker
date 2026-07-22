@@ -1,6 +1,6 @@
 import React from 'react';
 import type { PuppyProfile, UserAccount } from '../types';
-import { FileText, BookOpen, Flame, Plus, Dog, LogOut, ShieldAlert, LayoutDashboard, Settings, Syringe, Globe } from 'lucide-react';
+import { FileText, BookOpen, Flame, Plus, LogOut, ShieldAlert, LayoutDashboard, Settings, Syringe, Globe } from 'lucide-react';
 import type { Language } from '../i18n';
 
 export type MainTabType = 'dashboard' | 'carnetdesante' | 'settings' | 'careguide' | 'admin';
@@ -43,13 +43,15 @@ export const Navbar: React.FC<NavbarProps> = ({
   return (
     <header className="sticky top-0 z-30 bg-slate-900/95 backdrop-blur-md border-b border-slate-800 text-slate-100 shadow-xl">
       <div className="max-w-6xl mx-auto px-4 py-3 space-y-3">
-        {/* Top row: Brand, Language Dropdown & Sign Out */}
+        {/* Top row: Flat Vector Brand Logo, Language Dropdown & Sign Out */}
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800/60 pb-2.5">
           {/* Brand Logo */}
           <div className="flex items-center gap-2.5">
-            <div className="p-2 bg-gradient-to-br from-amber-500 to-indigo-600 rounded-xl shadow-md">
-              <Dog className="w-5 h-5 text-white" />
-            </div>
+            <img
+              src="/flat_cocker_spaniel_logo.jpg"
+              alt="PupPace Logo"
+              className="w-9 h-9 rounded-xl object-cover ring-2 ring-amber-500/50 shadow-md"
+            />
             <div>
               <span className="text-base font-extrabold tracking-tight bg-gradient-to-r from-amber-300 via-indigo-300 to-pink-300 bg-clip-text text-transparent">
                 {t.brand}
