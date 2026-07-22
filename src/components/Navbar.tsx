@@ -51,14 +51,9 @@ export const Navbar: React.FC<NavbarProps> = ({
               <Dog className="w-5 h-5 text-white" />
             </div>
             <div>
-              <div className="flex items-center gap-2">
-                <span className="text-base font-extrabold tracking-tight bg-gradient-to-r from-amber-300 via-indigo-300 to-pink-300 bg-clip-text text-transparent">
-                  {t.brand}
-                </span>
-                <span className="text-[10px] bg-indigo-950/90 text-indigo-300 border border-indigo-700/50 px-2 py-0.5 rounded-full font-semibold">
-                  Smart Puppy Tracker 🐾
-                </span>
-              </div>
+              <span className="text-base font-extrabold tracking-tight bg-gradient-to-r from-amber-300 via-indigo-300 to-pink-300 bg-clip-text text-transparent">
+                {t.brand}
+              </span>
               <p className="text-[11px] text-slate-400">{t.headerSubtitle}</p>
             </div>
           </div>
@@ -70,7 +65,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               <Globe className="w-3.5 h-3.5 text-slate-400 mr-1.5" />
               <select
                 value={lang}
-                onChange={(e) => onLanguageChange(e.target.value as Language)}
+                onChange={(event) => onLanguageChange(event.target.value as Language)}
                 className="bg-transparent text-slate-200 focus:outline-none cursor-pointer font-bold"
               >
                 <option value="en" className="bg-slate-800 text-slate-200">🇬🇧 English</option>
@@ -170,12 +165,12 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <span className="text-slate-400 mr-1.5">{t.nav.dog}</span>
                 <select
                   value={activePuppy.id}
-                  onChange={(e) => onSelectPuppy(e.target.value)}
+                  onChange={(event) => onSelectPuppy(event.target.value)}
                   className="bg-transparent font-bold text-amber-300 focus:outline-none cursor-pointer"
                 >
-                  {puppies.map((p) => (
-                    <option key={p.id} value={p.id} className="bg-slate-800 text-slate-200">
-                      {p.name}
+                  {puppies.map((puppy) => (
+                    <option key={puppy.id} value={puppy.id} className="bg-slate-800 text-slate-200">
+                      {puppy.name}
                     </option>
                   ))}
                 </select>
