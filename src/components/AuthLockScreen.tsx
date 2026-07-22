@@ -28,12 +28,32 @@ export const AuthLockScreen: React.FC<AuthLockScreenProps> = ({
   
   const googleBtnRef = useRef<HTMLDivElement>(null);
 
-  // Production Client ID fallback
-  const defaultProductionClientId = '8924902082-52mf1l272khij6ac2racnh4p34h7fh08.apps.googleusercontent.com';
-  const googleClientId =
+  const [googleClientId, setGoogleClientId] = useState<string>(
     (import.meta.env.VITE_GOOGLE_CLIENT_ID as string) ||
     localStorage.getItem('puppace_google_client_id') ||
-    defaultProductionClientId;
+    ''
+  );
+
+  // Fetch Google OAuth Client ID from server (set by super admin in Admin panel)
+  useEffect(() => {
+    async function fetchClientId() {
+      try {
+        const res = await fetch('/api/config?key=google_client_id', {
+          headers: { 'X-Household-ID': 'FAMILY-COCKER-2026' },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.value) {
+            setGoogleClientId(data.value);
+            localStorage.setItem('puppace_google_client_id', data.value);
+          }
+        }
+      } catch {
+        // Offline: use localStorage/env fallback
+      }
+    }
+    fetchClientId();
+  }, []);
 
   useEffect(() => {
     if (activeTab === 'signin' && googleClientId && window.google) {

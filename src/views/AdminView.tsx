@@ -26,27 +26,45 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail }) => {
     saveRegisteredUsers(users);
   }, [users]);
 
-  if (!isSuperAdmin) {
-    return (
-      <div className="bg-slate-900 border border-red-900/40 p-8 rounded-2xl text-center space-y-3">
-        <AlertCircle className="w-12 h-12 text-red-400 mx-auto" />
-        <h2 className="text-lg font-bold text-white">
-          {lang === 'fr' ? 'Accès Restreint' : 'Access Restricted'}
-        </h2>
-        <p className="text-xs text-slate-400">
-          {lang === 'fr'
-            ? 'Seul le Super Admin Propriétaire ('
-            : 'Only Super Admin Owner ('}
-          <strong className="text-white">matthieu.jacquet@gmail.com</strong>
-          {lang === 'fr' ? ') peut accéder au Centre d\'Administration.' : ') can access the Admin Center.'}
-        </p>
-      </div>
-    );
-  }
+  // Fetch Google OAuth Client ID from server database on mount
+  useEffect(() => {
+    async function fetchServerClientId() {
+      try {
+        const res = await fetch('/api/config?key=google_client_id', {
+          headers: { 'X-Household-ID': 'FAMILY-COCKER-2026' },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.value) {
+            setGoogleClientId(data.value);
+            setClientIdInput(data.value);
+            localStorage.setItem('puppace_google_client_id', data.value);
+          }
+        }
+      } catch {
+        // Offline: use localStorage fallback
+      }
+    }
+    fetchServerClientId();
+  }, []);
 
-  const handleSaveClientId = (event: React.FormEvent) => {
+  const handleSaveClientId = async (event: React.FormEvent) => {
     event.preventDefault();
     const clean = clientIdInput.trim();
+    // Save to server database (persisted across all devices)
+    try {
+      await fetch('/api/config', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Household-ID': 'FAMILY-COCKER-2026',
+        },
+        body: JSON.stringify({ key: 'google_client_id', value: clean }),
+      });
+    } catch {
+      // Offline fallback
+    }
+    // Also save to localStorage for immediate local use
     localStorage.setItem('puppace_google_client_id', clean);
     setGoogleClientId(clean);
     setStatusMessage(lang === 'fr' ? 'ID Client Google OAuth mis à jour !' : 'Updated Google OAuth Client ID successfully!');
@@ -109,6 +127,24 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail }) => {
 
   const pendingUsers = users.filter((u) => u.status === 'PENDING_APPROVAL');
   const activeUsers = users.filter((u) => u.status === 'ACTIVE');
+
+  if (!isSuperAdmin) {
+    return (
+      <div className="bg-slate-900 border border-red-900/40 p-8 rounded-2xl text-center space-y-3">
+        <AlertCircle className="w-12 h-12 text-red-400 mx-auto" />
+        <h2 className="text-lg font-bold text-white">
+          {lang === 'fr' ? 'Accès Restreint' : 'Access Restricted'}
+        </h2>
+        <p className="text-xs text-slate-400">
+          {lang === 'fr'
+            ? 'Seul le Super Admin Propriétaire ('
+            : 'Only Super Admin Owner ('}
+          <strong className="text-white">matthieu.jacquet@gmail.com</strong>
+          {lang === 'fr' ? ') peut accéder au Centre d\'Administration.' : ') can access the Admin Center.'}
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 animate-fadeIn max-w-4xl mx-auto">
