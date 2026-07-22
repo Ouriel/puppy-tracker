@@ -12,8 +12,10 @@ import {
   getStoredCaretakers,
   saveCaretakers,
   clearAllData,
-  fetchDatabaseBackend,
-  syncWithDatabaseBackend,
+  apiFetchDogs,
+  apiPostDog,
+  apiFetchActivities,
+  apiPostActivity,
 } from './utils/storage';
 import { calculatePredictions } from './utils/predictions';
 import { Navbar, type MainTabType } from './components/Navbar';
@@ -111,24 +113,25 @@ export function App() {
     saveCaretakers(caretakers);
   }, [caretakers]);
 
-  // Initial Startup Cloud Database Synchronization (Pulls server data on phone & pushes local data from laptop)
+  // Initial Startup REST API Synchronization (Pulls dogs & activities from /api/dogs & /api/activities)
   useEffect(() => {
-    async function initCloudSync() {
-      // Always force-push existing laptop data to server on mount
-      await syncWithDatabaseBackend();
-      // Then pull latest remote database data
-      const remoteData = await fetchDatabaseBackend();
-      if (remoteData) {
-        if (Array.isArray(remoteData.puppies) && remoteData.puppies.length > 0) {
-          setPuppies(remoteData.puppies);
-          if (!activePuppyId) setActivePuppyIdState(remoteData.puppies[0].id);
-        }
-        if (Array.isArray(remoteData.activities) && remoteData.activities.length > 0) {
-          setActivities(remoteData.activities);
-        }
+    async function initRestApiSync() {
+      const remoteDogs = await apiFetchDogs();
+      if (remoteDogs && remoteDogs.length > 0) {
+        setPuppies(remoteDogs);
+        if (!activePuppyId) setActivePuppyIdState(remoteDogs[0].id);
+      } else if (puppies.length > 0) {
+        puppies.forEach((d) => apiPostDog(d));
+      }
+
+      const remoteActivities = await apiFetchActivities();
+      if (remoteActivities && remoteActivities.length > 0) {
+        setActivities(remoteActivities);
+      } else if (activities.length > 0) {
+        activities.forEach((a) => apiPostActivity(a));
       }
     }
-    initCloudSync();
+    initRestApiSync();
   }, []);
 
   const activePuppy = puppies.find((p) => p.id === activePuppyId) || (puppies.length > 0 ? puppies[0] : null);

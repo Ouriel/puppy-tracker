@@ -1,7 +1,15 @@
 import { pgTable, text, timestamp, doublePrecision, integer } from 'drizzle-orm/pg-core';
 
+export const householdsTable = pgTable('households', {
+  id: text('id').primaryKey(),
+  familyPackId: text('family_pack_id').notNull().unique(),
+  name: text('name').notNull(),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
 export const puppiesTable = pgTable('puppies', {
   id: text('id').primaryKey(),
+  householdId: text('household_id').notNull(),
   name: text('name').notNull(),
   breed: text('breed').notNull(),
   birthDate: text('birth_date').notNull(),
@@ -16,6 +24,7 @@ export const puppiesTable = pgTable('puppies', {
 
 export const activitiesTable = pgTable('activities', {
   id: text('id').primaryKey(),
+  householdId: text('household_id').notNull(),
   puppyId: text('puppy_id').notNull(),
   type: text('type').notNull(),
   timestamp: text('timestamp').notNull(),
@@ -34,6 +43,7 @@ export const activitiesTable = pgTable('activities', {
 
 export const caretakersTable = pgTable('caretakers', {
   id: text('id').primaryKey(),
+  householdId: text('household_id').notNull(),
   name: text('name').notNull(),
   role: text('role').notNull(),
   color: text('color').notNull(),
@@ -43,6 +53,7 @@ export const caretakersTable = pgTable('caretakers', {
 
 export const usersTable = pgTable('users', {
   id: text('id').primaryKey(),
+  householdId: text('household_id').notNull(),
   email: text('email').notNull().unique(),
   name: text('name').notNull(),
   role: text('role').notNull(),

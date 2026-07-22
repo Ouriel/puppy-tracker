@@ -37,51 +37,75 @@ export const DEFAULT_REGISTERED_USERS: RegisteredUserItem[] = [
   { id: 'usr-2', email: 'sarah@family.com', name: 'Sarah', role: 'Member', status: 'PENDING_APPROVAL' },
 ];
 
-// Server-side Sync helper to fetch remote household data from server API
-export async function fetchDatabaseBackend() {
+// Standard REST API Client Helpers for /api/dogs, /api/activities, /api/households, /api/users
+export async function apiFetchDogs(): Promise<PuppyProfile[] | null> {
   try {
     const user = getStoredUser();
-    const res = await fetch('/api/sync', {
-      headers: {
-        'X-Family-Pack-ID': user.familyPackId || 'FAMILY-COCKER-2026',
-      },
+    const res = await fetch('/api/dogs', {
+      headers: { 'X-Household-ID': user.familyPackId || 'FAMILY-COCKER-2026' },
     });
-    if (!res.ok) return null;
-    const data = await res.json();
-    if (data.success) {
-      if (Array.isArray(data.puppies) && data.puppies.length > 0) {
-        localStorage.setItem(STORAGE_KEY_PUPPIES, JSON.stringify(data.puppies));
+    if (res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data) && data.length > 0) {
+        localStorage.setItem(STORAGE_KEY_PUPPIES, JSON.stringify(data));
+        return data;
       }
-      if (Array.isArray(data.activities) && data.activities.length > 0) {
-        localStorage.setItem(STORAGE_KEY_ACTIVITIES, JSON.stringify(data.activities));
-      }
-      return data;
     }
   } catch {
-    // Offline fallback
+    // Offline resilient
   }
   return null;
 }
-export async function syncWithDatabaseBackend() {
+
+export async function apiPostDog(dog: PuppyProfile) {
   try {
     const user = getStoredUser();
-    const payload = {
-      familyPackId: user.familyPackId || 'FAMILY-COCKER-2026',
-      puppies: getStoredPuppies(),
-      activities: getInitialActivities(),
-      caretakers: getStoredCaretakers(),
-      user,
-    };
-    await fetch('/api/sync', {
+    await fetch('/api/dogs', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-Family-Pack-ID': user.familyPackId || 'FAMILY-COCKER-2026',
+        'X-Household-ID': user.familyPackId || 'FAMILY-COCKER-2026',
       },
-      body: JSON.stringify(payload),
+      body: JSON.stringify(dog),
     });
   } catch {
+    // Offline fallback
+  }
+}
+
+export async function apiFetchActivities(puppyId?: string): Promise<Activity[] | null> {
+  try {
+    const user = getStoredUser();
+    const url = puppyId ? `/api/activities?puppyId=${puppyId}` : '/api/activities';
+    const res = await fetch(url, {
+      headers: { 'X-Household-ID': user.familyPackId || 'FAMILY-COCKER-2026' },
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data) && data.length > 0) {
+        localStorage.setItem(STORAGE_KEY_ACTIVITIES, JSON.stringify(data));
+        return data;
+      }
+    }
+  } catch {
     // Offline resilient
+  }
+  return null;
+}
+
+export async function apiPostActivity(activity: Activity) {
+  try {
+    const user = getStoredUser();
+    await fetch('/api/activities', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Household-ID': user.familyPackId || 'FAMILY-COCKER-2026',
+      },
+      body: JSON.stringify(activity),
+    });
+  } catch {
+    // Offline fallback
   }
 }
 
@@ -101,7 +125,9 @@ export function getStoredPuppies(): PuppyProfile[] {
 
 export function savePuppies(puppies: PuppyProfile[]) {
   localStorage.setItem(STORAGE_KEY_PUPPIES, JSON.stringify(puppies));
-  syncWithDatabaseBackend();
+  if (puppies.length > 0) {
+    puppies.forEach((p) => apiPostDog(p));
+  }
 }
 
 export function getActivePuppyId(): string {
@@ -131,12 +157,13 @@ export function getInitialActivities(): Activity[] {
 
 export function saveActivities(activities: Activity[]) {
   localStorage.setItem(STORAGE_KEY_ACTIVITIES, JSON.stringify(activities));
-  syncWithDatabaseBackend();
+  if (activities.length > 0) {
+    apiPostActivity(activities[0]);
+  }
 }
 
 export function clearAllData() {
   localStorage.removeItem(STORAGE_KEY_ACTIVITIES);
-  syncWithDatabaseBackend();
 }
 
 export function getStoredUser(): UserAccount {
@@ -155,7 +182,6 @@ export function getStoredUser(): UserAccount {
 
 export function saveUser(user: UserAccount) {
   localStorage.setItem(STORAGE_KEY_USER_ACCOUNT, JSON.stringify(user));
-  syncWithDatabaseBackend();
 }
 
 export function getStoredCaretakers(): Caretaker[] {
@@ -174,7 +200,6 @@ export function getStoredCaretakers(): Caretaker[] {
 
 export function saveCaretakers(caretakers: Caretaker[]) {
   localStorage.setItem(STORAGE_KEY_CARETAKERS, JSON.stringify(caretakers));
-  syncWithDatabaseBackend();
 }
 
 export function getStoredRegisteredUsers(): RegisteredUserItem[] {
