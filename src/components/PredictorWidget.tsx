@@ -30,24 +30,24 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = ({
   const remainingFoodGrams = Math.max(0, dailyGoal - todayFoodLoggedGrams);
 
   const formatCountdown = (targetDate: Date | null) => {
-    if (!targetDate) return 'No log yet';
+    if (!targetDate) return t.dashboard.noLogYet;
     const now = new Date();
     const diffMs = targetDate.getTime() - now.getTime();
     const diffMins = Math.round(diffMs / (1000 * 60));
 
     if (diffMins < -60) {
       const h = Math.abs(Math.floor(diffMins / 60));
-      return `${h}h overdue`;
+      return `${h}h ${t.dashboard.overdueText}`;
     } else if (diffMins < 0) {
-      return `${Math.abs(diffMins)}m overdue!`;
+      return `${Math.abs(diffMins)}m ${t.dashboard.overdueText}!`;
     } else if (diffMins === 0) {
-      return 'Due now!';
+      return t.dashboard.dueNow;
     } else if (diffMins < 60) {
-      return `In ~${diffMins} min`;
+      return `~${diffMins} min`;
     } else {
       const h = Math.floor(diffMins / 60);
       const m = diffMins % 60;
-      return `In ~${h}h ${m}m`;
+      return `~${h}h ${m}m`;
     }
   };
 
@@ -55,20 +55,20 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = ({
     if (urgency === 'overdue') {
       return (
         <span className="bg-red-500/20 text-red-300 border border-red-500/40 text-[11px] font-bold px-2 py-0.5 rounded-md flex items-center gap-1 animate-pulse">
-          <AlertCircle className="w-3.5 h-3.5" /> Overdue
+          <AlertCircle className="w-3.5 h-3.5" /> {t.potty.overdue}
         </span>
       );
     }
     if (urgency === 'soon') {
       return (
         <span className="bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[11px] font-bold px-2 py-0.5 rounded-md flex items-center gap-1">
-          <Clock className="w-3.5 h-3.5" /> Due Soon
+          <Clock className="w-3.5 h-3.5" /> {t.potty.dueSoon}
         </span>
       );
     }
     return (
       <span className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[11px] font-medium px-2 py-0.5 rounded-md flex items-center gap-1">
-        <CheckCircle2 className="w-3.5 h-3.5" /> All Good
+        <CheckCircle2 className="w-3.5 h-3.5" /> {t.potty.allGood}
       </span>
     );
   };
@@ -82,10 +82,10 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = ({
           </div>
           <div>
             <h2 className="text-base font-bold text-slate-100 flex items-center gap-2">
-              Smart Schedule & Next Expected Activities
+              {t.dashboard.predictorTitle}
             </h2>
             <p className="text-xs text-slate-400">
-              Predictive timing based on puppy bladder size, meal digest time & past logs
+              {t.dashboard.predictorSubtitle}
             </p>
           </div>
         </div>
@@ -212,8 +212,8 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = ({
           {/* Display Remaining Food Grams vs Daily Goal */}
           <div className="mb-3">
             <div className="flex justify-between text-[11px] font-semibold mb-1">
-              <span className="text-slate-400">Remaining Food Today:</span>
-              <span className="text-purple-300 font-bold">{remainingFoodGrams}g left of {dailyGoal}g</span>
+              <span className="text-slate-400">{t.dashboard.remainingFoodToday}</span>
+              <span className="text-purple-300 font-bold">{remainingFoodGrams}g {t.dashboard.leftOf} {dailyGoal}g</span>
             </div>
             <div className="w-full bg-slate-950 rounded-full h-1.5 overflow-hidden border border-slate-800">
               <div
@@ -228,7 +228,7 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = ({
             className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs py-2 px-3 rounded-lg flex items-center justify-center gap-1.5 shadow transition active:scale-95 cursor-pointer"
           >
             <Utensils className="w-3.5 h-3.5" />
-            <span>Feed Meal Now ({remainingFoodGrams}g left)</span>
+            <span>{t.dashboard.feedMealNow} ({remainingFoodGrams}g)</span>
           </button>
         </div>
       </div>

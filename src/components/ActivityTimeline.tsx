@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import type { Activity, ActivityType, Caretaker } from '../types';
 import { Droplet, Footprints, Utensils, Activity as WalkIcon, Scale, Pill, Trash2 } from 'lucide-react';
+import { useI18n } from '../i18n';
 
 interface ActivityTimelineProps {
   activities: Activity[];
@@ -13,6 +14,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
   caretakers,
   onDeleteActivity,
 }) => {
+  const { t } = useI18n();
   const [filter, setFilter] = useState<'all' | 'potty' | 'food' | 'walk'>('all');
 
   const getIcon = (type: ActivityType) => {
@@ -56,11 +58,11 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
     const timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
     if (diffHours < 24 && date.getDate() === now.getDate()) {
-      return `Today at ${timeStr}`;
+      return `Today ${timeStr}`;
     } else if (diffHours < 48 && date.getDate() === now.getDate() - 1) {
-      return `Yesterday at ${timeStr}`;
+      return `Yesterday ${timeStr}`;
     } else {
-      return `${date.toLocaleDateString([], { month: 'short', day: 'numeric' })} at ${timeStr}`;
+      return `${date.toLocaleDateString([], { month: 'short', day: 'numeric' })} ${timeStr}`;
     }
   };
 
@@ -70,12 +72,12 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
       <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
         <div>
           <h2 className="text-base font-bold text-slate-100 flex items-center gap-2">
-            <span>Activity Feed</span>
+            <span>{t.dashboard.activityFeed}</span>
             <span className="text-xs bg-slate-700 text-slate-300 px-2 py-0.5 rounded-full font-semibold">
               {sorted.length}
             </span>
           </h2>
-          <p className="text-xs text-slate-400">Chronological history logged by all pack members</p>
+          <p className="text-xs text-slate-400">{t.dashboard.chronologicalHistory}</p>
         </div>
 
         {/* Filter Pills */}
@@ -126,8 +128,8 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
       {/* Timeline list */}
       {sorted.length === 0 ? (
         <div className="text-center py-10 text-slate-400 bg-slate-900/40 rounded-xl border border-dashed border-slate-700">
-          <p className="text-sm">No activity logs recorded yet.</p>
-          <p className="text-xs text-slate-500 mt-1">Tap "+ Log Event" above to record an event!</p>
+          <p className="text-sm">{t.dashboard.noActivityLogs}</p>
+          <p className="text-xs text-slate-500 mt-1">{t.dashboard.tapLogEvent}</p>
         </div>
       ) : (
         <div className="relative pl-6 space-y-4 before:absolute before:left-2.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-700/60">
@@ -158,17 +160,17 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
                       {/* Potty location pill */}
                       {item.pottyLocation === 'outside' && (
                         <span className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px] font-bold px-2 py-0.5 rounded-full">
-                          🌳 Outside Success
+                          🌳 {t.potty.outside}
                         </span>
                       )}
                       {item.pottyLocation === 'indoor_pad' && (
                         <span className="bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[10px] font-bold px-2 py-0.5 rounded-full">
-                          🟨 Pad (Déconseillé)
+                          🟨 {t.potty.pad}
                         </span>
                       )}
                       {item.pottyLocation === 'indoor_accident' && (
                         <span className="bg-red-500/20 text-red-300 border border-red-500/30 text-[10px] font-bold px-2 py-0.5 rounded-full">
-                          🚨 Accident
+                          🚨 {t.potty.accident}
                         </span>
                       )}
 

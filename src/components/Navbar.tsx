@@ -1,6 +1,6 @@
 import React from 'react';
-import type { PuppyProfile, Caretaker, UserAccount } from '../types';
-import { FileText, BookOpen, Flame, Plus, Dog, LogOut, ShieldAlert, LayoutDashboard, Settings, Syringe } from 'lucide-react';
+import type { PuppyProfile, UserAccount } from '../types';
+import { FileText, BookOpen, Flame, Plus, Dog, LogOut, ShieldAlert, LayoutDashboard, Settings, Syringe, Globe } from 'lucide-react';
 import type { Language } from '../i18n';
 
 export type MainTabType = 'dashboard' | 'carnetdesante' | 'settings' | 'careguide' | 'admin';
@@ -12,9 +12,6 @@ interface NavbarProps {
   activePuppy: PuppyProfile | null;
   onSelectPuppy: (puppyId: string) => void;
   user: UserAccount;
-  caretakers: Caretaker[];
-  currentUser: string;
-  onSelectUser: (user: string) => void;
   onOpenQuickLog: () => void;
   onOpenVetReport: () => void;
   onClearSampleData: () => void;
@@ -32,9 +29,6 @@ export const Navbar: React.FC<NavbarProps> = ({
   activePuppy,
   onSelectPuppy,
   user,
-  caretakers,
-  currentUser,
-  onSelectUser,
   onOpenQuickLog,
   onOpenVetReport,
   onLockVault,
@@ -49,7 +43,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   return (
     <header className="sticky top-0 z-30 bg-slate-900/95 backdrop-blur-md border-b border-slate-800 text-slate-100 shadow-xl">
       <div className="max-w-6xl mx-auto px-4 py-3 space-y-3">
-        {/* Top row: Brand, Language Switcher & Active User */}
+        {/* Top row: Brand, Language Dropdown & Sign Out */}
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800/60 pb-2.5">
           {/* Brand Logo */}
           <div className="flex items-center gap-2.5">
@@ -69,43 +63,18 @@ export const Navbar: React.FC<NavbarProps> = ({
             </div>
           </div>
 
-          {/* Controls: i18n Language Toggle, Active User Account & Sign Out */}
+          {/* Controls: Scalable Language Select Dropdown & Sign Out */}
           <div className="flex items-center gap-2 flex-wrap">
-            {/* Language Switcher */}
-            <div className="flex items-center bg-slate-950/80 border border-slate-700/80 rounded-xl p-0.5 text-xs font-semibold">
-              <button
-                onClick={() => onLanguageChange('en')}
-                className={`px-2 py-0.5 rounded-lg transition cursor-pointer flex items-center gap-1 ${
-                  lang === 'en' ? 'bg-indigo-600 text-white font-bold' : 'text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                <span>🇬🇧</span>
-                <span>EN</span>
-              </button>
-              <button
-                onClick={() => onLanguageChange('fr')}
-                className={`px-2 py-0.5 rounded-lg transition cursor-pointer flex items-center gap-1 ${
-                  lang === 'fr' ? 'bg-indigo-600 text-white font-bold' : 'text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                <span>🇫🇷</span>
-                <span>FR</span>
-              </button>
-            </div>
-
-            {/* Active User Switcher */}
-            <div className="flex items-center bg-slate-800/80 border border-slate-700/80 rounded-xl px-2.5 py-1 text-xs">
-              <span className="text-slate-400 mr-1.5 hidden sm:inline">{t.nav.activeUser}</span>
+            {/* Scalable Language Switcher Dropdown */}
+            <div className="flex items-center bg-slate-950/80 border border-slate-700/80 rounded-xl px-2.5 py-1 text-xs font-semibold">
+              <Globe className="w-3.5 h-3.5 text-slate-400 mr-1.5" />
               <select
-                value={currentUser}
-                onChange={(e) => onSelectUser(e.target.value)}
-                className="bg-transparent font-semibold text-pink-300 focus:outline-none cursor-pointer"
+                value={lang}
+                onChange={(e) => onLanguageChange(e.target.value as Language)}
+                className="bg-transparent text-slate-200 focus:outline-none cursor-pointer font-bold"
               >
-                {caretakers.map((c) => (
-                  <option key={c.id} value={c.name} className="bg-slate-800 text-slate-200">
-                    {c.name}
-                  </option>
-                ))}
+                <option value="en" className="bg-slate-800 text-slate-200">🇬🇧 English</option>
+                <option value="fr" className="bg-slate-800 text-slate-200">🇫🇷 Français</option>
               </select>
             </div>
 
@@ -123,7 +92,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
         {/* Bottom row: Main Page Tabs & Contextual Quick Actions */}
         <div className="flex flex-wrap items-center justify-between gap-3">
-          {/* Re-organized Tab Order based on everyday usage */}
+          {/* Re-organized Tab Order with Clean Routing */}
           <div className="flex items-center gap-1 bg-slate-950/60 p-1 rounded-xl border border-slate-800/80 overflow-x-auto">
             {/* 1. Daily Log / Suivi Quotidien */}
             <button

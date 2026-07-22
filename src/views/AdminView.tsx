@@ -272,7 +272,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail }) => {
       <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl space-y-4 shadow-xl">
         <h3 className="text-sm font-bold text-slate-100 flex items-center gap-2">
           <Users className="w-4 h-4 text-indigo-400" />
-          <span>Active SaaS User Accounts ({activeUsers.length})</span>
+          <span>Active User Accounts ({activeUsers.length})</span>
         </h3>
 
         <div className="space-y-2">

@@ -1,6 +1,7 @@
 import React from 'react';
 import type { Activity, PuppyProfile } from '../types';
 import { TrendingUp, ShieldCheck, Utensils } from 'lucide-react';
+import { useI18n } from '../i18n';
 
 interface StatsAnalyticsProps {
   activities: Activity[];
@@ -8,6 +9,7 @@ interface StatsAnalyticsProps {
 }
 
 export const StatsAnalytics: React.FC<StatsAnalyticsProps> = ({ activities, profile }) => {
+  const { t } = useI18n();
   const pottyLogs = activities.filter((a) => a.type === 'pee' || a.type === 'poop');
   const outsideCount = pottyLogs.filter((a) => a.pottyLocation === 'outside').length;
   const padCount = pottyLogs.filter((a) => a.pottyLocation === 'indoor_pad').length;
@@ -39,8 +41,8 @@ export const StatsAnalytics: React.FC<StatsAnalyticsProps> = ({ activities, prof
               <ShieldCheck className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-sm font-bold text-slate-100">Potty Training Score</h3>
-              <p className="text-[11px] text-slate-400">Success vs Indoor accidents</p>
+              <h3 className="text-sm font-bold text-slate-100">{t.dashboard.pottyTrainingScore}</h3>
+              <p className="text-[11px] text-slate-400">{t.dashboard.successVsAccidents}</p>
             </div>
           </div>
           <span className="text-xl font-extrabold text-emerald-400">{successRate}%</span>
@@ -67,15 +69,15 @@ export const StatsAnalytics: React.FC<StatsAnalyticsProps> = ({ activities, prof
         <div className="grid grid-cols-3 text-center text-xs">
           <div className="bg-emerald-950/30 border border-emerald-800/40 p-2 rounded-lg">
             <div className="font-bold text-emerald-400">{outsideCount}</div>
-            <div className="text-[10px] text-slate-400">Outside</div>
+            <div className="text-[10px] text-slate-400">{t.potty.outside}</div>
           </div>
           <div className="bg-amber-950/30 border border-amber-800/40 p-2 rounded-lg">
             <div className="font-bold text-amber-400">{padCount}</div>
-            <div className="text-[10px] text-slate-400">Pad</div>
+            <div className="text-[10px] text-slate-400">{t.potty.pad}</div>
           </div>
           <div className="bg-red-950/30 border border-red-800/40 p-2 rounded-lg">
             <div className="font-bold text-red-400">{accidentCount}</div>
-            <div className="text-[10px] text-slate-400">Accidents</div>
+            <div className="text-[10px] text-slate-400">{t.potty.accident}</div>
           </div>
         </div>
       </div>
@@ -87,13 +89,13 @@ export const StatsAnalytics: React.FC<StatsAnalyticsProps> = ({ activities, prof
               <Utensils className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-sm font-bold text-slate-100">Today's Nutrition</h3>
+              <h3 className="text-sm font-bold text-slate-100">{t.dashboard.todaysNutrition}</h3>
               <p className="text-[11px] text-slate-400">
-                {todayGramTotal}g / {profile.dailyFoodGramGoal}g goal
+                {todayGramTotal}g / {profile.dailyFoodGramGoal}g
               </p>
             </div>
           </div>
-          <span className="text-xl font-extrabold text-purple-400">{todayFood.length} Meals</span>
+          <span className="text-xl font-extrabold text-purple-400">{todayFood.length} Repas</span>
         </div>
 
         <div className="w-full bg-slate-900 h-3 rounded-full overflow-hidden mb-3 border border-slate-700">
@@ -104,8 +106,8 @@ export const StatsAnalytics: React.FC<StatsAnalyticsProps> = ({ activities, prof
         </div>
 
         <div className="text-xs text-slate-300 bg-slate-900/50 p-2.5 rounded-xl border border-slate-700/60 flex items-center justify-between">
-          <span>Target meals per day:</span>
-          <span className="font-bold text-purple-300">{profile.targetMealsPerDay} meals</span>
+          <span>{t.dashboard.targetMealsPerDay}</span>
+          <span className="font-bold text-purple-300">{profile.targetMealsPerDay}</span>
         </div>
       </div>
 
@@ -115,8 +117,8 @@ export const StatsAnalytics: React.FC<StatsAnalyticsProps> = ({ activities, prof
             <TrendingUp className="w-5 h-5" />
           </div>
           <div>
-            <h3 className="text-sm font-bold text-slate-100">Potty Peak Hours</h3>
-            <p className="text-[11px] text-slate-400">Distribution by hour of day</p>
+            <h3 className="text-sm font-bold text-slate-100">{t.dashboard.pottyPeakHours}</h3>
+            <p className="text-[11px] text-slate-400">{t.dashboard.hourlyDistribution}</p>
           </div>
         </div>
 
@@ -145,11 +147,11 @@ export const StatsAnalytics: React.FC<StatsAnalyticsProps> = ({ activities, prof
           })}
         </div>
         <div className="flex justify-between text-[9px] text-slate-500 mt-1 px-1 font-mono">
-          <span>12am</span>
-          <span>6am</span>
-          <span>12pm</span>
-          <span>6pm</span>
-          <span>11pm</span>
+          <span>00h</span>
+          <span>06h</span>
+          <span>12h</span>
+          <span>18h</span>
+          <span>23h</span>
         </div>
       </div>
     </div>

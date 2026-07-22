@@ -41,8 +41,37 @@ export function App() {
     return initialUser.name;
   });
 
-  // Main Page Navigation Tabs (NO MODALS FOR PAGES!)
+  // Main Page Navigation Tabs with Clean URL Routing
   const [activeMainTab, setActiveMainTab] = useState<MainTabType>('dashboard');
+
+  // URL Path Synchronization for Professional Browser Navigation
+  useEffect(() => {
+    const syncRouteWithTab = () => {
+      const path = window.location.pathname;
+      if (path === '/carnet-de-sante') setActiveMainTab('carnetdesante');
+      else if (path === '/settings') setActiveMainTab('settings');
+      else if (path === '/care-guide') setActiveMainTab('careguide');
+      else if (path === '/admin') setActiveMainTab('admin');
+      else setActiveMainTab('dashboard');
+    };
+    syncRouteWithTab();
+    window.addEventListener('popstate', syncRouteWithTab);
+    return () => window.removeEventListener('popstate', syncRouteWithTab);
+  }, []);
+
+  const handleSelectMainTab = (tab: MainTabType) => {
+    setActiveMainTab(tab);
+    const routeMap: Record<MainTabType, string> = {
+      dashboard: '/',
+      carnetdesante: '/carnet-de-sante',
+      settings: '/settings',
+      careguide: '/care-guide',
+      admin: '/admin',
+    };
+    if (window.location.pathname !== routeMap[tab]) {
+      window.history.pushState({}, '', routeMap[tab]);
+    }
+  };
 
   // Multi-Puppy State
   const [puppies, setPuppies] = useState<PuppyProfile[]>(getStoredPuppies);
@@ -236,14 +265,11 @@ export function App() {
       {/* Top Navbar */}
       <Navbar
         activeMainTab={activeMainTab}
-        onSelectMainTab={setActiveMainTab}
+        onSelectMainTab={handleSelectMainTab}
         puppies={puppies}
         activePuppy={activePuppy}
         onSelectPuppy={handleSelectPuppy}
         user={user}
-        caretakers={caretakers}
-        currentUser={currentUser}
-        onSelectUser={(u) => setCurrentUser(u)}
         onOpenQuickLog={() => handleOpenQuickLogModal('pee')}
         onOpenVetReport={handleExportVetSummary}
         onClearSampleData={handleClearSampleData}
@@ -286,7 +312,7 @@ export function App() {
         )}
 
         {activeMainTab === 'careguide' && (
-          <CareGuideView onBackToDashboard={() => setActiveMainTab('dashboard')} />
+          <CareGuideView onBackToDashboard={() => handleSelectMainTab('dashboard')} />
         )}
 
         {activeMainTab === 'dashboard' && (
@@ -302,7 +328,7 @@ export function App() {
                   {t.dashboard.welcomeSubtitle}
                 </p>
                 <button
-                  onClick={() => setActiveMainTab('settings')}
+                  onClick={() => handleSelectMainTab('settings')}
                   className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs px-6 py-3 rounded-xl shadow-lg transition active:scale-95 cursor-pointer inline-flex items-center gap-2"
                 >
                   <Plus className="w-4 h-4" />
@@ -342,9 +368,9 @@ export function App() {
         <div className="max-w-6xl mx-auto px-4 flex flex-wrap items-center justify-between gap-2">
           <span>PupPace &bull; Household Puppy Sync Platform</span>
           <div className="flex items-center gap-3">
-            <button onClick={() => setActiveMainTab('carnetdesante')} className="hover:text-slate-400 transition">Carnet de Santé</button>
+            <button onClick={() => handleSelectMainTab('carnetdesante')} className="hover:text-slate-400 transition">Carnet de Santé</button>
             <span>&bull;</span>
-            <button onClick={() => setActiveMainTab('careguide')} className="hover:text-slate-400 transition">Care Guide</button>
+            <button onClick={() => handleSelectMainTab('careguide')} className="hover:text-slate-400 transition">Care Guide</button>
             <span>&bull;</span>
             <a href="/privacy" className="hover:text-slate-400 transition">Privacy</a>
             <span>&bull;</span>
