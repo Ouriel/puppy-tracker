@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import type { PuppyProfile } from '../types';
 import { Syringe, ShieldCheck, Plus, Pill, Trash2 } from 'lucide-react';
+import { useI18n } from '../i18n';
 
 interface VaccinationEntry {
   id: string;
@@ -26,6 +27,8 @@ interface CarnetDeSanteViewProps {
 }
 
 export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePuppy }) => {
+  const { lang, t } = useI18n();
+
   const [vaccinations, setVaccinations] = useState<VaccinationEntry[]>([
     {
       id: 'v1',
@@ -88,7 +91,10 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePupp
   };
 
   const handleDeleteVaccine = (id: string) => {
-    if (window.confirm('Êtes-vous sûr de vouloir supprimer cette ligne de vaccin ?')) {
+    const confirmMsg = lang === 'fr' 
+      ? 'Êtes-vous sûr de vouloir supprimer cette ligne de vaccin ?' 
+      : 'Are you sure you want to delete this vaccine record?';
+    if (window.confirm(confirmMsg)) {
       setVaccinations((prev) => prev.filter((v) => v.id !== id));
     }
   };
@@ -110,7 +116,10 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePupp
   };
 
   const handleDeleteDeworming = (id: string) => {
-    if (window.confirm('Êtes-vous sûr de vouloir supprimer cette entrée de vermifuge ?')) {
+    const confirmMsg = lang === 'fr' 
+      ? 'Êtes-vous sûr de vouloir supprimer cette entrée de vermifuge ?' 
+      : 'Are you sure you want to delete this deworming entry?';
+    if (window.confirm(confirmMsg)) {
       setDewormingLogs((prev) => prev.filter((d) => d.id !== id));
     }
   };
@@ -119,8 +128,14 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePupp
     return (
       <div className="bg-slate-900 border border-slate-800 p-8 rounded-2xl text-center text-slate-400 space-y-2">
         <Syringe className="w-10 h-10 text-indigo-400 mx-auto" />
-        <h3 className="text-base font-bold text-white">No Active Dog Profile Selected</h3>
-        <p className="text-xs">Register a puppy in the "Dogs" tab to manage their French Carnet de Santé!</p>
+        <h3 className="text-base font-bold text-white">
+          {lang === 'fr' ? 'Aucun profil de chien sélectionné' : 'No Active Dog Profile Selected'}
+        </h3>
+        <p className="text-xs">
+          {lang === 'fr' 
+            ? 'Enregistrez un chiot dans "Paramètres & Foyer" pour gérer son carnet de santé !' 
+            : 'Register a puppy in "Settings & Household" to manage their Health Passport!'}
+        </p>
       </div>
     );
   }
@@ -135,12 +150,12 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePupp
           </div>
           <div>
             <h2 className="text-xl font-bold text-slate-100 flex items-center gap-2">
-              <span>Carnet de Santé — {activePuppy.name}</span>
+              <span>{t.health.carnetTitle} — {activePuppy.name}</span>
               <span className="text-xs bg-indigo-950 text-indigo-300 border border-indigo-700/50 px-2.5 py-0.5 rounded-full font-semibold">
-                Protocole Vétérinaire Français
+                {lang === 'fr' ? 'Protocole Vétérinaire Français' : 'French Veterinary Protocol'}
               </span>
             </h2>
-            <p className="text-xs text-slate-400">Vaccinations (Rage, DHPP, Leptospirose) & Calendrier Vermifuge</p>
+            <p className="text-xs text-slate-400">{t.health.subtitle}</p>
           </div>
         </div>
       </div>
@@ -150,25 +165,25 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePupp
         <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl space-y-2">
           <h3 className="text-xs font-bold text-teal-400 flex items-center gap-1.5 uppercase tracking-wider">
             <ShieldCheck className="w-4 h-4" />
-            <span>Calendrier Vaccinal Chiot</span>
+            <span>{lang === 'fr' ? 'Calendrier Vaccinal Chiot' : 'Puppy Vaccination Schedule'}</span>
           </h3>
           <ul className="text-[11px] text-slate-300 space-y-1 list-disc list-inside">
-            <li><strong>8 Semaines (Primo)</strong>: DHPP + Leptospirose (L4)</li>
-            <li><strong>12 Semaines (Rappel 1)</strong>: DHPP + L4 + Rage (Legally mandatory for travel)</li>
-            <li><strong>16 Semaines (Rappel 2)</strong>: DHPP final booster</li>
-            <li><strong>Annuel / 3 Ans</strong>: Rappel annuel vétérinaire</li>
+            <li><strong>{lang === 'fr' ? '8 Semaines (Primo)' : '8 Weeks (Initial)'}</strong>: DHPP + Leptospirose (L4)</li>
+            <li><strong>{lang === 'fr' ? '12 Semaines (Rappel 1)' : '12 Weeks (Booster 1)'}</strong>: DHPP + L4 + {lang === 'fr' ? 'Rage (Obligatoire voyages)' : 'Rabies (Mandatory for travel)'}</li>
+            <li><strong>{lang === 'fr' ? '16 Semaines (Rappel 2)' : '16 Weeks (Booster 2)'}</strong>: DHPP final booster</li>
+            <li><strong>{lang === 'fr' ? 'Annuel / 3 Ans' : 'Annual Booster'}</strong>: {lang === 'fr' ? 'Rappel annuel vétérinaire' : 'Annual vet checkup booster'}</li>
           </ul>
         </div>
 
         <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl space-y-2">
           <h3 className="text-xs font-bold text-amber-400 flex items-center gap-1.5 uppercase tracking-wider">
             <Pill className="w-4 h-4" />
-            <span>Protocole Vermifuge</span>
+            <span>{lang === 'fr' ? 'Protocole Vermifuge' : 'Deworming Protocol'}</span>
           </h3>
           <ul className="text-[11px] text-slate-300 space-y-1 list-disc list-inside">
-            <li><strong>De 2 à 6 mois</strong>: 1 fois par mois (Milbemax / Drontal)</li>
-            <li><strong>Après 6 mois</strong>: 4 fois par an (à chaque changement de saison)</li>
-            <li><strong>Pesée obligatoire</strong>: Adapter la dose exacte selon le poids ({activePuppy.weightKg}kg)</li>
+            <li><strong>{lang === 'fr' ? 'De 2 à 6 mois' : '2 to 6 months old'}</strong>: {lang === 'fr' ? '1 fois par mois (Milbemax / Drontal)' : 'Once per month (Milbemax / Drontal)'}</li>
+            <li><strong>{lang === 'fr' ? 'Après 6 mois' : 'After 6 months old'}</strong>: {lang === 'fr' ? '4 fois par an (changement de saison)' : '4 times per year (quarterly)'}</li>
+            <li><strong>{lang === 'fr' ? 'Pesée obligatoire' : 'Weight dosing'}</strong>: {lang === 'fr' ? `Adapter la dose exacte selon le poids (${activePuppy.weightKg}kg)` : `Dose precisely according to weight (${activePuppy.weightKg}kg)`}</li>
           </ul>
         </div>
       </div>
@@ -178,14 +193,14 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePupp
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-bold text-slate-100 flex items-center gap-2">
             <Syringe className="w-4 h-4 text-teal-400" />
-            <span>Historique des Vaccins ({vaccinations.length})</span>
+            <span>{t.health.vaccinations} ({vaccinations.length})</span>
           </h3>
           <button
             onClick={() => setIsAddingVaccine(!isAddingVaccine)}
             className="flex items-center gap-1 bg-teal-600 hover:bg-teal-500 text-white font-bold text-xs px-3.5 py-2 rounded-xl transition cursor-pointer"
           >
             <Plus className="w-4 h-4" />
-            <span>{isAddingVaccine ? 'Annuler' : 'Ajouter un Vaccin'}</span>
+            <span>{isAddingVaccine ? (lang === 'fr' ? 'Annuler' : 'Cancel') : t.health.addVaccine}</span>
           </button>
         </div>
 
@@ -193,21 +208,21 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePupp
           <form onSubmit={handleAddVaccineSubmit} className="bg-slate-950/60 border border-slate-800 p-4 rounded-xl space-y-3">
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
-                <label className="block text-xs font-semibold text-slate-400 mb-1">Type de Vaccin</label>
+                <label className="block text-xs font-semibold text-slate-400 mb-1">{t.health.vaccineType}</label>
                 <select
                   value={vaccineType}
                   onChange={(e) => setVaccineType(e.target.value as any)}
                   className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-teal-500 cursor-pointer"
                 >
-                  <option value="DHPP">DHPP (Carré, Hépatite, Parvo)</option>
-                  <option value="Rage">Rage</option>
+                  <option value="DHPP">DHPP (Parvo, Distemper, Hepatitis)</option>
+                  <option value="Rage">{lang === 'fr' ? 'Rage' : 'Rabies'}</option>
                   <option value="Leptospirose">Leptospirose (L4)</option>
-                  <option value="Toux_de_Chenil">Toux de Chenil (Bordetella)</option>
+                  <option value="Toux_de_Chenil">{lang === 'fr' ? 'Toux de Chenil (Bordetella)' : 'Kennel Cough (Bordetella)'}</option>
                 </select>
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-400 mb-1">Date d'Injection</label>
+                <label className="block text-xs font-semibold text-slate-400 mb-1">{t.health.administeredDate}</label>
                 <input
                   type="date"
                   value={administeredDate}
@@ -218,7 +233,7 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePupp
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-400 mb-1">Prochain Rappel Due</label>
+                <label className="block text-xs font-semibold text-slate-400 mb-1">{t.health.boosterDue}</label>
                 <input
                   type="date"
                   value={nextDueDate}
@@ -234,7 +249,7 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePupp
                 type="submit"
                 className="bg-teal-600 hover:bg-teal-500 text-white font-bold text-xs px-4 py-2 rounded-xl transition cursor-pointer"
               >
-                Enregistrer Vaccin
+                {lang === 'fr' ? 'Enregistrer Vaccin' : 'Save Vaccine Record'}
               </button>
             </div>
           </form>
@@ -257,19 +272,19 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePupp
                     )}
                   </div>
                   <div className="text-[11px] text-slate-400">
-                    Injecté le {v.administeredDate} &bull; Clinique: {v.vetClinicName || 'Vétérinaire'}
+                    {lang === 'fr' ? 'Injecté le' : 'Administered'} {v.administeredDate} &bull; {lang === 'fr' ? 'Clinique:' : 'Clinic:'} {v.vetClinicName || (lang === 'fr' ? 'Vétérinaire' : 'Veterinary')}
                   </div>
                 </div>
               </div>
 
               <div className="flex items-center gap-3">
                 <div className="text-right">
-                  <div className="text-xs font-bold text-amber-300">Rappel: {v.nextDueDate}</div>
-                  <div className="text-[10px] text-slate-500">Statut: Conforme</div>
+                  <div className="text-xs font-bold text-amber-300">{lang === 'fr' ? 'Rappel:' : 'Booster:'} {v.nextDueDate}</div>
+                  <div className="text-[10px] text-slate-500">{lang === 'fr' ? 'Statut: Conforme' : 'Status: Compliant'}</div>
                 </div>
                 <button
                   onClick={() => handleDeleteVaccine(v.id)}
-                  title="Supprimer la ligne de vaccin"
+                  title={lang === 'fr' ? 'Supprimer la ligne de vaccin' : 'Delete vaccine record'}
                   className="p-1.5 text-slate-500 hover:text-red-400 hover:bg-red-950/40 rounded-lg transition cursor-pointer"
                 >
                   <Trash2 className="w-4 h-4" />
@@ -285,14 +300,14 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePupp
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-bold text-slate-100 flex items-center gap-2">
             <Pill className="w-4 h-4 text-amber-400" />
-            <span>Suivi Vermifuge ({dewormingLogs.length})</span>
+            <span>{t.health.deworming} ({dewormingLogs.length})</span>
           </h3>
           <button
             onClick={() => setIsAddingDeworming(!isAddingDeworming)}
             className="flex items-center gap-1 bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs px-3.5 py-2 rounded-xl transition cursor-pointer"
           >
             <Plus className="w-4 h-4" />
-            <span>{isAddingDeworming ? 'Annuler' : 'Ajouter Vermifuge'}</span>
+            <span>{isAddingDeworming ? (lang === 'fr' ? 'Annuler' : 'Cancel') : t.health.addDeworming}</span>
           </button>
         </div>
 
@@ -300,7 +315,7 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePupp
           <form onSubmit={handleAddDewormingSubmit} className="bg-slate-950/60 border border-slate-800 p-4 rounded-xl space-y-3">
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
-                <label className="block text-xs font-semibold text-slate-400 mb-1">Produit Vermifuge</label>
+                <label className="block text-xs font-semibold text-slate-400 mb-1">{t.health.productName}</label>
                 <input
                   type="text"
                   placeholder="e.g. Milbemax / Drontal"
@@ -311,7 +326,7 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePupp
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-400 mb-1">Date d'Administration</label>
+                <label className="block text-xs font-semibold text-slate-400 mb-1">{t.health.administeredDate}</label>
                 <input
                   type="date"
                   value={dewormAdminDate}
@@ -322,7 +337,7 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePupp
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-400 mb-1">Prochaine Prise Due</label>
+                <label className="block text-xs font-semibold text-slate-400 mb-1">{t.health.boosterDue}</label>
                 <input
                   type="date"
                   value={dewormNextDate}
@@ -338,7 +353,7 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePupp
                 type="submit"
                 className="bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs px-4 py-2 rounded-xl transition cursor-pointer"
               >
-                Enregistrer Vermifuge
+                {lang === 'fr' ? 'Enregistrer Vermifuge' : 'Save Deworming Entry'}
               </button>
             </div>
           </form>
@@ -354,19 +369,19 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePupp
                 <div>
                   <div className="text-xs font-bold text-white">{d.productName}</div>
                   <div className="text-[11px] text-slate-400">
-                    Pris le {d.administeredDate} &bull; Poids: {d.weightAtTimeKg || activePuppy.weightKg} kg
+                    {lang === 'fr' ? 'Pris le' : 'Administered'} {d.administeredDate} &bull; {lang === 'fr' ? 'Poids:' : 'Weight:'} {d.weightAtTimeKg || activePuppy.weightKg} kg
                   </div>
                 </div>
               </div>
 
               <div className="flex items-center gap-3">
                 <div className="text-right">
-                  <div className="text-xs font-bold text-indigo-300">Prochain: {d.nextDueDate}</div>
-                  <div className="text-[10px] text-slate-500">Statut: À jour</div>
+                  <div className="text-xs font-bold text-indigo-300">{lang === 'fr' ? 'Prochain:' : 'Next:'} {d.nextDueDate}</div>
+                  <div className="text-[10px] text-slate-500">{lang === 'fr' ? 'Statut: À jour' : 'Status: Up to date'}</div>
                 </div>
                 <button
                   onClick={() => handleDeleteDeworming(d.id)}
-                  title="Supprimer la ligne de vermifuge"
+                  title={lang === 'fr' ? 'Supprimer la ligne de vermifuge' : 'Delete deworming entry'}
                   className="p-1.5 text-slate-500 hover:text-red-400 hover:bg-red-950/40 rounded-lg transition cursor-pointer"
                 >
                   <Trash2 className="w-4 h-4" />
