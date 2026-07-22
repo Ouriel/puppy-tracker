@@ -19,6 +19,7 @@ import { QuickLogModal } from './components/QuickLogModal';
 import { PredictorWidget } from './components/PredictorWidget';
 import { ActivityTimeline } from './components/ActivityTimeline';
 import { StatsAnalytics } from './components/StatsAnalytics';
+import { WeightGrowthChart } from './components/WeightGrowthChart';
 import { AuthLockScreen } from './components/AuthLockScreen';
 import { HouseholdSettingsView } from './views/HouseholdSettingsView';
 import { AdminView } from './views/AdminView';
@@ -358,6 +359,15 @@ export function App() {
                 {/* Analytics */}
                 {activePuppy && <StatsAnalytics activities={activePuppyActivities} profile={activePuppy} />}
 
+                {/* Interactive Weight Growth Curve Chart */}
+                {activePuppy && (
+                  <WeightGrowthChart
+                    activities={activePuppyActivities}
+                    profile={activePuppy}
+                    onOpenQuickLogModal={handleOpenQuickLogModal}
+                  />
+                )}
+
                 {/* Activity Timeline */}
                 <ActivityTimeline
                   activities={activePuppyActivities}
@@ -375,11 +385,11 @@ export function App() {
         <div className="max-w-6xl mx-auto px-4 flex flex-wrap items-center justify-between gap-2">
           <span>PupPace &bull; Household Puppy Sync Platform</span>
           <div className="flex items-center gap-3">
-            <button onClick={() => handleSelectMainTab('carnetdesante')} className="hover:text-slate-400 transition">
+            <button onClick={() => handleSelectMainTab('carnetdesante')} className="hover:text-slate-400 transition cursor-pointer">
               {lang === 'fr' ? 'Carnet de Santé' : 'Health Passport'}
             </button>
             <span>&bull;</span>
-            <button onClick={() => handleSelectMainTab('careguide')} className="hover:text-slate-400 transition">Care Guide</button>
+            <button onClick={() => handleSelectMainTab('careguide')} className="hover:text-slate-400 transition cursor-pointer">Care Guide</button>
             <span>&bull;</span>
             <a href="/privacy" className="hover:text-slate-400 transition">Privacy</a>
             <span>&bull;</span>
