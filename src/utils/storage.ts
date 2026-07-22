@@ -37,16 +37,26 @@ export const DEFAULT_REGISTERED_USERS: RegisteredUserItem[] = [
   { id: 'usr-2', email: 'sarah@family.com', name: 'Sarah', role: 'Member', status: 'PENDING_APPROVAL' },
 ];
 
-// Standard REST API Client Helpers for /api/dogs, /api/activities, /api/households, /api/users
+// ─── REST API Client Helpers ──────────────────────────────────────────────────
+// All CRUD operations go through /api/dogs, /api/activities, /api/households, /api/users
+// which are backed by Neon PostgreSQL via Drizzle ORM.
+
+function householdHeaders(): Record<string, string> {
+  const user = getStoredUser();
+  return {
+    'Content-Type': 'application/json',
+    'X-Household-ID': user.familyPackId || 'FAMILY-COCKER-2026',
+  };
+}
+
+// ── Dogs ──
+
 export async function apiFetchDogs(): Promise<PuppyProfile[] | null> {
   try {
-    const user = getStoredUser();
-    const res = await fetch('/api/dogs', {
-      headers: { 'X-Household-ID': user.familyPackId || 'FAMILY-COCKER-2026' },
-    });
+    const res = await fetch('/api/dogs', { headers: householdHeaders() });
     if (res.ok) {
       const data = await res.json();
-      if (Array.isArray(data) && data.length > 0) {
+      if (Array.isArray(data)) {
         localStorage.setItem(STORAGE_KEY_PUPPIES, JSON.stringify(data));
         return data;
       }
@@ -59,13 +69,9 @@ export async function apiFetchDogs(): Promise<PuppyProfile[] | null> {
 
 export async function apiPostDog(dog: PuppyProfile) {
   try {
-    const user = getStoredUser();
     await fetch('/api/dogs', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Household-ID': user.familyPackId || 'FAMILY-COCKER-2026',
-      },
+      headers: householdHeaders(),
       body: JSON.stringify(dog),
     });
   } catch {
@@ -73,16 +79,26 @@ export async function apiPostDog(dog: PuppyProfile) {
   }
 }
 
+export async function apiDeleteDog(dogId: string) {
+  try {
+    await fetch(`/api/dogs?id=${dogId}`, {
+      method: 'DELETE',
+      headers: householdHeaders(),
+    });
+  } catch {
+    // Offline fallback
+  }
+}
+
+// ── Activities ──
+
 export async function apiFetchActivities(puppyId?: string): Promise<Activity[] | null> {
   try {
-    const user = getStoredUser();
     const url = puppyId ? `/api/activities?puppyId=${puppyId}` : '/api/activities';
-    const res = await fetch(url, {
-      headers: { 'X-Household-ID': user.familyPackId || 'FAMILY-COCKER-2026' },
-    });
+    const res = await fetch(url, { headers: householdHeaders() });
     if (res.ok) {
       const data = await res.json();
-      if (Array.isArray(data) && data.length > 0) {
+      if (Array.isArray(data)) {
         localStorage.setItem(STORAGE_KEY_ACTIVITIES, JSON.stringify(data));
         return data;
       }
@@ -95,14 +111,21 @@ export async function apiFetchActivities(puppyId?: string): Promise<Activity[] |
 
 export async function apiPostActivity(activity: Activity) {
   try {
-    const user = getStoredUser();
     await fetch('/api/activities', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Household-ID': user.familyPackId || 'FAMILY-COCKER-2026',
-      },
+      headers: householdHeaders(),
       body: JSON.stringify(activity),
+    });
+  } catch {
+    // Offline fallback
+  }
+}
+
+export async function apiDeleteActivity(activityId: string) {
+  try {
+    await fetch(`/api/activities?id=${activityId}`, {
+      method: 'DELETE',
+      headers: householdHeaders(),
     });
   } catch {
     // Offline fallback
@@ -123,11 +146,13 @@ export function getStoredPuppies(): PuppyProfile[] {
   return DEFAULT_PUPPIES;
 }
 
+// Track known activity IDs to only POST genuinely new ones
+let _knownActivityIds: Set<string> = new Set();
+
 export function savePuppies(puppies: PuppyProfile[]) {
   localStorage.setItem(STORAGE_KEY_PUPPIES, JSON.stringify(puppies));
-  if (puppies.length > 0) {
-    puppies.forEach((p) => apiPostDog(p));
-  }
+  // Upsert each dog to the database (the API handles dedup via id)
+  puppies.forEach((p) => apiPostDog(p));
 }
 
 export function getActivePuppyId(): string {
@@ -157,8 +182,19 @@ export function getInitialActivities(): Activity[] {
 
 export function saveActivities(activities: Activity[]) {
   localStorage.setItem(STORAGE_KEY_ACTIVITIES, JSON.stringify(activities));
-  if (activities.length > 0) {
-    apiPostActivity(activities[0]);
+  // Post only activities that are new (not yet known to the backend)
+  for (const a of activities) {
+    if (!_knownActivityIds.has(a.id)) {
+      _knownActivityIds.add(a.id);
+      apiPostActivity(a);
+    }
+  }
+}
+
+// Call after fetching remote activities to populate the known set
+export function markActivitiesAsKnown(activities: Activity[]) {
+  for (const a of activities) {
+    _knownActivityIds.add(a.id);
   }
 }
 

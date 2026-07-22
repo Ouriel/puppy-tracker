@@ -1,70 +1,110 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { neon } from '@neondatabase/serverless';
+import { drizzle } from 'drizzle-orm/neon-http';
+import { eq } from 'drizzle-orm';
+import { caretakersTable, householdsTable } from '../src/db/schema';
 
-// In-Memory REST Store for household caretakers
-const caretakersStore: Record<string, any[]> = {
-  'FAMILY-COCKER-2026': [
-    { id: '1', householdId: 'FAMILY-COCKER-2026', name: 'Matthieu', role: 'Member', color: '#6366F1' },
-  ],
-};
+function getDb() {
+  const sql = neon(process.env.POSTGRES_URL || process.env.DATABASE_URL || '');
+  return drizzle(sql);
+}
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Household-ID');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Household-ID');
 
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
+  if (req.method === 'OPTIONS') return res.status(200).end();
+
+  const householdId = (req.headers['x-household-id'] as string) || 'FAMILY-COCKER-2026';
+  const db = getDb();
 
   try {
-    const householdId =
-      (req.headers['x-household-id'] as string) ||
-      (req.query.householdId as string) ||
-      'FAMILY-COCKER-2026';
-
-    if (!caretakersStore[householdId]) {
-      caretakersStore[householdId] = [];
-    }
-
-    // GET /api/households -> Fetch household info & caretakers
+    // GET /api/households — Fetch household info and its caretakers
     if (req.method === 'GET') {
+      // Ensure household exists
+      const [household] = await db
+        .select()
+        .from(householdsTable)
+        .where(eq(householdsTable.familyPackId, householdId));
+
+      const caretakers = await db
+        .select()
+        .from(caretakersTable)
+        .where(eq(caretakersTable.householdId, householdId));
+
       return res.status(200).json({
-        id: householdId,
+        id: household?.id || householdId,
         familyPackId: householdId,
-        caretakers: caretakersStore[householdId],
+        name: household?.name || 'My Household',
+        caretakers,
       });
     }
 
-    // POST /api/households -> Add caretaker to household
+    // POST /api/households — Create/upsert household or add a caretaker
     if (req.method === 'POST') {
-      const { name, role, color, email } = req.body || {};
-      if (!name) return res.status(400).json({ error: 'Missing caretaker name' });
+      const body = req.body || {};
 
-      const newCaretaker = {
-        id: req.body.id || `car-${Date.now()}`,
-        householdId,
-        name,
-        role: role || 'Member',
-        color: color || '#6366F1',
-        email,
-        createdAt: new Date().toISOString(),
-      };
+      // If body has caretaker fields, add a caretaker
+      if (body.name && body.role) {
+        const id = body.id || `car-${Date.now()}`;
 
-      caretakersStore[householdId].push(newCaretaker);
-      return res.status(201).json(newCaretaker);
+        const [existing] = await db
+          .select()
+          .from(caretakersTable)
+          .where(eq(caretakersTable.id, id));
+
+        if (existing) {
+          return res.status(200).json(existing);
+        }
+
+        const [created] = await db
+          .insert(caretakersTable)
+          .values({
+            id,
+            householdId,
+            name: body.name,
+            role: body.role || 'Member',
+            color: body.color || '#6366F1',
+            email: body.email || null,
+          })
+          .returning();
+        return res.status(201).json(created);
+      }
+
+      // Otherwise, create/upsert the household itself
+      const [existing] = await db
+        .select()
+        .from(householdsTable)
+        .where(eq(householdsTable.familyPackId, householdId));
+
+      if (!existing) {
+        const [created] = await db
+          .insert(householdsTable)
+          .values({
+            id: `hh-${Date.now()}`,
+            familyPackId: householdId,
+            name: body.householdName || 'My Household',
+          })
+          .returning();
+        return res.status(201).json(created);
+      }
+
+      return res.status(200).json(existing);
     }
 
-    // DELETE /api/households?caretakerId=xxx -> Remove caretaker
+    // DELETE /api/households?caretakerId=xxx — Remove a caretaker
     if (req.method === 'DELETE') {
-      const id = req.query.caretakerId as string || req.body?.id;
-      if (!id) return res.status(400).json({ error: 'Missing caretaker id' });
+      const id = (req.query.caretakerId as string) || req.body?.id;
+      if (!id) return res.status(400).json({ error: 'caretakerId is required' });
 
-      caretakersStore[householdId] = caretakersStore[householdId].filter((c) => c.id !== id);
+      await db.delete(caretakersTable).where(eq(caretakersTable.id, id));
       return res.status(200).json({ success: true, deletedId: id });
     }
 
     return res.status(405).json({ error: 'Method not allowed' });
   } catch (error: any) {
-    return res.status(500).json({ error: error.message || 'REST API Error' });
+    console.error('API /api/households error:', error);
+    return res.status(500).json({ error: error.message || 'Database error' });
   }
 }

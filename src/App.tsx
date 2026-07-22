@@ -14,8 +14,11 @@ import {
   clearAllData,
   apiFetchDogs,
   apiPostDog,
+  apiDeleteDog,
   apiFetchActivities,
   apiPostActivity,
+  apiDeleteActivity,
+  markActivitiesAsKnown,
 } from './utils/storage';
 import { calculatePredictions } from './utils/predictions';
 import { Navbar, type MainTabType } from './components/Navbar';
@@ -116,19 +119,25 @@ export function App() {
   // Initial Startup REST API Synchronization (Pulls dogs & activities from /api/dogs & /api/activities)
   useEffect(() => {
     async function initRestApiSync() {
+      // Fetch dogs from DB
       const remoteDogs = await apiFetchDogs();
       if (remoteDogs && remoteDogs.length > 0) {
         setPuppies(remoteDogs);
         if (!activePuppyId) setActivePuppyIdState(remoteDogs[0].id);
       } else if (puppies.length > 0) {
+        // First time: push local dogs to DB
         puppies.forEach((d) => apiPostDog(d));
       }
 
+      // Fetch activities from DB
       const remoteActivities = await apiFetchActivities();
       if (remoteActivities && remoteActivities.length > 0) {
+        markActivitiesAsKnown(remoteActivities);
         setActivities(remoteActivities);
       } else if (activities.length > 0) {
+        // First time: push local activities to DB
         activities.forEach((a) => apiPostActivity(a));
+        markActivitiesAsKnown(activities);
       }
     }
     initRestApiSync();
@@ -156,6 +165,7 @@ export function App() {
       const updated = puppies.filter((p) => p.id !== id);
       setPuppies(updated);
       setActivities((prev) => prev.filter((a) => a.puppyId !== id));
+      apiDeleteDog(id);
       if (activePuppyId === id && updated.length > 0) {
         handleSelectPuppy(updated[0].id);
       }
@@ -237,6 +247,7 @@ export function App() {
 
   const handleDeleteActivity = (id: string) => {
     setActivities((prev) => prev.filter((a) => a.id !== id));
+    apiDeleteActivity(id);
   };
 
   const handleClearSampleData = () => {
