@@ -9,7 +9,7 @@ interface StatsAnalyticsProps {
 }
 
 export const StatsAnalytics: React.FC<StatsAnalyticsProps> = ({ activities, profile }) => {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const pottyLogs = activities.filter((a) => a.type === 'pee' || a.type === 'poop');
   const outsideCount = pottyLogs.filter((a) => a.pottyLocation === 'outside').length;
   const padCount = pottyLogs.filter((a) => a.pottyLocation === 'indoor_pad').length;
@@ -52,17 +52,17 @@ export const StatsAnalytics: React.FC<StatsAnalyticsProps> = ({ activities, prof
           <div
             className="bg-emerald-500 transition-all duration-500"
             style={{ width: `${totalPotty ? (outsideCount / totalPotty) * 100 : 100}%` }}
-            title={`Outside: ${outsideCount}`}
+            title={`${t.potty.outside}: ${outsideCount}`}
           />
           <div
             className="bg-amber-500 transition-all duration-500"
             style={{ width: `${totalPotty ? (padCount / totalPotty) * 100 : 0}%` }}
-            title={`Pee Pad: ${padCount}`}
+            title={`${t.potty.pad}: ${padCount}`}
           />
           <div
             className="bg-red-500 transition-all duration-500"
             style={{ width: `${totalPotty ? (accidentCount / totalPotty) * 100 : 0}%` }}
-            title={`Accidents: ${accidentCount}`}
+            title={`${t.potty.accident}: ${accidentCount}`}
           />
         </div>
 
@@ -95,7 +95,9 @@ export const StatsAnalytics: React.FC<StatsAnalyticsProps> = ({ activities, prof
               </p>
             </div>
           </div>
-          <span className="text-xl font-extrabold text-purple-400">{todayFood.length} Repas</span>
+          <span className="text-xl font-extrabold text-purple-400">
+            {todayFood.length} {lang === 'fr' ? 'Repas' : 'Meals'}
+          </span>
         </div>
 
         <div className="w-full bg-slate-900 h-3 rounded-full overflow-hidden mb-3 border border-slate-700">
@@ -129,7 +131,7 @@ export const StatsAnalytics: React.FC<StatsAnalyticsProps> = ({ activities, prof
             return (
               <div
                 key={hr}
-                title={`${hr}:00 - ${count} potty logs`}
+                title={`${hr}:00 - ${count} logs`}
                 className="flex-1 flex flex-col items-center group relative cursor-pointer"
               >
                 <div

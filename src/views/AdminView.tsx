@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Shield, Mail, Send, Users, AlertCircle, UserCheck, UserX, Trash2, Key } from 'lucide-react';
 import { getStoredRegisteredUsers, saveRegisteredUsers, type RegisteredUserItem } from '../utils/storage';
+import { useI18n } from '../i18n';
 
 interface AdminViewProps {
   token: string;
@@ -8,6 +9,7 @@ interface AdminViewProps {
 }
 
 export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail }) => {
+  const { lang } = useI18n();
   const isSuperAdmin = currentUserEmail.toLowerCase() === 'matthieu.jacquet@gmail.com';
 
   const [users, setUsers] = useState<RegisteredUserItem[]>(getStoredRegisteredUsers);
@@ -28,9 +30,15 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail }) => {
     return (
       <div className="bg-slate-900 border border-red-900/40 p-8 rounded-2xl text-center space-y-3">
         <AlertCircle className="w-12 h-12 text-red-400 mx-auto" />
-        <h2 className="text-lg font-bold text-white">Access Restricted</h2>
+        <h2 className="text-lg font-bold text-white">
+          {lang === 'fr' ? 'Accès Restreint' : 'Access Restricted'}
+        </h2>
         <p className="text-xs text-slate-400">
-          Only Super Admin Owner (<strong className="text-white">matthieu.jacquet@gmail.com</strong>) can access the Admin Center.
+          {lang === 'fr'
+            ? 'Seul le Super Admin Propriétaire ('
+            : 'Only Super Admin Owner ('}
+          <strong className="text-white">matthieu.jacquet@gmail.com</strong>
+          {lang === 'fr' ? ') peut accéder au Centre d\'Administration.' : ') can access the Admin Center.'}
         </p>
       </div>
     );
@@ -41,14 +49,14 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail }) => {
     const clean = clientIdInput.trim();
     localStorage.setItem('puppace_google_client_id', clean);
     setGoogleClientId(clean);
-    setStatusMessage('Updated Google OAuth Client ID successfully!');
+    setStatusMessage(lang === 'fr' ? 'ID Client Google OAuth mis à jour !' : 'Updated Google OAuth Client ID successfully!');
     setTimeout(() => setStatusMessage(''), 3500);
   };
 
   const handleActivate = (email: string) => {
     const updated = users.map((u) => (u.email === email ? { ...u, status: 'ACTIVE' as const } : u));
     setUsers(updated);
-    setStatusMessage(`Activated account for ${email}! They can now log in.`);
+    setStatusMessage(lang === 'fr' ? `Compte activé pour ${email} !` : `Activated account for ${email}!`);
     setTimeout(() => setStatusMessage(''), 3500);
   };
 
@@ -56,7 +64,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail }) => {
     if (email.toLowerCase() === 'matthieu.jacquet@gmail.com') return;
     const updated = users.map((u) => (u.email === email ? { ...u, status: 'PENDING_APPROVAL' as const } : u));
     setUsers(updated);
-    setStatusMessage(`Revoked access for ${email}.`);
+    setStatusMessage(lang === 'fr' ? `Accès révoqué pour ${email}.` : `Revoked access for ${email}.`);
     setTimeout(() => setStatusMessage(''), 3500);
   };
 
@@ -69,7 +77,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail }) => {
 
     const updated = users.filter((u) => u.id !== userToDelete.id && u.email !== userToDelete.email);
     setUsers(updated);
-    setStatusMessage(`Successfully deleted account ${userToDelete.email}.`);
+    setStatusMessage(lang === 'fr' ? `Compte ${userToDelete.email} supprimé avec succès.` : `Successfully deleted account ${userToDelete.email}.`);
     setUserToDelete(null);
     setTimeout(() => setStatusMessage(''), 3500);
   };
@@ -95,7 +103,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail }) => {
     }
 
     setNewInviteEmail('');
-    setStatusMessage(`Pre-approved & activated account for ${email}!`);
+    setStatusMessage(lang === 'fr' ? `Compte pré-approuvé et activé pour ${email} !` : `Pre-approved & activated account for ${email}!`);
     setTimeout(() => setStatusMessage(''), 3500);
   };
 
@@ -111,8 +119,12 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail }) => {
             <Shield className="w-6 h-6 text-white" />
           </div>
           <div>
-            <h2 className="text-xl font-bold text-slate-100">Super Admin Center</h2>
-            <p className="text-xs text-slate-400">Strict backend-enforced user management and OAuth security configuration</p>
+            <h2 className="text-xl font-bold text-slate-100">
+              {lang === 'fr' ? 'Centre Super Admin' : 'Super Admin Center'}
+            </h2>
+            <p className="text-xs text-slate-400">
+              {lang === 'fr' ? 'Gestion sécurisée des comptes utilisateurs et OAuth' : 'Strict backend-enforced user management and OAuth security configuration'}
+            </p>
           </div>
         </div>
 
@@ -134,9 +146,12 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail }) => {
             <AlertCircle className="w-5 h-5 text-red-400 shrink-0" />
             <div>
               <div className="text-xs font-bold text-white">
-                Delete account <span className="font-mono text-red-300">{userToDelete.email}</span>?
+                {lang === 'fr' ? 'Supprimer le compte ' : 'Delete account '}
+                <span className="font-mono text-red-300">{userToDelete.email}</span> ?
               </div>
-              <div className="text-[11px] text-slate-400">This action is permanent and cannot be undone.</div>
+              <div className="text-[11px] text-slate-400">
+                {lang === 'fr' ? 'Cette action est définitive et irréversible.' : 'This action is permanent and cannot be undone.'}
+              </div>
             </div>
           </div>
 
@@ -145,14 +160,14 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail }) => {
               onClick={() => setUserToDelete(null)}
               className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-semibold cursor-pointer"
             >
-              Cancel
+              {lang === 'fr' ? 'Annuler' : 'Cancel'}
             </button>
             <button
               onClick={confirmDeleteUser}
               className="px-3 py-1.5 bg-red-600 hover:bg-red-500 text-white rounded-xl text-xs font-bold transition flex items-center gap-1 cursor-pointer"
             >
               <Trash2 className="w-3.5 h-3.5" />
-              <span>Confirm Delete</span>
+              <span>{lang === 'fr' ? 'Confirmer la suppression' : 'Confirm Delete'}</span>
             </button>
           </div>
         </div>
@@ -167,11 +182,11 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail }) => {
           </h3>
           {googleClientId ? (
             <span className="text-[10px] bg-emerald-950 text-emerald-400 border border-emerald-800/50 px-2.5 py-0.5 rounded font-mono font-bold">
-              Configured
+              {lang === 'fr' ? 'Configuré' : 'Configured'}
             </span>
           ) : (
             <span className="text-[10px] bg-amber-950 text-amber-300 border border-amber-800/50 px-2.5 py-0.5 rounded font-mono font-bold">
-              Not Configured
+              {lang === 'fr' ? 'Non configuré' : 'Not Configured'}
             </span>
           )}
         </div>
@@ -188,7 +203,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail }) => {
             type="submit"
             className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs px-4 py-2 rounded-xl transition cursor-pointer"
           >
-            Save Key
+            {lang === 'fr' ? 'Enregistrer la Clé' : 'Save Key'}
           </button>
         </div>
       </form>
@@ -196,13 +211,15 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail }) => {
       {/* Pending Activations List */}
       <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl space-y-4 shadow-xl">
         <h3 className="text-sm font-bold text-amber-300 flex items-center justify-between">
-          <span>Pending Account Activations ({pendingUsers.length})</span>
-          <span className="text-[10px] text-slate-500 font-mono">Requires Matthieu Approval</span>
+          <span>{lang === 'fr' ? `Activations en attente (${pendingUsers.length})` : `Pending Account Activations (${pendingUsers.length})`}</span>
+          <span className="text-[10px] text-slate-500 font-mono">
+            {lang === 'fr' ? 'Validation requise par Matthieu' : 'Requires Matthieu Approval'}
+          </span>
         </h3>
 
         {pendingUsers.length === 0 ? (
           <p className="text-xs text-slate-500 bg-slate-950/40 p-4 rounded-xl border border-slate-800 text-center">
-            No pending activations. All user accounts are processed!
+            {lang === 'fr' ? 'Aucune activation en attente.' : 'No pending activations. All user accounts are processed!'}
           </p>
         ) : (
           <div className="space-y-2">
@@ -224,11 +241,11 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail }) => {
                     className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition flex items-center gap-1 cursor-pointer shadow"
                   >
                     <UserCheck className="w-3.5 h-3.5" />
-                    <span>Activate</span>
+                    <span>{lang === 'fr' ? 'Activer' : 'Activate'}</span>
                   </button>
                   <button
                     onClick={() => setUserToDelete(userItem)}
-                    title="Delete User Account"
+                    title={lang === 'fr' ? 'Supprimer le compte' : 'Delete User Account'}
                     className="p-1.5 text-slate-500 hover:text-red-400 hover:bg-red-950/40 rounded-lg transition cursor-pointer"
                   >
                     <Trash2 className="w-4 h-4" />
@@ -242,7 +259,9 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail }) => {
 
       {/* Pre-Approve Form */}
       <form onSubmit={handlePreApproveInvite} className="bg-slate-900 border border-slate-800 p-6 rounded-2xl space-y-3 shadow-xl">
-        <h3 className="text-sm font-bold text-slate-100">Pre-Approve & Invite User Email</h3>
+        <h3 className="text-sm font-bold text-slate-100">
+          {lang === 'fr' ? 'Pré-approuver & Inviter un Email' : 'Pre-Approve & Invite User Email'}
+        </h3>
         <div className="flex gap-2">
           <div className="relative flex-1">
             <Mail className="w-4 h-4 text-slate-500 absolute left-3 top-2.5" />
@@ -260,7 +279,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail }) => {
             className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs px-4 py-2 rounded-xl transition flex items-center gap-1.5 cursor-pointer"
           >
             <Send className="w-3.5 h-3.5" />
-            <span>Pre-Approve</span>
+            <span>{lang === 'fr' ? 'Pré-approuver' : 'Pre-Approve'}</span>
           </button>
         </div>
       </form>
@@ -269,7 +288,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail }) => {
       <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl space-y-4 shadow-xl">
         <h3 className="text-sm font-bold text-slate-100 flex items-center gap-2">
           <Users className="w-4 h-4 text-indigo-400" />
-          <span>Active User Accounts ({activeUsers.length})</span>
+          <span>{lang === 'fr' ? `Comptes Utilisateurs Actifs (${activeUsers.length})` : `Active User Accounts (${activeUsers.length})`}</span>
         </h3>
 
         <div className="space-y-2">
@@ -294,11 +313,11 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail }) => {
                     className="text-xs bg-slate-800 hover:bg-red-950 text-slate-300 hover:text-red-300 border border-slate-700 px-2.5 py-1 rounded-lg transition cursor-pointer flex items-center gap-1"
                   >
                     <UserX className="w-3.5 h-3.5" />
-                    <span>Revoke</span>
+                    <span>{lang === 'fr' ? 'Révoquer' : 'Revoke'}</span>
                   </button>
                   <button
                     onClick={() => setUserToDelete(userItem)}
-                    title="Delete User Account"
+                    title={lang === 'fr' ? 'Supprimer le compte' : 'Delete User Account'}
                     className="p-1.5 text-slate-500 hover:text-red-400 hover:bg-red-950/40 rounded-lg transition cursor-pointer"
                   >
                     <Trash2 className="w-4 h-4" />
