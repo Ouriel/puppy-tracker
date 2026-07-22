@@ -48,11 +48,17 @@ export function App() {
   useEffect(() => {
     const syncRouteWithTab = () => {
       const path = window.location.pathname;
-      if (path === '/carnet-de-sante') setActiveMainTab('carnetdesante');
-      else if (path === '/settings') setActiveMainTab('settings');
-      else if (path === '/care-guide') setActiveMainTab('careguide');
-      else if (path === '/admin') setActiveMainTab('admin');
-      else setActiveMainTab('dashboard');
+      if (path === '/carnet-de-sante' || path === '/health-passport' || path === '/health-record') {
+        setActiveMainTab('carnetdesante');
+      } else if (path === '/settings') {
+        setActiveMainTab('settings');
+      } else if (path === '/care-guide') {
+        setActiveMainTab('careguide');
+      } else if (path === '/admin') {
+        setActiveMainTab('admin');
+      } else {
+        setActiveMainTab('dashboard');
+      }
     };
     syncRouteWithTab();
     window.addEventListener('popstate', syncRouteWithTab);
@@ -61,9 +67,10 @@ export function App() {
 
   const handleSelectMainTab = (tab: MainTabType) => {
     setActiveMainTab(tab);
+    const healthRoute = lang === 'fr' ? '/carnet-de-sante' : '/health-passport';
     const routeMap: Record<MainTabType, string> = {
       dashboard: '/',
-      carnetdesante: '/carnet-de-sante',
+      carnetdesante: healthRoute,
       settings: '/settings',
       careguide: '/care-guide',
       admin: '/admin',
@@ -368,7 +375,9 @@ export function App() {
         <div className="max-w-6xl mx-auto px-4 flex flex-wrap items-center justify-between gap-2">
           <span>PupPace &bull; Household Puppy Sync Platform</span>
           <div className="flex items-center gap-3">
-            <button onClick={() => handleSelectMainTab('carnetdesante')} className="hover:text-slate-400 transition">Carnet de Santé</button>
+            <button onClick={() => handleSelectMainTab('carnetdesante')} className="hover:text-slate-400 transition">
+              {lang === 'fr' ? 'Carnet de Santé' : 'Health Passport'}
+            </button>
             <span>&bull;</span>
             <button onClick={() => handleSelectMainTab('careguide')} className="hover:text-slate-400 transition">Care Guide</button>
             <span>&bull;</span>
