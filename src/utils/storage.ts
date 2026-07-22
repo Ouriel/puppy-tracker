@@ -1,4 +1,6 @@
 import type { Activity, Caretaker, PuppyProfile, UserAccount } from '../types';
+import { ActivitySchema, PuppyProfileSchema, CaretakerSchema, UserAccountSchema } from './schemas';
+import { z } from 'zod';
 
 const STORAGE_KEY_ACTIVITIES = 'puppace_activities_v4';
 const STORAGE_KEY_PUPPIES = 'puppace_puppies_v4';
@@ -40,7 +42,9 @@ export function getStoredPuppies(): PuppyProfile[] {
   const stored = localStorage.getItem(STORAGE_KEY_PUPPIES);
   if (stored) {
     try {
-      return JSON.parse(stored);
+      const parsed = JSON.parse(stored);
+      const result = z.array(PuppyProfileSchema).safeParse(parsed);
+      if (result.success) return result.data;
     } catch {
       // fallback
     }
@@ -55,7 +59,7 @@ export function savePuppies(puppies: PuppyProfile[]) {
 export function getActivePuppyId(): string {
   const puppies = getStoredPuppies();
   const storedId = localStorage.getItem(STORAGE_KEY_ACTIVE_PUPPY);
-  if (storedId && puppies.some((p) => p.id === storedId)) return storedId;
+  if (storedId && puppies.some((puppy) => puppy.id === storedId)) return storedId;
   return puppies.length > 0 ? puppies[0].id : '';
 }
 
@@ -67,7 +71,9 @@ export function getInitialActivities(): Activity[] {
   const stored = localStorage.getItem(STORAGE_KEY_ACTIVITIES);
   if (stored) {
     try {
-      return JSON.parse(stored);
+      const parsed = JSON.parse(stored);
+      const result = z.array(ActivitySchema).safeParse(parsed);
+      if (result.success) return result.data;
     } catch {
       // Fallback
     }
@@ -87,7 +93,9 @@ export function getStoredUser(): UserAccount {
   const stored = localStorage.getItem(STORAGE_KEY_USER_ACCOUNT);
   if (stored) {
     try {
-      return JSON.parse(stored);
+      const parsed = JSON.parse(stored);
+      const result = UserAccountSchema.safeParse(parsed);
+      if (result.success) return result.data;
     } catch {
       // ignore
     }
@@ -103,7 +111,9 @@ export function getStoredCaretakers(): Caretaker[] {
   const stored = localStorage.getItem(STORAGE_KEY_CARETAKERS);
   if (stored) {
     try {
-      return JSON.parse(stored);
+      const parsed = JSON.parse(stored);
+      const result = z.array(CaretakerSchema).safeParse(parsed);
+      if (result.success) return result.data;
     } catch {
       // ignore
     }
