@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Shield, Mail, Send, Users, AlertCircle, UserCheck, UserX, Trash2, Key } from 'lucide-react';
+import { Shield, Mail, Send, Users, AlertCircle, UserCheck, UserX, Trash2 } from 'lucide-react';
 import { getStoredRegisteredUsers, saveRegisteredUsers, type RegisteredUserItem } from '../utils/storage';
 import { useI18n } from '../i18n';
 
@@ -17,59 +17,9 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail }) => {
   const [statusMessage, setStatusMessage] = useState('');
   const [userToDelete, setUserToDelete] = useState<RegisteredUserItem | null>(null);
 
-  const [googleClientId, setGoogleClientId] = useState<string>(() => {
-    return localStorage.getItem('puppace_google_client_id') || '';
-  });
-  const [clientIdInput, setClientIdInput] = useState(googleClientId);
-
   useEffect(() => {
     saveRegisteredUsers(users);
   }, [users]);
-
-  // Fetch Google OAuth Client ID from server database on mount
-  useEffect(() => {
-    async function fetchServerClientId() {
-      try {
-        const res = await fetch('/api/config?key=google_client_id', {
-          headers: { 'X-Household-ID': 'FAMILY-COCKER-2026' },
-        });
-        if (res.ok) {
-          const data = await res.json();
-          if (data.value) {
-            setGoogleClientId(data.value);
-            setClientIdInput(data.value);
-            localStorage.setItem('puppace_google_client_id', data.value);
-          }
-        }
-      } catch {
-        // Offline: use localStorage fallback
-      }
-    }
-    fetchServerClientId();
-  }, []);
-
-  const handleSaveClientId = async (event: React.FormEvent) => {
-    event.preventDefault();
-    const clean = clientIdInput.trim();
-    // Save to server database (persisted across all devices)
-    try {
-      await fetch('/api/config', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Household-ID': 'FAMILY-COCKER-2026',
-        },
-        body: JSON.stringify({ key: 'google_client_id', value: clean }),
-      });
-    } catch {
-      // Offline fallback
-    }
-    // Also save to localStorage for immediate local use
-    localStorage.setItem('puppace_google_client_id', clean);
-    setGoogleClientId(clean);
-    setStatusMessage(lang === 'fr' ? 'ID Client Google OAuth mis à jour !' : 'Updated Google OAuth Client ID successfully!');
-    setTimeout(() => setStatusMessage(''), 3500);
-  };
 
   const handleActivate = (email: string) => {
     const updated = users.map((u) => (u.email === email ? { ...u, status: 'ACTIVE' as const } : u));
@@ -209,40 +159,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail }) => {
         </div>
       )}
 
-      {/* Google OAuth Settings Panel */}
-      <form onSubmit={handleSaveClientId} className="bg-slate-900 border border-slate-800 p-6 rounded-2xl space-y-3 shadow-xl">
-        <div className="flex items-center justify-between">
-          <h3 className="text-sm font-bold text-slate-100 flex items-center gap-2">
-            <Key className="w-4 h-4 text-indigo-400" />
-            <span>Google OAuth Client ID</span>
-          </h3>
-          {googleClientId ? (
-            <span className="text-[10px] bg-emerald-950 text-emerald-400 border border-emerald-800/50 px-2.5 py-0.5 rounded font-mono font-bold">
-              {lang === 'fr' ? 'Configuré' : 'Configured'}
-            </span>
-          ) : (
-            <span className="text-[10px] bg-amber-950 text-amber-300 border border-amber-800/50 px-2.5 py-0.5 rounded font-mono font-bold">
-              {lang === 'fr' ? 'Non configuré' : 'Not Configured'}
-            </span>
-          )}
-        </div>
 
-        <div className="flex gap-2">
-          <input
-            type="text"
-            placeholder="Paste Client ID: 8924902082-xxxx.apps.googleusercontent.com"
-            value={clientIdInput}
-            onChange={(event) => setClientIdInput(event.target.value)}
-            className="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs font-mono text-slate-100 focus:outline-none focus:border-indigo-500"
-          />
-          <button
-            type="submit"
-            className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs px-4 py-2 rounded-xl transition cursor-pointer"
-          >
-            {lang === 'fr' ? 'Enregistrer la Clé' : 'Save Key'}
-          </button>
-        </div>
-      </form>
 
       {/* Pending Activations List */}
       <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl space-y-4 shadow-xl">

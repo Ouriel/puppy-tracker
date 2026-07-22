@@ -28,32 +28,8 @@ export const AuthLockScreen: React.FC<AuthLockScreenProps> = ({
   
   const googleBtnRef = useRef<HTMLDivElement>(null);
 
-  const [googleClientId, setGoogleClientId] = useState<string>(
-    (import.meta.env.VITE_GOOGLE_CLIENT_ID as string) ||
-    localStorage.getItem('puppace_google_client_id') ||
-    ''
-  );
-
-  // Fetch Google OAuth Client ID from server (set by super admin in Admin panel)
-  useEffect(() => {
-    async function fetchClientId() {
-      try {
-        const res = await fetch('/api/config?key=google_client_id', {
-          headers: { 'X-Household-ID': 'FAMILY-COCKER-2026' },
-        });
-        if (res.ok) {
-          const data = await res.json();
-          if (data.value) {
-            setGoogleClientId(data.value);
-            localStorage.setItem('puppace_google_client_id', data.value);
-          }
-        }
-      } catch {
-        // Offline: use localStorage/env fallback
-      }
-    }
-    fetchClientId();
-  }, []);
+  // Google OAuth Client ID — fixed setting from environment variable (configured in Vercel)
+  const googleClientId = (import.meta.env.VITE_GOOGLE_CLIENT_ID as string) || '';
 
   useEffect(() => {
     if (activeTab === 'signin' && googleClientId && window.google) {
