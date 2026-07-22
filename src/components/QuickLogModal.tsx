@@ -47,8 +47,8 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
 
   if (!isOpen) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = (event: React.FormEvent) => {
+    event.preventDefault();
 
     const newActivity: Omit<Activity, 'id' | 'puppyId'> = {
       type,
@@ -185,18 +185,18 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
                     Stool Consistency (Bristol Scale)
                   </label>
                   <div className="grid grid-cols-4 gap-2">
-                    {(['hard', 'normal', 'soft', 'runny'] as StoolConsistency[]).map((c) => (
+                    {(['hard', 'normal', 'soft', 'runny'] as StoolConsistency[]).map((consistency) => (
                       <button
                         type="button"
-                        key={c}
-                        onClick={() => setStoolConsistency(c)}
+                        key={consistency}
+                        onClick={() => setStoolConsistency(consistency)}
                         className={`py-2.5 px-2 rounded-lg text-xs capitalize border cursor-pointer ${
-                          stoolConsistency === c
+                          stoolConsistency === consistency
                             ? 'bg-amber-600 text-white border-amber-500 font-bold'
                             : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'
                         }`}
                       >
-                        {c}
+                        {consistency}
                       </button>
                     ))}
                   </div>
@@ -212,18 +212,18 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
                   Food Type
                 </label>
                 <div className="flex gap-2 flex-wrap">
-                  {(['kibble', 'wet', 'raw', 'treats', 'topper'] as FoodType[]).map((ft) => (
+                  {(['kibble', 'wet', 'raw', 'treats', 'topper'] as FoodType[]).map((selectedFoodType) => (
                     <button
                       type="button"
-                      key={ft}
-                      onClick={() => setFoodType(ft)}
+                      key={selectedFoodType}
+                      onClick={() => setFoodType(selectedFoodType)}
                       className={`py-2.5 px-3.5 rounded-lg text-xs capitalize border cursor-pointer ${
-                        foodType === ft
+                        foodType === selectedFoodType
                           ? 'bg-purple-600 text-white border-purple-500 font-bold'
                           : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'
                       }`}
                     >
-                      {ft}
+                      {selectedFoodType}
                     </button>
                   ))}
                 </div>
@@ -237,25 +237,25 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
                   <input
                     type="number"
                     value={quantityGrams}
-                    onChange={(e) => {
-                      const g = Number(e.target.value);
-                      setQuantityGrams(g);
-                      setQuantityCups(Number((g / 110).toFixed(2)));
+                    onChange={(event) => {
+                      const grams = Number(event.target.value);
+                      setQuantityGrams(grams);
+                      setQuantityCups(Number((grams / 110).toFixed(2)));
                     }}
                     className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-base text-slate-100 focus:outline-none focus:border-indigo-500"
                   />
                   <div className="flex gap-1.5 mt-2">
-                    {[50, 75, 100, 120].map((g) => (
+                    {[50, 75, 100, 120].map((gramsPreset) => (
                       <button
                         type="button"
-                        key={g}
+                        key={gramsPreset}
                         onClick={() => {
-                          setQuantityGrams(g);
-                          setQuantityCups(Number((g / 110).toFixed(2)));
+                          setQuantityGrams(gramsPreset);
+                          setQuantityCups(Number((gramsPreset / 110).toFixed(2)));
                         }}
                         className="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-2.5 py-1 rounded border border-slate-700 cursor-pointer"
                       >
-                        {g}g
+                        {gramsPreset}g
                       </button>
                     ))}
                   </div>
@@ -269,7 +269,7 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
                     type="number"
                     step="0.1"
                     value={quantityCups}
-                    onChange={(e) => setQuantityCups(Number(e.target.value))}
+                    onChange={(event) => setQuantityCups(Number(event.target.value))}
                     className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-base text-slate-100 focus:outline-none focus:border-indigo-500"
                   />
                 </div>
@@ -285,18 +285,18 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
               <input
                 type="number"
                 value={durationMinutes}
-                onChange={(e) => setDurationMinutes(Number(e.target.value))}
+                onChange={(event) => setDurationMinutes(Number(event.target.value))}
                 className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-base text-slate-100 focus:outline-none focus:border-indigo-500"
               />
               <div className="flex gap-2 mt-2">
-                {[15, 30, 45, 60, 90, 120].map((m) => (
+                {[15, 30, 45, 60, 90, 120].map((minutesPreset) => (
                   <button
                     type="button"
-                    key={m}
-                    onClick={() => setDurationMinutes(m)}
+                    key={minutesPreset}
+                    onClick={() => setDurationMinutes(minutesPreset)}
                     className="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded-lg border border-slate-700 cursor-pointer"
                   >
-                    {m} min
+                    {minutesPreset} min
                   </button>
                 ))}
               </div>
@@ -312,7 +312,7 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
                 type="number"
                 step="0.1"
                 value={weightKg}
-                onChange={(e) => setWeightKg(Number(e.target.value))}
+                onChange={(event) => setWeightKg(Number(event.target.value))}
                 className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-base text-slate-100 focus:outline-none focus:border-indigo-500"
               />
             </div>
@@ -326,7 +326,7 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
               <input
                 type="text"
                 value={medicationName}
-                onChange={(e) => setMedicationName(e.target.value)}
+                onChange={(event) => setMedicationName(event.target.value)}
                 className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-base text-slate-100 focus:outline-none focus:border-indigo-500"
               />
             </div>
@@ -340,7 +340,7 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
               <input
                 type="datetime-local"
                 value={timestamp}
-                onChange={(e) => setTimestamp(e.target.value)}
+                onChange={(event) => setTimestamp(event.target.value)}
                 className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-xs text-slate-100 focus:outline-none focus:border-indigo-500"
               />
             </div>
@@ -351,12 +351,12 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
               </label>
               <select
                 value={loggedBy}
-                onChange={(e) => setLoggedBy(e.target.value)}
+                onChange={(event) => setLoggedBy(event.target.value)}
                 className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-xs text-slate-100 focus:outline-none focus:border-indigo-500 cursor-pointer"
               >
-                {caretakers.map((c) => (
-                  <option key={c.id} value={c.name}>
-                    {c.name}
+                {caretakers.map((caretaker) => (
+                  <option key={caretaker.id} value={caretaker.name}>
+                    {caretaker.name}
                   </option>
                 ))}
               </select>
@@ -371,7 +371,7 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
               type="text"
               placeholder="e.g. Peed within 2 minutes..."
               value={notes}
-              onChange={(e) => setNotes(e.target.value)}
+              onChange={(event) => setNotes(event.target.value)}
               className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-base text-slate-100 focus:outline-none focus:border-indigo-500"
             />
           </div>
