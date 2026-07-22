@@ -41,14 +41,14 @@ export function App() {
     return initialUser.name;
   });
 
-  // Main Page Navigation Tabs with Clean URL Routing
+  // Main Page Navigation Tabs with Clean English Technical URL Routing
   const [activeMainTab, setActiveMainTab] = useState<MainTabType>('dashboard');
 
-  // URL Path Synchronization for Professional Browser Navigation
+  // URL Path Synchronization (Technical URLs are strictly English)
   useEffect(() => {
     const syncRouteWithTab = () => {
       const path = window.location.pathname;
-      if (path === '/carnet-de-sante' || path === '/health-passport' || path === '/health-record') {
+      if (path === '/health-passport' || path === '/carnet-de-sante') {
         setActiveMainTab('carnetdesante');
       } else if (path === '/settings') {
         setActiveMainTab('settings');
@@ -67,10 +67,10 @@ export function App() {
 
   const handleSelectMainTab = (tab: MainTabType) => {
     setActiveMainTab(tab);
-    const healthRoute = lang === 'fr' ? '/carnet-de-sante' : '/health-passport';
+    // Strict English Technical URLs
     const routeMap: Record<MainTabType, string> = {
       dashboard: '/',
-      carnetdesante: healthRoute,
+      carnetdesante: '/health-passport',
       settings: '/settings',
       careguide: '/care-guide',
       admin: '/admin',
