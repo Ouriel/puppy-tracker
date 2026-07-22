@@ -12,6 +12,8 @@ import {
   getStoredCaretakers,
   saveCaretakers,
   clearAllData,
+  fetchDatabaseBackend,
+  syncWithDatabaseBackend,
 } from './utils/storage';
 import { calculatePredictions } from './utils/predictions';
 import { Navbar, type MainTabType } from './components/Navbar';
@@ -108,6 +110,26 @@ export function App() {
   useEffect(() => {
     saveCaretakers(caretakers);
   }, [caretakers]);
+
+  // Initial Startup Cloud Database Synchronization (Pulls server data on phone & pushes local data from laptop)
+  useEffect(() => {
+    async function initCloudSync() {
+      // Always force-push existing laptop data to server on mount
+      await syncWithDatabaseBackend();
+      // Then pull latest remote database data
+      const remoteData = await fetchDatabaseBackend();
+      if (remoteData) {
+        if (Array.isArray(remoteData.puppies) && remoteData.puppies.length > 0) {
+          setPuppies(remoteData.puppies);
+          if (!activePuppyId) setActivePuppyIdState(remoteData.puppies[0].id);
+        }
+        if (Array.isArray(remoteData.activities) && remoteData.activities.length > 0) {
+          setActivities(remoteData.activities);
+        }
+      }
+    }
+    initCloudSync();
+  }, []);
 
   const activePuppy = puppies.find((p) => p.id === activePuppyId) || (puppies.length > 0 ? puppies[0] : null);
 

@@ -37,7 +37,31 @@ export const DEFAULT_REGISTERED_USERS: RegisteredUserItem[] = [
   { id: 'usr-2', email: 'sarah@family.com', name: 'Sarah', role: 'Member', status: 'PENDING_APPROVAL' },
 ];
 
-// Server-side Sync helper to persist data across mobile & desktop devices (Strict Household Security Scoped)
+// Server-side Sync helper to fetch remote household data from server API
+export async function fetchDatabaseBackend() {
+  try {
+    const user = getStoredUser();
+    const res = await fetch('/api/sync', {
+      headers: {
+        'X-Family-Pack-ID': user.familyPackId || 'FAMILY-COCKER-2026',
+      },
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (data.success) {
+      if (Array.isArray(data.puppies) && data.puppies.length > 0) {
+        localStorage.setItem(STORAGE_KEY_PUPPIES, JSON.stringify(data.puppies));
+      }
+      if (Array.isArray(data.activities) && data.activities.length > 0) {
+        localStorage.setItem(STORAGE_KEY_ACTIVITIES, JSON.stringify(data.activities));
+      }
+      return data;
+    }
+  } catch {
+    // Offline fallback
+  }
+  return null;
+}
 export async function syncWithDatabaseBackend() {
   try {
     const user = getStoredUser();
