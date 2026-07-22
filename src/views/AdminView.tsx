@@ -36,8 +36,8 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail }) => {
     );
   }
 
-  const handleSaveClientId = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSaveClientId = (event: React.FormEvent) => {
+    event.preventDefault();
     const clean = clientIdInput.trim();
     localStorage.setItem('puppace_google_client_id', clean);
     setGoogleClientId(clean);
@@ -74,8 +74,8 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail }) => {
     setTimeout(() => setStatusMessage(''), 3500);
   };
 
-  const handlePreApproveInvite = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handlePreApproveInvite = (event: React.FormEvent) => {
+    event.preventDefault();
     if (!newInviteEmail.trim()) return;
 
     const email = newInviteEmail.trim().toLowerCase();
@@ -88,7 +88,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail }) => {
         id: `usr-${Date.now()}`,
         email,
         name: email.split('@')[0],
-        role: 'Partner',
+        role: 'Member',
         status: 'ACTIVE',
       };
       setUsers((prev) => [...prev, newUser]);
@@ -181,7 +181,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail }) => {
             type="text"
             placeholder="Paste Client ID: 8924902082-xxxx.apps.googleusercontent.com"
             value={clientIdInput}
-            onChange={(e) => setClientIdInput(e.target.value)}
+            onChange={(event) => setClientIdInput(event.target.value)}
             className="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs font-mono text-slate-100 focus:outline-none focus:border-indigo-500"
           />
           <button
@@ -206,31 +206,28 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail }) => {
           </p>
         ) : (
           <div className="space-y-2">
-            {pendingUsers.map((u) => (
+            {pendingUsers.map((userItem) => (
               <div
-                key={u.id}
+                key={userItem.id}
                 className="flex items-center justify-between p-3.5 bg-slate-950/40 rounded-xl border border-slate-800"
               >
                 <div>
-                  <div className="text-xs font-bold text-slate-100 flex items-center gap-2">
-                    <span>{u.name}</span>
-                    <span className="text-[10px] bg-amber-950 text-amber-300 border border-amber-800 px-2 py-0.2 rounded font-semibold">
-                      {u.role}
-                    </span>
+                  <div className="text-xs font-bold text-slate-100">
+                    {userItem.name}
                   </div>
-                  <div className="text-[11px] text-slate-400 font-mono mt-0.5">{u.email}</div>
+                  <div className="text-[11px] text-slate-400 font-mono mt-0.5">{userItem.email}</div>
                 </div>
 
                 <div className="flex items-center gap-2">
                   <button
-                    onClick={() => handleActivate(u.email)}
+                    onClick={() => handleActivate(userItem.email)}
                     className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition flex items-center gap-1 cursor-pointer shadow"
                   >
                     <UserCheck className="w-3.5 h-3.5" />
                     <span>Activate</span>
                   </button>
                   <button
-                    onClick={() => setUserToDelete(u)}
+                    onClick={() => setUserToDelete(userItem)}
                     title="Delete User Account"
                     className="p-1.5 text-slate-500 hover:text-red-400 hover:bg-red-950/40 rounded-lg transition cursor-pointer"
                   >
@@ -251,16 +248,16 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail }) => {
             <Mail className="w-4 h-4 text-slate-500 absolute left-3 top-2.5" />
             <input
               type="email"
-              placeholder="e.g. wife@family.com"
+              placeholder="e.g. partner@family.com"
               value={newInviteEmail}
-              onChange={(e) => setNewInviteEmail(e.target.value)}
+              onChange={(event) => setNewInviteEmail(event.target.value)}
               className="w-full bg-slate-800 border border-slate-700 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-indigo-500"
               required
             />
           </div>
           <button
             type="submit"
-            className="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs px-4 py-2 rounded-xl transition flex items-center gap-1.5 cursor-pointer"
+            className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs px-4 py-2 rounded-xl transition flex items-center gap-1.5 cursor-pointer"
           >
             <Send className="w-3.5 h-3.5" />
             <span>Pre-Approve</span>
@@ -276,31 +273,31 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail }) => {
         </h3>
 
         <div className="space-y-2">
-          {activeUsers.map((u) => (
+          {activeUsers.map((userItem) => (
             <div
-              key={u.id}
+              key={userItem.id}
               className="flex items-center justify-between p-3.5 bg-slate-950/40 rounded-xl border border-slate-800"
             >
               <div>
-                <div className="text-xs font-bold text-slate-200">{u.name}</div>
-                <div className="text-[11px] text-slate-400 font-mono">{u.email}</div>
+                <div className="text-xs font-bold text-slate-200">{userItem.name}</div>
+                <div className="text-[11px] text-slate-400 font-mono">{userItem.email}</div>
               </div>
 
-              {u.email.toLowerCase() === 'matthieu.jacquet@gmail.com' ? (
+              {userItem.email.toLowerCase() === 'matthieu.jacquet@gmail.com' ? (
                 <span className="text-[10px] bg-indigo-950 text-indigo-300 border border-indigo-700 px-2.5 py-0.5 rounded font-semibold">
                   Super Admin Owner
                 </span>
               ) : (
                 <div className="flex items-center gap-2">
                   <button
-                    onClick={() => handleDeactivate(u.email)}
+                    onClick={() => handleDeactivate(userItem.email)}
                     className="text-xs bg-slate-800 hover:bg-red-950 text-slate-300 hover:text-red-300 border border-slate-700 px-2.5 py-1 rounded-lg transition cursor-pointer flex items-center gap-1"
                   >
                     <UserX className="w-3.5 h-3.5" />
                     <span>Revoke</span>
                   </button>
                   <button
-                    onClick={() => setUserToDelete(u)}
+                    onClick={() => setUserToDelete(userItem)}
                     title="Delete User Account"
                     className="p-1.5 text-slate-500 hover:text-red-400 hover:bg-red-950/40 rounded-lg transition cursor-pointer"
                   >

@@ -11,7 +11,7 @@ export interface Activity {
   puppyId: string; // Links activity to a specific puppy
   type: ActivityType;
   timestamp: string; // ISO string
-  loggedBy: string; // Caretaker name e.g. "Matthieu (Husband)"
+  loggedBy: string; // Caretaker name
   notes?: string;
   
   // Specific details
@@ -37,7 +37,7 @@ export interface PuppyProfile {
   notes?: string;
 }
 
-export type FamilyRole = 'Husband' | 'Wife' | 'Partner' | 'Child' | 'Dog Walker' | 'Sitter' | 'Relative';
+export type FamilyRole = 'Husband' | 'Wife' | 'Partner' | 'Child' | 'Dog Walker' | 'Sitter' | 'Relative' | 'Member';
 
 export interface UserAccount {
   id: string;

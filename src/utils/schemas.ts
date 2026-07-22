@@ -24,6 +24,7 @@ export const FamilyRoleSchema = z.enum([
   'Dog Walker',
   'Sitter',
   'Relative',
+  'Member',
 ]);
 
 export const ActivitySchema: z.ZodType<Activity> = z.object({

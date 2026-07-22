@@ -24,11 +24,10 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
   const [inviteSuccess, setInviteSuccess] = useState('');
 
   const [name, setName] = useState('');
-  const [role, setRole] = useState<FamilyRole>('Wife');
   const [color, setColor] = useState('#EC4899');
 
-  const handleSendEmailInvite = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSendEmailInvite = (event: React.FormEvent) => {
+    event.preventDefault();
     if (!inviteEmail.trim()) return;
 
     const email = inviteEmail.trim().toLowerCase();
@@ -40,14 +39,14 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
     }, 3500);
   };
 
-  const handleAddSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleAddSubmit = (event: React.FormEvent) => {
+    event.preventDefault();
     if (!name.trim()) return;
 
     const newCaretaker: Caretaker = {
       id: `c-${Date.now()}`,
       name: name.trim(),
-      role,
+      role: 'Member',
       color,
     };
 
@@ -100,7 +99,7 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
               type="email"
               placeholder="Enter email address (e.g. partner@family.com)"
               value={inviteEmail}
-              onChange={(e) => setInviteEmail(e.target.value)}
+              onChange={(event) => setInviteEmail(event.target.value)}
               className="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-slate-100 focus:outline-none focus:border-indigo-500"
               required
             />
@@ -133,33 +132,17 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
 
         {isAdding && (
           <form onSubmit={handleAddSubmit} className="bg-slate-950/60 border border-slate-800 p-4 rounded-xl space-y-3">
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs font-semibold text-slate-400 mb-1">Name</label>
                 <input
                   type="text"
                   placeholder="e.g. Sarah"
                   value={name}
-                  onChange={(e) => setName(e.target.value)}
+                  onChange={(event) => setName(event.target.value)}
                   className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-indigo-500"
                   required
                 />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-400 mb-1">Role</label>
-                <select
-                  value={role}
-                  onChange={(e) => setRole(e.target.value as FamilyRole)}
-                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-indigo-500 cursor-pointer"
-                >
-                  <option value="Wife">Wife</option>
-                  <option value="Husband">Husband</option>
-                  <option value="Partner">Partner</option>
-                  <option value="Child">Child</option>
-                  <option value="Dog Walker">Dog Walker</option>
-                  <option value="Sitter">Sitter</option>
-                </select>
               </div>
 
               <div>
@@ -167,7 +150,7 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
                 <input
                   type="color"
                   value={color}
-                  onChange={(e) => setColor(e.target.value)}
+                  onChange={(event) => setColor(event.target.value)}
                   className="w-full bg-slate-800 border border-slate-700 rounded-xl h-9 px-1 py-1 cursor-pointer"
                 />
               </div>
@@ -184,36 +167,30 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
           </form>
         )}
 
-        {/* Caretakers List with Deletion */}
+        {/* Caretakers List */}
         <div className="space-y-2">
-          {caretakers.map((c) => {
-            const formatted = `${c.name} (${c.role})`;
-            const isSelected = currentUser === formatted;
+          {caretakers.map((caretaker) => {
+            const isSelected = currentUser === caretaker.name;
 
             return (
               <div
-                key={c.id}
+                key={caretaker.id}
                 className="flex items-center justify-between p-3.5 bg-slate-950/40 rounded-xl border border-slate-800"
               >
                 <div className="flex items-center gap-3">
                   <div
                     className="w-4 h-4 rounded-full ring-2 ring-white/20 shrink-0"
-                    style={{ backgroundColor: c.color }}
+                    style={{ backgroundColor: caretaker.color }}
                   />
-                  <div>
-                    <div className="text-xs font-bold text-slate-100 flex items-center gap-2">
-                      <span>{c.name}</span>
-                      <span className="text-[10px] bg-slate-800 text-indigo-300 border border-slate-700 px-2 py-0.2 rounded font-medium">
-                        {c.role}
-                      </span>
-                    </div>
+                  <div className="text-xs font-bold text-slate-100">
+                    {caretaker.name}
                   </div>
                 </div>
 
                 <div className="flex items-center gap-2">
                   {!isSelected ? (
                     <button
-                      onClick={() => onSwitchUserAccount(c.name, c.role)}
+                      onClick={() => onSwitchUserAccount(caretaker.name, caretaker.role)}
                       className="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 px-3 py-1 rounded-lg transition cursor-pointer"
                     >
                       Switch Active
@@ -225,9 +202,9 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
                     </span>
                   )}
 
-                  {c.name !== 'Matthieu' && (
+                  {caretaker.name !== 'Matthieu' && (
                     <button
-                      onClick={() => onDeleteCaretaker(c.id)}
+                      onClick={() => onDeleteCaretaker(caretaker.id)}
                       title="Delete User from Household"
                       className="p-1.5 text-slate-500 hover:text-red-400 hover:bg-red-950/40 rounded-lg transition cursor-pointer"
                     >

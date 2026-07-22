@@ -18,7 +18,6 @@ export const AuthLockScreen: React.FC<AuthLockScreenProps> = ({
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
-  const [role, setRole] = useState('Wife');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -59,7 +58,7 @@ export const AuthLockScreen: React.FC<AuthLockScreenProps> = ({
               if (!res.success) {
                 setError(res.message || 'Account pending activation by Super Admin Matthieu.');
               }
-            } catch (e) {
+            } catch {
               setError('Failed to process Google SSO authentication.');
             }
           },
@@ -76,8 +75,8 @@ export const AuthLockScreen: React.FC<AuthLockScreenProps> = ({
     }
   }, [activeTab, onUnlockWithSSO, googleClientId]);
 
-  const handlePasswordLogin = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handlePasswordLogin = (event: React.FormEvent) => {
+    event.preventDefault();
     setError('');
     setSuccess('');
     const res = onUnlockWithPassword(email.trim().toLowerCase(), password);
@@ -86,8 +85,8 @@ export const AuthLockScreen: React.FC<AuthLockScreenProps> = ({
     }
   };
 
-  const handleCreateAccount = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleCreateAccount = (event: React.FormEvent) => {
+    event.preventDefault();
     setError('');
     setSuccess('');
     if (!email.trim() || !password || !name.trim()) return;
@@ -96,7 +95,7 @@ export const AuthLockScreen: React.FC<AuthLockScreenProps> = ({
       email.trim().toLowerCase(),
       password,
       name.trim(),
-      role
+      'Member'
     );
 
     if (res.isPending || !res.success) {
@@ -121,7 +120,7 @@ export const AuthLockScreen: React.FC<AuthLockScreenProps> = ({
         <div className="text-center space-y-2 relative z-10">
           <div className="relative inline-block">
             <img
-              src="/cocker_spaniel_mascot.jpg"
+              src="/flat_cocker_spaniel_logo.jpg"
               alt="PupPace Logo"
               className="w-20 h-20 rounded-full object-cover mx-auto ring-4 ring-indigo-500/50 shadow-xl"
             />
@@ -201,7 +200,7 @@ export const AuthLockScreen: React.FC<AuthLockScreenProps> = ({
                     type="email"
                     placeholder="Enter your email"
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    onChange={(event) => setEmail(event.target.value)}
                     className="w-full bg-slate-800 border border-slate-700 rounded-xl pl-10 pr-3 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-indigo-500"
                     required
                   />
@@ -218,7 +217,7 @@ export const AuthLockScreen: React.FC<AuthLockScreenProps> = ({
                     type={showPassword ? 'text' : 'password'}
                     placeholder="••••••••"
                     value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    onChange={(event) => setPassword(event.target.value)}
                     className="w-full bg-slate-800 border border-slate-700 rounded-xl pl-10 pr-10 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-indigo-500"
                     required
                   />
@@ -256,7 +255,7 @@ export const AuthLockScreen: React.FC<AuthLockScreenProps> = ({
                   type="text"
                   placeholder="e.g. Sarah"
                   value={name}
-                  onChange={(e) => setName(e.target.value)}
+                  onChange={(event) => setName(event.target.value)}
                   className="w-full bg-slate-800 border border-slate-700 rounded-xl pl-10 pr-3 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-indigo-500"
                   required
                 />
@@ -271,48 +270,36 @@ export const AuthLockScreen: React.FC<AuthLockScreenProps> = ({
                 <Mail className="w-4 h-4 text-slate-500 absolute left-3.5 top-3" />
                 <input
                   type="email"
-                  placeholder="e.g. wife@family.com"
+                  placeholder="e.g. sarah@family.com"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(event) => setEmail(event.target.value)}
                   className="w-full bg-slate-800 border border-slate-700 rounded-xl pl-10 pr-3 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-indigo-500"
                   required
                 />
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-semibold text-slate-400 mb-1">
-                  Family Role
-                </label>
-                <select
-                  value={role}
-                  onChange={(e) => setRole(e.target.value)}
-                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-xs text-slate-100 focus:outline-none focus:border-indigo-500 cursor-pointer"
+            <div>
+              <label className="block text-xs font-semibold text-slate-400 mb-1">
+                Password
+              </label>
+              <div className="relative">
+                <Lock className="w-4 h-4 text-slate-500 absolute left-3.5 top-3" />
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  className="w-full bg-slate-800 border border-slate-700 rounded-xl pl-10 pr-10 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-indigo-500"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-3 text-slate-400 hover:text-slate-200 cursor-pointer"
                 >
-                  <option value="Wife">Wife</option>
-                  <option value="Husband">Husband</option>
-                  <option value="Partner">Partner</option>
-                  <option value="Child">Child</option>
-                  <option value="Dog Walker">Dog Walker</option>
-                  <option value="Sitter">Sitter</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-400 mb-1">
-                  Password
-                </label>
-                <div className="relative">
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    placeholder="Password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-indigo-500"
-                    required
-                  />
-                </div>
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
               </div>
             </div>
 
@@ -352,7 +339,7 @@ export const AuthLockScreen: React.FC<AuthLockScreenProps> = ({
           {/* Rendered in HTML for Google OAuth Verification Crawlers */}
           <div className={`${showAboutDetails ? 'block' : 'hidden'} px-4 pb-4 space-y-2 text-[11px] text-slate-400 leading-relaxed border-t border-slate-800/60 pt-2.5`}>
             <p>
-              <strong>PupPace</strong> is a smart puppy activity & potty tracking application designed for dog owners and family caretakers. It records potty times, meals, naps, and health metrics, computing adaptive predictive schedules for your puppy.
+              <strong>PupPace</strong> is a smart puppy activity & potty tracking application designed for dog owners and family caretakers. It records potty times, meals, walks, and health metrics, computing adaptive predictive schedules for your puppy.
             </p>
             <p>
               <strong>Google SSO Disclosure:</strong> Google Sign-In is used strictly to authenticate household members and sync puppy activity logs seamlessly across family caretakers.
@@ -364,7 +351,7 @@ export const AuthLockScreen: React.FC<AuthLockScreenProps> = ({
         <div className="flex items-center justify-center gap-4 text-xs text-slate-400 font-medium">
           <a
             href="/privacy"
-            onClick={(e) => { e.preventDefault(); setIsPrivacyOpen(true); }}
+            onClick={(event) => { event.preventDefault(); setIsPrivacyOpen(true); }}
             className="hover:text-indigo-300 transition flex items-center gap-1 cursor-pointer"
           >
             <Shield className="w-3.5 h-3.5 text-slate-400" />
@@ -373,7 +360,7 @@ export const AuthLockScreen: React.FC<AuthLockScreenProps> = ({
           <span>•</span>
           <a
             href="/terms"
-            onClick={(e) => { e.preventDefault(); setIsTermsOpen(true); }}
+            onClick={(event) => { event.preventDefault(); setIsTermsOpen(true); }}
             className="hover:text-indigo-300 transition flex items-center gap-1 cursor-pointer"
           >
             <FileText className="w-3.5 h-3.5 text-slate-400" />
