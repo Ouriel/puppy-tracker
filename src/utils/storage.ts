@@ -50,6 +50,33 @@ function householdHeaders(): Record<string, string> {
   return headers;
 }
 
+function handle401(res: Response) {
+  if (res.status === 401 && typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('puppace:unauthorized'));
+  }
+}
+
+// ── Authentication API ──
+
+export async function apiAuthenticate(googleToken: string): Promise<{ success: boolean; token?: string; error?: string; isPending?: boolean }> {
+  try {
+    const res = await fetch('/api/auth', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: googleToken }),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (res.ok && body.token) {
+      setAuthToken(body.token);
+      localStorage.setItem('puppace_auth_token', body.token);
+      return { success: true, token: body.token };
+    }
+    return { success: false, error: body.error || 'Authentication failed', isPending: body.isPending };
+  } catch (err: any) {
+    return { success: false, error: 'Network error authenticating with server' };
+  }
+}
+
 // ── Dogs ──
 
 export async function apiFetchDogs(): Promise<PuppyProfile[] | null> {
@@ -62,6 +89,7 @@ export async function apiFetchDogs(): Promise<PuppyProfile[] | null> {
         return data;
       }
     } else {
+      handle401(res);
       const body = await res.json().catch(() => ({}));
       showToast(body.error || `Server error (${res.status}) fetching dogs`, 'error');
     }
@@ -71,20 +99,25 @@ export async function apiFetchDogs(): Promise<PuppyProfile[] | null> {
   return null;
 }
 
-export async function apiPostDog(dog: PuppyProfile) {
+export async function apiPostDog(dog: PuppyProfile): Promise<boolean> {
   try {
     const res = await fetch('/api/dogs', {
       method: 'POST',
       headers: householdHeaders(),
       body: JSON.stringify(dog),
     });
-    if (!res.ok) {
+    if (res.ok) {
+      _knownDogIds.add(dog.id);
+      return true;
+    } else {
+      handle401(res);
       const body = await res.json().catch(() => ({}));
       showToast(body.error || `Server error (${res.status}) saving dog`, 'error');
     }
   } catch {
     showToast('Failed to save dog profile to server. Changes saved locally.', 'error');
   }
+  return false;
 }
 
 export async function apiDeleteDog(dogId: string) {
@@ -94,6 +127,7 @@ export async function apiDeleteDog(dogId: string) {
       headers: householdHeaders(),
     });
     if (!res.ok) {
+      handle401(res);
       const body = await res.json().catch(() => ({}));
       showToast(body.error || `Server error (${res.status}) deleting dog`, 'error');
     }
@@ -115,6 +149,7 @@ export async function apiFetchActivities(puppyId?: string): Promise<Activity[] |
         return data;
       }
     } else {
+      handle401(res);
       const body = await res.json().catch(() => ({}));
       showToast(body.error || `Server error (${res.status}) fetching activities`, 'error');
     }
@@ -124,20 +159,25 @@ export async function apiFetchActivities(puppyId?: string): Promise<Activity[] |
   return null;
 }
 
-export async function apiPostActivity(activity: Activity) {
+export async function apiPostActivity(activity: Activity): Promise<boolean> {
   try {
     const res = await fetch('/api/activities', {
       method: 'POST',
       headers: householdHeaders(),
       body: JSON.stringify(activity),
     });
-    if (!res.ok) {
+    if (res.ok) {
+      _knownActivityIds.add(activity.id);
+      return true;
+    } else {
+      handle401(res);
       const body = await res.json().catch(() => ({}));
       showToast(body.error || `Server error (${res.status}) saving activity`, 'error');
     }
   } catch {
     showToast('Failed to save activity to server. Changes saved locally.', 'error');
   }
+  return false;
 }
 
 export async function apiDeleteActivity(activityId: string) {
@@ -147,6 +187,7 @@ export async function apiDeleteActivity(activityId: string) {
       headers: householdHeaders(),
     });
     if (!res.ok) {
+      handle401(res);
       const body = await res.json().catch(() => ({}));
       showToast(body.error || `Server error (${res.status}) deleting activity`, 'error');
     }
@@ -164,6 +205,7 @@ export async function apiFetchHealthRecords(puppyId: string, type?: string): Pro
       : `/api/health-records?puppyId=${puppyId}`;
     const res = await fetch(url, { headers: householdHeaders() });
     if (res.ok) return await res.json();
+    handle401(res);
     const body = await res.json().catch(() => ({}));
     showToast(body.error || `Server error (${res.status}) fetching health records`, 'error');
   } catch {
@@ -180,6 +222,7 @@ export async function apiPostHealthRecord(record: any) {
       body: JSON.stringify(record),
     });
     if (!res.ok) {
+      handle401(res);
       const body = await res.json().catch(() => ({}));
       showToast(body.error || `Server error (${res.status}) saving health record`, 'error');
     }
@@ -195,6 +238,7 @@ export async function apiDeleteHealthRecord(id: string) {
       headers: householdHeaders(),
     });
     if (!res.ok) {
+      handle401(res);
       const body = await res.json().catch(() => ({}));
       showToast(body.error || `Server error (${res.status}) deleting health record`, 'error');
     }
@@ -203,12 +247,13 @@ export async function apiDeleteHealthRecord(id: string) {
   }
 }
 
-// ── Users API Helpers (Database backend) ──
+// ── Users API Helpers ──
 
 export async function apiFetchUsers(): Promise<RegisteredUserItem[] | null> {
   try {
     const res = await fetch('/api/users', { headers: householdHeaders() });
     if (res.ok) return await res.json();
+    handle401(res);
     const body = await res.json().catch(() => ({}));
     showToast(body.error || `Server error (${res.status}) fetching users`, 'error');
   } catch {
@@ -226,6 +271,7 @@ export async function apiPostUser(user: Partial<RegisteredUserItem>) {
     });
     const body = await res.json().catch(() => ({}));
     if (!res.ok) {
+      handle401(res);
       showToast(body.error || `Server error (${res.status}) saving user`, 'error');
       return null;
     }
@@ -245,6 +291,7 @@ export async function apiPutUser(user: Partial<RegisteredUserItem>) {
     });
     const body = await res.json().catch(() => ({}));
     if (!res.ok) {
+      handle401(res);
       showToast(body.error || `Server error (${res.status}) updating user`, 'error');
       return null;
     }
@@ -263,6 +310,7 @@ export async function apiDeleteUser(email: string) {
     });
     const body = await res.json().catch(() => ({}));
     if (!res.ok) {
+      handle401(res);
       showToast(body.error || `Server error (${res.status}) deleting user`, 'error');
       return false;
     }
@@ -299,7 +347,6 @@ export function savePuppies(puppies: PuppyProfile[]) {
   localStorage.setItem(STORAGE_KEY_PUPPIES, JSON.stringify(puppies));
   for (const p of puppies) {
     if (!_knownDogIds.has(p.id)) {
-      _knownDogIds.add(p.id);
       apiPostDog(p);
     }
   }
@@ -335,7 +382,6 @@ export function saveActivities(activities: Activity[]) {
   // Post only activities that are new (not yet known to the backend)
   for (const a of activities) {
     if (!_knownActivityIds.has(a.id)) {
-      _knownActivityIds.add(a.id);
       apiPostActivity(a);
     }
   }

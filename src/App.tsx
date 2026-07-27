@@ -21,7 +21,6 @@ import {
   markActivitiesAsKnown,
   markDogsAsKnown,
   setAuthToken,
-  apiPostUser,
 } from './utils/storage';
 import { calculatePredictions } from './utils/predictions';
 import { Navbar, type MainTabType } from './components/Navbar';
@@ -60,6 +59,15 @@ export function App() {
     const initialUser = getStoredUser();
     return initialUser.name;
   });
+
+  // Listen for unauthorized 401 events to lock vault & prompt re-auth
+  useEffect(() => {
+    const onUnauthorized = () => {
+      handleLockVault();
+    };
+    window.addEventListener('puppace:unauthorized', onUnauthorized);
+    return () => window.removeEventListener('puppace:unauthorized', onUnauthorized);
+  }, []);
 
   // Main Page Navigation Tabs with Clean English Technical URL Routing
   const [activeMainTab, setActiveMainTab] = useState<MainTabType>('dashboard');
@@ -140,7 +148,6 @@ export function App() {
           if (!activePuppyId) setActivePuppyIdState(remoteDogs[0].id);
         } else if (puppies.length > 0) {
           puppies.forEach((d) => apiPostDog(d));
-          markDogsAsKnown(puppies);
         }
 
         // Fetch activities from DB with Merge Strategy
@@ -151,12 +158,10 @@ export function App() {
             const remoteIds = new Set(remoteActivities.map((a) => a.id));
             const localOnly = localActivities.filter((a) => !remoteIds.has(a.id));
             localOnly.forEach((a) => apiPostActivity(a));
-            markActivitiesAsKnown(localOnly);
             return [...remoteActivities, ...localOnly];
           });
         } else if (activities.length > 0) {
           activities.forEach((a) => apiPostActivity(a));
-          markActivitiesAsKnown(activities);
         }
       } finally {
         setIsLoading(false);
@@ -213,15 +218,6 @@ export function App() {
     localStorage.setItem('puppace_unlocked_v4', 'true');
     setIsAuthenticated(true);
     setUser((prev) => ({ ...prev, email, name }));
-
-    // Register or ensure pending state on backend
-    apiPostUser({
-      email,
-      name,
-      role: email.toLowerCase() === 'matthieu.jacquet@gmail.com' ? 'SuperAdmin' : 'Member',
-      status: email.toLowerCase() === 'matthieu.jacquet@gmail.com' ? 'ACTIVE' : 'PENDING_APPROVAL',
-    });
-
     return { success: true };
   };
 

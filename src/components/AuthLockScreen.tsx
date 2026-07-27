@@ -3,6 +3,7 @@ import { Lock, ShieldCheck, CheckCircle2, FileText, Shield, Sparkles, ChevronDow
 import { PrivacyPolicyModal } from './PrivacyPolicyModal';
 import { TermsOfServiceModal } from './TermsOfServiceModal';
 import { useI18n } from '../i18n';
+import { apiAuthenticate } from '../utils/storage';
 
 interface AuthLockScreenProps {
   onUnlockWithSSO: (email: string, name: string, token: string) => { success: boolean; message?: string };
@@ -23,7 +24,6 @@ export const AuthLockScreen: React.FC<AuthLockScreenProps> = ({
   
   const googleBtnRef = useRef<HTMLDivElement>(null);
 
-  // Google OAuth Client ID — fixed setting from environment variable (configured in Vercel)
   const googleClientId = (import.meta.env.VITE_GOOGLE_CLIENT_ID as string) || '';
 
   useEffect(() => {
@@ -31,7 +31,7 @@ export const AuthLockScreen: React.FC<AuthLockScreenProps> = ({
       try {
         window.google.accounts.id.initialize({
           client_id: googleClientId,
-          callback: (response: any) => {
+          callback: async (response: any) => {
             const credential = response.credential;
             try {
               const base64Url = credential.split('.')[1];
@@ -45,9 +45,11 @@ export const AuthLockScreen: React.FC<AuthLockScreenProps> = ({
               );
               const decoded = JSON.parse(jsonPayload);
               
-              const res = onUnlockWithSSO(decoded.email, decoded.name, credential);
-              if (!res.success) {
-                setError(res.message || t.auth.pendingActivation);
+              const authRes = await apiAuthenticate(credential);
+              if (authRes.success && authRes.token) {
+                onUnlockWithSSO(decoded.email, decoded.name, authRes.token);
+              } else {
+                setError(authRes.error || t.auth.pendingActivation);
               }
             } catch {
               setError(t.auth.ssoFailed);
