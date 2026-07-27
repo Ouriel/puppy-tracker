@@ -1,24 +1,34 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import type { PuppyProfile } from '../types';
 import { Syringe, ShieldCheck, Plus, Pill, Trash2 } from 'lucide-react';
 import { useI18n } from '../i18n';
+import {
+  apiFetchHealthRecords,
+  apiPostHealthRecord,
+  apiDeleteHealthRecord,
+} from '../utils/storage';
 
 interface VaccinationEntry {
   id: string;
-  vaccineType: 'Rage' | 'DHPP' | 'Leptospirose' | 'Toux_de_Chenil';
-  administeredDate: string;
-  nextDueDate: string;
-  vetClinicName?: string;
+  puppyId?: string;
+  type?: string;
+  name: string;
+  date: string;
+  boosterDate?: string;
+  vetClinic?: string;
   batchNumber?: string;
   notes?: string;
 }
 
 interface DewormingEntry {
   id: string;
-  productName: string;
-  administeredDate: string;
-  nextDueDate: string;
-  weightAtTimeKg?: number;
+  puppyId?: string;
+  type?: string;
+  name: string;
+  date: string;
+  boosterDate?: string;
+  productName?: string;
+  weightAtTime?: number;
   notes?: string;
 }
 
@@ -29,44 +39,15 @@ interface CarnetDeSanteViewProps {
 export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePuppy }) => {
   const { lang, t } = useI18n();
 
-  const [vaccinations, setVaccinations] = useState<VaccinationEntry[]>([
-    {
-      id: 'v1',
-      vaccineType: 'DHPP',
-      administeredDate: '2026-06-15',
-      nextDueDate: '2026-07-15',
-      vetClinicName: 'Clinique Vétérinaire Paris 15',
-      batchNumber: 'FR-99812',
-      notes: 'Primo-vaccination 8 semaines',
-    },
-    {
-      id: 'v2',
-      vaccineType: 'Leptospirose',
-      administeredDate: '2026-06-15',
-      nextDueDate: '2026-07-15',
-      vetClinicName: 'Clinique Vétérinaire Paris 15',
-      batchNumber: 'LEP-3341',
-      notes: 'L4 injection 1',
-    },
-  ]);
-
-  const [dewormingLogs, setDewormingLogs] = useState<DewormingEntry[]>([
-    {
-      id: 'd1',
-      productName: 'Milbemax Tab',
-      administeredDate: '2026-06-01',
-      nextDueDate: '2026-07-01',
-      weightAtTimeKg: 4.8,
-      notes: 'Vermifuge mensuel chiot',
-    },
-  ]);
+  const [vaccinations, setVaccinations] = useState<VaccinationEntry[]>([]);
+  const [dewormingLogs, setDewormingLogs] = useState<DewormingEntry[]>([]);
 
   // Form toggles
   const [isAddingVaccine, setIsAddingVaccine] = useState(false);
   const [isAddingDeworming, setIsAddingDeworming] = useState(false);
 
   // New Vaccine Form
-  const [vaccineType, setVaccineType] = useState<'Rage' | 'DHPP' | 'Leptospirose' | 'Toux_de_Chenil'>('DHPP');
+  const [vaccineType, setVaccineType] = useState<string>('DHPP');
   const [administeredDate, setAdministeredDate] = useState(new Date().toISOString().slice(0, 10));
   const [nextDueDate, setNextDueDate] = useState('');
 
@@ -75,51 +56,78 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePupp
   const [dewormAdminDate, setDewormAdminDate] = useState(new Date().toISOString().slice(0, 10));
   const [dewormNextDate, setDewormNextDate] = useState('');
 
-  const handleAddVaccineSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!administeredDate || !nextDueDate) return;
+  useEffect(() => {
+    if (activePuppy?.id) {
+      loadHealthRecords();
+    }
+  }, [activePuppy?.id]);
 
-    const newEntry: VaccinationEntry = {
+  const loadHealthRecords = async () => {
+    if (!activePuppy?.id) return;
+    const vRes = await apiFetchHealthRecords(activePuppy.id, 'vaccination');
+    if (vRes) {
+      setVaccinations(vRes);
+    }
+    const dRes = await apiFetchHealthRecords(activePuppy.id, 'deworming');
+    if (dRes) {
+      setDewormingLogs(dRes);
+    }
+  };
+
+  const handleAddVaccineSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!administeredDate || !nextDueDate || !activePuppy) return;
+
+    const newEntry = {
       id: `v-${Date.now()}`,
-      vaccineType,
-      administeredDate,
-      nextDueDate,
+      puppyId: activePuppy.id,
+      type: 'vaccination',
+      name: vaccineType,
+      date: administeredDate,
+      boosterDate: nextDueDate,
     };
 
+    await apiPostHealthRecord(newEntry);
     setVaccinations((prev) => [newEntry, ...prev]);
     setIsAddingVaccine(false);
   };
 
-  const handleDeleteVaccine = (id: string) => {
+  const handleDeleteVaccine = async (id: string) => {
     const confirmMsg = lang === 'fr' 
       ? 'Êtes-vous sûr de vouloir supprimer cette ligne de vaccin ?' 
       : 'Are you sure you want to delete this vaccine record?';
     if (window.confirm(confirmMsg)) {
+      await apiDeleteHealthRecord(id);
       setVaccinations((prev) => prev.filter((v) => v.id !== id));
     }
   };
 
-  const handleAddDewormingSubmit = (e: React.FormEvent) => {
+  const handleAddDewormingSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!dewormAdminDate || !dewormNextDate) return;
+    if (!dewormAdminDate || !dewormNextDate || !activePuppy) return;
 
-    const newEntry: DewormingEntry = {
+    const newEntry = {
       id: `d-${Date.now()}`,
+      puppyId: activePuppy.id,
+      type: 'deworming',
+      name: productName.trim() || 'Milbemax Tab',
       productName: productName.trim() || 'Milbemax Tab',
-      administeredDate: dewormAdminDate,
-      nextDueDate: dewormNextDate,
-      weightAtTimeKg: activePuppy?.weightKg,
+      date: dewormAdminDate,
+      boosterDate: dewormNextDate,
+      weightAtTime: activePuppy.weightKg,
     };
 
+    await apiPostHealthRecord(newEntry);
     setDewormingLogs((prev) => [newEntry, ...prev]);
     setIsAddingDeworming(false);
   };
 
-  const handleDeleteDeworming = (id: string) => {
+  const handleDeleteDeworming = async (id: string) => {
     const confirmMsg = lang === 'fr' 
       ? 'Êtes-vous sûr de vouloir supprimer cette entrée de vermifuge ?' 
       : 'Are you sure you want to delete this deworming entry?';
     if (window.confirm(confirmMsg)) {
+      await apiDeleteHealthRecord(id);
       setDewormingLogs((prev) => prev.filter((d) => d.id !== id));
     }
   };
@@ -211,7 +219,7 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePupp
                 <label className="block text-xs font-semibold text-slate-400 mb-1">{t.health.vaccineType}</label>
                 <select
                   value={vaccineType}
-                  onChange={(e) => setVaccineType(e.target.value as any)}
+                  onChange={(e) => setVaccineType(e.target.value)}
                   className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-teal-500 cursor-pointer"
                 >
                   <option value="DHPP">DHPP (Parvo, Distemper, Hepatitis)</option>
@@ -264,7 +272,7 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePupp
                 </div>
                 <div>
                   <div className="text-xs font-bold text-white flex items-center gap-2">
-                    <span>{v.vaccineType}</span>
+                    <span>{v.name}</span>
                     {v.batchNumber && (
                       <span className="text-[10px] font-mono text-slate-400 bg-slate-800 px-2 py-0.2 rounded">
                         Lot: {v.batchNumber}
@@ -272,14 +280,14 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePupp
                     )}
                   </div>
                   <div className="text-[11px] text-slate-400">
-                    {lang === 'fr' ? 'Injecté le' : 'Administered'} {v.administeredDate} &bull; {lang === 'fr' ? 'Clinique:' : 'Clinic:'} {v.vetClinicName || (lang === 'fr' ? 'Vétérinaire' : 'Veterinary')}
+                    {lang === 'fr' ? 'Injecté le' : 'Administered'} {v.date} &bull; {lang === 'fr' ? 'Clinique:' : 'Clinic:'} {v.vetClinic || (lang === 'fr' ? 'Vétérinaire' : 'Veterinary')}
                   </div>
                 </div>
               </div>
 
               <div className="flex items-center gap-3">
                 <div className="text-right">
-                  <div className="text-xs font-bold text-amber-300">{lang === 'fr' ? 'Rappel:' : 'Booster:'} {v.nextDueDate}</div>
+                  <div className="text-xs font-bold text-amber-300">{lang === 'fr' ? 'Rappel:' : 'Booster:'} {v.boosterDate}</div>
                   <div className="text-[10px] text-slate-500">{lang === 'fr' ? 'Statut: Conforme' : 'Status: Compliant'}</div>
                 </div>
                 <button
@@ -367,16 +375,16 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePupp
                   <Pill className="w-4 h-4" />
                 </div>
                 <div>
-                  <div className="text-xs font-bold text-white">{d.productName}</div>
+                  <div className="text-xs font-bold text-white">{d.name || d.productName}</div>
                   <div className="text-[11px] text-slate-400">
-                    {lang === 'fr' ? 'Pris le' : 'Administered'} {d.administeredDate} &bull; {lang === 'fr' ? 'Poids:' : 'Weight:'} {d.weightAtTimeKg || activePuppy.weightKg} kg
+                    {lang === 'fr' ? 'Pris le' : 'Administered'} {d.date} &bull; {lang === 'fr' ? 'Poids:' : 'Weight:'} {d.weightAtTime || activePuppy.weightKg} kg
                   </div>
                 </div>
               </div>
 
               <div className="flex items-center gap-3">
                 <div className="text-right">
-                  <div className="text-xs font-bold text-indigo-300">{lang === 'fr' ? 'Prochain:' : 'Next:'} {d.nextDueDate}</div>
+                  <div className="text-xs font-bold text-indigo-300">{lang === 'fr' ? 'Prochain:' : 'Next:'} {d.boosterDate}</div>
                   <div className="text-[10px] text-slate-500">{lang === 'fr' ? 'Statut: À jour' : 'Status: Up to date'}</div>
                 </div>
                 <button

@@ -29,6 +29,7 @@ export const FamilyRoleSchema = z.enum([
 
 export const ActivitySchema: z.ZodType<Activity> = z.object({
   id: z.string(),
+  householdId: z.string().optional(),
   puppyId: z.string(),
   type: ActivityTypeSchema,
   timestamp: z.string(),
@@ -40,12 +41,13 @@ export const ActivitySchema: z.ZodType<Activity> = z.object({
   quantityCups: z.number().optional(),
   durationMinutes: z.number().optional(),
   weightKg: z.number().optional(),
-  medicationName: z.union([z.string(), z.number()]).optional(),
+  medicationName: z.string().optional(),
   notes: z.string().optional(),
 });
 
 export const PuppyProfileSchema: z.ZodType<PuppyProfile> = z.object({
   id: z.string(),
+  householdId: z.string().optional(),
   name: z.string().min(1),
   breed: z.string(),
   birthDate: z.string(),

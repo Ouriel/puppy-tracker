@@ -60,3 +60,19 @@ export const usersTable = pgTable('users', {
   status: text('status').notNull().default('ACTIVE'),
   createdAt: timestamp('created_at').defaultNow(),
 });
+
+export const healthRecordsTable = pgTable('health_records', {
+  id: text('id').primaryKey(),
+  householdId: text('household_id').notNull(),
+  puppyId: text('puppy_id').notNull(),
+  type: text('type').notNull(), // 'vaccination' | 'deworming'
+  name: text('name').notNull(),
+  date: text('date').notNull(),
+  boosterDate: text('booster_date'),
+  batchNumber: text('batch_number'),
+  vetClinic: text('vet_clinic'),
+  productName: text('product_name'),
+  weightAtTime: doublePrecision('weight_at_time'),
+  notes: text('notes'),
+  createdAt: timestamp('created_at').defaultNow(),
+});

@@ -19,6 +19,9 @@ import {
   apiPostActivity,
   apiDeleteActivity,
   markActivitiesAsKnown,
+  markDogsAsKnown,
+  setAuthToken,
+  apiPostUser,
 } from './utils/storage';
 import { calculatePredictions } from './utils/predictions';
 import { Navbar, type MainTabType } from './components/Navbar';
@@ -28,6 +31,7 @@ import { ActivityTimeline } from './components/ActivityTimeline';
 import { StatsAnalytics } from './components/StatsAnalytics';
 import { WeightGrowthChart } from './components/WeightGrowthChart';
 import { AuthLockScreen } from './components/AuthLockScreen';
+import { ToastContainer } from './components/Toast';
 import { HouseholdSettingsView } from './views/HouseholdSettingsView';
 import { AdminView } from './views/AdminView';
 import { CareGuideView } from './views/CareGuideView';
@@ -37,6 +41,14 @@ import { Dog, Plus } from 'lucide-react';
 
 export function App() {
   const { lang, changeLanguage, t } = useI18n();
+
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+
+  // Restore auth token on startup
+  useEffect(() => {
+    const savedToken = localStorage.getItem('puppace_auth_token');
+    if (savedToken) setAuthToken(savedToken);
+  }, []);
 
   // Authentication & Lock Screen
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
@@ -75,7 +87,6 @@ export function App() {
 
   const handleSelectMainTab = (tab: MainTabType) => {
     setActiveMainTab(tab);
-    // Strict English Technical URLs
     const routeMap: Record<MainTabType, string> = {
       dashboard: '/',
       carnetdesante: '/health-passport',
@@ -116,28 +127,39 @@ export function App() {
     saveCaretakers(caretakers);
   }, [caretakers]);
 
-  // Initial Startup REST API Synchronization (Pulls dogs & activities from /api/dogs & /api/activities)
+  // Initial Startup REST API Synchronization with Merge Strategy
   useEffect(() => {
     async function initRestApiSync() {
-      // Fetch dogs from DB
-      const remoteDogs = await apiFetchDogs();
-      if (remoteDogs && remoteDogs.length > 0) {
-        setPuppies(remoteDogs);
-        if (!activePuppyId) setActivePuppyIdState(remoteDogs[0].id);
-      } else if (puppies.length > 0) {
-        // First time: push local dogs to DB
-        puppies.forEach((d) => apiPostDog(d));
-      }
+      setIsLoading(true);
+      try {
+        // Fetch dogs from DB
+        const remoteDogs = await apiFetchDogs();
+        if (remoteDogs && remoteDogs.length > 0) {
+          markDogsAsKnown(remoteDogs);
+          setPuppies(remoteDogs);
+          if (!activePuppyId) setActivePuppyIdState(remoteDogs[0].id);
+        } else if (puppies.length > 0) {
+          puppies.forEach((d) => apiPostDog(d));
+          markDogsAsKnown(puppies);
+        }
 
-      // Fetch activities from DB
-      const remoteActivities = await apiFetchActivities();
-      if (remoteActivities && remoteActivities.length > 0) {
-        markActivitiesAsKnown(remoteActivities);
-        setActivities(remoteActivities);
-      } else if (activities.length > 0) {
-        // First time: push local activities to DB
-        activities.forEach((a) => apiPostActivity(a));
-        markActivitiesAsKnown(activities);
+        // Fetch activities from DB with Merge Strategy
+        const remoteActivities = await apiFetchActivities();
+        if (remoteActivities) {
+          markActivitiesAsKnown(remoteActivities);
+          setActivities((localActivities) => {
+            const remoteIds = new Set(remoteActivities.map((a) => a.id));
+            const localOnly = localActivities.filter((a) => !remoteIds.has(a.id));
+            localOnly.forEach((a) => apiPostActivity(a));
+            markActivitiesAsKnown(localOnly);
+            return [...remoteActivities, ...localOnly];
+          });
+        } else if (activities.length > 0) {
+          activities.forEach((a) => apiPostActivity(a));
+          markActivitiesAsKnown(activities);
+        }
+      } finally {
+        setIsLoading(false);
       }
     }
     initRestApiSync();
@@ -185,32 +207,27 @@ export function App() {
     setUser((prev) => ({ ...prev, name, role }));
   };
 
-  const handleUnlockWithSSO = (email: string, name: string) => {
+  const handleUnlockWithSSO = (email: string, name: string, token: string) => {
+    setAuthToken(token);
+    localStorage.setItem('puppace_auth_token', token);
     localStorage.setItem('puppace_unlocked_v4', 'true');
     setIsAuthenticated(true);
     setUser((prev) => ({ ...prev, email, name }));
-    return { success: true };
-  };
 
-  const handleUnlockWithPassword = (email: string) => {
-    localStorage.setItem('puppace_unlocked_v4', 'true');
-    setIsAuthenticated(true);
-    setUser((prev) => ({ ...prev, email }));
-    return { success: true };
-  };
+    // Register or ensure pending state on backend
+    apiPostUser({
+      email,
+      name,
+      role: email.toLowerCase() === 'matthieu.jacquet@gmail.com' ? 'SuperAdmin' : 'Member',
+      status: email.toLowerCase() === 'matthieu.jacquet@gmail.com' ? 'ACTIVE' : 'PENDING_APPROVAL',
+    });
 
-  const handleRegisterAccount = (email: string, _pass: string, name: string, role: string) => {
-    const isSuperAdmin = email.toLowerCase() === 'matthieu.jacquet@gmail.com';
-    if (isSuperAdmin) {
-      localStorage.setItem('puppace_unlocked_v4', 'true');
-      setIsAuthenticated(true);
-      setUser((prev) => ({ ...prev, email, name, role: role as FamilyRole }));
-      return { success: true };
-    }
-    return { success: false, isPending: true };
+    return { success: true };
   };
 
   const handleLockVault = () => {
+    setAuthToken(null);
+    localStorage.removeItem('puppace_auth_token');
     localStorage.removeItem('puppace_unlocked_v4');
     setIsAuthenticated(false);
   };
@@ -293,19 +310,32 @@ export function App() {
     return Math.floor(diffHours / 24);
   }, [activePuppyActivities]);
 
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center space-y-4">
+        <div className="animate-spin w-10 h-10 border-4 border-indigo-500 border-t-transparent rounded-full" />
+        <p className="text-xs font-semibold text-slate-400">Loading PupPace Vault...</p>
+      </div>
+    );
+  }
+
   // If locked, render Lock Screen
   if (!isAuthenticated) {
     return (
-      <AuthLockScreen
-        onUnlockWithSSO={handleUnlockWithSSO}
-        onUnlockWithPassword={handleUnlockWithPassword}
-        onRegisterAccount={handleRegisterAccount}
-      />
+      <>
+        <ToastContainer />
+        <AuthLockScreen
+          onUnlockWithSSO={handleUnlockWithSSO}
+          onUnlockWithPassword={() => ({ success: false })}
+          onRegisterAccount={() => ({ success: false })}
+        />
+      </>
     );
   }
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans">
+      <ToastContainer />
       {/* Top Navbar */}
       <Navbar
         activeMainTab={activeMainTab}

@@ -14,7 +14,7 @@ export const WeightGrowthChart: React.FC<WeightGrowthChartProps> = ({
   profile,
   onOpenQuickLogModal,
 }) => {
-  const { lang } = useI18n();
+  const { lang, t } = useI18n();
 
   // Extract and sort weight entries chronologically
   const weightLogs = React.useMemo(() => {
@@ -44,8 +44,6 @@ export const WeightGrowthChart: React.FC<WeightGrowthChartProps> = ({
     { label: '6m', expectedKg: 9.5, minKg: 8.0, maxKg: 11.0 },
     { label: '12m', expectedKg: 13.0, minKg: 11.5, maxKg: 15.0 },
   ];
-
-
 
   return (
     <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl space-y-4 shadow-xl">
@@ -84,7 +82,7 @@ export const WeightGrowthChart: React.FC<WeightGrowthChartProps> = ({
       <div className="space-y-2">
         <div className="flex items-center justify-between text-xs text-slate-400 px-1 font-mono">
           <span>{lang === 'fr' ? 'Standard Race (Cocker)' : 'Breed Standard'}</span>
-          <span>{latestWeight} kg / 13.0 kg (Target)</span>
+          <span>{latestWeight} {t.units.kg} / 13.0 {t.units.kg} (Target)</span>
         </div>
 
         {/* Growth Bar Progress */}
@@ -110,9 +108,9 @@ export const WeightGrowthChart: React.FC<WeightGrowthChartProps> = ({
                 }`}
               >
                 <div className="text-[10px] font-mono text-indigo-400 font-bold uppercase">{bench.label}</div>
-                <div className="text-xs font-extrabold text-white mt-0.5">{bench.expectedKg} kg</div>
+                <div className="text-xs font-extrabold text-white mt-0.5">{bench.expectedKg} {t.units.kg}</div>
                 <div className="text-[9px] text-slate-500 font-mono mt-0.5">
-                  {bench.minKg}-{bench.maxKg}kg
+                  {bench.minKg}-{bench.maxKg}{t.units.kg}
                 </div>
               </div>
             );
@@ -133,7 +131,7 @@ export const WeightGrowthChart: React.FC<WeightGrowthChartProps> = ({
                 key={log.id}
                 className="bg-slate-950/60 border border-slate-800 px-3 py-1.5 rounded-xl text-xs flex items-center gap-2 shrink-0"
               >
-                <span className="font-bold text-pink-300">{log.weightKg} kg</span>
+                <span className="font-bold text-pink-300">{log.weightKg} {t.units.kg}</span>
                 <span className="text-[10px] text-slate-500 font-mono">
                   {new Date(log.timestamp).toLocaleDateString(lang === 'fr' ? 'fr-FR' : 'en-US', {
                     month: 'short',

@@ -3,6 +3,7 @@ import { neon } from '@neondatabase/serverless';
 import { drizzle } from 'drizzle-orm/neon-http';
 import { eq } from 'drizzle-orm';
 import { caretakersTable, householdsTable } from '../src/db/schema';
+import { verifyAuth } from './_auth';
 
 function getDb() {
   const sql = neon(process.env.POSTGRES_URL || process.env.DATABASE_URL || '');
@@ -10,13 +11,23 @@ function getDb() {
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
+  const allowedOrigin = process.env.NODE_ENV === 'development'
+    ? 'http://localhost:5173'
+    : 'https://puppace.vercel.app';
+  res.setHeader('Access-Control-Allow-Origin', allowedOrigin);
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Household-ID');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
   if (req.method === 'OPTIONS') return res.status(200).end();
 
-  const householdId = (req.headers['x-household-id'] as string) || 'FAMILY-COCKER-2026';
+  let auth;
+  try {
+    auth = await verifyAuth(req);
+  } catch (err: any) {
+    return res.status(err.status || 401).json({ error: err.message || 'Unauthorized' });
+  }
+
+  const householdId = auth.householdId;
   const db = getDb();
 
   try {

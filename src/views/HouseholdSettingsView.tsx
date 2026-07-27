@@ -34,7 +34,7 @@ export const HouseholdSettingsView: React.FC<HouseholdSettingsViewProps> = ({
   onDeleteCaretaker,
   onSwitchUserAccount,
 }) => {
-  const { lang } = useI18n();
+  const { lang, t } = useI18n();
   const [subTab, setSubTab] = useState<'puppies' | 'members'>('puppies');
 
   return (
@@ -47,7 +47,7 @@ export const HouseholdSettingsView: React.FC<HouseholdSettingsViewProps> = ({
           </div>
           <div>
             <h2 className="text-xl font-bold text-slate-100 flex items-center gap-2">
-              <span>{lang === 'fr' ? 'Configuration & Foyer' : 'Household & Settings'}</span>
+              <span>{t.nav.settings}</span>
             </h2>
             <p className="text-xs text-slate-400">
               {lang === 'fr'
@@ -68,7 +68,7 @@ export const HouseholdSettingsView: React.FC<HouseholdSettingsViewProps> = ({
             }`}
           >
             <Dog className="w-4 h-4" />
-            <span>{lang === 'fr' ? `Mes Chiens (${puppies.length})` : `Dog Profiles (${puppies.length})`}</span>
+            <span>{t.puppies.title} ({puppies.length})</span>
           </button>
 
           <button
@@ -80,7 +80,7 @@ export const HouseholdSettingsView: React.FC<HouseholdSettingsViewProps> = ({
             }`}
           >
             <Home className="w-4 h-4" />
-            <span>{lang === 'fr' ? `Membres du Foyer (${caretakers.length})` : `Household Members (${caretakers.length})`}</span>
+            <span>{t.household.title} ({caretakers.length})</span>
           </button>
         </div>
       </div>

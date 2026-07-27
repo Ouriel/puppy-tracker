@@ -1,13 +1,13 @@
 import type { Activity, Caretaker, PuppyProfile, UserAccount } from '../types';
 import { ActivitySchema, PuppyProfileSchema, CaretakerSchema, UserAccountSchema } from './schemas';
 import { z } from 'zod';
+import { showToast } from './toast';
 
 const STORAGE_KEY_ACTIVITIES = 'puppace_activities_v4';
 const STORAGE_KEY_PUPPIES = 'puppace_puppies_v4';
 const STORAGE_KEY_ACTIVE_PUPPY = 'puppace_active_puppy_v4';
 const STORAGE_KEY_USER_ACCOUNT = 'puppace_user_account_v4';
 const STORAGE_KEY_CARETAKERS = 'puppace_caretakers_v4';
-const STORAGE_KEY_REGISTERED_USERS = 'puppace_registered_users_v4';
 
 export interface RegisteredUserItem {
   id: string;
@@ -32,21 +32,22 @@ export const DEFAULT_CARETAKERS: Caretaker[] = [
   { id: '1', name: 'Matthieu', role: 'Member', color: '#6366F1' },
 ];
 
-export const DEFAULT_REGISTERED_USERS: RegisteredUserItem[] = [
-  { id: 'usr-1', email: 'matthieu.jacquet@gmail.com', name: 'Matthieu', role: 'Member', status: 'ACTIVE' },
-  { id: 'usr-2', email: 'sarah@family.com', name: 'Sarah', role: 'Member', status: 'PENDING_APPROVAL' },
-];
-
-// ─── REST API Client Helpers ──────────────────────────────────────────────────
-// All CRUD operations go through /api/dogs, /api/activities, /api/households, /api/users
-// which are backed by Neon PostgreSQL via Drizzle ORM.
+let _authToken: string | null = null;
+export function setAuthToken(token: string | null) {
+  _authToken = token;
+}
+export function getAuthToken(): string | null {
+  return _authToken;
+}
 
 function householdHeaders(): Record<string, string> {
-  const user = getStoredUser();
-  return {
+  const headers: Record<string, string> = {
     'Content-Type': 'application/json',
-    'X-Household-ID': user.familyPackId || 'FAMILY-COCKER-2026',
   };
+  if (_authToken) {
+    headers['Authorization'] = `Bearer ${_authToken}`;
+  }
+  return headers;
 }
 
 // ── Dogs ──
@@ -60,33 +61,44 @@ export async function apiFetchDogs(): Promise<PuppyProfile[] | null> {
         localStorage.setItem(STORAGE_KEY_PUPPIES, JSON.stringify(data));
         return data;
       }
+    } else {
+      const body = await res.json().catch(() => ({}));
+      showToast(body.error || `Server error (${res.status}) fetching dogs`, 'error');
     }
   } catch {
-    // Offline resilient
+    showToast('Failed to sync dogs with server. Changes saved locally.', 'error');
   }
   return null;
 }
 
 export async function apiPostDog(dog: PuppyProfile) {
   try {
-    await fetch('/api/dogs', {
+    const res = await fetch('/api/dogs', {
       method: 'POST',
       headers: householdHeaders(),
       body: JSON.stringify(dog),
     });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      showToast(body.error || `Server error (${res.status}) saving dog`, 'error');
+    }
   } catch {
-    // Offline fallback
+    showToast('Failed to save dog profile to server. Changes saved locally.', 'error');
   }
 }
 
 export async function apiDeleteDog(dogId: string) {
   try {
-    await fetch(`/api/dogs?id=${dogId}`, {
+    const res = await fetch(`/api/dogs?id=${dogId}`, {
       method: 'DELETE',
       headers: householdHeaders(),
     });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      showToast(body.error || `Server error (${res.status}) deleting dog`, 'error');
+    }
   } catch {
-    // Offline fallback
+    showToast('Failed to delete dog on server.', 'error');
   }
 }
 
@@ -102,33 +114,162 @@ export async function apiFetchActivities(puppyId?: string): Promise<Activity[] |
         localStorage.setItem(STORAGE_KEY_ACTIVITIES, JSON.stringify(data));
         return data;
       }
+    } else {
+      const body = await res.json().catch(() => ({}));
+      showToast(body.error || `Server error (${res.status}) fetching activities`, 'error');
     }
   } catch {
-    // Offline resilient
+    showToast('Failed to sync activities with server. Changes saved locally.', 'error');
   }
   return null;
 }
 
 export async function apiPostActivity(activity: Activity) {
   try {
-    await fetch('/api/activities', {
+    const res = await fetch('/api/activities', {
       method: 'POST',
       headers: householdHeaders(),
       body: JSON.stringify(activity),
     });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      showToast(body.error || `Server error (${res.status}) saving activity`, 'error');
+    }
   } catch {
-    // Offline fallback
+    showToast('Failed to save activity to server. Changes saved locally.', 'error');
   }
 }
 
 export async function apiDeleteActivity(activityId: string) {
   try {
-    await fetch(`/api/activities?id=${activityId}`, {
+    const res = await fetch(`/api/activities?id=${activityId}`, {
       method: 'DELETE',
       headers: householdHeaders(),
     });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      showToast(body.error || `Server error (${res.status}) deleting activity`, 'error');
+    }
   } catch {
-    // Offline fallback
+    showToast('Failed to delete activity on server.', 'error');
+  }
+}
+
+// ── Health Records API Helpers ──
+
+export async function apiFetchHealthRecords(puppyId: string, type?: string): Promise<any[] | null> {
+  try {
+    const url = type
+      ? `/api/health-records?puppyId=${puppyId}&type=${type}`
+      : `/api/health-records?puppyId=${puppyId}`;
+    const res = await fetch(url, { headers: householdHeaders() });
+    if (res.ok) return await res.json();
+    const body = await res.json().catch(() => ({}));
+    showToast(body.error || `Server error (${res.status}) fetching health records`, 'error');
+  } catch {
+    showToast('Failed to fetch health records from server.', 'error');
+  }
+  return null;
+}
+
+export async function apiPostHealthRecord(record: any) {
+  try {
+    const res = await fetch('/api/health-records', {
+      method: 'POST',
+      headers: householdHeaders(),
+      body: JSON.stringify(record),
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      showToast(body.error || `Server error (${res.status}) saving health record`, 'error');
+    }
+  } catch {
+    showToast('Failed to save health record to server.', 'error');
+  }
+}
+
+export async function apiDeleteHealthRecord(id: string) {
+  try {
+    const res = await fetch(`/api/health-records?id=${id}`, {
+      method: 'DELETE',
+      headers: householdHeaders(),
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      showToast(body.error || `Server error (${res.status}) deleting health record`, 'error');
+    }
+  } catch {
+    showToast('Failed to delete health record on server.', 'error');
+  }
+}
+
+// ── Users API Helpers (Database backend) ──
+
+export async function apiFetchUsers(): Promise<RegisteredUserItem[] | null> {
+  try {
+    const res = await fetch('/api/users', { headers: householdHeaders() });
+    if (res.ok) return await res.json();
+    const body = await res.json().catch(() => ({}));
+    showToast(body.error || `Server error (${res.status}) fetching users`, 'error');
+  } catch {
+    showToast('Failed to fetch users from server.', 'error');
+  }
+  return null;
+}
+
+export async function apiPostUser(user: Partial<RegisteredUserItem>) {
+  try {
+    const res = await fetch('/api/users', {
+      method: 'POST',
+      headers: householdHeaders(),
+      body: JSON.stringify(user),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      showToast(body.error || `Server error (${res.status}) saving user`, 'error');
+      return null;
+    }
+    return body;
+  } catch {
+    showToast('Failed to save user to server.', 'error');
+    return null;
+  }
+}
+
+export async function apiPutUser(user: Partial<RegisteredUserItem>) {
+  try {
+    const res = await fetch('/api/users', {
+      method: 'PUT',
+      headers: householdHeaders(),
+      body: JSON.stringify(user),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      showToast(body.error || `Server error (${res.status}) updating user`, 'error');
+      return null;
+    }
+    return body;
+  } catch {
+    showToast('Failed to update user on server.', 'error');
+    return null;
+  }
+}
+
+export async function apiDeleteUser(email: string) {
+  try {
+    const res = await fetch(`/api/users?email=${encodeURIComponent(email)}`, {
+      method: 'DELETE',
+      headers: householdHeaders(),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      showToast(body.error || `Server error (${res.status}) deleting user`, 'error');
+      return false;
+    }
+    return true;
+  } catch {
+    showToast('Failed to delete user on server.', 'error');
+    return false;
   }
 }
 
@@ -146,13 +287,22 @@ export function getStoredPuppies(): PuppyProfile[] {
   return DEFAULT_PUPPIES;
 }
 
-// Track known activity IDs to only POST genuinely new ones
+// Track known IDs to only POST genuinely new items
 let _knownActivityIds: Set<string> = new Set();
+let _knownDogIds: Set<string> = new Set();
+
+export function markDogsAsKnown(dogs: PuppyProfile[]) {
+  dogs.forEach((d) => _knownDogIds.add(d.id));
+}
 
 export function savePuppies(puppies: PuppyProfile[]) {
   localStorage.setItem(STORAGE_KEY_PUPPIES, JSON.stringify(puppies));
-  // Upsert each dog to the database (the API handles dedup via id)
-  puppies.forEach((p) => apiPostDog(p));
+  for (const p of puppies) {
+    if (!_knownDogIds.has(p.id)) {
+      _knownDogIds.add(p.id);
+      apiPostDog(p);
+    }
+  }
 }
 
 export function getActivePuppyId(): string {
@@ -236,20 +386,4 @@ export function getStoredCaretakers(): Caretaker[] {
 
 export function saveCaretakers(caretakers: Caretaker[]) {
   localStorage.setItem(STORAGE_KEY_CARETAKERS, JSON.stringify(caretakers));
-}
-
-export function getStoredRegisteredUsers(): RegisteredUserItem[] {
-  const stored = localStorage.getItem(STORAGE_KEY_REGISTERED_USERS);
-  if (stored) {
-    try {
-      return JSON.parse(stored);
-    } catch {
-      // ignore
-    }
-  }
-  return DEFAULT_REGISTERED_USERS;
-}
-
-export function saveRegisteredUsers(users: RegisteredUserItem[]) {
-  localStorage.setItem(STORAGE_KEY_REGISTERED_USERS, JSON.stringify(users));
 }

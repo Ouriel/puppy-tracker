@@ -1,6 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Shield, Mail, Send, Users, AlertCircle, UserCheck, UserX, Trash2 } from 'lucide-react';
-import { getStoredRegisteredUsers, saveRegisteredUsers, type RegisteredUserItem } from '../utils/storage';
+import {
+  apiFetchUsers,
+  apiPostUser,
+  apiPutUser,
+  apiDeleteUser,
+  type RegisteredUserItem,
+} from '../utils/storage';
 import { useI18n } from '../i18n';
 
 interface AdminViewProps {
@@ -9,70 +15,80 @@ interface AdminViewProps {
 }
 
 export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail }) => {
-  const { lang } = useI18n();
+  const { t } = useI18n();
   const isSuperAdmin = currentUserEmail.toLowerCase() === 'matthieu.jacquet@gmail.com';
 
-  const [users, setUsers] = useState<RegisteredUserItem[]>(getStoredRegisteredUsers);
+  const [users, setUsers] = useState<RegisteredUserItem[]>([]);
   const [newInviteEmail, setNewInviteEmail] = useState('');
   const [statusMessage, setStatusMessage] = useState('');
   const [userToDelete, setUserToDelete] = useState<RegisteredUserItem | null>(null);
 
   useEffect(() => {
-    saveRegisteredUsers(users);
-  }, [users]);
+    if (isSuperAdmin) {
+      loadUsers();
+    }
+  }, [isSuperAdmin]);
 
-  const handleActivate = (email: string) => {
-    const updated = users.map((u) => (u.email === email ? { ...u, status: 'ACTIVE' as const } : u));
-    setUsers(updated);
-    setStatusMessage(lang === 'fr' ? `Compte activé pour ${email} !` : `Activated account for ${email}!`);
-    setTimeout(() => setStatusMessage(''), 3500);
+  const loadUsers = async () => {
+    const remoteUsers = await apiFetchUsers();
+    if (remoteUsers) {
+      setUsers(remoteUsers);
+    }
   };
 
-  const handleDeactivate = (email: string) => {
+  const handleActivate = async (email: string) => {
+    const res = await apiPutUser({ email, status: 'ACTIVE' });
+    if (res) {
+      setUsers((prev) => prev.map((u) => (u.email === email ? { ...u, status: 'ACTIVE' as const } : u)));
+      setStatusMessage(t.admin.activatedAccount.replace('{email}', email));
+      setTimeout(() => setStatusMessage(''), 3500);
+    }
+  };
+
+  const handleDeactivate = async (email: string) => {
     if (email.toLowerCase() === 'matthieu.jacquet@gmail.com') return;
-    const updated = users.map((u) => (u.email === email ? { ...u, status: 'PENDING_APPROVAL' as const } : u));
-    setUsers(updated);
-    setStatusMessage(lang === 'fr' ? `Accès révoqué pour ${email}.` : `Revoked access for ${email}.`);
-    setTimeout(() => setStatusMessage(''), 3500);
+    const res = await apiPutUser({ email, status: 'PENDING_APPROVAL' });
+    if (res) {
+      setUsers((prev) => prev.map((u) => (u.email === email ? { ...u, status: 'PENDING_APPROVAL' as const } : u)));
+      setStatusMessage(t.admin.revokedAccess.replace('{email}', email));
+      setTimeout(() => setStatusMessage(''), 3500);
+    }
   };
 
-  const confirmDeleteUser = () => {
+  const confirmDeleteUser = async () => {
     if (!userToDelete) return;
     if (userToDelete.email.toLowerCase() === 'matthieu.jacquet@gmail.com') {
       setUserToDelete(null);
       return;
     }
 
-    const updated = users.filter((u) => u.id !== userToDelete.id && u.email !== userToDelete.email);
-    setUsers(updated);
-    setStatusMessage(lang === 'fr' ? `Compte ${userToDelete.email} supprimé avec succès.` : `Successfully deleted account ${userToDelete.email}.`);
+    const success = await apiDeleteUser(userToDelete.email);
+    if (success) {
+      setUsers((prev) => prev.filter((u) => u.email !== userToDelete.email));
+      setStatusMessage(t.admin.deletedAccount.replace('{email}', userToDelete.email));
+    }
     setUserToDelete(null);
     setTimeout(() => setStatusMessage(''), 3500);
   };
 
-  const handlePreApproveInvite = (event: React.FormEvent) => {
+  const handlePreApproveInvite = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!newInviteEmail.trim()) return;
 
     const email = newInviteEmail.trim().toLowerCase();
-    const existing = users.find((u) => u.email === email);
-    if (existing) {
-      existing.status = 'ACTIVE';
-      setUsers([...users]);
-    } else {
-      const newUser: RegisteredUserItem = {
-        id: `usr-${Date.now()}`,
-        email,
-        name: email.split('@')[0],
-        role: 'Member',
-        status: 'ACTIVE',
-      };
-      setUsers((prev) => [...prev, newUser]);
-    }
+    const res = await apiPostUser({
+      email,
+      name: email.split('@')[0],
+      role: 'Member',
+      status: 'ACTIVE',
+    });
 
-    setNewInviteEmail('');
-    setStatusMessage(lang === 'fr' ? `Compte pré-approuvé et activé pour ${email} !` : `Pre-approved & activated account for ${email}!`);
-    setTimeout(() => setStatusMessage(''), 3500);
+    if (res) {
+      await loadUsers();
+      setNewInviteEmail('');
+      setStatusMessage(t.admin.preApprovedAccount.replace('{email}', email));
+      setTimeout(() => setStatusMessage(''), 3500);
+    }
   };
 
   const pendingUsers = users.filter((u) => u.status === 'PENDING_APPROVAL');
@@ -83,14 +99,12 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail }) => {
       <div className="bg-slate-900 border border-red-900/40 p-8 rounded-2xl text-center space-y-3">
         <AlertCircle className="w-12 h-12 text-red-400 mx-auto" />
         <h2 className="text-lg font-bold text-white">
-          {lang === 'fr' ? 'Accès Restreint' : 'Access Restricted'}
+          {t.admin.accessRestricted}
         </h2>
         <p className="text-xs text-slate-400">
-          {lang === 'fr'
-            ? 'Seul le Super Admin Propriétaire ('
-            : 'Only Super Admin Owner ('}
+          {t.admin.onlySuperAdmin}
           <strong className="text-white">matthieu.jacquet@gmail.com</strong>
-          {lang === 'fr' ? ') peut accéder au Centre d\'Administration.' : ') can access the Admin Center.'}
+          {t.admin.canAccessCenter}
         </p>
       </div>
     );
@@ -106,10 +120,10 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail }) => {
           </div>
           <div>
             <h2 className="text-xl font-bold text-slate-100">
-              {lang === 'fr' ? 'Centre Super Admin' : 'Super Admin Center'}
+              {t.admin.title}
             </h2>
             <p className="text-xs text-slate-400">
-              {lang === 'fr' ? 'Gestion sécurisée des comptes utilisateurs et OAuth' : 'Strict backend-enforced user management and OAuth security configuration'}
+              {t.admin.subtitle}
             </p>
           </div>
         </div>
@@ -132,11 +146,10 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail }) => {
             <AlertCircle className="w-5 h-5 text-red-400 shrink-0" />
             <div>
               <div className="text-xs font-bold text-white">
-                {lang === 'fr' ? 'Supprimer le compte ' : 'Delete account '}
-                <span className="font-mono text-red-300">{userToDelete.email}</span> ?
+                {t.admin.deleteConfirmTitle} <span className="font-mono text-red-300">{userToDelete.email}</span> ?
               </div>
               <div className="text-[11px] text-slate-400">
-                {lang === 'fr' ? 'Cette action est définitive et irréversible.' : 'This action is permanent and cannot be undone.'}
+                {t.admin.deleteConfirmBody}
               </div>
             </div>
           </div>
@@ -146,33 +159,31 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail }) => {
               onClick={() => setUserToDelete(null)}
               className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-semibold cursor-pointer"
             >
-              {lang === 'fr' ? 'Annuler' : 'Cancel'}
+              {t.potty.cancel}
             </button>
             <button
               onClick={confirmDeleteUser}
               className="px-3 py-1.5 bg-red-600 hover:bg-red-500 text-white rounded-xl text-xs font-bold transition flex items-center gap-1 cursor-pointer"
             >
               <Trash2 className="w-3.5 h-3.5" />
-              <span>{lang === 'fr' ? 'Confirmer la suppression' : 'Confirm Delete'}</span>
+              <span>{t.admin.confirmDelete}</span>
             </button>
           </div>
         </div>
       )}
 
-
-
       {/* Pending Activations List */}
       <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl space-y-4 shadow-xl">
         <h3 className="text-sm font-bold text-amber-300 flex items-center justify-between">
-          <span>{lang === 'fr' ? `Activations en attente (${pendingUsers.length})` : `Pending Account Activations (${pendingUsers.length})`}</span>
+          <span>{t.admin.pendingActivations.replace('{count}', String(pendingUsers.length))}</span>
           <span className="text-[10px] text-slate-500 font-mono">
-            {lang === 'fr' ? 'Validation requise par Matthieu' : 'Requires Matthieu Approval'}
+            {t.admin.requiresApproval}
           </span>
         </h3>
 
         {pendingUsers.length === 0 ? (
           <p className="text-xs text-slate-500 bg-slate-950/40 p-4 rounded-xl border border-slate-800 text-center">
-            {lang === 'fr' ? 'Aucune activation en attente.' : 'No pending activations. All user accounts are processed!'}
+            {t.admin.noPendingActivations}
           </p>
         ) : (
           <div className="space-y-2">
@@ -194,11 +205,11 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail }) => {
                     className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition flex items-center gap-1 cursor-pointer shadow"
                   >
                     <UserCheck className="w-3.5 h-3.5" />
-                    <span>{lang === 'fr' ? 'Activer' : 'Activate'}</span>
+                    <span>{t.admin.activate}</span>
                   </button>
                   <button
                     onClick={() => setUserToDelete(userItem)}
-                    title={lang === 'fr' ? 'Supprimer le compte' : 'Delete User Account'}
+                    title={t.admin.deleteUserAccount}
                     className="p-1.5 text-slate-500 hover:text-red-400 hover:bg-red-950/40 rounded-lg transition cursor-pointer"
                   >
                     <Trash2 className="w-4 h-4" />
@@ -213,7 +224,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail }) => {
       {/* Pre-Approve Form */}
       <form onSubmit={handlePreApproveInvite} className="bg-slate-900 border border-slate-800 p-6 rounded-2xl space-y-3 shadow-xl">
         <h3 className="text-sm font-bold text-slate-100">
-          {lang === 'fr' ? 'Pré-approuver & Inviter un Email' : 'Pre-Approve & Invite User Email'}
+          {t.admin.preApproveTitle}
         </h3>
         <div className="flex gap-2">
           <div className="relative flex-1">
@@ -232,7 +243,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail }) => {
             className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs px-4 py-2 rounded-xl transition flex items-center gap-1.5 cursor-pointer"
           >
             <Send className="w-3.5 h-3.5" />
-            <span>{lang === 'fr' ? 'Pré-approuver' : 'Pre-Approve'}</span>
+            <span>{t.admin.preApprove}</span>
           </button>
         </div>
       </form>
@@ -241,7 +252,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail }) => {
       <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl space-y-4 shadow-xl">
         <h3 className="text-sm font-bold text-slate-100 flex items-center gap-2">
           <Users className="w-4 h-4 text-indigo-400" />
-          <span>{lang === 'fr' ? `Comptes Utilisateurs Actifs (${activeUsers.length})` : `Active User Accounts (${activeUsers.length})`}</span>
+          <span>{t.admin.activeAccounts.replace('{count}', String(activeUsers.length))}</span>
         </h3>
 
         <div className="space-y-2">
@@ -266,11 +277,11 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail }) => {
                     className="text-xs bg-slate-800 hover:bg-red-950 text-slate-300 hover:text-red-300 border border-slate-700 px-2.5 py-1 rounded-lg transition cursor-pointer flex items-center gap-1"
                   >
                     <UserX className="w-3.5 h-3.5" />
-                    <span>{lang === 'fr' ? 'Révoquer' : 'Revoke'}</span>
+                    <span>{t.admin.revoke}</span>
                   </button>
                   <button
                     onClick={() => setUserToDelete(userItem)}
-                    title={lang === 'fr' ? 'Supprimer le compte' : 'Delete User Account'}
+                    title={t.admin.deleteUserAccount}
                     className="p-1.5 text-slate-500 hover:text-red-400 hover:bg-red-950/40 rounded-lg transition cursor-pointer"
                   >
                     <Trash2 className="w-4 h-4" />

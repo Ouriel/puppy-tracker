@@ -9,7 +9,7 @@ interface StatsAnalyticsProps {
 }
 
 export const StatsAnalytics: React.FC<StatsAnalyticsProps> = ({ activities, profile }) => {
-  const { t, lang } = useI18n();
+  const { t } = useI18n();
   const pottyLogs = activities.filter((a) => a.type === 'pee' || a.type === 'poop');
   const outsideCount = pottyLogs.filter((a) => a.pottyLocation === 'outside').length;
   const padCount = pottyLogs.filter((a) => a.pottyLocation === 'indoor_pad').length;
@@ -91,12 +91,12 @@ export const StatsAnalytics: React.FC<StatsAnalyticsProps> = ({ activities, prof
             <div>
               <h3 className="text-sm font-bold text-slate-100">{t.dashboard.todaysNutrition}</h3>
               <p className="text-[11px] text-slate-400">
-                {todayGramTotal}g / {profile.dailyFoodGramGoal}g
+                {todayGramTotal}{t.units.grams} / {profile.dailyFoodGramGoal}{t.units.grams}
               </p>
             </div>
           </div>
           <span className="text-xl font-extrabold text-purple-400">
-            {todayFood.length} {lang === 'fr' ? 'Repas' : 'Meals'}
+            {todayFood.length} {t.potty.food}
           </span>
         </div>
 

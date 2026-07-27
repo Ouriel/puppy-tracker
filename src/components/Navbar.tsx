@@ -68,6 +68,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               <select
                 value={lang}
                 onChange={(event) => onLanguageChange(event.target.value as Language)}
+                aria-label="Select Language"
                 className="bg-transparent text-slate-200 focus:outline-none cursor-pointer font-bold"
               >
                 <option value="en" className="bg-slate-800 text-slate-200">🇬🇧 English</option>
@@ -79,6 +80,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             <button
               onClick={onLockVault}
               title={t.nav.signOut}
+              aria-label={t.nav.signOut}
               className="p-1.5 rounded-xl bg-red-950/80 hover:bg-red-900 border border-red-800/60 text-red-300 transition cursor-pointer flex items-center gap-1 text-xs font-semibold"
             >
               <LogOut className="w-3.5 h-3.5 text-red-400" />
@@ -168,6 +170,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <select
                   value={activePuppy.id}
                   onChange={(event) => onSelectPuppy(event.target.value)}
+                  aria-label="Select Dog"
                   className="bg-transparent font-bold text-amber-300 focus:outline-none cursor-pointer"
                 >
                   {puppies.map((puppy) => (
@@ -194,6 +197,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             <button
               onClick={onOpenVetReport}
               title="Export Vet Summary PDF"
+              aria-label="Export Vet Summary PDF"
               className="p-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 transition cursor-pointer"
             >
               <FileText className="w-4 h-4" />
@@ -203,6 +207,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             {puppies.length > 0 && (
               <button
                 onClick={onOpenQuickLog}
+                aria-label={t.nav.logEvent}
                 className="flex items-center gap-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white px-3.5 py-1.5 rounded-xl font-bold text-xs shadow-md transition active:scale-95 cursor-pointer"
               >
                 <Plus className="w-4 h-4 stroke-[3]" />

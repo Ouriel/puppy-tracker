@@ -58,9 +58,9 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
     const timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
     if (diffHours < 24 && date.getDate() === now.getDate()) {
-      return `Today ${timeStr}`;
+      return `${t.dashboard.today} ${timeStr}`;
     } else if (diffHours < 48 && date.getDate() === now.getDate() - 1) {
-      return `Yesterday ${timeStr}`;
+      return `${t.dashboard.yesterday} ${timeStr}`;
     } else {
       return `${date.toLocaleDateString([], { month: 'short', day: 'numeric' })} ${timeStr}`;
     }
@@ -90,7 +90,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
                 : 'text-slate-400 hover:text-slate-200'
             }`}
           >
-            All
+            {t.dashboard.all}
           </button>
           <button
             onClick={() => setFilter('potty')}
@@ -100,7 +100,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
                 : 'text-slate-400 hover:text-slate-200'
             }`}
           >
-            Potty 💧
+            {t.dashboard.pottyFilter}
           </button>
           <button
             onClick={() => setFilter('food')}
@@ -110,7 +110,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
                 : 'text-slate-400 hover:text-slate-200'
             }`}
           >
-            Meals 🍖
+            {t.dashboard.mealsFilter}
           </button>
           <button
             onClick={() => setFilter('walk')}
@@ -120,7 +120,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
                 : 'text-slate-400 hover:text-slate-200'
             }`}
           >
-            Walks 🐾
+            {t.dashboard.walksFilter}
           </button>
         </div>
       </div>
@@ -154,7 +154,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
                   <div>
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-xs font-bold text-slate-100 capitalize">
-                        {item.type}
+                        {t.potty[item.type as keyof typeof t.potty] || item.type}
                       </span>
 
                       {/* Potty location pill */}
@@ -177,28 +177,28 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
                       {/* Stool consistency */}
                       {item.stoolConsistency && (
                         <span className="bg-slate-800 text-slate-300 text-[10px] px-2 py-0.5 rounded-full border border-slate-700">
-                          Stool: {item.stoolConsistency}
+                          Stool: {t.potty[item.stoolConsistency as keyof typeof t.potty] || item.stoolConsistency}
                         </span>
                       )}
 
                       {/* Food Grams */}
                       {item.quantityGrams && (
                         <span className="bg-purple-500/20 text-purple-300 border border-purple-500/30 text-[10px] font-bold px-2 py-0.5 rounded-full">
-                          {item.quantityGrams}g ({item.quantityCups || 0.75} cups) - {item.foodType}
+                          {item.quantityGrams}{t.units.grams} ({item.quantityCups || 0.75} {t.units.cups}) - {item.foodType}
                         </span>
                       )}
 
                       {/* Duration */}
                       {item.durationMinutes && (
                         <span className="bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-[10px] font-bold px-2 py-0.5 rounded-full">
-                          {item.durationMinutes} mins
+                          {item.durationMinutes} {t.units.minutes}
                         </span>
                       )}
 
                       {/* Weight */}
                       {item.weightKg && (
                         <span className="bg-pink-500/20 text-pink-300 border border-pink-500/30 text-[10px] font-bold px-2 py-0.5 rounded-full">
-                          {item.weightKg} kg
+                          {item.weightKg} {t.units.kg}
                         </span>
                       )}
                     </div>

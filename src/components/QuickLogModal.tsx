@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import type { Activity, ActivityType, Caretaker, FoodType, PottyLocation, StoolConsistency } from '../types';
 import { X, Droplet, Footprints, Utensils, Activity as WalkIcon, Scale, Pill, Check } from 'lucide-react';
 import confetti from 'canvas-confetti';
+import { useI18n } from '../i18n';
+import { showToast } from '../utils/toast';
 
 interface QuickLogModalProps {
   isOpen: boolean;
@@ -22,6 +24,7 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
   onClose,
   onSave,
 }) => {
+  const { t } = useI18n();
   const [type, setType] = useState<ActivityType>(initialType);
   const [loggedBy, setLoggedBy] = useState<string>(currentUser);
   const [timestamp, setTimestamp] = useState<string>(new Date().toISOString().slice(0, 16));
@@ -82,16 +85,17 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
     }
 
     onSave(newActivity);
+    showToast(`${t.potty.saveLog} ✓`, 'success');
     onClose();
   };
 
   const activityTypes: { type: ActivityType; label: string; icon: React.ReactNode; color: string }[] = [
-    { type: 'pee', label: 'Pee', icon: <Droplet className="w-5 h-5" />, color: 'hover:bg-sky-500/20 hover:text-sky-400' },
-    { type: 'poop', label: 'Poop', icon: <Footprints className="w-5 h-5" />, color: 'hover:bg-amber-500/20 hover:text-amber-400' },
-    { type: 'food', label: 'Food', icon: <Utensils className="w-5 h-5" />, color: 'hover:bg-purple-500/20 hover:text-purple-400' },
-    { type: 'walk', label: 'Walk', icon: <WalkIcon className="w-5 h-5" />, color: 'hover:bg-emerald-500/20 hover:text-emerald-400' },
-    { type: 'weight', label: 'Weight', icon: <Scale className="w-5 h-5" />, color: 'hover:bg-pink-500/20 hover:text-pink-400' },
-    { type: 'medication', label: 'Meds', icon: <Pill className="w-5 h-5" />, color: 'hover:bg-red-500/20 hover:text-red-400' },
+    { type: 'pee', label: t.potty.pee, icon: <Droplet className="w-5 h-5" />, color: 'hover:bg-sky-500/20 hover:text-sky-400' },
+    { type: 'poop', label: t.potty.poop, icon: <Footprints className="w-5 h-5" />, color: 'hover:bg-amber-500/20 hover:text-amber-400' },
+    { type: 'food', label: t.potty.food, icon: <Utensils className="w-5 h-5" />, color: 'hover:bg-purple-500/20 hover:text-purple-400' },
+    { type: 'walk', label: t.potty.walk, icon: <WalkIcon className="w-5 h-5" />, color: 'hover:bg-emerald-500/20 hover:text-emerald-400' },
+    { type: 'weight', label: t.potty.weight, icon: <Scale className="w-5 h-5" />, color: 'hover:bg-pink-500/20 hover:text-pink-400' },
+    { type: 'medication', label: t.potty.medication, icon: <Pill className="w-5 h-5" />, color: 'hover:bg-red-500/20 hover:text-red-400' },
   ];
 
   return (
@@ -100,7 +104,7 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800 bg-slate-900/50">
           <h2 className="text-lg font-bold text-slate-100 flex items-center gap-2">
-            <span>Log Puppy Activity</span>
+            <span>{t.potty.logActivity}</span>
           </h2>
           <button
             onClick={onClose}
@@ -114,7 +118,7 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
           {/* Activity Type Selector Grid */}
           <div>
             <label className="block text-xs font-semibold text-slate-400 mb-2">
-              Select Activity Type
+              {t.potty.logActivity}
             </label>
             <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
               {activityTypes.map((item) => (
@@ -140,7 +144,7 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
             <div className="space-y-4 bg-slate-950/40 p-4 rounded-xl border border-slate-800">
               <div>
                 <label className="block text-xs font-semibold text-slate-400 mb-2">
-                  Potty Location
+                  {t.potty.location}
                 </label>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                   <button
@@ -152,7 +156,7 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
                         : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'
                     }`}
                   >
-                    🌳 Outside
+                    {t.potty.outsideLabel}
                   </button>
                   <button
                     type="button"
@@ -163,7 +167,7 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
                         : 'bg-slate-800 text-amber-400 border-slate-700 hover:bg-slate-700'
                     }`}
                   >
-                    🟨 Pad (Déconseillé)
+                    {t.potty.padLabel}
                   </button>
                   <button
                     type="button"
@@ -174,7 +178,7 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
                         : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'
                     }`}
                   >
-                    🚨 Accident
+                    {t.potty.accidentLabel}
                   </button>
                 </div>
               </div>
@@ -182,7 +186,7 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
               {type === 'poop' && (
                 <div>
                   <label className="block text-xs font-semibold text-slate-400 mb-2">
-                    Stool Consistency (Bristol Scale)
+                    {t.potty.stoolConsistency}
                   </label>
                   <div className="grid grid-cols-4 gap-2">
                     {(['hard', 'normal', 'soft', 'runny'] as StoolConsistency[]).map((consistency) => (
@@ -209,7 +213,7 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
             <div className="space-y-4 bg-slate-950/40 p-4 rounded-xl border border-slate-800">
               <div>
                 <label className="block text-xs font-semibold text-slate-400 mb-2">
-                  Food Type
+                  {t.potty.foodTypeLabel}
                 </label>
                 <div className="flex gap-2 flex-wrap">
                   {(['kibble', 'wet', 'raw', 'treats', 'topper'] as FoodType[]).map((selectedFoodType) => (
@@ -232,7 +236,7 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-slate-400 mb-1">
-                    Quantity (Grams)
+                    {t.potty.quantity}
                   </label>
                   <input
                     type="number"
@@ -263,7 +267,7 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
 
                 <div>
                   <label className="block text-xs font-semibold text-slate-400 mb-1">
-                    Quantity (Cups)
+                    Quantity ({t.units.cups})
                   </label>
                   <input
                     type="number"
@@ -280,7 +284,7 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
           {type === 'walk' && (
             <div className="bg-slate-950/40 p-4 rounded-xl border border-slate-800">
               <label className="block text-xs font-semibold text-slate-400 mb-1">
-                Duration (Minutes)
+                {t.potty.duration}
               </label>
               <input
                 type="number"
@@ -306,7 +310,7 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
           {type === 'weight' && (
             <div className="bg-slate-950/40 p-4 rounded-xl border border-slate-800">
               <label className="block text-xs font-semibold text-slate-400 mb-1">
-                Current Weight (kg)
+                {t.puppies.weight}
               </label>
               <input
                 type="number"
@@ -321,7 +325,7 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
           {type === 'medication' && (
             <div className="bg-slate-950/40 p-4 rounded-xl border border-slate-800">
               <label className="block text-xs font-semibold text-slate-400 mb-1">
-                Medication / Treatment Name
+                {t.potty.medication}
               </label>
               <input
                 type="text"
@@ -365,7 +369,7 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
 
           <div>
             <label className="block text-xs font-semibold text-slate-400 mb-1">
-              Notes (Optional)
+              {t.potty.notes}
             </label>
             <input
               type="text"
@@ -382,14 +386,14 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
               onClick={onClose}
               className="px-5 py-3 text-xs font-bold text-slate-400 hover:text-slate-200 transition cursor-pointer"
             >
-              Cancel
+              {t.potty.cancel}
             </button>
             <button
               type="submit"
               className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs py-3 px-6 rounded-xl shadow-lg shadow-indigo-600/30 transition active:scale-95 cursor-pointer"
             >
               <Check className="w-4 h-4" />
-              <span>Save Log</span>
+              <span>{t.potty.saveLog}</span>
             </button>
           </div>
         </form>

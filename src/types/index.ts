@@ -8,6 +8,7 @@ export type FoodType = 'kibble' | 'wet' | 'raw' | 'treats' | 'topper';
 
 export interface Activity {
   id: string;
+  householdId?: string;
   puppyId: string; // Links activity to a specific puppy
   type: ActivityType;
   timestamp: string; // ISO string
@@ -22,11 +23,12 @@ export interface Activity {
   quantityCups?: number;
   durationMinutes?: number;
   weightKg?: number;
-  medicationName?: number | string;
+  medicationName?: string;
 }
 
 export interface PuppyProfile {
   id: string;
+  householdId?: string;
   name: string;
   breed: string;
   birthDate: string; // YYYY-MM-DD
