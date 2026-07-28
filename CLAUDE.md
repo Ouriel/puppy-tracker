@@ -36,11 +36,27 @@ PupPace — Smart Household Puppy Activity Tracker & Potty Predictor. React + Vi
 - Every test must exercise real code — zero placeholder assertions (`15/15 tests passing`).
 - Test pure functions: predictions, health schedules, storage helpers, i18n key parity.
 
+### Performance & Data Fetching
+
+- Parallelize all multi-endpoint REST calls with `Promise.all` — never stack sequential `await` calls.
+- In-memory SWR caching in `src/services/api.ts` for 0ms tab navigation. Pre-warm cache on initial boot.
+
+### Database & Drizzle ORM
+
+- ZERO runtime DDL (`CREATE TABLE IF NOT EXISTS`) in API handlers — runtime queries are strictly business logic (`SELECT`, `INSERT`, `UPDATE`, `DELETE`).
+- Canonical schemas live in `src/db/schema.ts`. Migrations are generated via `npx drizzle-kit generate` into `drizzle/`.
+
+### Deployment & Workflow
+
+- NEVER run `sleep` or poll Vercel after `git push`. Commit, push, and immediately inform the user.
+
 ## Key Files
 
 | File                         | Role                                                                                  |
 | ---------------------------- | ------------------------------------------------------------------------------------- |
 | `src/types/index.ts`         | Canonical domain interfaces (`Activity`, `PuppyProfile`, `PredictionResult`)         |
+| `src/db/schema.ts`           | Single source of truth Drizzle ORM database tables                                    |
+| `src/services/api.ts`        | SWR-cached REST API client & fetch helpers                                            |
 | `src/i18n/en.ts` & `fr.ts`   | English & French localization dictionaries                                           |
 | `src/utils/predictions.ts`   | Adaptive AI algorithm for next potty & meal predictions                              |
 | `src/views/HouseholdSettingsView.tsx` | Combined Chiens & Membres configuration view                              |
