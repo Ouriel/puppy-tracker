@@ -15,7 +15,7 @@ interface NavbarProps {
   onOpenQuickLog: () => void;
   onOpenVetReport: () => void;
   onClearSampleData: () => void;
-  onLockVault: () => void;
+  onSignOut: () => void;
   streakDays: number;
   lang: Language;
   onLanguageChange: (lang: Language) => void;
@@ -31,7 +31,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   user,
   onOpenQuickLog,
   onOpenVetReport,
-  onLockVault,
+  onSignOut,
   streakDays,
   lang,
   onLanguageChange,
@@ -78,7 +78,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
             {/* Sign Out Button */}
             <button
-              onClick={onLockVault}
+              onClick={onSignOut}
               title={t.nav.signOut}
               aria-label={t.nav.signOut}
               className="p-1.5 rounded-xl bg-red-950/80 hover:bg-red-900 border border-red-800/60 text-red-300 transition cursor-pointer flex items-center gap-1 text-xs font-semibold"

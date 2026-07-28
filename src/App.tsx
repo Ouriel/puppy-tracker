@@ -55,7 +55,7 @@ export function App() {
   // Listen for 401/403 unauthorized events to lock vault & prompt re-auth
   useEffect(() => {
     const onUnauthorized = () => {
-      handleLockVault();
+      handleSignOut();
       showToast('Session expired. Please sign in with Google.', 'error');
     };
     window.addEventListener('puppace:unauthorized', onUnauthorized);
@@ -216,7 +216,7 @@ export function App() {
     return { success: true };
   };
 
-  const handleLockVault = () => {
+  const handleSignOut = () => {
     clearAuthToken();
     setIsAuthenticated(false);
   };
@@ -314,7 +314,7 @@ export function App() {
     return (
       <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center space-y-4">
         <div className="animate-spin w-10 h-10 border-4 border-indigo-500 border-t-transparent rounded-full" />
-        <p className="text-xs font-semibold text-slate-400">Loading PupPace Vault...</p>
+        <p className="text-xs font-semibold text-slate-400">Loading PupPace...</p>
       </div>
     );
   }
@@ -347,7 +347,7 @@ export function App() {
         onOpenQuickLog={() => handleOpenQuickLogModal('pee')}
         onOpenVetReport={handleExportVetSummary}
         onClearSampleData={handleClearSampleData}
-        onLockVault={handleLockVault}
+        onSignOut={handleSignOut}
         streakDays={streakDays}
         lang={lang}
         onLanguageChange={changeLanguage}
