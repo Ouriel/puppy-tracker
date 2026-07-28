@@ -232,4 +232,14 @@ export const en = {
     pendingActivation: 'Account pending activation by Super Admin Matthieu.',
     ssoFailed: 'Failed to process Google SSO authentication.',
   },
+  toasts: {
+    selectPuppyFirst: 'Please select a puppy profile first.',
+    activityLogged: 'Activity logged successfully!',
+    activityDeleted: 'Activity deleted.',
+    dogRegistered: '{name} registered!',
+    dogUpdated: 'Dog profile updated.',
+    dogDeleted: 'Dog profile deleted.',
+    memberAdded: 'Caretaker added.',
+    memberRemoved: 'Caretaker removed.',
+  },
 };

@@ -232,4 +232,14 @@ export const fr = {
     pendingActivation: 'Compte en attente d\'activation par le Super Admin Matthieu.',
     ssoFailed: 'Échec du traitement de l\'authentification Google SSO.',
   },
+  toasts: {
+    selectPuppyFirst: 'Veuillez d\'abord sélectionner un chiot.',
+    activityLogged: 'Activité enregistrée avec succès !',
+    activityDeleted: 'Activité supprimée.',
+    dogRegistered: '{name} enregistré !',
+    dogUpdated: 'Profil du chien mis à jour.',
+    dogDeleted: 'Profil du chien supprimé.',
+    memberAdded: 'Membre ajouté au foyer.',
+    memberRemoved: 'Membre retiré du foyer.',
+  },
 };

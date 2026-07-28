@@ -244,7 +244,7 @@ export function App() {
     defaultLocation?: PottyLocation
   ) => {
     if (!activePuppy) {
-      showToast('Please select a puppy profile first.', 'error');
+      showToast(t.toasts.selectPuppyFirst, 'error');
       return;
     }
 
@@ -260,7 +260,7 @@ export function App() {
     const created = await createActivity(newActivity);
     if (created) {
       setActivities((previous) => [created, ...previous]);
-      showToast(`${type.toUpperCase()} logged for ${activePuppy.name}!`, 'success');
+      showToast(t.toasts.activityLogged, 'success');
     }
   };
 
@@ -278,7 +278,7 @@ export function App() {
     const created = await createActivity(fullActivity);
     if (created) {
       setActivities((previous) => [created, ...previous]);
-      showToast('Activity logged!', 'success');
+      showToast(t.toasts.activityLogged, 'success');
     }
   };
 
@@ -286,7 +286,7 @@ export function App() {
     const ok = await deleteActivity(id);
     if (ok) {
       setActivities((previous) => previous.filter((activity) => activity.id !== id));
-      showToast('Activity deleted.', 'success');
+      showToast(t.toasts.activityDeleted, 'success');
     }
   };
 

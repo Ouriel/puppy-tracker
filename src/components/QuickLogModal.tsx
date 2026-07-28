@@ -3,7 +3,6 @@ import type { Activity, ActivityType, Caretaker, FoodType, PottyLocation, StoolC
 import { X, Droplet, Footprints, Utensils, Activity as WalkIcon, Scale, Pill, Check } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { useI18n } from '../i18n';
-import { showToast } from '../utils/toast';
 
 interface QuickLogModalProps {
   isOpen: boolean;
@@ -94,7 +93,6 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
     }
 
     onSave(newActivity);
-    showToast(`${t.potty.saveLog} ✓`, 'success');
     onClose();
   };
 
