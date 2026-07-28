@@ -3,6 +3,7 @@ import type { Caretaker, UserAccount, FamilyRole } from '../types';
 import { Home, Users, UserPlus, Trash2, Mail, Send, CheckCircle2, UserCheck, Copy } from 'lucide-react';
 import { createUser } from '../services/api';
 import { showToast } from '../utils/toast';
+import { useI18n } from '../i18n';
 
 interface HouseholdViewProps {
   user: UserAccount;
@@ -20,6 +21,7 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
   onDeleteCaretaker,
   onSwitchUserAccount,
 }) => {
+  const { t } = useI18n();
   const [isAdding, setIsAdding] = useState(false);
   const [isInvitingEmail, setIsInvitingEmail] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
@@ -41,45 +43,41 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
     });
 
     if (created) {
-      setInviteSuccess(`${email} pre-approved! Share link below for them to log in.`);
+      setInviteSuccess(`${email} authorized!`);
       setInviteEmail('');
-      // Also add caretaker badge if not present
-      if (!caretakers.some((c) => c.name.toLowerCase() === email.split('@')[0])) {
+      if (!caretakers.some((item) => item.name.toLowerCase() === email.split('@')[0])) {
         onAddCaretaker({
           id: `c-${Date.now()}`,
           name: email.split('@')[0],
           role: 'Member',
-          color: '#6366F1',
-          email,
+          color: '#8B5CF6',
         });
       }
     }
-  };
-
-  const copyAppUrl = () => {
-    const url = window.location.origin;
-    navigator.clipboard.writeText(url);
-    showToast('PupPace link copied to clipboard!', 'success');
   };
 
   const handleAddSubmit = (event: React.FormEvent) => {
     event.preventDefault();
     if (!name.trim()) return;
 
-    const newCaretaker: Caretaker = {
+    onAddCaretaker({
       id: `c-${Date.now()}`,
       name: name.trim(),
       role: 'Member',
       color,
-    };
+    });
 
-    onAddCaretaker(newCaretaker);
     setName('');
     setIsAdding(false);
   };
 
+  const copyAppUrl = () => {
+    navigator.clipboard.writeText(window.location.origin);
+    showToast(t.household.copiedSuccess, 'success');
+  };
+
   return (
-    <div className="space-y-6 animate-fadeIn">
+    <div className="space-y-6 animate-fadeIn max-w-4xl mx-auto">
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-4 bg-slate-900 border border-slate-800 p-6 rounded-2xl">
         <div className="flex items-center gap-3">
@@ -87,8 +85,8 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
             <Home className="w-6 h-6 text-white" />
           </div>
           <div>
-            <h2 className="text-xl font-bold text-slate-100">Household & Family Members</h2>
-            <p className="text-xs text-slate-400">Dogs belong to a Household that contains multiple authorized family users</p>
+            <h2 className="text-xl font-bold text-slate-100">{t.household.title}</h2>
+            <p className="text-xs text-slate-400">{t.household.subtitle}</p>
           </div>
         </div>
 
@@ -98,7 +96,7 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
           className="flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-md transition active:scale-95 cursor-pointer"
         >
           <Mail className="w-4 h-4" />
-          <span>Pre-Approve Family Member Email</span>
+          <span>{t.household.preApproveBtn}</span>
         </button>
       </div>
 
@@ -107,11 +105,11 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
         <form onSubmit={handlePreApproveMember} className="bg-slate-900 border border-indigo-800/60 p-6 rounded-2xl space-y-4 shadow-xl">
           <h3 className="text-sm font-bold text-slate-100 flex items-center gap-2">
             <Mail className="w-4 h-4 text-indigo-400" />
-            <span>Authorize Google Account Email</span>
+            <span>{t.household.inviteViaEmail}</span>
           </h3>
 
           <p className="text-xs text-slate-400 leading-relaxed">
-            Enter your family member's Google email address to pre-authorize them. Once authorized, send them the link below so they can sign in with Google.
+            {t.household.authorizeInstructions}
           </p>
 
           {inviteSuccess && (
@@ -126,7 +124,7 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
                 className="bg-emerald-800 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1 cursor-pointer"
               >
                 <Copy className="w-3.5 h-3.5" />
-                <span>Copy App Link</span>
+                <span>{t.household.copyLink}</span>
               </button>
             </div>
           )}
@@ -134,7 +132,7 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
           <div className="flex gap-2">
             <input
               type="email"
-              placeholder="Enter Google email address (e.g. partner@gmail.com)"
+              placeholder={t.household.emailPlaceholder}
               value={inviteEmail}
               onChange={(event) => setInviteEmail(event.target.value)}
               className="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-slate-100 focus:outline-none focus:border-indigo-500"
@@ -142,39 +140,41 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
             />
             <button
               type="submit"
-              className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs px-5 py-2.5 rounded-xl transition flex items-center gap-1.5 cursor-pointer"
+              className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs px-5 py-2.5 rounded-xl transition cursor-pointer flex items-center gap-1.5"
             >
               <Send className="w-3.5 h-3.5" />
-              <span>Authorize Email</span>
+              <span>{t.household.sendInvite}</span>
             </button>
           </div>
         </form>
       )}
 
-      {/* Caretakers Section */}
-      <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl space-y-4">
+      {/* Household Caretakers Badges */}
+      <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl space-y-4 shadow-xl">
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-bold text-slate-100 flex items-center gap-2">
             <Users className="w-4 h-4 text-indigo-400" />
-            <span>Household Caretakers ({caretakers.length})</span>
+            <span>{t.household.membersTab} ({caretakers.length})</span>
           </h3>
+
           <button
             onClick={() => setIsAdding(!isAdding)}
-            className="flex items-center gap-1 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs px-3.5 py-2 rounded-xl transition cursor-pointer border border-slate-700"
+            className="flex items-center gap-1 bg-slate-800 hover:bg-slate-700 text-indigo-300 border border-slate-700 font-bold text-xs px-3.5 py-2 rounded-xl transition cursor-pointer"
           >
             <UserPlus className="w-4 h-4" />
-            <span>{isAdding ? 'Cancel' : 'Add Family Member Badge'}</span>
+            <span>{isAdding ? t.potty.cancel : t.household.addMember}</span>
           </button>
         </div>
 
+        {/* Add Caretaker Form */}
         {isAdding && (
           <form onSubmit={handleAddSubmit} className="bg-slate-950/60 border border-slate-800 p-4 rounded-xl space-y-3">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-semibold text-slate-400 mb-1">Name</label>
+                <label className="block text-xs font-semibold text-slate-400 mb-1">{t.household.memberName}</label>
                 <input
                   type="text"
-                  placeholder="e.g. Sarah"
+                  placeholder="e.g. Alex"
                   value={name}
                   onChange={(event) => setName(event.target.value)}
                   className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-indigo-500"
@@ -183,7 +183,7 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-400 mb-1">Badge Color</label>
+                <label className="block text-xs font-semibold text-slate-400 mb-1">{t.household.badgeColor}</label>
                 <input
                   type="color"
                   value={color}
@@ -198,7 +198,7 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
                 type="submit"
                 className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs px-4 py-2 rounded-xl transition cursor-pointer"
               >
-                Add Member Badge
+                {t.household.addMemberBadge}
               </button>
             </div>
           </form>
@@ -230,19 +230,19 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
                       onClick={() => onSwitchUserAccount(caretaker.name, caretaker.role)}
                       className="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 px-3 py-1 rounded-lg transition cursor-pointer"
                     >
-                      Switch Active
+                      {t.household.switchActive}
                     </button>
                   ) : (
                     <span className="text-xs bg-emerald-950 text-emerald-400 border border-emerald-800 px-2.5 py-1 rounded-lg font-bold flex items-center gap-1">
                       <UserCheck className="w-3.5 h-3.5" />
-                      <span>Active</span>
+                      <span>{t.household.activeMember}</span>
                     </span>
                   )}
 
                   {caretaker.name !== 'Matthieu' && (
                     <button
                       onClick={() => onDeleteCaretaker(caretaker.id)}
-                      title="Delete User from Household"
+                      title={t.household.deleteMember}
                       className="p-1.5 text-slate-500 hover:text-red-400 hover:bg-red-950/40 rounded-lg transition cursor-pointer"
                     >
                       <Trash2 className="w-4 h-4" />
