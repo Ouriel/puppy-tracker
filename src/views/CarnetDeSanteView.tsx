@@ -80,8 +80,8 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePupp
     }
   };
 
-  const handleAddVaccineSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleAddVaccineSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
     if (!administeredDate || !nextDueDate || !activePuppy) return;
 
     const newEntry = {
@@ -94,7 +94,7 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePupp
 
     const created = await createHealthRecord(newEntry);
     if (created) {
-      setVaccinations((prev) => sortByDateDesc([created, ...prev]));
+      setVaccinations((previous) => sortByDateDesc([created, ...previous]));
       setIsAddingVaccine(false);
     }
   };
@@ -106,13 +106,13 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePupp
     if (window.confirm(confirmMsg)) {
       const ok = await deleteHealthRecord(id);
       if (ok) {
-        setVaccinations((prev) => prev.filter((v) => v.id !== id));
+        setVaccinations((previous) => previous.filter((vaccine) => vaccine.id !== id));
       }
     }
   };
 
-  const handleAddDewormingSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleAddDewormingSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
     if (!dewormAdminDate || !dewormNextDate || !activePuppy) return;
 
     const newEntry = {
@@ -127,7 +127,7 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePupp
 
     const created = await createHealthRecord(newEntry);
     if (created) {
-      setDewormingLogs((prev) => sortByDateDesc([created, ...prev]));
+      setDewormingLogs((previous) => sortByDateDesc([created, ...previous]));
       setIsAddingDeworming(false);
     }
   };
@@ -139,7 +139,7 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePupp
     if (window.confirm(confirmMsg)) {
       const ok = await deleteHealthRecord(id);
       if (ok) {
-        setDewormingLogs((prev) => prev.filter((d) => d.id !== id));
+        setDewormingLogs((previous) => previous.filter((deworming) => deworming.id !== id));
       }
     }
   };
@@ -283,34 +283,34 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePupp
         )}
 
         <div className="space-y-2">
-          {vaccinations.map((v) => (
-            <div key={v.id} className="flex items-center justify-between p-3.5 bg-slate-950/40 rounded-xl border border-slate-800">
+          {vaccinations.map((vaccine) => (
+            <div key={vaccine.id} className="flex items-center justify-between p-3.5 bg-slate-950/40 rounded-xl border border-slate-800">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-teal-500/20 text-teal-400 rounded-lg">
                   <Syringe className="w-4 h-4" />
                 </div>
                 <div>
                   <div className="text-xs font-bold text-white flex items-center gap-2">
-                    <span>{v.name}</span>
-                    {v.batchNumber && (
+                    <span>{vaccine.name}</span>
+                    {vaccine.batchNumber && (
                       <span className="text-[10px] font-mono text-slate-400 bg-slate-800 px-2 py-0.2 rounded">
-                        Lot: {v.batchNumber}
+                        Lot: {vaccine.batchNumber}
                       </span>
                     )}
                   </div>
                   <div className="text-[11px] text-slate-400">
-                    {lang === 'fr' ? 'Injecté le' : 'Administered'} {v.date} &bull; {lang === 'fr' ? 'Clinique:' : 'Clinic:'} {v.vetClinic || (lang === 'fr' ? 'Vétérinaire' : 'Veterinary')}
+                    {lang === 'fr' ? 'Injecté le' : 'Administered'} {vaccine.date} &bull; {lang === 'fr' ? 'Clinique:' : 'Clinic:'} {vaccine.vetClinic || (lang === 'fr' ? 'Vétérinaire' : 'Veterinary')}
                   </div>
                 </div>
               </div>
 
               <div className="flex items-center gap-3">
                 <div className="text-right">
-                  <div className="text-xs font-bold text-amber-300">{lang === 'fr' ? 'Rappel:' : 'Booster:'} {v.boosterDate}</div>
+                  <div className="text-xs font-bold text-amber-300">{lang === 'fr' ? 'Rappel:' : 'Booster:'} {vaccine.boosterDate}</div>
                   <div className="text-[10px] text-slate-500">{lang === 'fr' ? 'Statut: Conforme' : 'Status: Compliant'}</div>
                 </div>
                 <button
-                  onClick={() => handleDeleteVaccine(v.id)}
+                  onClick={() => handleDeleteVaccine(vaccine.id)}
                   title={lang === 'fr' ? 'Supprimer la ligne de vaccin' : 'Delete vaccine record'}
                   className="p-1.5 text-slate-500 hover:text-red-400 hover:bg-red-950/40 rounded-lg transition cursor-pointer"
                 >
@@ -393,34 +393,34 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePupp
         )}
 
         <div className="space-y-2">
-          {dewormingLogs.map((d) => (
-            <div key={d.id} className="flex items-center justify-between p-3.5 bg-slate-950/40 rounded-xl border border-slate-800">
+          {dewormingLogs.map((deworming) => (
+            <div key={deworming.id} className="flex items-center justify-between p-3.5 bg-slate-950/40 rounded-xl border border-slate-800">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-amber-500/20 text-amber-400 rounded-lg">
                   <Pill className="w-4 h-4" />
                 </div>
                 <div>
                   <div className="text-xs font-bold text-white flex items-center gap-2">
-                    <span>{d.productName || d.name}</span>
-                    {d.weightAtTime && (
+                    <span>{deworming.productName || deworming.name}</span>
+                    {deworming.weightAtTime && (
                       <span className="text-[10px] text-amber-300 bg-amber-950/60 border border-amber-800 px-2 py-0.2 rounded font-semibold">
-                        Poids: {d.weightAtTime} kg
+                        Poids: {deworming.weightAtTime} kg
                       </span>
                     )}
                   </div>
                   <div className="text-[11px] text-slate-400">
-                    {lang === 'fr' ? 'Donné le' : 'Given'} {d.date}
+                    {lang === 'fr' ? 'Donné le' : 'Given'} {deworming.date}
                   </div>
                 </div>
               </div>
 
               <div className="flex items-center gap-3">
                 <div className="text-right">
-                  <div className="text-xs font-bold text-amber-300">{lang === 'fr' ? 'Prochain:' : 'Next:'} {d.boosterDate}</div>
+                  <div className="text-xs font-bold text-amber-300">{lang === 'fr' ? 'Prochain:' : 'Next:'} {deworming.boosterDate}</div>
                   <div className="text-[10px] text-slate-500">{lang === 'fr' ? 'Statut: Vermifugé' : 'Status: Dewormed'}</div>
                 </div>
                 <button
-                  onClick={() => handleDeleteDeworming(d.id)}
+                  onClick={() => handleDeleteDeworming(deworming.id)}
                   title={lang === 'fr' ? 'Supprimer la ligne de vermifuge' : 'Delete deworming record'}
                   className="p-1.5 text-slate-500 hover:text-red-400 hover:bg-red-950/40 rounded-lg transition cursor-pointer"
                 >

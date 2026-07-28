@@ -286,7 +286,7 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
                   <input
                     type="text"
                     value={editName}
-                    onChange={(e) => setEditName(e.target.value)}
+                    onChange={(event) => setEditName(event.target.value)}
                     className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-indigo-500"
                     required
                   />
@@ -296,7 +296,7 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
                   <label className="block text-xs font-semibold text-slate-400 mb-1">{t.puppies.breed}</label>
                   <select
                     value={editBreed}
-                    onChange={(e) => setEditBreed(e.target.value)}
+                    onChange={(event) => setEditBreed(event.target.value)}
                     className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-indigo-500 cursor-pointer"
                   >
                     {DOG_BREEDS.map((breedOption) => (
@@ -311,7 +311,7 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
                       type="text"
                       placeholder={lang === 'fr' ? 'Spécifiez la race...' : 'Specify custom breed...'}
                       value={editCustomBreed}
-                      onChange={(e) => setEditCustomBreed(e.target.value)}
+                      onChange={(event) => setEditCustomBreed(event.target.value)}
                       className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-indigo-500 mt-2"
                     />
                   )}
@@ -324,7 +324,7 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
                   <input
                     type="number"
                     value={editFoodGramGoal}
-                    onChange={(e) => setEditFoodGramGoal(Number(e.target.value))}
+                    onChange={(event) => setEditFoodGramGoal(Number(event.target.value))}
                     className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-indigo-500"
                     required
                   />
@@ -339,7 +339,7 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
                     min="1"
                     max="6"
                     value={editMealsPerDay}
-                    onChange={(e) => setEditMealsPerDay(Number(e.target.value))}
+                    onChange={(event) => setEditMealsPerDay(Number(event.target.value))}
                     className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-indigo-500"
                     required
                   />
@@ -350,7 +350,7 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
                   <input
                     type="date"
                     value={editBirthDate}
-                    onChange={(e) => setEditBirthDate(e.target.value)}
+                    onChange={(event) => setEditBirthDate(event.target.value)}
                     className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-indigo-500"
                   />
                 </div>
@@ -360,7 +360,7 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
                   <input
                     type="text"
                     value={editNotes}
-                    onChange={(e) => setEditNotes(e.target.value)}
+                    onChange={(event) => setEditNotes(event.target.value)}
                     className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-indigo-500"
                   />
                 </div>

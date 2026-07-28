@@ -167,7 +167,7 @@ export function App() {
     loadDatabaseState();
   }, [isAuthenticated]);
 
-  const activePuppy = puppies.find((p) => p.id === activePuppyId) || (puppies.length > 0 ? puppies[0] : null);
+  const activePuppy = puppies.find((puppy) => puppy.id === activePuppyId) || (puppies.length > 0 ? puppies[0] : null);
 
   const handleSelectPuppy = (id: string) => {
     setActivePuppyIdState(id);
@@ -177,7 +177,7 @@ export function App() {
   const handleAddPuppy = async (newPuppy: PuppyProfile) => {
     const created = await createDog(newPuppy);
     if (created) {
-      setPuppies((prev) => [...prev, created]);
+      setPuppies((previous) => [...previous, created]);
       handleSelectPuppy(created.id);
       showToast(`${created.name} registered!`, 'success');
     }
@@ -186,7 +186,7 @@ export function App() {
   const handleUpdatePuppy = (updatedPuppy: PuppyProfile) => {
     createDog(updatedPuppy).then((updated) => {
       if (updated) {
-        setPuppies((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
+        setPuppies((previous) => previous.map((puppy) => (puppy.id === updated.id ? updated : puppy)));
         showToast('Dog profile updated.', 'success');
       }
     });
@@ -196,9 +196,9 @@ export function App() {
     if (window.confirm('Are you sure you want to delete this puppy profile and its associated logs?')) {
       const ok = await deleteDog(id);
       if (ok) {
-        const updated = puppies.filter((p) => p.id !== id);
+        const updated = puppies.filter((puppy) => puppy.id !== id);
         setPuppies(updated);
-        setActivities((prev) => prev.filter((a) => a.puppyId !== id));
+        setActivities((previous) => previous.filter((activity) => activity.puppyId !== id));
         if (activePuppyId === id && updated.length > 0) {
           handleSelectPuppy(updated[0].id);
         }
@@ -210,7 +210,7 @@ export function App() {
   const handleAddCaretaker = async (newCaretaker: Caretaker) => {
     const created = await createCaretaker(newCaretaker);
     if (created) {
-      setCaretakers((prev) => [...prev, created]);
+      setCaretakers((previous) => [...previous, created]);
       showToast('Caretaker added.', 'success');
     }
   };
@@ -218,7 +218,7 @@ export function App() {
   const handleDeleteCaretaker = async (id: string) => {
     const ok = await deleteCaretaker(id);
     if (ok) {
-      setCaretakers((prev) => prev.filter((c) => c.id !== id));
+      setCaretakers((previous) => previous.filter((caretaker) => caretaker.id !== id));
       showToast('Caretaker removed.', 'success');
     }
   };
@@ -284,7 +284,7 @@ export function App() {
   const handleDeleteActivity = async (id: string) => {
     const ok = await deleteActivity(id);
     if (ok) {
-      setActivities((prev) => prev.filter((a) => a.id !== id));
+      setActivities((previous) => previous.filter((activity) => activity.id !== id));
       showToast('Activity deleted.', 'success');
     }
   };
@@ -302,7 +302,7 @@ export function App() {
 
   // Filter activities for active puppy
   const activePuppyActivities = activePuppy
-    ? activities.filter((a) => !a.puppyId || a.puppyId === activePuppy.id)
+    ? activities.filter((activity) => !activity.puppyId || activity.puppyId === activePuppy.id)
     : [];
 
   const predictions = React.useMemo(() => {
@@ -314,25 +314,25 @@ export function App() {
   const todayFoodLoggedGrams = React.useMemo(() => {
     const todayStr = new Date().toISOString().slice(0, 10);
     return activePuppyActivities
-      .filter((a) => a.type === 'food' && a.timestamp.slice(0, 10) === todayStr)
-      .reduce((sum, a) => sum + (a.quantityGrams || 80), 0);
+      .filter((activity) => activity.type === 'food' && activity.timestamp.slice(0, 10) === todayStr)
+      .reduce((sum, activity) => sum + (activity.quantityGrams || 80), 0);
   }, [activePuppyActivities]);
 
   // Potty clean streak calculation: count unique calendar days with potty logs without accidents
   const streakDays = React.useMemo(() => {
-    const pottyLogs = activePuppyActivities.filter((a) => a.type === 'pee' || a.type === 'poop');
+    const pottyLogs = activePuppyActivities.filter((activity) => activity.type === 'pee' || activity.type === 'poop');
     if (pottyLogs.length === 0) return 0;
 
-    const accidents = pottyLogs.filter((a) => a.pottyLocation === 'indoor_accident');
+    const accidents = pottyLogs.filter((activity) => activity.pottyLocation === 'indoor_accident');
     if (accidents.length > 0) {
-      const latestAccidentMs = Math.max(...accidents.map((a) => new Date(a.timestamp).getTime()));
+      const latestAccidentMs = Math.max(...accidents.map((activity) => new Date(activity.timestamp).getTime()));
       const diffMs = Date.now() - latestAccidentMs;
       if (diffMs < 0) return 0;
       return Math.floor(diffMs / (1000 * 60 * 60 * 24));
     }
 
     const uniqueDays = new Set(
-      pottyLogs.map((a) => new Date(a.timestamp).toISOString().slice(0, 10))
+      pottyLogs.map((activity) => new Date(activity.timestamp).toISOString().slice(0, 10))
     );
     return uniqueDays.size;
   }, [activePuppyActivities]);

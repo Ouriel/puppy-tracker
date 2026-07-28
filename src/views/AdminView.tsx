@@ -39,7 +39,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail }) => {
   const handleActivate = async (email: string) => {
     const res = await updateUser({ email, status: 'ACTIVE' });
     if (res) {
-      setUsers((prev) => prev.map((u) => (u.email === email ? { ...u, status: 'ACTIVE' as const } : u)));
+      setUsers((previous) => previous.map((registeredUser) => (registeredUser.email === email ? { ...registeredUser, status: 'ACTIVE' as const } : registeredUser)));
       setStatusMessage(t.admin.activatedAccount.replace('{email}', email));
       setTimeout(() => setStatusMessage(''), 3500);
     }
@@ -49,7 +49,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail }) => {
     if (email.toLowerCase() === 'matthieu.jacquet@gmail.com') return;
     const res = await updateUser({ email, status: 'PENDING_APPROVAL' });
     if (res) {
-      setUsers((prev) => prev.map((u) => (u.email === email ? { ...u, status: 'PENDING_APPROVAL' as const } : u)));
+      setUsers((previous) => previous.map((registeredUser) => (registeredUser.email === email ? { ...registeredUser, status: 'PENDING_APPROVAL' as const } : registeredUser)));
       setStatusMessage(t.admin.revokedAccess.replace('{email}', email));
       setTimeout(() => setStatusMessage(''), 3500);
     }
@@ -64,7 +64,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail }) => {
 
     const success = await deleteUser(userToDelete.email);
     if (success) {
-      setUsers((prev) => prev.filter((u) => u.email !== userToDelete.email));
+      setUsers((previous) => previous.filter((registeredUser) => registeredUser.email !== userToDelete.email));
       setStatusMessage(t.admin.deletedAccount.replace('{email}', userToDelete.email));
     }
     setUserToDelete(null);
@@ -91,8 +91,8 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail }) => {
     }
   };
 
-  const pendingUsers = users.filter((u) => u.status === 'PENDING_APPROVAL');
-  const activeUsers = users.filter((u) => u.status === 'ACTIVE');
+  const pendingUsers = users.filter((registeredUser) => registeredUser.status === 'PENDING_APPROVAL');
+  const activeUsers = users.filter((registeredUser) => registeredUser.status === 'ACTIVE');
 
   if (!isSuperAdmin) {
     return (
