@@ -5,9 +5,39 @@ import { eq, and, desc } from 'drizzle-orm';
 import { healthRecordsTable } from '../src/db/schema.js';
 import { verifyAuth } from './_auth.js';
 
-function getDb() {
-  const sql = neon(process.env.POSTGRES_URL || process.env.DATABASE_URL || '');
-  return drizzle(sql);
+function getDbAndSql() {
+  const connectionString = process.env.POSTGRES_URL || process.env.DATABASE_URL || '';
+  const sql = neon(connectionString);
+  const db = drizzle(sql);
+  return { db, sql };
+}
+
+let tableChecked = false;
+
+async function ensureTable(sql: ReturnType<typeof neon>) {
+  if (tableChecked) return;
+  try {
+    await sql`
+      CREATE TABLE IF NOT EXISTS health_records (
+        id TEXT PRIMARY KEY,
+        household_id TEXT NOT NULL,
+        puppy_id TEXT NOT NULL,
+        type TEXT NOT NULL,
+        name TEXT NOT NULL,
+        date TEXT NOT NULL,
+        booster_date TEXT,
+        batch_number TEXT,
+        vet_clinic TEXT,
+        product_name TEXT,
+        weight_at_time DOUBLE PRECISION,
+        notes TEXT,
+        created_at TIMESTAMP DEFAULT NOW()
+      );
+    `;
+    tableChecked = true;
+  } catch (e) {
+    console.error('Error ensuring health_records table exists:', e);
+  }
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -28,7 +58,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const householdId = auth.householdId;
-  const db = getDb();
+  const { db, sql } = getDbAndSql();
+
+  await ensureTable(sql);
 
   try {
     // GET /api/health-records?puppyId=xxx&type=xxx
