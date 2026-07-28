@@ -21,17 +21,11 @@ export function getStoredUser(): UserAccount {
   return DEFAULT_USER;
 }
 
-export function saveUser(_user: UserAccount): void {
-  // Pure API architecture — state persisted via REST API to Neon DB
-}
-
 export function getStoredCaretakers(): Caretaker[] {
   return DEFAULT_CARETAKERS;
 }
 
-export function saveCaretakers(_caretakers: Caretaker[]): void {
-  // Pure API architecture — state persisted via REST API to Neon DB
-}
+
 
 export function getActivePuppyId(): string {
   if (typeof localStorage === 'undefined') return '';

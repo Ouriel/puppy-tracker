@@ -2,9 +2,7 @@ import React, { useState, useEffect } from 'react';
 import type { Activity, Caretaker, FamilyRole, PuppyProfile, UserAccount, ActivityType, PottyLocation } from './types';
 import {
   getStoredUser,
-  saveUser,
   getStoredCaretakers,
-  saveCaretakers,
   getActivePuppyId,
   setActivePuppyId,
   clearAllData,
@@ -114,13 +112,7 @@ export function App() {
   const [isQuickLogOpen, setIsQuickLogOpen] = useState(false);
   const [quickLogType, setQuickLogType] = useState<ActivityType>('pee');
 
-  useEffect(() => {
-    saveUser(user);
-  }, [user]);
 
-  useEffect(() => {
-    saveCaretakers(caretakers);
-  }, [caretakers]);
 
   // Synchronous Parallel Database Load via REST API
   useEffect(() => {
