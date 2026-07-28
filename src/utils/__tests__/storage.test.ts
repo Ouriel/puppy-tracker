@@ -1,9 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import {
-  getStoredPuppies,
-  savePuppies,
-} from '../storage';
-import type { PuppyProfile } from '../../types';
+import { getAuthToken, setAuthToken, clearAuthToken } from '../auth';
 
 // In-memory localStorage mock for node environment testing
 const storageMap = new Map<string, string>();
@@ -18,26 +14,19 @@ if (typeof globalThis.localStorage === 'undefined') {
   globalThis.localStorage = localStorageMock as any;
 }
 
-describe('Storage Persistence & Account Management', () => {
+describe('Auth Token Manager', () => {
   beforeEach(() => {
     localStorageMock.clear();
+    clearAuthToken();
   });
 
-  it('should store and retrieve dog profiles cleanly', () => {
-    const samplePuppy: PuppyProfile = {
-      id: 'pup-999',
-      name: 'Luna',
-      breed: 'French Bulldog',
-      birthDate: '2026-01-01',
-      weightKg: 6.5,
-      targetMealsPerDay: 3,
-      dailyFoodGramGoal: 180,
-    };
+  it('should set, retrieve, and clear authentication token', () => {
+    expect(getAuthToken()).toBeNull();
 
-    savePuppies([samplePuppy]);
-    const retrieved = getStoredPuppies();
-    expect(retrieved).toHaveLength(1);
-    expect(retrieved[0].name).toBe('Luna');
-    expect(retrieved[0].breed).toBe('French Bulldog');
+    setAuthToken('test-token-123');
+    expect(getAuthToken()).toBe('test-token-123');
+
+    clearAuthToken();
+    expect(getAuthToken()).toBeNull();
   });
 });

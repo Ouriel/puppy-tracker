@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Shield, Mail, Send, Users, AlertCircle, UserCheck, UserX, Trash2 } from 'lucide-react';
 import {
-  apiFetchUsers,
-  apiPostUser,
-  apiPutUser,
-  apiDeleteUser,
+  fetchUsers,
+  createUser,
+  updateUser,
+  deleteUser,
   type RegisteredUserItem,
-} from '../utils/storage';
+} from '../services/api';
 import { useI18n } from '../i18n';
 
 interface AdminViewProps {
@@ -30,14 +30,14 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail }) => {
   }, [isSuperAdmin]);
 
   const loadUsers = async () => {
-    const remoteUsers = await apiFetchUsers();
+    const remoteUsers = await fetchUsers();
     if (remoteUsers) {
       setUsers(remoteUsers);
     }
   };
 
   const handleActivate = async (email: string) => {
-    const res = await apiPutUser({ email, status: 'ACTIVE' });
+    const res = await updateUser({ email, status: 'ACTIVE' });
     if (res) {
       setUsers((prev) => prev.map((u) => (u.email === email ? { ...u, status: 'ACTIVE' as const } : u)));
       setStatusMessage(t.admin.activatedAccount.replace('{email}', email));
@@ -47,7 +47,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail }) => {
 
   const handleDeactivate = async (email: string) => {
     if (email.toLowerCase() === 'matthieu.jacquet@gmail.com') return;
-    const res = await apiPutUser({ email, status: 'PENDING_APPROVAL' });
+    const res = await updateUser({ email, status: 'PENDING_APPROVAL' });
     if (res) {
       setUsers((prev) => prev.map((u) => (u.email === email ? { ...u, status: 'PENDING_APPROVAL' as const } : u)));
       setStatusMessage(t.admin.revokedAccess.replace('{email}', email));
@@ -62,7 +62,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail }) => {
       return;
     }
 
-    const success = await apiDeleteUser(userToDelete.email);
+    const success = await deleteUser(userToDelete.email);
     if (success) {
       setUsers((prev) => prev.filter((u) => u.email !== userToDelete.email));
       setStatusMessage(t.admin.deletedAccount.replace('{email}', userToDelete.email));
@@ -76,7 +76,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail }) => {
     if (!newInviteEmail.trim()) return;
 
     const email = newInviteEmail.trim().toLowerCase();
-    const res = await apiPostUser({
+    const res = await createUser({
       email,
       name: email.split('@')[0],
       role: 'Member',

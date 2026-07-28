@@ -15,6 +15,15 @@ interface QuickLogModalProps {
   onSave: (activity: Omit<Activity, 'id' | 'puppyId'>) => void;
 }
 
+function getLocalDatetimeString(date = new Date()): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+}
+
 export const QuickLogModal: React.FC<QuickLogModalProps> = ({
   isOpen,
   initialType = 'pee',
@@ -27,7 +36,7 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
   const { t } = useI18n();
   const [type, setType] = useState<ActivityType>(initialType);
   const [loggedBy, setLoggedBy] = useState<string>(currentUser);
-  const [timestamp, setTimestamp] = useState<string>(new Date().toISOString().slice(0, 16));
+  const [timestamp, setTimestamp] = useState<string>(getLocalDatetimeString());
   const [notes, setNotes] = useState('');
 
   const [pottyLocation, setPottyLocation] = useState<PottyLocation>(initialLocation);
@@ -44,7 +53,7 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
   useEffect(() => {
     setType(initialType);
     setPottyLocation(initialLocation);
-    setTimestamp(new Date().toISOString().slice(0, 16));
+    setTimestamp(getLocalDatetimeString());
     setLoggedBy(currentUser);
   }, [initialType, initialLocation, currentUser, isOpen]);
 

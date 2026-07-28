@@ -124,16 +124,19 @@ export const StatsAnalytics: React.FC<StatsAnalyticsProps> = ({ activities, prof
           </div>
         </div>
 
-        <div className="flex items-end gap-1 h-16 pt-2 px-1 bg-slate-900/60 rounded-xl border border-slate-700/50">
+        <div className="flex items-end gap-1 h-16 pt-2 px-1 bg-slate-900/60 rounded-xl border border-slate-700/50 relative">
           {hourlyCounts.map((count, hr) => {
             const heightPercent = count > 0 ? (count / maxHourCount) * 100 : 5;
             const isPeak = count === maxHourCount && count > 0;
             return (
               <div
                 key={hr}
-                title={`${hr}:00 - ${count} logs`}
-                className="flex-1 flex flex-col items-center group relative cursor-pointer"
+                className="flex-1 flex flex-col items-center group relative cursor-pointer h-full justify-end"
               >
+                {/* Mobile & Desktop Hover Tooltip */}
+                <div className="absolute -top-7 left-1/2 -translate-x-1/2 hidden group-hover:flex group-active:flex bg-slate-950 text-sky-300 text-[10px] font-bold px-1.5 py-0.5 rounded border border-slate-700 whitespace-nowrap z-20 shadow-lg pointer-events-none">
+                  {String(hr).padStart(2, '0')}:00 ({count})
+                </div>
                 <div
                   className={`w-full rounded-t transition-all ${
                     isPeak
@@ -148,11 +151,13 @@ export const StatsAnalytics: React.FC<StatsAnalyticsProps> = ({ activities, prof
             );
           })}
         </div>
-        <div className="flex justify-between text-[9px] text-slate-500 mt-1 px-1 font-mono">
+        <div className="flex justify-between text-[10px] text-slate-400 font-bold mt-1.5 px-1 font-mono">
           <span>00h</span>
-          <span>06h</span>
+          <span>04h</span>
+          <span>08h</span>
           <span>12h</span>
-          <span>18h</span>
+          <span>16h</span>
+          <span>20h</span>
           <span>23h</span>
         </div>
       </div>

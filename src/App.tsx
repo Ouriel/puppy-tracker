@@ -1,28 +1,24 @@
 import React, { useState, useEffect } from 'react';
 import type { Activity, Caretaker, FamilyRole, PuppyProfile, UserAccount, ActivityType, PottyLocation } from './types';
 import {
-  getInitialActivities,
-  saveActivities,
-  getStoredPuppies,
-  savePuppies,
-  getActivePuppyId,
-  setActivePuppyId,
   getStoredUser,
   saveUser,
   getStoredCaretakers,
   saveCaretakers,
+  getActivePuppyId,
+  setActivePuppyId,
   clearAllData,
-  apiFetchDogs,
-  apiPostDog,
-  apiDeleteDog,
-  apiFetchActivities,
-  apiPostActivity,
-  apiDeleteActivity,
-  markActivitiesAsKnown,
-  markDogsAsKnown,
-  setAuthToken,
-  apiPostUser,
 } from './utils/storage';
+import { getAuthToken, setAuthToken, clearAuthToken } from './utils/auth';
+import {
+  fetchDogs,
+  createDog,
+  deleteDog,
+  fetchActivities,
+  createActivity,
+  deleteActivity,
+  createUser,
+} from './services/api';
 import { calculatePredictions } from './utils/predictions';
 import { Navbar, type MainTabType } from './components/Navbar';
 import { QuickLogModal } from './components/QuickLogModal';
@@ -37,6 +33,7 @@ import { AdminView } from './views/AdminView';
 import { CareGuideView } from './views/CareGuideView';
 import { CarnetDeSanteView } from './views/CarnetDeSanteView';
 import { useI18n } from './i18n';
+import { showToast } from './utils/toast';
 import { Dog, Plus } from 'lucide-react';
 
 export function App() {
@@ -44,15 +41,9 @@ export function App() {
 
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
-  // Restore auth token on startup
-  useEffect(() => {
-    const savedToken = localStorage.getItem('puppace_auth_token');
-    if (savedToken) setAuthToken(savedToken);
-  }, []);
-
   // Authentication & Lock Screen
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
-    return localStorage.getItem('puppace_unlocked_v4') === 'true';
+    return !!getAuthToken() && localStorage.getItem('puppace_unlocked_v4') === 'true';
   });
   const [user, setUser] = useState<UserAccount>(getStoredUser);
   const [caretakers, setCaretakers] = useState<Caretaker[]>(getStoredCaretakers);
@@ -61,10 +52,20 @@ export function App() {
     return initialUser.name;
   });
 
+  // Listen for 401/403 unauthorized events to lock vault & prompt re-auth
+  useEffect(() => {
+    const onUnauthorized = () => {
+      handleLockVault();
+      showToast('Session expired. Please sign in with Google.', 'error');
+    };
+    window.addEventListener('puppace:unauthorized', onUnauthorized);
+    return () => window.removeEventListener('puppace:unauthorized', onUnauthorized);
+  }, []);
+
   // Main Page Navigation Tabs with Clean English Technical URL Routing
   const [activeMainTab, setActiveMainTab] = useState<MainTabType>('dashboard');
 
-  // URL Path Synchronization (Technical URLs are strictly English)
+  // URL Path Synchronization
   useEffect(() => {
     const syncRouteWithTab = () => {
       const path = window.location.pathname;
@@ -100,24 +101,15 @@ export function App() {
   };
 
   // Multi-Puppy State
-  const [puppies, setPuppies] = useState<PuppyProfile[]>(getStoredPuppies);
+  const [puppies, setPuppies] = useState<PuppyProfile[]>([]);
   const [activePuppyId, setActivePuppyIdState] = useState<string>(getActivePuppyId);
 
   // Activities State
-  const [activities, setActivities] = useState<Activity[]>(getInitialActivities);
+  const [activities, setActivities] = useState<Activity[]>([]);
 
-  // Quick Action Modal with selectable initial activity type
+  // Quick Action Modal
   const [isQuickLogOpen, setIsQuickLogOpen] = useState(false);
   const [quickLogType, setQuickLogType] = useState<ActivityType>('pee');
-
-  // Save changes to localStorage
-  useEffect(() => {
-    savePuppies(puppies);
-  }, [puppies]);
-
-  useEffect(() => {
-    saveActivities(activities);
-  }, [activities]);
 
   useEffect(() => {
     saveUser(user);
@@ -127,43 +119,33 @@ export function App() {
     saveCaretakers(caretakers);
   }, [caretakers]);
 
-  // Initial Startup REST API Synchronization with Merge Strategy
+  // Synchronous Database Load via REST API
   useEffect(() => {
-    async function initRestApiSync() {
+    async function loadDatabaseState() {
+      if (!getAuthToken()) {
+        setIsLoading(false);
+        return;
+      }
       setIsLoading(true);
       try {
-        // Fetch dogs from DB
-        const remoteDogs = await apiFetchDogs();
-        if (remoteDogs && remoteDogs.length > 0) {
-          markDogsAsKnown(remoteDogs);
+        const remoteDogs = await fetchDogs();
+        if (remoteDogs) {
           setPuppies(remoteDogs);
-          if (!activePuppyId) setActivePuppyIdState(remoteDogs[0].id);
-        } else if (puppies.length > 0) {
-          puppies.forEach((d) => apiPostDog(d));
-          markDogsAsKnown(puppies);
+          if (remoteDogs.length > 0 && !activePuppyId) {
+            setActivePuppyIdState(remoteDogs[0].id);
+          }
         }
 
-        // Fetch activities from DB with Merge Strategy
-        const remoteActivities = await apiFetchActivities();
+        const remoteActivities = await fetchActivities();
         if (remoteActivities) {
-          markActivitiesAsKnown(remoteActivities);
-          setActivities((localActivities) => {
-            const remoteIds = new Set(remoteActivities.map((a) => a.id));
-            const localOnly = localActivities.filter((a) => !remoteIds.has(a.id));
-            localOnly.forEach((a) => apiPostActivity(a));
-            markActivitiesAsKnown(localOnly);
-            return [...remoteActivities, ...localOnly];
-          });
-        } else if (activities.length > 0) {
-          activities.forEach((a) => apiPostActivity(a));
-          markActivitiesAsKnown(activities);
+          setActivities(remoteActivities);
         }
       } finally {
         setIsLoading(false);
       }
     }
-    initRestApiSync();
-  }, []);
+    loadDatabaseState();
+  }, [isAuthenticated]);
 
   const activePuppy = puppies.find((p) => p.id === activePuppyId) || (puppies.length > 0 ? puppies[0] : null);
 
@@ -172,24 +154,35 @@ export function App() {
     setActivePuppyId(id);
   };
 
-  const handleAddPuppy = (newPuppy: PuppyProfile) => {
-    const updated = [...puppies, newPuppy];
-    setPuppies(updated);
-    handleSelectPuppy(newPuppy.id);
+  const handleAddPuppy = async (newPuppy: PuppyProfile) => {
+    const created = await createDog(newPuppy);
+    if (created) {
+      setPuppies((prev) => [...prev, created]);
+      handleSelectPuppy(created.id);
+      showToast(`${created.name} registered!`, 'success');
+    }
   };
 
   const handleUpdatePuppy = (updatedPuppy: PuppyProfile) => {
-    setPuppies((prev) => prev.map((p) => (p.id === updatedPuppy.id ? updatedPuppy : p)));
+    createDog(updatedPuppy).then((updated) => {
+      if (updated) {
+        setPuppies((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
+        showToast('Dog profile updated.', 'success');
+      }
+    });
   };
 
-  const handleDeletePuppy = (id: string) => {
+  const handleDeletePuppy = async (id: string) => {
     if (window.confirm('Are you sure you want to delete this puppy profile and its associated logs?')) {
-      const updated = puppies.filter((p) => p.id !== id);
-      setPuppies(updated);
-      setActivities((prev) => prev.filter((a) => a.puppyId !== id));
-      apiDeleteDog(id);
-      if (activePuppyId === id && updated.length > 0) {
-        handleSelectPuppy(updated[0].id);
+      const ok = await deleteDog(id);
+      if (ok) {
+        const updated = puppies.filter((p) => p.id !== id);
+        setPuppies(updated);
+        setActivities((prev) => prev.filter((a) => a.puppyId !== id));
+        if (activePuppyId === id && updated.length > 0) {
+          handleSelectPuppy(updated[0].id);
+        }
+        showToast('Dog profile deleted.', 'success');
       }
     }
   };
@@ -209,13 +202,11 @@ export function App() {
 
   const handleUnlockWithSSO = (email: string, name: string, token: string) => {
     setAuthToken(token);
-    localStorage.setItem('puppace_auth_token', token);
     localStorage.setItem('puppace_unlocked_v4', 'true');
     setIsAuthenticated(true);
     setUser((prev) => ({ ...prev, email, name }));
 
-    // Register or ensure pending state on backend
-    apiPostUser({
+    createUser({
       email,
       name,
       role: email.toLowerCase() === 'matthieu.jacquet@gmail.com' ? 'SuperAdmin' : 'Member',
@@ -226,20 +217,21 @@ export function App() {
   };
 
   const handleLockVault = () => {
-    setAuthToken(null);
-    localStorage.removeItem('puppace_auth_token');
-    localStorage.removeItem('puppace_unlocked_v4');
+    clearAuthToken();
     setIsAuthenticated(false);
   };
 
-  const handleAddActivity = (newActivity: Omit<Activity, 'id' | 'puppyId'>) => {
+  const handleAddActivity = async (newActivity: Omit<Activity, 'id' | 'puppyId'>) => {
     if (!activePuppy) return;
-    const fullActivity: Activity = {
+    const fullActivity = {
       ...newActivity,
-      id: `act-${Date.now()}`,
       puppyId: activePuppy.id,
     };
-    setActivities((prev) => [fullActivity, ...prev]);
+    const created = await createActivity(fullActivity);
+    if (created) {
+      setActivities((prev) => [created, ...prev]);
+      showToast('Activity logged!', 'success');
+    }
   };
 
   const handleOpenQuickLogModal = (type: ActivityType = 'pee') => {
@@ -262,13 +254,16 @@ export function App() {
     handleAddActivity(newAct);
   };
 
-  const handleDeleteActivity = (id: string) => {
-    setActivities((prev) => prev.filter((a) => a.id !== id));
-    apiDeleteActivity(id);
+  const handleDeleteActivity = async (id: string) => {
+    const ok = await deleteActivity(id);
+    if (ok) {
+      setActivities((prev) => prev.filter((a) => a.id !== id));
+      showToast('Activity deleted.', 'success');
+    }
   };
 
   const handleClearSampleData = () => {
-    if (window.confirm('Clear all activity logs?')) {
+    if (window.confirm('Clear all local state?')) {
       clearAllData();
       setActivities([]);
     }
@@ -296,18 +291,23 @@ export function App() {
       .reduce((sum, a) => sum + (a.quantityGrams || 80), 0);
   }, [activePuppyActivities]);
 
-  // Potty clean streak calculation fix: 0 days if no activities!
+  // Potty clean streak calculation: count unique calendar days with potty logs without accidents
   const streakDays = React.useMemo(() => {
-    if (activePuppyActivities.length === 0) return 0;
-    const accidents = activePuppyActivities.filter((a) => a.pottyLocation === 'indoor_accident');
-    if (accidents.length === 0) {
-      const oldestTimestamp = Math.min(...activePuppyActivities.map((a) => new Date(a.timestamp).getTime()));
-      const diffHours = (Date.now() - oldestTimestamp) / (1000 * 60 * 60);
-      return Math.max(1, Math.floor(diffHours / 24) + 1);
+    const pottyLogs = activePuppyActivities.filter((a) => a.type === 'pee' || a.type === 'poop');
+    if (pottyLogs.length === 0) return 0;
+
+    const accidents = pottyLogs.filter((a) => a.pottyLocation === 'indoor_accident');
+    if (accidents.length > 0) {
+      const latestAccidentMs = Math.max(...accidents.map((a) => new Date(a.timestamp).getTime()));
+      const diffMs = Date.now() - latestAccidentMs;
+      if (diffMs < 0) return 0;
+      return Math.floor(diffMs / (1000 * 60 * 60 * 24));
     }
-    const latestAccident = Math.max(...accidents.map((a) => new Date(a.timestamp).getTime()));
-    const diffHours = (Date.now() - latestAccident) / (1000 * 60 * 60);
-    return Math.floor(diffHours / 24);
+
+    const uniqueDays = new Set(
+      pottyLogs.map((a) => new Date(a.timestamp).toISOString().slice(0, 10))
+    );
+    return uniqueDays.size;
   }, [activePuppyActivities]);
 
   if (isLoading) {

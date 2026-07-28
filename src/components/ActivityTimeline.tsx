@@ -220,9 +220,15 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
                 </div>
 
                 <button
-                  onClick={() => onDeleteActivity(item.id)}
+                  onClick={() => {
+                    const confirmMsg = 'Are you sure you want to delete this activity log?';
+                    if (window.confirm(confirmMsg)) {
+                      onDeleteActivity(item.id);
+                    }
+                  }}
                   title="Delete log"
-                  className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-slate-500 hover:text-red-400 hover:bg-slate-800 transition cursor-pointer"
+                  aria-label="Delete log"
+                  className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 p-2 rounded-xl text-slate-400 hover:text-red-400 bg-slate-800/80 sm:bg-transparent hover:bg-slate-800 transition cursor-pointer border border-slate-700/60 sm:border-transparent shrink-0"
                 >
                   <Trash2 className="w-4 h-4" />
                 </button>

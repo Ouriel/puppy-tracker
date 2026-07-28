@@ -3,10 +3,10 @@ import type { PuppyProfile } from '../types';
 import { Syringe, ShieldCheck, Plus, Pill, Trash2 } from 'lucide-react';
 import { useI18n } from '../i18n';
 import {
-  apiFetchHealthRecords,
-  apiPostHealthRecord,
-  apiDeleteHealthRecord,
-} from '../utils/storage';
+  fetchHealthRecords,
+  createHealthRecord,
+  deleteHealthRecord,
+} from '../services/api';
 
 interface VaccinationEntry {
   id: string;
@@ -64,11 +64,11 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePupp
 
   const loadHealthRecords = async () => {
     if (!activePuppy?.id) return;
-    const vRes = await apiFetchHealthRecords(activePuppy.id, 'vaccination');
+    const vRes = await fetchHealthRecords(activePuppy.id, 'vaccination');
     if (vRes) {
       setVaccinations(vRes);
     }
-    const dRes = await apiFetchHealthRecords(activePuppy.id, 'deworming');
+    const dRes = await fetchHealthRecords(activePuppy.id, 'deworming');
     if (dRes) {
       setDewormingLogs(dRes);
     }
@@ -79,7 +79,6 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePupp
     if (!administeredDate || !nextDueDate || !activePuppy) return;
 
     const newEntry = {
-      id: `v-${Date.now()}`,
       puppyId: activePuppy.id,
       type: 'vaccination',
       name: vaccineType,
@@ -87,9 +86,11 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePupp
       boosterDate: nextDueDate,
     };
 
-    await apiPostHealthRecord(newEntry);
-    setVaccinations((prev) => [newEntry, ...prev]);
-    setIsAddingVaccine(false);
+    const created = await createHealthRecord(newEntry);
+    if (created) {
+      setVaccinations((prev) => [created, ...prev]);
+      setIsAddingVaccine(false);
+    }
   };
 
   const handleDeleteVaccine = async (id: string) => {
@@ -97,8 +98,10 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePupp
       ? 'Êtes-vous sûr de vouloir supprimer cette ligne de vaccin ?' 
       : 'Are you sure you want to delete this vaccine record?';
     if (window.confirm(confirmMsg)) {
-      await apiDeleteHealthRecord(id);
-      setVaccinations((prev) => prev.filter((v) => v.id !== id));
+      const ok = await deleteHealthRecord(id);
+      if (ok) {
+        setVaccinations((prev) => prev.filter((v) => v.id !== id));
+      }
     }
   };
 
@@ -107,7 +110,6 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePupp
     if (!dewormAdminDate || !dewormNextDate || !activePuppy) return;
 
     const newEntry = {
-      id: `d-${Date.now()}`,
       puppyId: activePuppy.id,
       type: 'deworming',
       name: productName.trim() || 'Milbemax Tab',
@@ -117,18 +119,22 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePupp
       weightAtTime: activePuppy.weightKg,
     };
 
-    await apiPostHealthRecord(newEntry);
-    setDewormingLogs((prev) => [newEntry, ...prev]);
-    setIsAddingDeworming(false);
+    const created = await createHealthRecord(newEntry);
+    if (created) {
+      setDewormingLogs((prev) => [created, ...prev]);
+      setIsAddingDeworming(false);
+    }
   };
 
   const handleDeleteDeworming = async (id: string) => {
     const confirmMsg = lang === 'fr' 
-      ? 'Êtes-vous sûr de vouloir supprimer cette entrée de vermifuge ?' 
-      : 'Are you sure you want to delete this deworming entry?';
+      ? 'Êtes-vous sûr de vouloir supprimer cette ligne de vermifuge ?' 
+      : 'Are you sure you want to delete this deworming record?';
     if (window.confirm(confirmMsg)) {
-      await apiDeleteHealthRecord(id);
-      setDewormingLogs((prev) => prev.filter((d) => d.id !== id));
+      const ok = await deleteHealthRecord(id);
+      if (ok) {
+        setDewormingLogs((prev) => prev.filter((d) => d.id !== id));
+      }
     }
   };
 
