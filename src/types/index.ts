@@ -60,10 +60,12 @@ export interface Caretaker {
 
 export interface PredictionResult {
   nextPeeExpectedAt: Date | null;
+  standardPeeExpectedAt?: Date | null;
   peeUrgency: 'safe' | 'soon' | 'overdue';
   peeReason: string;
   
   nextPoopExpectedAt: Date | null;
+  standardPoopExpectedAt?: Date | null;
   poopUrgency: 'safe' | 'soon' | 'overdue';
   poopReason: string;
 

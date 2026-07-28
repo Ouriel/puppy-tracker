@@ -94,10 +94,6 @@ export function calculateLearnedIntervalMinutes(
   return { intervalMins: blended, sampleCount: intervals.length, isLearned: true };
 }
 
-function formatShortTime(d: Date): string {
-  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-}
-
 /**
  * Advanced Predictive Potty & Feeding Schedules with Night Sleep Detection
  */
@@ -129,6 +125,7 @@ export function calculatePredictions(
 
   // 1. Pee Prediction
   let nextPeeExpectedAt: Date | null = null;
+  let standardPeeExpectedAt: Date | null = null;
   let peeUrgency: 'safe' | 'soon' | 'overdue' = 'safe';
   let peeReason = '';
 
@@ -136,6 +133,8 @@ export function calculatePredictions(
     const lastPeeDate = parseIsoDate(lastPee.timestamp);
     const lastPeeTime = lastPeeDate.getTime();
     const lastPeeHour = lastPeeDate.getHours();
+
+    standardPeeExpectedAt = new Date(lastPeeTime + learnedPee.intervalMins * 60 * 1000);
 
     const isLateEveningPee = lastPeeHour >= sleepSchedule.bedtimeHour - 1 || lastPeeHour < sleepSchedule.wakeupHour;
 
@@ -162,21 +161,20 @@ export function calculatePredictions(
     } else if (lastFood && parseIsoDate(lastFood.timestamp).getTime() > lastPeeTime) {
       const foodTime = parseIsoDate(lastFood.timestamp).getTime();
       const postFoodPee = new Date(foodTime + 25 * 60 * 1000);
-      const bladderPeeTime = new Date(lastPeeTime + learnedPee.intervalMins * 60 * 1000);
 
-      if (postFoodPee.getTime() < now.getTime() && bladderPeeTime.getTime() > postFoodPee.getTime()) {
-        nextPeeExpectedAt = bladderPeeTime;
+      if (postFoodPee.getTime() < now.getTime() && standardPeeExpectedAt.getTime() > postFoodPee.getTime()) {
+        nextPeeExpectedAt = standardPeeExpectedAt;
         peeReason = learnedPee.isLearned
-          ? `Adaptive AI: Learned ~${learnedPee.intervalMins}m avg gap from ${learnedPee.sampleCount} logs`
+          ? `Adaptive AI: Learned ~${learnedPee.intervalMins}m average bladder interval`
           : `Based on ~${Math.round(learnedPee.intervalMins)}m age bladder capacity`;
       } else {
         nextPeeExpectedAt = postFoodPee;
-        peeReason = `Pup fed recently (~20-30m post-meal) (Standard bladder interval: ~${formatShortTime(bladderPeeTime)})`;
+        peeReason = `Pup fed recently (pees ~20-30m post-meal). Learned interval: ~${learnedPee.intervalMins}m`;
       }
     } else {
-      nextPeeExpectedAt = new Date(lastPeeTime + learnedPee.intervalMins * 60 * 1000);
+      nextPeeExpectedAt = standardPeeExpectedAt;
       peeReason = learnedPee.isLearned
-        ? `Adaptive AI: Learned ~${learnedPee.intervalMins}m avg gap from ${learnedPee.sampleCount} logs`
+        ? `Adaptive AI: Learned ~${learnedPee.intervalMins}m average bladder interval`
         : `Based on ~${Math.round(learnedPee.intervalMins)}m age bladder capacity`;
     }
 
@@ -198,6 +196,7 @@ export function calculatePredictions(
 
   // 2. Poop Prediction
   let nextPoopExpectedAt: Date | null = null;
+  let standardPoopExpectedAt: Date | null = null;
   let poopUrgency: 'safe' | 'soon' | 'overdue' = 'safe';
   let poopReason = '';
 
@@ -205,6 +204,8 @@ export function calculatePredictions(
     const lastPoopDate = parseIsoDate(lastPoop.timestamp);
     const lastPoopTime = lastPoopDate.getTime();
     const lastPoopHour = lastPoopDate.getHours();
+
+    standardPoopExpectedAt = new Date(lastPoopTime + learnedPoop.intervalMins * 60 * 1000);
 
     const isEveningPoop = lastPoopHour >= 19 || lastPoopHour < sleepSchedule.wakeupHour;
 
@@ -215,25 +216,24 @@ export function calculatePredictions(
       }
       targetMorningPoop.setHours(sleepSchedule.wakeupHour + 1, 0, 0, 0); // ~8:00 AM post-breakfast
       nextPoopExpectedAt = targetMorningPoop;
-      poopReason = `Night mode: Sleeping overnight. Expected after morning breakfast (~${sleepSchedule.wakeupHour + 1}:00 AM)`;
+      poopReason = `Night mode: Sleeping overnight. Expected post-breakfast (~${sleepSchedule.wakeupHour + 1}:00 AM)`;
     } else if (lastFood && parseIsoDate(lastFood.timestamp).getTime() > lastPoopTime) {
       const foodTime = parseIsoDate(lastFood.timestamp).getTime();
       const postFoodPoopTime = foodTime + 35 * 60 * 1000;
-      const digestPoopTime = new Date(lastPoopTime + learnedPoop.intervalMins * 60 * 1000);
 
-      if (postFoodPoopTime < now.getTime() && digestPoopTime.getTime() > postFoodPoopTime) {
-        nextPoopExpectedAt = digestPoopTime;
+      if (postFoodPoopTime < now.getTime() && standardPoopExpectedAt.getTime() > postFoodPoopTime) {
+        nextPoopExpectedAt = standardPoopExpectedAt;
         poopReason = learnedPoop.isLearned
-          ? `Adaptive AI: Learned ~${Math.round(learnedPoop.intervalMins / 60)}h avg digest time`
+          ? `Adaptive AI: Learned ~${(learnedPoop.intervalMins / 60).toFixed(1)}h average digest interval`
           : 'Standard digestive interval (~5h)';
       } else {
         nextPoopExpectedAt = new Date(postFoodPoopTime);
-        poopReason = `Pup fed recently (gastrocolic reflex ~30-45m) (Standard digest interval: ~${formatShortTime(digestPoopTime)})`;
+        poopReason = `Pup fed recently (gastrocolic reflex ~30-45m). Learned interval: ~${(learnedPoop.intervalMins / 60).toFixed(1)}h`;
       }
     } else {
-      nextPoopExpectedAt = new Date(lastPoopTime + learnedPoop.intervalMins * 60 * 1000);
+      nextPoopExpectedAt = standardPoopExpectedAt;
       poopReason = learnedPoop.isLearned
-        ? `Adaptive AI: Learned ~${Math.round(learnedPoop.intervalMins / 60)}h avg digest time`
+        ? `Adaptive AI: Learned ~${(learnedPoop.intervalMins / 60).toFixed(1)}h average digest interval`
         : 'Standard digestive interval (~5h)';
     }
 
@@ -277,7 +277,7 @@ export function calculatePredictions(
     nextFoodExpectedAt = targetBreakfast;
 
     if (isGoalReached) {
-      foodReason = `Today's food goal reached (${todayGramTotal}g / ${targetMeals} meals)! Next meal is breakfast tomorrow ~${sleepSchedule.wakeupHour}:30 AM`;
+      foodReason = `Today's food goal reached (${todayGramTotal}g / ${targetMeals} meals). Next: ~${sleepSchedule.wakeupHour}:30 AM`;
       foodUrgency = 'safe';
     } else {
       foodReason = `Night mode: Next meal is breakfast tomorrow ~${sleepSchedule.wakeupHour}:30 AM`;
@@ -305,9 +305,11 @@ export function calculatePredictions(
 
   return {
     nextPeeExpectedAt,
+    standardPeeExpectedAt,
     peeUrgency,
     peeReason,
     nextPoopExpectedAt,
+    standardPoopExpectedAt,
     poopUrgency,
     poopReason,
     nextFoodExpectedAt,
