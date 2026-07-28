@@ -1,7 +1,13 @@
 import type { Activity, PredictionResult, PuppyProfile } from '../types';
 
+function parseIsoDate(timestamp: string): Date {
+  if (!timestamp) return new Date();
+  const formatted = timestamp.includes('T') ? timestamp : timestamp.replace(' ', 'T');
+  return new Date(formatted);
+}
+
 export function getPuppyAge(birthDateIso: string): { weeks: number; months: number; text: string } {
-  const birth = new Date(birthDateIso);
+  const birth = parseIsoDate(birthDateIso);
   const now = new Date();
   const diffMs = now.getTime() - birth.getTime();
   const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
@@ -27,20 +33,18 @@ export function calculateLearnedIntervalMinutes(
 ): { intervalMins: number; sampleCount: number; isLearned: boolean } {
   const sortedLogs = [...activities]
     .filter((a) => a.type === type)
-    .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+    .sort((a, b) => parseIsoDate(a.timestamp).getTime() - parseIsoDate(b.timestamp).getTime());
 
   if (sortedLogs.length < 2) {
     return { intervalMins: fallbackMinutes, sampleCount: sortedLogs.length, isLearned: false };
   }
 
-  // Calculate gaps between consecutive logs occurring on the same day (ignoring overnight gaps >8h)
   const intervals: number[] = [];
   for (let i = 1; i < sortedLogs.length; i++) {
-    const prev = new Date(sortedLogs[i - 1].timestamp).getTime();
-    const curr = new Date(sortedLogs[i].timestamp).getTime();
+    const prev = parseIsoDate(sortedLogs[i - 1].timestamp).getTime();
+    const curr = parseIsoDate(sortedLogs[i].timestamp).getTime();
     const diffMins = (curr - prev) / (1000 * 60);
 
-    // Filter reasonable daytime gaps (15 mins to 6 hours)
     if (diffMins >= 15 && diffMins <= 360) {
       intervals.push(diffMins);
     }
@@ -51,7 +55,6 @@ export function calculateLearnedIntervalMinutes(
   }
 
   const avg = Math.round(intervals.reduce((sum, v) => sum + v, 0) / intervals.length);
-  // Blend 70% learned average + 30% baseline for stability
   const blended = Math.round(avg * 0.7 + fallbackMinutes * 0.3);
 
   return { intervalMins: blended, sampleCount: intervals.length, isLearned: true };
@@ -66,7 +69,7 @@ export function calculatePredictions(
 ): PredictionResult {
   const now = new Date();
   const sorted = [...activities].sort(
-    (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+    (a, b) => parseIsoDate(b.timestamp).getTime() - parseIsoDate(a.timestamp).getTime()
   );
 
   const lastPee = sorted.find((a) => a.type === 'pee');
@@ -87,10 +90,10 @@ export function calculatePredictions(
   let peeReason = '';
 
   if (lastPee) {
-    const lastPeeTime = new Date(lastPee.timestamp).getTime();
+    const lastPeeTime = parseIsoDate(lastPee.timestamp).getTime();
 
-    if (lastFood && new Date(lastFood.timestamp).getTime() > lastPeeTime) {
-      const foodTime = new Date(lastFood.timestamp).getTime();
+    if (lastFood && parseIsoDate(lastFood.timestamp).getTime() > lastPeeTime) {
+      const foodTime = parseIsoDate(lastFood.timestamp).getTime();
       const postFoodPee = new Date(foodTime + 25 * 60 * 1000);
       if (postFoodPee.getTime() < lastPeeTime + learnedPee.intervalMins * 60 * 1000) {
         nextPeeExpectedAt = postFoodPee;
@@ -123,10 +126,10 @@ export function calculatePredictions(
   let poopReason = '';
 
   if (lastPoop) {
-    const lastPoopTime = new Date(lastPoop.timestamp).getTime();
+    const lastPoopTime = parseIsoDate(lastPoop.timestamp).getTime();
 
-    if (lastFood && new Date(lastFood.timestamp).getTime() > lastPoopTime) {
-      const foodTime = new Date(lastFood.timestamp).getTime();
+    if (lastFood && parseIsoDate(lastFood.timestamp).getTime() > lastPoopTime) {
+      const foodTime = parseIsoDate(lastFood.timestamp).getTime();
       const postFoodPoop = new Date(foodTime + 35 * 60 * 1000);
       nextPoopExpectedAt = postFoodPoop;
       poopReason = 'Pup ate recently (poop gastrocolic reflex in 30-45 min)';
@@ -134,7 +137,7 @@ export function calculatePredictions(
       nextPoopExpectedAt = new Date(lastPoopTime + learnedPoop.intervalMins * 60 * 1000);
       poopReason = learnedPoop.isLearned
         ? `Adaptive AI: Learned ~${Math.round(learnedPoop.intervalMins / 60)}h avg digest time`
-        : 'Standard digestive interval';
+        : 'Standard digestive interval (~5h)';
     }
 
     const minsUntilPoop = (nextPoopExpectedAt.getTime() - now.getTime()) / (1000 * 60);
@@ -155,7 +158,7 @@ export function calculatePredictions(
   let foodReason = '';
 
   if (lastFood) {
-    const lastFoodTime = new Date(lastFood.timestamp).getTime();
+    const lastFoodTime = parseIsoDate(lastFood.timestamp).getTime();
     const mealIntervalHours = Math.max(3, Math.min(6, 12 / (profile.targetMealsPerDay || 3)));
     nextFoodExpectedAt = new Date(lastFoodTime + mealIntervalHours * 60 * 60 * 1000);
     foodReason = `Next of ${profile.targetMealsPerDay} daily meals (~every ${mealIntervalHours}h)`;

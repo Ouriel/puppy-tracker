@@ -35,11 +35,14 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = ({
     const diffMs = targetDate.getTime() - now.getTime();
     const diffMins = Math.round(diffMs / (1000 * 60));
 
-    if (diffMins < -60) {
-      const h = Math.abs(Math.floor(diffMins / 60));
-      return `${h}h ${t.dashboard.overdueText}`;
-    } else if (diffMins < 0) {
-      return `${Math.abs(diffMins)}m ${t.dashboard.overdueText}!`;
+    if (diffMins < 0) {
+      const overdueMins = Math.abs(diffMins);
+      if (overdueMins < 60) {
+        return `${overdueMins}m ${t.dashboard.overdueText}!`;
+      }
+      const h = Math.floor(overdueMins / 60);
+      const m = overdueMins % 60;
+      return m > 0 ? `${h}h ${m}m ${t.dashboard.overdueText}` : `${h}h ${t.dashboard.overdueText}`;
     } else if (diffMins === 0) {
       return t.dashboard.dueNow;
     } else if (diffMins < 60) {
@@ -47,7 +50,7 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = ({
     } else {
       const h = Math.floor(diffMins / 60);
       const m = diffMins % 60;
-      return `~${h}h ${m}m`;
+      return m > 0 ? `~${h}h ${m}m` : `~${h}h`;
     }
   };
 
