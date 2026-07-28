@@ -18,6 +18,7 @@ import {
   createActivity,
   deleteActivity,
   fetchHousehold,
+  fetchHealthRecords,
   createCaretaker,
   deleteCaretaker,
   createUser,
@@ -139,8 +140,16 @@ export function App() {
 
         if (remoteDogs) {
           setPuppies(remoteDogs);
+          const targetId = activePuppyId || (remoteDogs.length > 0 ? remoteDogs[0].id : null);
           if (remoteDogs.length > 0 && !activePuppyId) {
             setActivePuppyIdState(remoteDogs[0].id);
+          }
+          if (targetId) {
+            // Warm up SWR cache for instant Carnet de Santé tab switching
+            Promise.all([
+              fetchHealthRecords(targetId, 'vaccination'),
+              fetchHealthRecords(targetId, 'deworming'),
+            ]).catch(() => {});
           }
         }
 
