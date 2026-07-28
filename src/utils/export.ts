@@ -72,7 +72,7 @@ export function printVetReport(activities: Activity[], profile: PuppyProfile) {
           <h1>🐾 ${profile.name} - Veterinary & Health Summary</h1>
           <div class="meta">
             <div><strong>Breed:</strong> ${profile.breed}</div>
-            <div><strong>Weight:</strong> ${profile.weightKg} kg</div>
+            <div><strong>Daily Food Goal:</strong> ${profile.dailyFoodGramGoal}g / day (${profile.targetMealsPerDay || 3} meals)</div>
             <div><strong>Generated:</strong> ${today}</div>
           </div>
         </div>

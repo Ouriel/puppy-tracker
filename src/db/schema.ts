@@ -13,7 +13,7 @@ export const puppiesTable = pgTable('puppies', {
   name: text('name').notNull(),
   breed: text('breed').notNull(),
   birthDate: text('birth_date').notNull(),
-  weightKg: doublePrecision('weight_kg').notNull(),
+  weightKg: doublePrecision('weight_kg'),
   dailyFoodGramGoal: integer('daily_food_gram_goal').notNull().default(200),
   targetMealsPerDay: integer('target_meals_per_day').notNull().default(3),
   avatarUrl: text('avatar_url'),

@@ -201,7 +201,7 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePupp
             <li><strong>{lang === 'fr' ? 'De 2 sem. à 2 mois' : '2 wks to 2 mos'}</strong>: {lang === 'fr' ? '1 fois toutes les 2 semaines' : 'Every 2 weeks'}</li>
             <li><strong>{lang === 'fr' ? 'De 2 à 6 mois' : '2 to 6 months'}</strong>: {lang === 'fr' ? '1 fois par mois (Milbemax / Drontal)' : 'Once per month (Milbemax / Drontal)'}</li>
             <li><strong>{lang === 'fr' ? 'Après 6 mois (Adulte)' : 'After 6 months'}</strong>: {lang === 'fr' ? '3 à 4 fois par an (changement de saison)' : '3 to 4 times per year'}</li>
-            <li><strong>{lang === 'fr' ? 'Dosage au poids' : 'Weight dosing'}</strong>: {lang === 'fr' ? `Vérifier la dose pour ${activePuppy.weightKg}kg` : `Verify dosage for ${activePuppy.weightKg}kg`}</li>
+            <li><strong>{lang === 'fr' ? 'Dosage au poids' : 'Weight dosing'}</strong>: {lang === 'fr' ? 'Adapter la dose exacte selon le poids actuel du chiot' : 'Dose precisely according to current puppy weight'}</li>
           </ul>
         </div>
       </div>

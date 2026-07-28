@@ -32,7 +32,7 @@ export interface PuppyProfile {
   name: string;
   breed: string;
   birthDate: string; // YYYY-MM-DD
-  weightKg: number;
+  weightKg?: number;
   avatarUrl?: string;
   targetMealsPerDay: number;
   dailyFoodGramGoal: number;

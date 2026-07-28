@@ -25,7 +25,7 @@ export const WeightGrowthChart: React.FC<WeightGrowthChartProps> = ({
 
   const latestWeight = weightLogs.length > 0
     ? weightLogs[weightLogs.length - 1].weightKg!
-    : profile.weightKg;
+    : (profile.weightKg || 0);
 
   // Calculate puppy age in weeks
   const ageWeeks = React.useMemo(() => {
