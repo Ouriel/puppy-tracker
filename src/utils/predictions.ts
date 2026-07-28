@@ -256,9 +256,10 @@ export function calculatePredictions(
 
   if (lastFood) {
     const lastFoodTime = parseIsoDate(lastFood.timestamp).getTime();
-    const mealIntervalHours = Math.max(3, Math.min(6, 12 / (profile.targetMealsPerDay || 3)));
+    const targetMeals = Math.max(1, profile.targetMealsPerDay || 3);
+    const mealIntervalHours = targetMeals > 1 ? 12 / (targetMeals - 1) : 12;
     nextFoodExpectedAt = new Date(lastFoodTime + mealIntervalHours * 60 * 60 * 1000);
-    foodReason = `Next of ${profile.targetMealsPerDay} daily meals (~every ${mealIntervalHours}h)`;
+    foodReason = `Next of ${targetMeals} daily meals (~every ${mealIntervalHours}h)`;
 
     const minsUntilFood = (nextFoodExpectedAt.getTime() - now.getTime()) / (1000 * 60);
     if (minsUntilFood <= -15) {
