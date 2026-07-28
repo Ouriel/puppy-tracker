@@ -2,8 +2,8 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { neon } from '@neondatabase/serverless';
 import { drizzle } from 'drizzle-orm/neon-http';
 import { eq, and } from 'drizzle-orm';
-import { puppiesTable } from '../src/db/schema';
-import { verifyAuth } from './_auth';
+import { puppiesTable } from '../src/db/schema.js';
+import { verifyAuth } from './_auth.js';
 import { z } from 'zod';
 
 const DogSchema = z.object({

@@ -2,8 +2,8 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { neon } from '@neondatabase/serverless';
 import { drizzle } from 'drizzle-orm/neon-http';
 import { eq } from 'drizzle-orm';
-import { caretakersTable, householdsTable } from '../src/db/schema';
-import { verifyAuth } from './_auth';
+import { caretakersTable, householdsTable } from '../src/db/schema.js';
+import { verifyAuth } from './_auth.js';
 
 function getDb() {
   const sql = neon(process.env.POSTGRES_URL || process.env.DATABASE_URL || '');

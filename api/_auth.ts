@@ -2,7 +2,7 @@ import { OAuth2Client } from 'google-auth-library';
 import { neon } from '@neondatabase/serverless';
 import { drizzle } from 'drizzle-orm/neon-http';
 import { eq } from 'drizzle-orm';
-import { usersTable } from '../src/db/schema';
+import { usersTable } from '../src/db/schema.js';
 import type { VercelRequest } from '@vercel/node';
 
 const client = new OAuth2Client();

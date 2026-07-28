@@ -2,8 +2,8 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { neon } from '@neondatabase/serverless';
 import { drizzle } from 'drizzle-orm/neon-http';
 import { eq, and, desc } from 'drizzle-orm';
-import { activitiesTable } from '../src/db/schema';
-import { verifyAuth } from './_auth';
+import { activitiesTable } from '../src/db/schema.js';
+import { verifyAuth } from './_auth.js';
 import { z } from 'zod';
 
 const ActivitySchema = z.object({
