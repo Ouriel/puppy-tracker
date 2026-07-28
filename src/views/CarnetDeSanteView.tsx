@@ -47,12 +47,12 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePupp
   const [isAddingDeworming, setIsAddingDeworming] = useState(false);
 
   // New Vaccine Form
-  const [vaccineType, setVaccineType] = useState<string>('DHPP');
+  const [vaccineType, setVaccineType] = useState<string>('CHPPi + L4');
   const [administeredDate, setAdministeredDate] = useState(new Date().toISOString().slice(0, 10));
   const [nextDueDate, setNextDueDate] = useState('');
 
   // New Deworming Form
-  const [productName, setProductName] = useState('Milbemax Tab');
+  const [productName, setProductName] = useState('Milbemax Tab / Milprazon');
   const [dewormAdminDate, setDewormAdminDate] = useState(new Date().toISOString().slice(0, 10));
   const [dewormNextDate, setDewormNextDate] = useState('');
 
@@ -112,8 +112,8 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePupp
     const newEntry = {
       puppyId: activePuppy.id,
       type: 'deworming',
-      name: productName.trim() || 'Milbemax Tab',
-      productName: productName.trim() || 'Milbemax Tab',
+      name: productName.trim() || 'Milbemax Tab / Milprazon',
+      productName: productName.trim() || 'Milbemax Tab / Milprazon',
       date: dewormAdminDate,
       boosterDate: dewormNextDate,
       weightAtTime: activePuppy.weightKg,
@@ -127,8 +127,8 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePupp
   };
 
   const handleDeleteDeworming = async (id: string) => {
-    const confirmMsg = lang === 'fr' 
-      ? 'Êtes-vous sûr de vouloir supprimer cette ligne de vermifuge ?' 
+    const confirmMsg = lang === 'fr'
+      ? 'Êtes-vous sûr de vouloir supprimer cette ligne de vermifuge ?'
       : 'Are you sure you want to delete this deworming record?';
     if (window.confirm(confirmMsg)) {
       const ok = await deleteHealthRecord(id);
@@ -140,15 +140,15 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePupp
 
   if (!activePuppy) {
     return (
-      <div className="bg-slate-900 border border-slate-800 p-8 rounded-2xl text-center text-slate-400 space-y-2">
-        <Syringe className="w-10 h-10 text-indigo-400 mx-auto" />
-        <h3 className="text-base font-bold text-white">
-          {lang === 'fr' ? 'Aucun profil de chien sélectionné' : 'No Active Dog Profile Selected'}
-        </h3>
-        <p className="text-xs">
-          {lang === 'fr' 
-            ? 'Enregistrez un chiot dans "Paramètres & Foyer" pour gérer son carnet de santé !' 
-            : 'Register a puppy in "Settings & Household" to manage their Health Passport!'}
+      <div className="bg-slate-900 border border-slate-800 p-8 rounded-2xl text-center space-y-3 max-w-xl mx-auto">
+        <Syringe className="w-12 h-12 text-slate-600 mx-auto" />
+        <h2 className="text-lg font-bold text-slate-200">
+          {lang === 'fr' ? 'Aucun chiot sélectionné' : 'No Puppy Selected'}
+        </h2>
+        <p className="text-xs text-slate-400">
+          {lang === 'fr'
+            ? 'Veuillez d\'abord ajouter ou sélectionner un chiot dans le tableau de bord.'
+            : 'Please add or select a puppy in the dashboard first.'}
         </p>
       </div>
     );
@@ -159,45 +159,49 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePupp
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-4 bg-slate-900 border border-slate-800 p-6 rounded-2xl">
         <div className="flex items-center gap-3">
-          <div className="p-3 bg-gradient-to-br from-teal-500 to-indigo-600 rounded-xl shadow-md">
+          <div className="p-3 bg-gradient-to-br from-teal-500 to-emerald-600 rounded-xl shadow-md">
             <Syringe className="w-6 h-6 text-white" />
           </div>
           <div>
             <h2 className="text-xl font-bold text-slate-100 flex items-center gap-2">
-              <span>{t.health.carnetTitle} — {activePuppy.name}</span>
-              <span className="text-xs bg-indigo-950 text-indigo-300 border border-indigo-700/50 px-2.5 py-0.5 rounded-full font-semibold">
-                {lang === 'fr' ? 'Protocole Vétérinaire Français' : 'French Veterinary Protocol'}
-              </span>
+              <span>{lang === 'fr' ? 'Carnet de Santé Vétérinaire' : 'Health Passport'} &bull; {activePuppy.name}</span>
             </h2>
-            <p className="text-xs text-slate-400">{t.health.subtitle}</p>
+            <p className="text-xs text-slate-400">
+              {lang === 'fr'
+                ? `Suivi vaccinal (combinaisons françaises CHPPi+L4) et vermifugation ESCCAP France pour ${activePuppy.name} (${activePuppy.breed})`
+                : `Vaccination schedule and deworming passport for ${activePuppy.name} (${activePuppy.breed})`}
+            </p>
           </div>
         </div>
       </div>
 
-      {/* Protocol Reference Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      {/* Guidelines Info Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* French Vaccine Schedule Card */}
         <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl space-y-2">
           <h3 className="text-xs font-bold text-teal-400 flex items-center gap-1.5 uppercase tracking-wider">
             <ShieldCheck className="w-4 h-4" />
-            <span>{lang === 'fr' ? 'Calendrier Vaccinal Chiot' : 'Puppy Vaccination Schedule'}</span>
+            <span>{lang === 'fr' ? 'Calendrier Vaccinal Français (CHPPi+L4)' : 'French Puppy Vaccine Guidelines'}</span>
           </h3>
           <ul className="text-[11px] text-slate-300 space-y-1 list-disc list-inside">
-            <li><strong>{lang === 'fr' ? '8 Semaines (Primo)' : '8 Weeks (Initial)'}</strong>: DHPP + Leptospirose (L4)</li>
-            <li><strong>{lang === 'fr' ? '12 Semaines (Rappel 1)' : '12 Weeks (Booster 1)'}</strong>: DHPP + L4 + {lang === 'fr' ? 'Rage (Obligatoire voyages)' : 'Rabies (Mandatory for travel)'}</li>
-            <li><strong>{lang === 'fr' ? '16 Semaines (Rappel 2)' : '16 Weeks (Booster 2)'}</strong>: DHPP final booster</li>
-            <li><strong>{lang === 'fr' ? 'Annuel / 3 Ans' : 'Annual Booster'}</strong>: {lang === 'fr' ? 'Rappel annuel vétérinaire' : 'Annual vet checkup booster'}</li>
+            <li><strong>{lang === 'fr' ? '8 Semaines (Primo)' : '8 Weeks (Initial)'}</strong>: CHPPi + L4 (1ère injection)</li>
+            <li><strong>{lang === 'fr' ? '12 Semaines (Rappel 1)' : '12 Weeks (Booster 1)'}</strong>: CHPPi + L4 (+ KC / Rage R obligatoire si voyage)</li>
+            <li><strong>{lang === 'fr' ? '16 Semaines (Rappel 2)' : '16 Weeks (Booster 2)'}</strong>: CHPPi + L4 (Conseillé immunité Parvo)</li>
+            <li><strong>{lang === 'fr' ? 'Rappel 1 An' : '1 Year Booster'}</strong>: Rappel CHPPi + L4 (+ Rage R)</li>
           </ul>
         </div>
 
+        {/* French ESCCAP Deworming Protocol Card */}
         <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl space-y-2">
           <h3 className="text-xs font-bold text-amber-400 flex items-center gap-1.5 uppercase tracking-wider">
             <Pill className="w-4 h-4" />
-            <span>{lang === 'fr' ? 'Protocole Vermifuge' : 'Deworming Protocol'}</span>
+            <span>{lang === 'fr' ? 'Protocole Vermifuge ESCCAP France' : 'ESCCAP Deworming Protocol'}</span>
           </h3>
           <ul className="text-[11px] text-slate-300 space-y-1 list-disc list-inside">
-            <li><strong>{lang === 'fr' ? 'De 2 à 6 mois' : '2 to 6 months old'}</strong>: {lang === 'fr' ? '1 fois par mois (Milbemax / Drontal)' : 'Once per month (Milbemax / Drontal)'}</li>
-            <li><strong>{lang === 'fr' ? 'Après 6 mois' : 'After 6 months old'}</strong>: {lang === 'fr' ? '4 fois par an (changement de saison)' : '4 times per year (quarterly)'}</li>
-            <li><strong>{lang === 'fr' ? 'Pesée obligatoire' : 'Weight dosing'}</strong>: {lang === 'fr' ? `Adapter la dose exacte selon le poids (${activePuppy.weightKg}kg)` : `Dose precisely according to weight (${activePuppy.weightKg}kg)`}</li>
+            <li><strong>{lang === 'fr' ? 'De 2 sem. à 2 mois' : '2 wks to 2 mos'}</strong>: {lang === 'fr' ? '1 fois toutes les 2 semaines' : 'Every 2 weeks'}</li>
+            <li><strong>{lang === 'fr' ? 'De 2 à 6 mois' : '2 to 6 months'}</strong>: {lang === 'fr' ? '1 fois par mois (Milbemax / Drontal)' : 'Once per month (Milbemax / Drontal)'}</li>
+            <li><strong>{lang === 'fr' ? 'Après 6 mois (Adulte)' : 'After 6 months'}</strong>: {lang === 'fr' ? '3 à 4 fois par an (changement de saison)' : '3 to 4 times per year'}</li>
+            <li><strong>{lang === 'fr' ? 'Dosage au poids' : 'Weight dosing'}</strong>: {lang === 'fr' ? `Vérifier la dose pour ${activePuppy.weightKg}kg` : `Verify dosage for ${activePuppy.weightKg}kg`}</li>
           </ul>
         </div>
       </div>
@@ -228,10 +232,13 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePupp
                   onChange={(e) => setVaccineType(e.target.value)}
                   className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-teal-500 cursor-pointer"
                 >
-                  <option value="DHPP">DHPP (Parvo, Distemper, Hepatitis)</option>
-                  <option value="Rage">{lang === 'fr' ? 'Rage' : 'Rabies'}</option>
-                  <option value="Leptospirose">Leptospirose (L4)</option>
-                  <option value="Toux_de_Chenil">{lang === 'fr' ? 'Toux de Chenil (Bordetella)' : 'Kennel Cough (Bordetella)'}</option>
+                  <option value="CHPPi + L4">CHPPi + L4 (Carré, Hépatite, Parvo, Pi + Lepto 4)</option>
+                  <option value="CHPPi">CHPPi (Carré, Hépatite, Parvovirose, Para-influenza)</option>
+                  <option value="L4 (Leptospirose)">L4 (Leptospirose 4 souches)</option>
+                  <option value="Rage (R)">{lang === 'fr' ? 'Rage (R) - Voyage / Obligatoire' : 'Rabies (R) - Travel'}</option>
+                  <option value="Toux de Chenil (Bb/Kc)">{lang === 'fr' ? 'Toux de Chenil (Kc / Bordetella)' : 'Kennel Cough (Bordetella / Kc)'}</option>
+                  <option value="Piroplasmose">Piroplasmose (Tiques - France)</option>
+                  <option value="Leishmaniose">Leishmaniose (Singe / Sud de France)</option>
                 </select>
               </div>
 
@@ -330,13 +337,18 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePupp
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
                 <label className="block text-xs font-semibold text-slate-400 mb-1">{t.health.productName}</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Milbemax / Drontal"
+                <select
                   value={productName}
                   onChange={(e) => setProductName(e.target.value)}
-                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-amber-500"
-                />
+                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-amber-500 cursor-pointer"
+                >
+                  <option value="Milbemax Tab / Milprazon">Milbemax Tab / Milprazon (N°1 France)</option>
+                  <option value="Drontal Chien">Drontal Chien (Praziquantel / Fébantel)</option>
+                  <option value="Panacur (Fenbendazole)">Panacur (Chiots / Giardiose)</option>
+                  <option value="Dolpac / Procox">Dolpac / Procox</option>
+                  <option value="Nexgard Spectra">Nexgard Spectra (Vermifuge + Tiques/Puces)</option>
+                  <option value="Autre vermifuge">Autre produit vermifuge</option>
+                </select>
               </div>
 
               <div>
@@ -381,21 +393,28 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePupp
                   <Pill className="w-4 h-4" />
                 </div>
                 <div>
-                  <div className="text-xs font-bold text-white">{d.name || d.productName}</div>
+                  <div className="text-xs font-bold text-white flex items-center gap-2">
+                    <span>{d.productName || d.name}</span>
+                    {d.weightAtTime && (
+                      <span className="text-[10px] text-amber-300 bg-amber-950/60 border border-amber-800 px-2 py-0.2 rounded font-semibold">
+                        Poids: {d.weightAtTime} kg
+                      </span>
+                    )}
+                  </div>
                   <div className="text-[11px] text-slate-400">
-                    {lang === 'fr' ? 'Pris le' : 'Administered'} {d.date} &bull; {lang === 'fr' ? 'Poids:' : 'Weight:'} {d.weightAtTime || activePuppy.weightKg} kg
+                    {lang === 'fr' ? 'Donné le' : 'Given'} {d.date}
                   </div>
                 </div>
               </div>
 
               <div className="flex items-center gap-3">
                 <div className="text-right">
-                  <div className="text-xs font-bold text-indigo-300">{lang === 'fr' ? 'Prochain:' : 'Next:'} {d.boosterDate}</div>
-                  <div className="text-[10px] text-slate-500">{lang === 'fr' ? 'Statut: À jour' : 'Status: Up to date'}</div>
+                  <div className="text-xs font-bold text-amber-300">{lang === 'fr' ? 'Prochain:' : 'Next:'} {d.boosterDate}</div>
+                  <div className="text-[10px] text-slate-500">{lang === 'fr' ? 'Statut: Vermifugé' : 'Status: Dewormed'}</div>
                 </div>
                 <button
                   onClick={() => handleDeleteDeworming(d.id)}
-                  title={lang === 'fr' ? 'Supprimer la ligne de vermifuge' : 'Delete deworming entry'}
+                  title={lang === 'fr' ? 'Supprimer la ligne de vermifuge' : 'Delete deworming record'}
                   className="p-1.5 text-slate-500 hover:text-red-400 hover:bg-red-950/40 rounded-lg transition cursor-pointer"
                 >
                   <Trash2 className="w-4 h-4" />
