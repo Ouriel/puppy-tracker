@@ -59,7 +59,6 @@ export const fr = {
     nextPoop: 'Prochain Caca',
     nextMeal: 'Prochain Repas',
     outside: 'Dehors',
-    pad: 'Tapis de propreté (Déconseillé)',
     accident: 'Accident Intérieur',
     peedOutside: 'Pipi Dehors',
     poopedOutside: 'Caca Dehors',

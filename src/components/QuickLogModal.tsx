@@ -155,7 +155,7 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
                 <label className="block text-xs font-semibold text-slate-400 mb-2">
                   {t.potty.location}
                 </label>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                <div className="grid grid-cols-2 gap-2">
                   <button
                     type="button"
                     onClick={() => setPottyLocation('outside')}
@@ -166,17 +166,6 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
                     }`}
                   >
                     {t.potty.outsideLabel}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setPottyLocation('indoor_pad')}
-                    className={`py-3 px-3 rounded-xl text-[11px] font-bold border transition cursor-pointer ${
-                      pottyLocation === 'indoor_pad'
-                        ? 'bg-amber-600 text-white border-amber-500 shadow'
-                        : 'bg-slate-800 text-amber-400 border-slate-700 hover:bg-slate-700'
-                    }`}
-                  >
-                    {t.potty.padLabel}
                   </button>
                   <button
                     type="button"

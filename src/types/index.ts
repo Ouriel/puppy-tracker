@@ -1,6 +1,6 @@
 export type ActivityType = 'pee' | 'poop' | 'food' | 'walk' | 'weight' | 'medication';
 
-export type PottyLocation = 'outside' | 'indoor_pad' | 'indoor_accident';
+export type PottyLocation = 'outside' | 'indoor_accident';
 
 export type StoolConsistency = 'hard' | 'normal' | 'soft' | 'runny';
 

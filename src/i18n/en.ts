@@ -59,7 +59,6 @@ export const en = {
     nextPoop: 'Next Poop',
     nextMeal: 'Next Meal',
     outside: 'Outside',
-    pad: 'Indoor Pad (Not Recommended)',
     accident: 'Indoor Accident',
     peedOutside: 'Peed Outside',
     poopedOutside: 'Pooped Outside',

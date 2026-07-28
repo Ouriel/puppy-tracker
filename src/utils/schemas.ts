@@ -10,7 +10,7 @@ export const ActivityTypeSchema = z.enum([
   'medication',
 ]);
 
-export const PottyLocationSchema = z.enum(['outside', 'indoor_pad', 'indoor_accident']);
+export const PottyLocationSchema = z.enum(['outside', 'indoor_accident']);
 
 export const StoolConsistencySchema = z.enum(['hard', 'normal', 'soft', 'runny']);
 

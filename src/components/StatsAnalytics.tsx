@@ -12,11 +12,10 @@ export const StatsAnalytics: React.FC<StatsAnalyticsProps> = ({ activities, prof
   const { t } = useI18n();
   const pottyLogs = activities.filter((a) => a.type === 'pee' || a.type === 'poop');
   const outsideCount = pottyLogs.filter((a) => a.pottyLocation === 'outside').length;
-  const padCount = pottyLogs.filter((a) => a.pottyLocation === 'indoor_pad').length;
   const accidentCount = pottyLogs.filter((a) => a.pottyLocation === 'indoor_accident').length;
   const totalPotty = pottyLogs.length;
 
-  const successRate = totalPotty > 0 ? Math.round(((outsideCount + padCount) / totalPotty) * 100) : 100;
+  const successRate = totalPotty > 0 ? Math.round((outsideCount / totalPotty) * 100) : 100;
 
   const todayStr = new Date().toISOString().slice(0, 10);
   const todayFood = activities.filter(
@@ -55,25 +54,16 @@ export const StatsAnalytics: React.FC<StatsAnalyticsProps> = ({ activities, prof
             title={`${t.potty.outside}: ${outsideCount}`}
           />
           <div
-            className="bg-amber-500 transition-all duration-500"
-            style={{ width: `${totalPotty ? (padCount / totalPotty) * 100 : 0}%` }}
-            title={`${t.potty.pad}: ${padCount}`}
-          />
-          <div
             className="bg-red-500 transition-all duration-500"
             style={{ width: `${totalPotty ? (accidentCount / totalPotty) * 100 : 0}%` }}
             title={`${t.potty.accident}: ${accidentCount}`}
           />
         </div>
 
-        <div className="grid grid-cols-3 text-center text-xs">
+        <div className="grid grid-cols-2 text-center text-xs gap-2">
           <div className="bg-emerald-950/30 border border-emerald-800/40 p-2 rounded-lg">
             <div className="font-bold text-emerald-400">{outsideCount}</div>
             <div className="text-[10px] text-slate-400">{t.potty.outside}</div>
-          </div>
-          <div className="bg-amber-950/30 border border-amber-800/40 p-2 rounded-lg">
-            <div className="font-bold text-amber-400">{padCount}</div>
-            <div className="text-[10px] text-slate-400">{t.potty.pad}</div>
           </div>
           <div className="bg-red-950/30 border border-red-800/40 p-2 rounded-lg">
             <div className="font-bold text-red-400">{accidentCount}</div>

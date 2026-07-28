@@ -163,11 +163,6 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
                           🌳 {t.potty.outside}
                         </span>
                       )}
-                      {item.pottyLocation === 'indoor_pad' && (
-                        <span className="bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[10px] font-bold px-2 py-0.5 rounded-full">
-                          🟨 {t.potty.pad}
-                        </span>
-                      )}
                       {item.pottyLocation === 'indoor_accident' && (
                         <span className="bg-red-500/20 text-red-300 border border-red-500/30 text-[10px] font-bold px-2 py-0.5 rounded-full">
                           🚨 {t.potty.accident}
