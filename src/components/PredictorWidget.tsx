@@ -54,9 +54,27 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = ({
     }
   };
 
-  const formatClockTime = (d: Date | null) => {
-    if (!d) return '';
-    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const formatTimeLeft = (targetDate: Date | null) => {
+    if (!targetDate) return '';
+    const now = new Date();
+    const diffMs = targetDate.getTime() - now.getTime();
+    const diffMins = Math.round(diffMs / (1000 * 60));
+
+    if (diffMins < 0) {
+      const overdueMins = Math.abs(diffMins);
+      if (overdueMins < 60) return `${overdueMins}m ${t.dashboard.overdueText}`;
+      const h = Math.floor(overdueMins / 60);
+      const m = overdueMins % 60;
+      return m > 0 ? `${h}h ${m}m ${t.dashboard.overdueText}` : `${h}h ${t.dashboard.overdueText}`;
+    } else if (diffMins === 0) {
+      return t.dashboard.dueNow;
+    } else if (diffMins < 60) {
+      return `${diffMins} min`;
+    } else {
+      const h = Math.floor(diffMins / 60);
+      const m = diffMins % 60;
+      return m > 0 ? `${h}h ${m}m` : `${h}h`;
+    }
   };
 
   const getUrgencyBadge = (urgency: 'safe' | 'soon' | 'overdue') => {
@@ -122,28 +140,20 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = ({
                     <span className="text-lg font-bold text-slate-100">
                       {formatCountdown(predictions.nextPeeExpectedAt)}
                     </span>
-                    {predictions.nextPeeExpectedAt && (
-                      <span className="text-xs font-bold text-sky-400 bg-sky-950/50 border border-sky-800/40 px-1.5 py-0.2 rounded">
-                        (~{formatClockTime(predictions.nextPeeExpectedAt)})
-                      </span>
+                    {predictions.standardPeeExpectedAt &&
+                      predictions.nextPeeExpectedAt &&
+                      Math.abs(predictions.nextPeeExpectedAt.getTime() - predictions.standardPeeExpectedAt.getTime()) > 5 * 60 * 1000 && (
+                        <span className="text-xs font-bold text-sky-400 bg-sky-950/60 border border-sky-800/60 px-2 py-0.5 rounded-lg">
+                          ({lang === 'fr' ? 'Sans repas:' : 'Without meal:'} ~{formatTimeLeft(predictions.standardPeeExpectedAt)})
+                        </span>
                     )}
                   </div>
-
-                  {/* Standard baseline label if post-meal active */}
-                  {predictions.standardPeeExpectedAt &&
-                    predictions.nextPeeExpectedAt &&
-                    Math.abs(predictions.nextPeeExpectedAt.getTime() - predictions.standardPeeExpectedAt.getTime()) > 5 * 60 * 1000 && (
-                      <div className="text-[10px] text-slate-400 mt-1 font-medium">
-                        {lang === 'fr' ? 'Base depuis dernier pipi:' : 'Standard baseline:'}{' '}
-                        <span className="text-slate-200 font-bold">~{formatClockTime(predictions.standardPeeExpectedAt)}</span>
-                      </div>
-                  )}
                 </div>
               </div>
               {getUrgencyBadge(predictions.peeUrgency)}
             </div>
 
-            <p className="text-xs text-slate-300 my-2.5 bg-slate-950/40 p-2 rounded-lg border border-slate-800/60 leading-relaxed">
+            <p className="text-xs text-slate-300 my-2.5 bg-slate-950/40 p-2.5 rounded-lg border border-slate-800/60 leading-relaxed">
               {predictions.peeReason}
             </p>
           </div>
@@ -187,28 +197,20 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = ({
                     <span className="text-lg font-bold text-slate-100">
                       {formatCountdown(predictions.nextPoopExpectedAt)}
                     </span>
-                    {predictions.nextPoopExpectedAt && (
-                      <span className="text-xs font-bold text-amber-400 bg-amber-950/50 border border-amber-800/40 px-1.5 py-0.2 rounded">
-                        (~{formatClockTime(predictions.nextPoopExpectedAt)})
-                      </span>
+                    {predictions.standardPoopExpectedAt &&
+                      predictions.nextPoopExpectedAt &&
+                      Math.abs(predictions.nextPoopExpectedAt.getTime() - predictions.standardPoopExpectedAt.getTime()) > 5 * 60 * 1000 && (
+                        <span className="text-xs font-bold text-amber-400 bg-amber-950/60 border border-amber-800/60 px-2 py-0.5 rounded-lg">
+                          ({lang === 'fr' ? 'Sans repas:' : 'Without meal:'} ~{formatTimeLeft(predictions.standardPoopExpectedAt)})
+                        </span>
                     )}
                   </div>
-
-                  {/* Standard baseline label if post-meal active */}
-                  {predictions.standardPoopExpectedAt &&
-                    predictions.nextPoopExpectedAt &&
-                    Math.abs(predictions.nextPoopExpectedAt.getTime() - predictions.standardPoopExpectedAt.getTime()) > 5 * 60 * 1000 && (
-                      <div className="text-[10px] text-slate-400 mt-1 font-medium">
-                        {lang === 'fr' ? 'Base digestion ordinaire:' : 'Standard baseline:'}{' '}
-                        <span className="text-slate-200 font-bold">~{formatClockTime(predictions.standardPoopExpectedAt)}</span>
-                      </div>
-                  )}
                 </div>
               </div>
               {getUrgencyBadge(predictions.poopUrgency)}
             </div>
 
-            <p className="text-xs text-slate-300 my-2.5 bg-slate-950/40 p-2 rounded-lg border border-slate-800/60 leading-relaxed">
+            <p className="text-xs text-slate-300 my-2.5 bg-slate-950/40 p-2.5 rounded-lg border border-slate-800/60 leading-relaxed">
               {predictions.poopReason}
             </p>
           </div>
@@ -248,22 +250,15 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = ({
                 </div>
                 <div>
                   <div className="text-xs font-semibold text-slate-400">{t.potty.nextMeal}</div>
-                  <div className="flex items-baseline gap-1.5 flex-wrap">
-                    <span className="text-lg font-bold text-slate-100">
-                      {formatCountdown(predictions.nextFoodExpectedAt)}
-                    </span>
-                    {predictions.nextFoodExpectedAt && (
-                      <span className="text-xs font-bold text-purple-400 bg-purple-950/50 border border-purple-800/40 px-1.5 py-0.2 rounded">
-                        (~{formatClockTime(predictions.nextFoodExpectedAt)})
-                      </span>
-                    )}
+                  <div className="text-lg font-bold text-slate-100">
+                    {formatCountdown(predictions.nextFoodExpectedAt)}
                   </div>
                 </div>
               </div>
               {getUrgencyBadge(predictions.foodUrgency)}
             </div>
 
-            <p className="text-xs text-slate-300 my-2.5 bg-slate-950/40 p-2 rounded-lg border border-slate-800/60 leading-relaxed">
+            <p className="text-xs text-slate-300 my-2.5 bg-slate-950/40 p-2.5 rounded-lg border border-slate-800/60 leading-relaxed">
               {predictions.foodReason}
             </p>
 
