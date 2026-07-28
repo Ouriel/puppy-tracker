@@ -100,10 +100,7 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePupp
   };
 
   const handleDeleteVaccine = async (id: string) => {
-    const confirmMsg = lang === 'fr' 
-      ? 'Êtes-vous sûr de vouloir supprimer cette ligne de vaccin ?' 
-      : 'Are you sure you want to delete this vaccine record?';
-    if (window.confirm(confirmMsg)) {
+    if (window.confirm(t.health.deleteVaccineConfirm)) {
       const ok = await deleteHealthRecord(id);
       if (ok) {
         setVaccinations((previous) => previous.filter((vaccine) => vaccine.id !== id));
@@ -133,10 +130,7 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePupp
   };
 
   const handleDeleteDeworming = async (id: string) => {
-    const confirmMsg = lang === 'fr'
-      ? 'Êtes-vous sûr de vouloir supprimer cette ligne de vermifuge ?'
-      : 'Are you sure you want to delete this deworming record?';
-    if (window.confirm(confirmMsg)) {
+    if (window.confirm(t.health.deleteDewormingConfirm)) {
       const ok = await deleteHealthRecord(id);
       if (ok) {
         setDewormingLogs((previous) => previous.filter((deworming) => deworming.id !== id));
@@ -276,7 +270,7 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePupp
                 type="submit"
                 className="bg-teal-600 hover:bg-teal-500 text-white font-bold text-xs px-4 py-2 rounded-xl transition cursor-pointer"
               >
-                {lang === 'fr' ? 'Enregistrer Vaccin' : 'Save Vaccine Record'}
+                {t.health.saveVaccine}
               </button>
             </div>
           </form>
@@ -299,19 +293,19 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePupp
                     )}
                   </div>
                   <div className="text-[11px] text-slate-400">
-                    {lang === 'fr' ? 'Injecté le' : 'Administered'} {vaccine.date} &bull; {lang === 'fr' ? 'Clinique:' : 'Clinic:'} {vaccine.vetClinic || (lang === 'fr' ? 'Vétérinaire' : 'Veterinary')}
+                    {t.health.injectedOn} {vaccine.date} &bull; {t.health.clinic}: {vaccine.vetClinic || t.health.veterinary}
                   </div>
                 </div>
               </div>
 
               <div className="flex items-center gap-3">
                 <div className="text-right">
-                  <div className="text-xs font-bold text-amber-300">{lang === 'fr' ? 'Rappel:' : 'Booster:'} {vaccine.boosterDate}</div>
-                  <div className="text-[10px] text-slate-500">{lang === 'fr' ? 'Statut: Conforme' : 'Status: Compliant'}</div>
+                  <div className="text-xs font-bold text-amber-300">{t.health.booster}: {vaccine.boosterDate}</div>
+                  <div className="text-[10px] text-slate-500">{t.health.statusConform}</div>
                 </div>
                 <button
                   onClick={() => handleDeleteVaccine(vaccine.id)}
-                  title={lang === 'fr' ? 'Supprimer la ligne de vaccin' : 'Delete vaccine record'}
+                  title={t.health.deleteVaccineConfirm}
                   className="p-1.5 text-slate-500 hover:text-red-400 hover:bg-red-950/40 rounded-lg transition cursor-pointer"
                 >
                   <Trash2 className="w-4 h-4" />
@@ -334,7 +328,7 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePupp
             className="flex items-center gap-1 bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs px-3.5 py-2 rounded-xl transition cursor-pointer"
           >
             <Plus className="w-4 h-4" />
-            <span>{isAddingDeworming ? (lang === 'fr' ? 'Annuler' : 'Cancel') : t.health.addDeworming}</span>
+            <span>{isAddingDeworming ? t.potty.cancel : t.health.addDeworming}</span>
           </button>
         </div>
 
@@ -386,7 +380,7 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePupp
                 type="submit"
                 className="bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs px-4 py-2 rounded-xl transition cursor-pointer"
               >
-                {lang === 'fr' ? 'Enregistrer Vermifuge' : 'Save Deworming Entry'}
+                {t.health.saveDeworming}
               </button>
             </div>
           </form>
@@ -409,19 +403,19 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePupp
                     )}
                   </div>
                   <div className="text-[11px] text-slate-400">
-                    {lang === 'fr' ? 'Donné le' : 'Given'} {deworming.date}
+                    {t.health.givenOn} {deworming.date}
                   </div>
                 </div>
               </div>
 
               <div className="flex items-center gap-3">
                 <div className="text-right">
-                  <div className="text-xs font-bold text-amber-300">{lang === 'fr' ? 'Prochain:' : 'Next:'} {deworming.boosterDate}</div>
-                  <div className="text-[10px] text-slate-500">{lang === 'fr' ? 'Statut: Vermifugé' : 'Status: Dewormed'}</div>
+                  <div className="text-xs font-bold text-amber-300">{t.health.nextDeworming}: {deworming.boosterDate}</div>
+                  <div className="text-[10px] text-slate-500">{t.health.statusDewormed}</div>
                 </div>
                 <button
                   onClick={() => handleDeleteDeworming(deworming.id)}
-                  title={lang === 'fr' ? 'Supprimer la ligne de vermifuge' : 'Delete deworming record'}
+                  title={t.health.deleteDewormingConfirm}
                   className="p-1.5 text-slate-500 hover:text-red-400 hover:bg-red-950/40 rounded-lg transition cursor-pointer"
                 >
                   <Trash2 className="w-4 h-4" />

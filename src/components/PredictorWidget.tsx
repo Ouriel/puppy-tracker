@@ -18,7 +18,7 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = ({
   onQuickAction,
   onOpenQuickLogModal,
 }) => {
-  const { lang, t } = useI18n();
+  const { t } = useI18n();
   const [, setTick] = useState(0);
 
   useEffect(() => {
@@ -140,11 +140,12 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = ({
                     <span className="text-lg font-bold text-slate-100">
                       {formatCountdown(predictions.nextPeeExpectedAt)}
                     </span>
+                    {/* Standard baseline label if post-meal active */}
                     {predictions.standardPeeExpectedAt &&
                       predictions.nextPeeExpectedAt &&
                       Math.abs(predictions.nextPeeExpectedAt.getTime() - predictions.standardPeeExpectedAt.getTime()) > 5 * 60 * 1000 && (
                         <span className="text-xs font-bold text-sky-400 bg-sky-950/60 border border-sky-800/60 px-2 py-0.5 rounded-lg">
-                          ({lang === 'fr' ? 'Sans repas:' : 'Without meal:'} ~{formatTimeLeft(predictions.standardPeeExpectedAt)})
+                          ({t.potty.withoutMeal} ~{formatTimeLeft(predictions.standardPeeExpectedAt)})
                         </span>
                     )}
                   </div>
@@ -201,7 +202,7 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = ({
                       predictions.nextPoopExpectedAt &&
                       Math.abs(predictions.nextPoopExpectedAt.getTime() - predictions.standardPoopExpectedAt.getTime()) > 5 * 60 * 1000 && (
                         <span className="text-xs font-bold text-amber-400 bg-amber-950/60 border border-amber-800/60 px-2 py-0.5 rounded-lg">
-                          ({lang === 'fr' ? 'Sans repas:' : 'Without meal:'} ~{formatTimeLeft(predictions.standardPoopExpectedAt)})
+                          ({t.potty.withoutMeal} ~{formatTimeLeft(predictions.standardPoopExpectedAt)})
                         </span>
                     )}
                   </div>

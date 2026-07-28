@@ -34,7 +34,7 @@ export const HouseholdSettingsView: React.FC<HouseholdSettingsViewProps> = ({
   onDeleteCaretaker,
   onSwitchUserAccount,
 }) => {
-  const { lang, t } = useI18n();
+  const { t } = useI18n();
   const [subTab, setSubTab] = useState<'puppies' | 'members'>('puppies');
 
   return (
@@ -50,9 +50,7 @@ export const HouseholdSettingsView: React.FC<HouseholdSettingsViewProps> = ({
               <span>{t.nav.settings}</span>
             </h2>
             <p className="text-xs text-slate-400">
-              {lang === 'fr'
-                ? 'Gérez vos chiens, objectifs de nourriture et invitations des membres de la famille'
-                : 'Manage dog profiles, nutrition goals, and family member invites'}
+              {t.household.manageSettingsSubtitle}
             </p>
           </div>
         </div>
