@@ -78,9 +78,8 @@ export function calculateLearnedIntervalMinutes(
     const prevHour = prevDate.getHours();
     const diffMins = (currDate.getTime() - prevDate.getTime()) / (1000 * 60);
 
-    // Only include daytime intervals (between wakeup and bedtime)
     const isDaytime = prevHour >= sleepSchedule.wakeupHour && prevHour < sleepSchedule.bedtimeHour;
-    if (isDaytime && diffMins >= 15 && diffMins <= 360) {
+    if (isDaytime && diffMins >= 15 && diffMins <= 420) {
       intervals.push(diffMins);
     }
   }
@@ -137,14 +136,12 @@ export function calculatePredictions(
     const isLateEveningPee = lastPeeHour >= sleepSchedule.bedtimeHour - 1 || lastPeeHour < sleepSchedule.wakeupHour;
 
     if (isLateEveningPee || isCurrentlyNight) {
-      // Overnight sleep mode for pee
       const targetWakeup = new Date(now);
       if (currentHour >= sleepSchedule.bedtimeHour) {
         targetWakeup.setDate(targetWakeup.getDate() + 1);
       }
       targetWakeup.setHours(sleepSchedule.wakeupHour, 0, 0, 0);
 
-      // Young puppies under 10 weeks might need 1 mid-night potty break
       if (months < 2.5) {
         const midNightPee = new Date(lastPeeTime + 4 * 60 * 60 * 1000);
         if (midNightPee > now) {
@@ -182,7 +179,7 @@ export function calculatePredictions(
     if (nextPeeExpectedAt) {
       const minsUntilPee = (nextPeeExpectedAt.getTime() - now.getTime()) / (1000 * 60);
       if (isCurrentlyNight && minsUntilPee > -120) {
-        peeUrgency = 'safe'; // Keep safe during night sleep
+        peeUrgency = 'safe';
       } else if (minsUntilPee <= 0) {
         peeUrgency = 'overdue';
       } else if (minsUntilPee <= 20) {
@@ -208,7 +205,6 @@ export function calculatePredictions(
     const isEveningPoop = lastPoopHour >= 19 || lastPoopHour < sleepSchedule.wakeupHour;
 
     if (isEveningPoop || isCurrentlyNight) {
-      // Overnight sleep mode for poop: Dogs don't poop at 2 AM
       const targetMorningPoop = new Date(now);
       if (currentHour >= 19) {
         targetMorningPoop.setDate(targetMorningPoop.getDate() + 1);
@@ -240,7 +236,7 @@ export function calculatePredictions(
     if (nextPoopExpectedAt) {
       const minsUntilPoop = (nextPoopExpectedAt.getTime() - now.getTime()) / (1000 * 60);
       if (isCurrentlyNight && minsUntilPoop > -120) {
-        poopUrgency = 'safe'; // Keep safe during night sleep
+        poopUrgency = 'safe';
       } else if (minsUntilPoop <= 0) {
         poopUrgency = 'overdue';
       } else if (minsUntilPoop <= 25) {
