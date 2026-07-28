@@ -74,7 +74,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const [existing] = await db
         .select()
         .from(puppiesTable)
-        .where(eq(puppiesTable.id, id));
+        .where(and(eq(puppiesTable.id, id), eq(puppiesTable.householdId, householdId)));
 
       if (existing) {
         const [updated] = await db

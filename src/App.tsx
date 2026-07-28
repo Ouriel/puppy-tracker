@@ -46,7 +46,7 @@ export function App() {
 
   // Authentication & Lock Screen
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
-    return !!getAuthToken() && localStorage.getItem('puppace_unlocked_v4') === 'true';
+    return !!getAuthToken();
   });
   const [user, setUser] = useState<UserAccount>(getStoredUser);
   const [caretakers, setCaretakers] = useState<Caretaker[]>(getStoredCaretakers);
@@ -218,7 +218,6 @@ export function App() {
 
   const handleUnlockWithSSO = (email: string, name: string, token: string) => {
     setAuthToken(token);
-    localStorage.setItem('puppace_unlocked_v4', 'true');
     setIsAuthenticated(true);
     setUser((prev) => ({ ...prev, email, name }));
 

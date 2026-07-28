@@ -77,7 +77,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const [existing] = await db
         .select()
         .from(activitiesTable)
-        .where(eq(activitiesTable.id, id));
+        .where(and(eq(activitiesTable.id, id), eq(activitiesTable.householdId, householdId)));
 
       if (existing) {
         return res.status(200).json(existing);
