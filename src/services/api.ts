@@ -1,4 +1,4 @@
-import type { Activity, PuppyProfile } from '../types';
+import type { Activity, PuppyProfile, Caretaker } from '../types';
 import { getAuthToken, clearAuthToken } from '../utils/auth';
 import { showToast } from '../utils/toast';
 
@@ -27,7 +27,6 @@ async function request<T>(url: string, options: RequestInit = {}): Promise<T | n
     const res = await fetch(url, { ...options, headers });
 
     if (res.ok) {
-      // 204 No Content
       if (res.status === 204) return {} as T;
       return await res.json();
     }
@@ -116,6 +115,26 @@ export async function createHealthRecord(record: any): Promise<any | null> {
 
 export async function deleteHealthRecord(id: string): Promise<boolean> {
   const res = await request<{ success: boolean }>(`/api/health-records?id=${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+  });
+  return !!res?.success;
+}
+
+// ── Household & Caretakers API ──
+
+export async function fetchHousehold(): Promise<{ caretakers: Caretaker[] } | null> {
+  return request<{ caretakers: Caretaker[] }>('/api/households');
+}
+
+export async function createCaretaker(caretaker: Partial<Caretaker>): Promise<Caretaker | null> {
+  return request<Caretaker>('/api/households', {
+    method: 'POST',
+    body: JSON.stringify(caretaker),
+  });
+}
+
+export async function deleteCaretaker(id: string): Promise<boolean> {
+  const res = await request<{ success: boolean }>(`/api/households?caretakerId=${encodeURIComponent(id)}`, {
     method: 'DELETE',
   });
   return !!res?.success;

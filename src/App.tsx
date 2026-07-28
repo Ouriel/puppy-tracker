@@ -17,6 +17,9 @@ import {
   fetchActivities,
   createActivity,
   deleteActivity,
+  fetchHousehold,
+  createCaretaker,
+  deleteCaretaker,
   createUser,
 } from './services/api';
 import { calculatePredictions } from './utils/predictions';
@@ -140,6 +143,11 @@ export function App() {
         if (remoteActivities) {
           setActivities(remoteActivities);
         }
+
+        const hhRes = await fetchHousehold();
+        if (hhRes?.caretakers && hhRes.caretakers.length > 0) {
+          setCaretakers(hhRes.caretakers);
+        }
       } finally {
         setIsLoading(false);
       }
@@ -187,12 +195,20 @@ export function App() {
     }
   };
 
-  const handleAddCaretaker = (newCaretaker: Caretaker) => {
-    setCaretakers((prev) => [...prev, newCaretaker]);
+  const handleAddCaretaker = async (newCaretaker: Caretaker) => {
+    const created = await createCaretaker(newCaretaker);
+    if (created) {
+      setCaretakers((prev) => [...prev, created]);
+      showToast('Caretaker added.', 'success');
+    }
   };
 
-  const handleDeleteCaretaker = (id: string) => {
-    setCaretakers((prev) => prev.filter((c) => c.id !== id));
+  const handleDeleteCaretaker = async (id: string) => {
+    const ok = await deleteCaretaker(id);
+    if (ok) {
+      setCaretakers((prev) => prev.filter((c) => c.id !== id));
+      showToast('Caretaker removed.', 'success');
+    }
   };
 
   const handleSwitchUserAccount = (name: string, role: FamilyRole) => {

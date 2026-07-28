@@ -1,13 +1,45 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { neon } from '@neondatabase/serverless';
 import { drizzle } from 'drizzle-orm/neon-http';
-import { eq } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 import { caretakersTable, householdsTable } from '../src/db/schema.js';
 import { verifyAuth } from './_auth.js';
 
-function getDb() {
-  const sql = neon(process.env.POSTGRES_URL || process.env.DATABASE_URL || '');
-  return drizzle(sql);
+function getDbAndSql() {
+  const connectionString = process.env.POSTGRES_URL || process.env.DATABASE_URL || '';
+  const sql = neon(connectionString);
+  const db = drizzle(sql);
+  return { db, sql };
+}
+
+let tablesChecked = false;
+
+async function ensureTables(sql: ReturnType<typeof neon>) {
+  if (tablesChecked) return;
+  try {
+    await sql`
+      CREATE TABLE IF NOT EXISTS households (
+        id TEXT PRIMARY KEY,
+        family_pack_id TEXT NOT NULL UNIQUE,
+        name TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT NOW()
+      );
+    `;
+    await sql`
+      CREATE TABLE IF NOT EXISTS caretakers (
+        id TEXT PRIMARY KEY,
+        household_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+        role TEXT NOT NULL,
+        color TEXT NOT NULL,
+        email TEXT,
+        created_at TIMESTAMP DEFAULT NOW()
+      );
+    `;
+    tablesChecked = true;
+  } catch (e) {
+    console.error('Error ensuring households/caretakers tables exist:', e);
+  }
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -28,80 +60,45 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const householdId = auth.householdId;
-  const db = getDb();
+  const { db, sql } = getDbAndSql();
+
+  await ensureTables(sql);
 
   try {
     // GET /api/households — Fetch household info and its caretakers
     if (req.method === 'GET') {
-      // Ensure household exists
-      const [household] = await db
-        .select()
-        .from(householdsTable)
-        .where(eq(householdsTable.familyPackId, householdId));
-
       const caretakers = await db
         .select()
         .from(caretakersTable)
         .where(eq(caretakersTable.householdId, householdId));
 
       return res.status(200).json({
-        id: household?.id || householdId,
+        id: householdId,
         familyPackId: householdId,
-        name: household?.name || 'My Household',
+        name: 'My Household',
         caretakers,
       });
     }
 
-    // POST /api/households — Create/upsert household or add a caretaker
+    // POST /api/households — Create/upsert a caretaker
     if (req.method === 'POST') {
       const body = req.body || {};
+      if (!body.name) return res.status(400).json({ error: 'name is required' });
 
-      // If body has caretaker fields, add a caretaker
-      if (body.name && body.role) {
-        const id = body.id || `car-${Date.now()}`;
+      const id = body.id || `car-${Date.now()}`;
 
-        const [existing] = await db
-          .select()
-          .from(caretakersTable)
-          .where(eq(caretakersTable.id, id));
-
-        if (existing) {
-          return res.status(200).json(existing);
-        }
-
-        const [created] = await db
-          .insert(caretakersTable)
-          .values({
-            id,
-            householdId,
-            name: body.name,
-            role: body.role || 'Member',
-            color: body.color || '#6366F1',
-            email: body.email || null,
-          })
-          .returning();
-        return res.status(201).json(created);
-      }
-
-      // Otherwise, create/upsert the household itself
-      const [existing] = await db
-        .select()
-        .from(householdsTable)
-        .where(eq(householdsTable.familyPackId, householdId));
-
-      if (!existing) {
-        const [created] = await db
-          .insert(householdsTable)
-          .values({
-            id: `hh-${Date.now()}`,
-            familyPackId: householdId,
-            name: body.householdName || 'My Household',
-          })
-          .returning();
-        return res.status(201).json(created);
-      }
-
-      return res.status(200).json(existing);
+      const [created] = await db
+        .insert(caretakersTable)
+        .values({
+          id,
+          householdId,
+          name: body.name,
+          role: body.role || 'Member',
+          color: body.color || '#6366F1',
+          email: body.email || null,
+        })
+        .returning();
+      return res.status(201).json(created);
     }
 
     // DELETE /api/households?caretakerId=xxx — Remove a caretaker
@@ -109,7 +106,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const id = (req.query.caretakerId as string) || req.body?.id;
       if (!id) return res.status(400).json({ error: 'caretakerId is required' });
 
-      await db.delete(caretakersTable).where(eq(caretakersTable.id, id));
+      await db
+        .delete(caretakersTable)
+        .where(and(eq(caretakersTable.id, id), eq(caretakersTable.householdId, householdId)));
       return res.status(200).json({ success: true, deletedId: id });
     }
 
