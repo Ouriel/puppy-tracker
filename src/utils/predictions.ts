@@ -94,6 +94,10 @@ export function calculateLearnedIntervalMinutes(
   return { intervalMins: blended, sampleCount: intervals.length, isLearned: true };
 }
 
+function formatShortTime(d: Date): string {
+  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
 /**
  * Advanced Predictive Potty & Feeding Schedules with Night Sleep Detection
  */
@@ -158,16 +162,16 @@ export function calculatePredictions(
     } else if (lastFood && parseIsoDate(lastFood.timestamp).getTime() > lastPeeTime) {
       const foodTime = parseIsoDate(lastFood.timestamp).getTime();
       const postFoodPee = new Date(foodTime + 25 * 60 * 1000);
-      const bladderPeeTime = lastPeeTime + learnedPee.intervalMins * 60 * 1000;
+      const bladderPeeTime = new Date(lastPeeTime + learnedPee.intervalMins * 60 * 1000);
 
-      if (postFoodPee.getTime() < now.getTime() && bladderPeeTime > postFoodPee.getTime()) {
-        nextPeeExpectedAt = new Date(bladderPeeTime);
+      if (postFoodPee.getTime() < now.getTime() && bladderPeeTime.getTime() > postFoodPee.getTime()) {
+        nextPeeExpectedAt = bladderPeeTime;
         peeReason = learnedPee.isLearned
           ? `Adaptive AI: Learned ~${learnedPee.intervalMins}m avg gap from ${learnedPee.sampleCount} logs`
           : `Based on ~${Math.round(learnedPee.intervalMins)}m age bladder capacity`;
       } else {
         nextPeeExpectedAt = postFoodPee;
-        peeReason = 'Pup fed recently (pees ~20-30 min post-meal)';
+        peeReason = `Pup fed recently (~20-30m post-meal) (Standard bladder interval: ~${formatShortTime(bladderPeeTime)})`;
       }
     } else {
       nextPeeExpectedAt = new Date(lastPeeTime + learnedPee.intervalMins * 60 * 1000);
@@ -215,16 +219,16 @@ export function calculatePredictions(
     } else if (lastFood && parseIsoDate(lastFood.timestamp).getTime() > lastPoopTime) {
       const foodTime = parseIsoDate(lastFood.timestamp).getTime();
       const postFoodPoopTime = foodTime + 35 * 60 * 1000;
-      const digestPoopTime = lastPoopTime + learnedPoop.intervalMins * 60 * 1000;
+      const digestPoopTime = new Date(lastPoopTime + learnedPoop.intervalMins * 60 * 1000);
 
-      if (postFoodPoopTime < now.getTime() && digestPoopTime > postFoodPoopTime) {
-        nextPoopExpectedAt = new Date(digestPoopTime);
+      if (postFoodPoopTime < now.getTime() && digestPoopTime.getTime() > postFoodPoopTime) {
+        nextPoopExpectedAt = digestPoopTime;
         poopReason = learnedPoop.isLearned
           ? `Adaptive AI: Learned ~${Math.round(learnedPoop.intervalMins / 60)}h avg digest time`
           : 'Standard digestive interval (~5h)';
       } else {
         nextPoopExpectedAt = new Date(postFoodPoopTime);
-        poopReason = 'Pup ate recently (poop gastrocolic reflex in 30-45 min)';
+        poopReason = `Pup fed recently (gastrocolic reflex ~30-45m) (Standard digest interval: ~${formatShortTime(digestPoopTime)})`;
       }
     } else {
       nextPoopExpectedAt = new Date(lastPoopTime + learnedPoop.intervalMins * 60 * 1000);
@@ -254,7 +258,6 @@ export function calculatePredictions(
   let foodUrgency: 'safe' | 'soon' | 'overdue' = 'safe';
   let foodReason = '';
 
-  // Veterinary standard age-based recommended daily meals if not explicitly set
   const vetRecommendedMeals = months < 3 ? 4 : months < 6 ? 3 : 2;
   const targetMeals = Math.max(1, profile.targetMealsPerDay || vetRecommendedMeals);
 
@@ -266,7 +269,6 @@ export function calculatePredictions(
   const isGoalReached = (profile.dailyFoodGramGoal > 0 && todayGramTotal >= profile.dailyFoodGramGoal) || todayMeals.length >= targetMeals;
 
   if (isGoalReached || currentHour >= 19 || isCurrentlyNight) {
-    // Dinner completed or night time -> Next meal is tomorrow morning breakfast (~07:30 AM)
     const targetBreakfast = new Date(now);
     if (currentHour >= 19 || isGoalReached) {
       targetBreakfast.setDate(targetBreakfast.getDate() + 1);
@@ -283,7 +285,6 @@ export function calculatePredictions(
     }
   } else if (lastFood) {
     const lastFoodTime = parseIsoDate(lastFood.timestamp).getTime();
-    // 11-hour active day (07:30 to 18:30) divided evenly across targetMeals - 1 gaps
     const mealIntervalHours = targetMeals > 1 ? 11 / (targetMeals - 1) : 11;
     nextFoodExpectedAt = new Date(lastFoodTime + mealIntervalHours * 60 * 60 * 1000);
 
