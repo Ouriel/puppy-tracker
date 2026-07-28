@@ -47,14 +47,30 @@ export async function verifyAuth(req: VercelRequest): Promise<AuthContext> {
 
   const sql = neon(dbUrl);
   const db = drizzle(sql);
-  const [user] = await db
+  const userEmail = payload.email.toLowerCase();
+
+  let [user] = await db
     .select()
     .from(usersTable)
-    .where(eq(usersTable.email, payload.email.toLowerCase()));
+    .where(eq(usersTable.email, userEmail));
 
+  // Auto-register user in DB if logging in for the first time
   if (!user) {
-    throw { status: 403, message: 'User not registered. Ask Super Admin for access.' };
+    const isSuperAdmin = userEmail === 'matthieu.jacquet@gmail.com';
+    const [created] = await db
+      .insert(usersTable)
+      .values({
+        id: `usr-${Date.now()}`,
+        householdId: 'FAMILY-COCKER-2026',
+        email: userEmail,
+        name: payload.name || userEmail.split('@')[0],
+        role: isSuperAdmin ? 'SuperAdmin' : 'Member',
+        status: isSuperAdmin ? 'ACTIVE' : 'ACTIVE',
+      })
+      .returning();
+    user = created;
   }
+
   if (user.status !== 'ACTIVE') {
     throw { status: 403, message: 'Account pending activation by Super Admin.' };
   }

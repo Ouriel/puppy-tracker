@@ -32,7 +32,7 @@ async function request<T>(url: string, options: RequestInit = {}): Promise<T | n
       return await res.json();
     }
 
-    if (res.status === 401 || res.status === 403) {
+    if (res.status === 401) {
       clearAuthToken();
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent('puppace:unauthorized'));
