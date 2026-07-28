@@ -51,6 +51,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     // GET /api/activities
     if (req.method === 'GET') {
+      res.setHeader('Cache-Control', 'private, max-age=10, stale-while-revalidate=60');
       const puppyId = req.query.puppyId as string;
       const conditions = puppyId
         ? and(eq(activitiesTable.householdId, householdId), eq(activitiesTable.puppyId, puppyId))

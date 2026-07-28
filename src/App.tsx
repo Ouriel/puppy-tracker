@@ -122,7 +122,7 @@ export function App() {
     saveCaretakers(caretakers);
   }, [caretakers]);
 
-  // Synchronous Database Load via REST API
+  // Synchronous Parallel Database Load via REST API
   useEffect(() => {
     async function loadDatabaseState() {
       if (!getAuthToken()) {
@@ -131,7 +131,12 @@ export function App() {
       }
       setIsLoading(true);
       try {
-        const remoteDogs = await fetchDogs();
+        const [remoteDogs, remoteActivities, hhRes] = await Promise.all([
+          fetchDogs(),
+          fetchActivities(),
+          fetchHousehold(),
+        ]);
+
         if (remoteDogs) {
           setPuppies(remoteDogs);
           if (remoteDogs.length > 0 && !activePuppyId) {
@@ -139,12 +144,10 @@ export function App() {
           }
         }
 
-        const remoteActivities = await fetchActivities();
         if (remoteActivities) {
           setActivities(remoteActivities);
         }
 
-        const hhRes = await fetchHousehold();
         if (hhRes?.caretakers && hhRes.caretakers.length > 0) {
           setCaretakers(hhRes.caretakers);
         }

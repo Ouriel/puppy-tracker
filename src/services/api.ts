@@ -10,6 +10,13 @@ export interface RegisteredUserItem {
   status: 'ACTIVE' | 'PENDING_APPROVAL';
 }
 
+const apiCache = new Map<string, { data: any; timestamp: number }>();
+const CACHE_TTL_MS = 60 * 1000; // 60 seconds SWR cache
+
+export function clearApiCache() {
+  apiCache.clear();
+}
+
 function getHeaders(): Record<string, string> {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -22,17 +29,42 @@ function getHeaders(): Record<string, string> {
 }
 
 async function request<T>(url: string, options: RequestInit = {}): Promise<T | null> {
+  const method = (options.method || 'GET').toUpperCase();
   const headers = { ...getHeaders(), ...(options.headers || {}) };
+
+  // For GET requests, serve from in-memory cache instantly (0ms latency on tab switch)
+  if (method === 'GET') {
+    const cached = apiCache.get(url);
+    if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
+      // Revalidate in background asynchronously
+      fetch(url, { ...options, headers })
+        .then((res) => (res.ok ? res.json() : null))
+        .then((freshData) => {
+          if (freshData) apiCache.set(url, { data: freshData, timestamp: Date.now() });
+        })
+        .catch(() => {});
+      return cached.data as T;
+    }
+  } else {
+    // Invalidate cache on mutations (POST, PUT, DELETE)
+    apiCache.clear();
+  }
+
   try {
     const res = await fetch(url, { ...options, headers });
 
     if (res.ok) {
       if (res.status === 204) return {} as T;
-      return await res.json();
+      const data = await res.json();
+      if (method === 'GET') {
+        apiCache.set(url, { data, timestamp: Date.now() });
+      }
+      return data as T;
     }
 
     if (res.status === 401) {
       clearAuthToken();
+      apiCache.clear();
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent('puppace:unauthorized'));
       }

@@ -68,11 +68,13 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePupp
 
   const loadHealthRecords = async () => {
     if (!activePuppy?.id) return;
-    const vRes = await fetchHealthRecords(activePuppy.id, 'vaccination');
+    const [vRes, dRes] = await Promise.all([
+      fetchHealthRecords(activePuppy.id, 'vaccination'),
+      fetchHealthRecords(activePuppy.id, 'deworming'),
+    ]);
     if (vRes) {
       setVaccinations(sortByDateDesc(vRes));
     }
-    const dRes = await fetchHealthRecords(activePuppy.id, 'deworming');
     if (dRes) {
       setDewormingLogs(sortByDateDesc(dRes));
     }

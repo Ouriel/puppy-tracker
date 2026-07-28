@@ -62,7 +62,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const householdId = auth.householdId;
   const { db, sql } = getDbAndSql();
 
-  await ensureTables(sql);
+  if (req.method === 'POST') {
+    await ensureTables(sql);
+  }
 
   try {
     // GET /api/households — Fetch household info and its caretakers

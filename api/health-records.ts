@@ -60,11 +60,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const householdId = auth.householdId;
   const { db, sql } = getDbAndSql();
 
-  await ensureTable(sql);
+  if (req.method === 'POST') {
+    await ensureTable(sql);
+  }
 
   try {
     // GET /api/health-records?puppyId=xxx&type=xxx
     if (req.method === 'GET') {
+      res.setHeader('Cache-Control', 'private, max-age=10, stale-while-revalidate=60');
       const puppyId = req.query.puppyId as string;
       const type = req.query.type as string;
 
