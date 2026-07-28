@@ -46,6 +46,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     // GET /api/dogs
     if (req.method === 'GET') {
+      res.setHeader('Cache-Control', 'private, max-age=10, stale-while-revalidate=60');
       const dogId = req.query.id as string;
       if (dogId) {
         const [dog] = await db

@@ -21,7 +21,6 @@ import {
   fetchHealthRecords,
   createCaretaker,
   deleteCaretaker,
-  createUser,
 } from './services/api';
 import { calculatePredictions } from './utils/predictions';
 import { Navbar, type MainTabType } from './components/Navbar';
@@ -165,7 +164,7 @@ export function App() {
       }
     }
     loadDatabaseState();
-  }, [isAuthenticated]);
+  }, [isAuthenticated, activePuppyId]);
 
   const activePuppy = puppies.find((puppy) => puppy.id === activePuppyId) || (puppies.length > 0 ? puppies[0] : null);
 
@@ -225,21 +224,13 @@ export function App() {
 
   const handleSwitchUserAccount = (name: string, role: FamilyRole) => {
     setCurrentUser(name);
-    setUser((prev) => ({ ...prev, name, role }));
+    setUser((previous) => ({ ...previous, name, role }));
   };
 
   const handleUnlockWithSSO = (email: string, name: string, token: string) => {
     setAuthToken(token);
     setIsAuthenticated(true);
-    setUser((prev) => ({ ...prev, email, name }));
-
-    createUser({
-      email,
-      name,
-      role: email.toLowerCase() === 'matthieu.jacquet@gmail.com' ? 'SuperAdmin' : 'Member',
-      status: email.toLowerCase() === 'matthieu.jacquet@gmail.com' ? 'ACTIVE' : 'PENDING_APPROVAL',
-    });
-
+    setUser((previous) => ({ ...previous, email, name }));
     return { success: true };
   };
 
@@ -248,37 +239,47 @@ export function App() {
     setIsAuthenticated(false);
   };
 
-  const handleAddActivity = async (newActivity: Omit<Activity, 'id' | 'puppyId'>) => {
+  const handleQuickAction = async (
+    type: ActivityType,
+    defaultLocation?: PottyLocation
+  ) => {
+    if (!activePuppy) {
+      showToast('Please select a puppy profile first.', 'error');
+      return;
+    }
+
+    const newActivity: Omit<Activity, 'id'> = {
+      puppyId: activePuppy.id,
+      type,
+      timestamp: new Date().toISOString(),
+      loggedBy: currentUser,
+      ...(defaultLocation ? { pottyLocation: defaultLocation } : {}),
+      ...(type === 'food' ? { foodType: 'kibble', quantityGrams: 80 } : {}),
+    };
+
+    const created = await createActivity(newActivity);
+    if (created) {
+      setActivities((previous) => [created, ...previous]);
+      showToast(`${type.toUpperCase()} logged for ${activePuppy.name}!`, 'success');
+    }
+  };
+
+  const handleOpenQuickLogModal = (type?: ActivityType) => {
+    if (type) setQuickLogType(type);
+    setIsQuickLogOpen(true);
+  };
+
+  const handleAddActivity = async (activityData: Omit<Activity, 'id' | 'puppyId'>) => {
     if (!activePuppy) return;
-    const fullActivity = {
-      ...newActivity,
+    const fullActivity: Omit<Activity, 'id'> = {
+      ...activityData,
       puppyId: activePuppy.id,
     };
     const created = await createActivity(fullActivity);
     if (created) {
-      setActivities((prev) => [created, ...prev]);
+      setActivities((previous) => [created, ...previous]);
       showToast('Activity logged!', 'success');
     }
-  };
-
-  const handleOpenQuickLogModal = (type: ActivityType = 'pee') => {
-    setQuickLogType(type);
-    setIsQuickLogOpen(true);
-  };
-
-  const handleQuickAction = (type: ActivityType, defaultLocation?: PottyLocation) => {
-    if (type === 'food') {
-      handleOpenQuickLogModal('food');
-      return;
-    }
-    if (!activePuppy) return;
-    const newAct: Omit<Activity, 'id' | 'puppyId'> = {
-      type,
-      timestamp: new Date().toISOString(),
-      loggedBy: currentUser,
-      pottyLocation: defaultLocation || (type === 'pee' || type === 'poop' ? 'outside' : undefined),
-    };
-    handleAddActivity(newAct);
   };
 
   const handleDeleteActivity = async (id: string) => {
@@ -301,9 +302,10 @@ export function App() {
   };
 
   // Filter activities for active puppy
-  const activePuppyActivities = activePuppy
-    ? activities.filter((activity) => !activity.puppyId || activity.puppyId === activePuppy.id)
-    : [];
+  const activePuppyActivities = React.useMemo(() => {
+    if (!activePuppy) return [];
+    return activities.filter((activity) => !activity.puppyId || activity.puppyId === activePuppy.id);
+  }, [activities, activePuppy]);
 
   const predictions = React.useMemo(() => {
     if (!activePuppy) return null;

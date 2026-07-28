@@ -2,34 +2,51 @@ import { describe, it, expect } from 'vitest';
 import { en } from '../en';
 import { fr } from '../fr';
 
+function getDeepKeys(object: Record<string, any>, prefix = ''): string[] {
+  let keys: string[] = [];
+  for (const key of Object.keys(object)) {
+    const fullKey = prefix ? `${prefix}.${key}` : key;
+    if (typeof object[key] === 'object' && object[key] !== null) {
+      keys = keys.concat(getDeepKeys(object[key], fullKey));
+    } else {
+      keys.push(fullKey);
+    }
+  }
+  return keys.sort();
+}
+
 describe('i18n Translation Dictionary Parity', () => {
-  it('should have matching top-level keys between English and French', () => {
+  it('should have 100% deep key parity between English and French dictionaries', () => {
+    const enDeepKeys = getDeepKeys(en);
+    const frDeepKeys = getDeepKeys(fr);
+    expect(enDeepKeys).toEqual(frDeepKeys);
+  });
+
+  it('should have matching top-level sections', () => {
     const enKeys = Object.keys(en).sort();
     const frKeys = Object.keys(fr).sort();
     expect(enKeys).toEqual(frKeys);
   });
 
-  it('should have matching navigation keys between English and French', () => {
-    const enNav = Object.keys(en.nav).sort();
-    const frNav = Object.keys(fr.nav).sort();
-    expect(enNav).toEqual(frNav);
+  it('should non-empty strings for all English translation values', () => {
+    const enDeepKeys = getDeepKeys(en);
+    enDeepKeys.forEach((keyPath) => {
+      const parts = keyPath.split('.');
+      let current: any = en;
+      for (const part of parts) current = current[part];
+      expect(typeof current).toBe('string');
+      expect(current.length).toBeGreaterThan(0);
+    });
   });
 
-  it('should have matching potty activity keys between English and French', () => {
-    const enPotty = Object.keys(en.potty).sort();
-    const frPotty = Object.keys(fr.potty).sort();
-    expect(enPotty).toEqual(frPotty);
-  });
-
-  it('should have matching Carnet de Santé keys between English and French', () => {
-    const enHealth = Object.keys(en.health).sort();
-    const frHealth = Object.keys(fr.health).sort();
-    expect(enHealth).toEqual(frHealth);
-  });
-
-  it('should have matching Admin keys between English and French', () => {
-    const enAdmin = Object.keys(en.admin).sort();
-    const frAdmin = Object.keys(fr.admin).sort();
-    expect(enAdmin).toEqual(frAdmin);
+  it('should non-empty strings for all French translation values', () => {
+    const frDeepKeys = getDeepKeys(fr);
+    frDeepKeys.forEach((keyPath) => {
+      const parts = keyPath.split('.');
+      let current: any = fr;
+      for (const part of parts) current = current[part];
+      expect(typeof current).toBe('string');
+      expect(current.length).toBeGreaterThan(0);
+    });
   });
 });

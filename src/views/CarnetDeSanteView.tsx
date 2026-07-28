@@ -56,17 +56,11 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePupp
   const [dewormAdminDate, setDewormAdminDate] = useState(new Date().toISOString().slice(0, 10));
   const [dewormNextDate, setDewormNextDate] = useState('');
 
-  useEffect(() => {
-    if (activePuppy?.id) {
-      loadHealthRecords();
-    }
-  }, [activePuppy?.id]);
-
   const sortByDateDesc = <T extends { date: string }>(arr: T[]): T[] => {
     return [...arr].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   };
 
-  const loadHealthRecords = async () => {
+  const loadHealthRecords = React.useCallback(async () => {
     if (!activePuppy?.id) return;
     const [vRes, dRes] = await Promise.all([
       fetchHealthRecords(activePuppy.id, 'vaccination'),
@@ -78,7 +72,13 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePupp
     if (dRes) {
       setDewormingLogs(sortByDateDesc(dRes));
     }
-  };
+  }, [activePuppy?.id]);
+
+  useEffect(() => {
+    if (activePuppy?.id) {
+      loadHealthRecords();
+    }
+  }, [activePuppy?.id, loadHealthRecords]);
 
   const handleAddVaccineSubmit = async (event: React.FormEvent) => {
     event.preventDefault();

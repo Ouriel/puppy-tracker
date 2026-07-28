@@ -33,12 +33,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     // GET /api/users — List users for household, or look up by email
     if (req.method === 'GET') {
+      res.setHeader('Cache-Control', 'private, max-age=10, stale-while-revalidate=60');
       const email = req.query.email as string;
       if (email) {
         const [user] = await db
           .select()
           .from(usersTable)
-          .where(eq(usersTable.email, email.toLowerCase()));
+          .where(and(eq(usersTable.email, email.toLowerCase()), eq(usersTable.householdId, householdId)));
         if (!user) return res.status(404).json({ error: 'User not found' });
         return res.status(200).json(user);
       }
@@ -64,7 +65,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const [existing] = await db
         .select()
         .from(usersTable)
-        .where(eq(usersTable.email, email));
+        .where(and(eq(usersTable.email, email), eq(usersTable.householdId, householdId)));
 
       if (existing) {
         const [updated] = await db
