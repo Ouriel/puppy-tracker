@@ -5,41 +5,10 @@ import { eq, and } from 'drizzle-orm';
 import { caretakersTable, householdsTable } from '../src/db/schema.js';
 import { verifyAuth } from './_auth.js';
 
-function getDbAndSql() {
+function getDb() {
   const connectionString = process.env.POSTGRES_URL || process.env.DATABASE_URL || '';
   const sql = neon(connectionString);
-  const db = drizzle(sql);
-  return { db, sql };
-}
-
-let tablesChecked = false;
-
-async function ensureTables(sql: ReturnType<typeof neon>) {
-  if (tablesChecked) return;
-  try {
-    await sql`
-      CREATE TABLE IF NOT EXISTS households (
-        id TEXT PRIMARY KEY,
-        family_pack_id TEXT NOT NULL UNIQUE,
-        name TEXT NOT NULL,
-        created_at TIMESTAMP DEFAULT NOW()
-      );
-    `;
-    await sql`
-      CREATE TABLE IF NOT EXISTS caretakers (
-        id TEXT PRIMARY KEY,
-        household_id TEXT NOT NULL,
-        name TEXT NOT NULL,
-        role TEXT NOT NULL,
-        color TEXT NOT NULL,
-        email TEXT,
-        created_at TIMESTAMP DEFAULT NOW()
-      );
-    `;
-    tablesChecked = true;
-  } catch (e) {
-    console.error('Error ensuring households/caretakers tables exist:', e);
-  }
+  return drizzle(sql);
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -60,34 +29,37 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const householdId = auth.householdId;
-  const { db, sql } = getDbAndSql();
-
-  if (req.method === 'POST') {
-    await ensureTables(sql);
-  }
+  const db = getDb();
 
   try {
     // GET /api/households — Fetch household info and its caretakers
     if (req.method === 'GET') {
+      res.setHeader('Cache-Control', 'private, max-age=10, stale-while-revalidate=60');
+      const [household] = await db
+        .select()
+        .from(householdsTable)
+        .where(eq(householdsTable.id, householdId));
+
       const caretakers = await db
         .select()
         .from(caretakersTable)
         .where(eq(caretakersTable.householdId, householdId));
 
       return res.status(200).json({
-        id: householdId,
-        familyPackId: householdId,
-        name: 'My Household',
+        household: household || { id: householdId, familyPackId: auth.familyPackId, name: 'Family Pack' },
         caretakers,
       });
     }
 
-    // POST /api/households — Create/upsert a caretaker
+    // POST /api/households — Add a new caretaker
     if (req.method === 'POST') {
       const body = req.body || {};
-      if (!body.name) return res.status(400).json({ error: 'name is required' });
+      if (!body.name || !body.role) {
+        return res.status(400).json({ error: 'name and role are required' });
+      }
 
-      const id = body.id || `car-${Date.now()}`;
+      const id = body.id || `ct-${Date.now()}`;
+      const color = body.color || 'bg-amber-500';
 
       const [created] = await db
         .insert(caretakersTable)
@@ -95,23 +67,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           id,
           householdId,
           name: body.name,
-          role: body.role || 'Member',
-          color: body.color || '#6366F1',
+          role: body.role,
+          color,
           email: body.email || null,
         })
         .returning();
+
       return res.status(201).json(created);
     }
 
     // DELETE /api/households?caretakerId=xxx — Remove a caretaker
     if (req.method === 'DELETE') {
-      const id = (req.query.caretakerId as string) || req.body?.id;
-      if (!id) return res.status(400).json({ error: 'caretakerId is required' });
+      const caretakerId = (req.query.caretakerId as string) || req.body?.caretakerId;
+      if (!caretakerId) return res.status(400).json({ error: 'caretakerId is required' });
 
       await db
         .delete(caretakersTable)
-        .where(and(eq(caretakersTable.id, id), eq(caretakersTable.householdId, householdId)));
-      return res.status(200).json({ success: true, deletedId: id });
+        .where(and(eq(caretakersTable.id, caretakerId), eq(caretakersTable.householdId, householdId)));
+
+      return res.status(200).json({ success: true, deletedId: caretakerId });
     }
 
     return res.status(405).json({ error: 'Method not allowed' });
