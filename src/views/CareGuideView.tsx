@@ -7,7 +7,7 @@ interface CareGuideViewProps {
 }
 
 export const CareGuideView: React.FC<CareGuideViewProps> = ({ onBackToDashboard }) => {
-  const { lang, t } = useI18n();
+  const { t } = useI18n();
 
   return (
     <div className="space-y-6 animate-fadeIn max-w-4xl mx-auto">
@@ -42,19 +42,15 @@ export const CareGuideView: React.FC<CareGuideViewProps> = ({ onBackToDashboard 
           </div>
           <div>
             <h3 className="text-sm font-bold text-amber-300">
-              {lang === 'fr' ? 'Méthode Recommandée — Esprit Dog Chiot' : 'Recommended Method — Esprit Dog Training'}
+              {t.careGuide.espritDogTitle}
             </h3>
             <p className="text-xs text-slate-400">
-              {lang === 'fr' 
-                ? 'Apprentissage de la propreté naturel, compréhensif et bienveillant sans punitions' 
-                : 'Natural, positive housebreaking without harsh corrections or confusion'}
+              {t.careGuide.espritDogSubtitle}
             </p>
           </div>
         </div>
         <p className="text-xs text-slate-300 leading-relaxed">
-          {lang === 'fr'
-            ? 'La méthode Esprit Dog préconise de sortir le chiot régulièrement sans jamais utiliser de tapis d’intérieur (alèse), car ils retardent l’acquisition de la propreté. Chaque sortie réussie doit être récompensée immédiatement par une caresse ou une friandise.'
-            : 'The Esprit Dog method advocates taking the puppy outside on a fixed schedule without ever relying on indoor pee pads, which create surface confusion. Every outdoor success is immediately celebrated with praise or treats.'}
+          {t.careGuide.espritDogDesc}
         </p>
         <a
           href="https://www.espritdog.com/esprit-dog-chiot/"
@@ -62,7 +58,7 @@ export const CareGuideView: React.FC<CareGuideViewProps> = ({ onBackToDashboard 
           rel="noopener noreferrer"
           className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-400 hover:text-amber-300 transition"
         >
-          <span>{lang === 'fr' ? 'Découvrir la formation Esprit Dog Chiot' : 'Explore Esprit Dog Puppy Training'}</span>
+          <span>{t.careGuide.espritDogLink}</span>
           <ExternalLink className="w-3.5 h-3.5" />
         </a>
       </div>
@@ -77,45 +73,37 @@ export const CareGuideView: React.FC<CareGuideViewProps> = ({ onBackToDashboard 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs text-slate-300 leading-relaxed">
           <div className="bg-slate-950/60 p-4 rounded-xl border border-slate-800 space-y-2">
             <h4 className="font-bold text-amber-300">
-              {lang === 'fr' ? '1. Horaires Réguliers & Timing' : '1. Regular Schedule & Timing'}
+              {t.careGuide.tip1Title}
             </h4>
             <p>
-              {lang === 'fr'
-                ? 'Sortez votre chiot toutes les 1 à 2 heures, immédiatement après le réveil, 15 à 30 minutes après les repas, et après les séances de jeu.'
-                : 'Take your puppy outside every 1-2 hours, immediately after waking up, 15-30 minutes after eating, and after energetic play sessions.'}
+              {t.careGuide.tip1Desc}
             </p>
           </div>
 
           <div className="bg-slate-950/60 p-4 rounded-xl border border-slate-800 space-y-2">
             <h4 className="font-bold text-red-300">
-              {lang === 'fr' ? '2. Éviter les Tapis de Propreté (Déconseillé)' : '2. Avoid Indoor Pads (Not Recommended)'}
+              {t.careGuide.tip2Title}
             </h4>
             <p>
-              {lang === 'fr'
-                ? 'Les tapis d’apprentissage créent de la confusion en encourageant le chiot à uriner sur des surfaces molles à l’intérieur. Sortez-le directement dehors.'
-                : 'Puppy pads create confusion by encouraging urination on soft indoor surfaces. Take puppies directly outdoors to establish clear housebreaking habits.'}
+              {t.careGuide.tip2Desc}
             </p>
           </div>
 
           <div className="bg-slate-950/60 p-4 rounded-xl border border-slate-800 space-y-2">
             <h4 className="font-bold text-emerald-300">
-              {lang === 'fr' ? '3. Récompense Immédiate & Félicitations' : '3. Immediate Reward & Praise'}
+              {t.careGuide.tip3Title}
             </h4>
             <p>
-              {lang === 'fr'
-                ? 'Félicitez et donnez une friandise dans les 3 secondes suivant la réalisation du besoin dehors. Le renforcement positif immédiat crée l’habitude.'
-                : 'Praise and treat your puppy within 3 seconds of completing their potty outdoors. Immediate positive reinforcement builds lifelong habits.'}
+              {t.careGuide.tip3Desc}
             </p>
           </div>
 
           <div className="bg-slate-950/60 p-4 rounded-xl border border-slate-800 space-y-2">
             <h4 className="font-bold text-indigo-300">
-              {lang === 'fr' ? '4. Nettoyage Enzymatique' : '4. Enzymatic Cleaning'}
+              {t.careGuide.tip4Title}
             </h4>
             <p>
-              {lang === 'fr'
-                ? 'Nettoyez les accidents intérieurs avec un nettoyant enzymatique pour éliminer les phéromones qui attirent le chiot au même endroit.'
-                : 'Clean indoor accidents with enzymatic cleaners to eliminate pheromone traces that attract puppies back to the same spot.'}
+              {t.careGuide.tip4Desc}
             </p>
           </div>
         </div>
@@ -125,7 +113,7 @@ export const CareGuideView: React.FC<CareGuideViewProps> = ({ onBackToDashboard 
       <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl space-y-4 shadow-xl">
         <h3 className="text-sm font-bold text-indigo-400 uppercase tracking-wider flex items-center gap-2">
           <Heart className="w-4 h-4" />
-          <span>{t.careGuide.breedGuides} & {lang === 'fr' ? 'Ressources Officielles' : 'Official References'}</span>
+          <span>{t.careGuide.breedGuides} & {t.careGuide.officialReferences}</span>
         </h3>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

@@ -37,7 +37,7 @@ interface CarnetDeSanteViewProps {
 }
 
 export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePuppy }) => {
-  const { lang, t } = useI18n();
+  const { t } = useI18n();
 
   const [vaccinations, setVaccinations] = useState<VaccinationEntry[]>([]);
   const [dewormingLogs, setDewormingLogs] = useState<DewormingEntry[]>([]);
@@ -143,12 +143,10 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePupp
       <div className="bg-slate-900 border border-slate-800 p-8 rounded-2xl text-center space-y-3 max-w-xl mx-auto">
         <Syringe className="w-12 h-12 text-slate-600 mx-auto" />
         <h2 className="text-lg font-bold text-slate-200">
-          {lang === 'fr' ? 'Aucun chiot sélectionné' : 'No Puppy Selected'}
+          {t.health.noPuppySelected}
         </h2>
         <p className="text-xs text-slate-400">
-          {lang === 'fr'
-            ? 'Veuillez d\'abord ajouter ou sélectionner un chiot dans le tableau de bord.'
-            : 'Please add or select a puppy in the dashboard first.'}
+          {t.health.selectPuppyToViewHealth}
         </p>
       </div>
     );
@@ -164,12 +162,10 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePupp
           </div>
           <div>
             <h2 className="text-xl font-bold text-slate-100 flex items-center gap-2">
-              <span>{lang === 'fr' ? 'Carnet de Santé Vétérinaire' : 'Health Passport'} &bull; {activePuppy.name}</span>
+              <span>{t.health.healthPassportFor.replace('{name}', activePuppy.name)}</span>
             </h2>
             <p className="text-xs text-slate-400">
-              {lang === 'fr'
-                ? `Suivi vaccinal (combinaisons françaises CHPPi+L4) et vermifugation ESCCAP France pour ${activePuppy.name} (${activePuppy.breed})`
-                : `Vaccination schedule and deworming passport for ${activePuppy.name} (${activePuppy.breed})`}
+              {t.health.subtitle} &bull; {activePuppy.name} ({activePuppy.breed})
             </p>
           </div>
         </div>
@@ -181,13 +177,13 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePupp
         <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl space-y-2">
           <h3 className="text-xs font-bold text-teal-400 flex items-center gap-1.5 uppercase tracking-wider">
             <ShieldCheck className="w-4 h-4" />
-            <span>{lang === 'fr' ? 'Calendrier Vaccinal Français (CHPPi+L4)' : 'French Puppy Vaccine Guidelines'}</span>
+            <span>{t.health.frenchVaccineGuidelines}</span>
           </h3>
           <ul className="text-[11px] text-slate-300 space-y-1 list-disc list-inside">
-            <li><strong>{lang === 'fr' ? '8 Semaines (Primo)' : '8 Weeks (Initial)'}</strong>: CHPPi + L4 (1ère injection)</li>
-            <li><strong>{lang === 'fr' ? '12 Semaines (Rappel 1)' : '12 Weeks (Booster 1)'}</strong>: CHPPi + L4 (+ KC / Rage R obligatoire si voyage)</li>
-            <li><strong>{lang === 'fr' ? '16 Semaines (Rappel 2)' : '16 Weeks (Booster 2)'}</strong>: CHPPi + L4 (Conseillé immunité Parvo)</li>
-            <li><strong>{lang === 'fr' ? 'Rappel 1 An' : '1 Year Booster'}</strong>: Rappel CHPPi + L4 (+ Rage R)</li>
+            <li>{t.health.week8Initial}</li>
+            <li>{t.health.week12Booster1}</li>
+            <li>{t.health.week16Booster2}</li>
+            <li>{t.health.year1Booster}</li>
           </ul>
         </div>
 
@@ -195,13 +191,13 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePupp
         <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl space-y-2">
           <h3 className="text-xs font-bold text-amber-400 flex items-center gap-1.5 uppercase tracking-wider">
             <Pill className="w-4 h-4" />
-            <span>{lang === 'fr' ? 'Protocole Vermifuge ESCCAP France' : 'ESCCAP Deworming Protocol'}</span>
+            <span>{t.health.esccapDewormingProtocol}</span>
           </h3>
           <ul className="text-[11px] text-slate-300 space-y-1 list-disc list-inside">
-            <li><strong>{lang === 'fr' ? 'De 2 sem. à 2 mois' : '2 wks to 2 mos'}</strong>: {lang === 'fr' ? '1 fois toutes les 2 semaines' : 'Every 2 weeks'}</li>
-            <li><strong>{lang === 'fr' ? 'De 2 à 6 mois' : '2 to 6 months'}</strong>: {lang === 'fr' ? '1 fois par mois (Milbemax / Drontal)' : 'Once per month (Milbemax / Drontal)'}</li>
-            <li><strong>{lang === 'fr' ? 'Après 6 mois (Adulte)' : 'After 6 months'}</strong>: {lang === 'fr' ? '3 à 4 fois par an (changement de saison)' : '3 to 4 times per year'}</li>
-            <li><strong>{lang === 'fr' ? 'Dosage au poids' : 'Weight dosing'}</strong>: {lang === 'fr' ? 'Adapter la dose exacte selon le poids actuel du chiot' : 'Dose precisely according to current puppy weight'}</li>
+            <li>{t.health.dewormSchedule1}</li>
+            <li>{t.health.dewormSchedule2}</li>
+            <li>{t.health.dewormSchedule3}</li>
+            <li>{t.health.dewormSchedule4}</li>
           </ul>
         </div>
       </div>
@@ -218,7 +214,7 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePupp
             className="flex items-center gap-1 bg-teal-600 hover:bg-teal-500 text-white font-bold text-xs px-3.5 py-2 rounded-xl transition cursor-pointer"
           >
             <Plus className="w-4 h-4" />
-            <span>{isAddingVaccine ? (lang === 'fr' ? 'Annuler' : 'Cancel') : t.health.addVaccine}</span>
+            <span>{isAddingVaccine ? t.potty.cancel : t.health.addVaccine}</span>
           </button>
         </div>
 
@@ -235,8 +231,8 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePupp
                   <option value="CHPPi + L4">CHPPi + L4 (Carré, Hépatite, Parvo, Pi + Lepto 4)</option>
                   <option value="CHPPi">CHPPi (Carré, Hépatite, Parvovirose, Para-influenza)</option>
                   <option value="L4 (Leptospirose)">L4 (Leptospirose 4 souches)</option>
-                  <option value="Rage (R)">{lang === 'fr' ? 'Rage (R) - Voyage / Obligatoire' : 'Rabies (R) - Travel'}</option>
-                  <option value="Toux de Chenil (Bb/Kc)">{lang === 'fr' ? 'Toux de Chenil (Kc / Bordetella)' : 'Kennel Cough (Bordetella / Kc)'}</option>
+                  <option value="Rage (R)">{t.health.rabiesOption}</option>
+                  <option value="Toux de Chenil (Bb/Kc)">{t.health.kennelCoughOption}</option>
                   <option value="Piroplasmose">Piroplasmose (Tiques - France)</option>
                   <option value="Leishmaniose">Leishmaniose (Singe / Sud de France)</option>
                 </select>

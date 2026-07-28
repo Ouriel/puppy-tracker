@@ -41,7 +41,7 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
   onUpdatePuppy,
   onDeletePuppy,
 }) => {
-  const { lang, t } = useI18n();
+  const { t } = useI18n();
   const [isAdding, setIsAdding] = useState(false);
   const [editingPuppy, setEditingPuppy] = useState<PuppyProfile | null>(null);
 
@@ -141,7 +141,7 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
           className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow transition cursor-pointer"
         >
           <Plus className="w-4 h-4" />
-          <span>{isAdding ? (lang === 'fr' ? 'Annuler' : 'Cancel') : t.puppies.addDog}</span>
+          <span>{isAdding ? t.potty.cancel : t.puppies.addDog}</span>
         </button>
       </div>
 
@@ -149,13 +149,13 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
       {isAdding && (
         <form onSubmit={handleCreateSubmit} className="bg-slate-900 border border-slate-800 p-6 rounded-2xl space-y-4 shadow-xl">
           <h3 className="text-sm font-bold text-slate-100 border-b border-slate-800 pb-2">
-            {lang === 'fr' ? 'Enregistrer un nouveau chien' : 'Register New Dog Profile'}
+            {t.puppies.registerNewDog}
           </h3>
           
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-semibold text-slate-400 mb-1">
-                {lang === 'fr' ? 'Nom du Chien' : 'Dog Name'}
+                {t.puppies.dogName}
               </label>
               <input
                 type="text"
@@ -184,7 +184,7 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
               {breed === 'Other' && (
                 <input
                   type="text"
-                  placeholder={lang === 'fr' ? 'Spécifiez la race...' : 'Specify custom breed...'}
+                  placeholder={t.puppies.specifyCustomBreed}
                   value={customBreed}
                   onChange={(event) => setCustomBreed(event.target.value)}
                   className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-indigo-500 mt-2"
@@ -194,7 +194,7 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
 
             <div>
               <label className="block text-xs font-semibold text-slate-400 mb-1">
-                {lang === 'fr' ? 'Objectif Nourriture Quotidien (Grammes)' : 'Daily Food Goal (Grams)'}
+                {t.puppies.foodGramGoal}
               </label>
               <input
                 type="number"
@@ -207,7 +207,7 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
 
             <div>
               <label className="block text-xs font-semibold text-slate-400 mb-1">
-                {lang === 'fr' ? 'Nombre de Repas par Jour' : 'Target Meals per Day'}
+                {t.puppies.mealsPerDay}
               </label>
               <input
                 type="number"
@@ -231,10 +231,10 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-400 mb-1">Notes</label>
+              <label className="block text-xs font-semibold text-slate-400 mb-1">{t.potty.notes}</label>
               <input
                 type="text"
-                placeholder={lang === 'fr' ? 'Instructions ou notes de soin...' : 'Notes or care instructions...'}
+                placeholder={t.puppies.careInstructionsPlaceholder}
                 value={notes}
                 onChange={(event) => setNotes(event.target.value)}
                 className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-indigo-500"
@@ -248,13 +248,13 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
               onClick={() => setIsAdding(false)}
               className="px-4 py-2 text-xs font-semibold text-slate-400 hover:text-white"
             >
-              {lang === 'fr' ? 'Annuler' : 'Cancel'}
+              {t.potty.cancel}
             </button>
             <button
               type="submit"
               className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs px-5 py-2 rounded-xl transition cursor-pointer"
             >
-              {lang === 'fr' ? 'Enregistrer le Chien' : 'Save Puppy Profile'}
+              {t.puppies.savePuppyProfile}
             </button>
           </div>
         </form>
@@ -267,7 +267,7 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
             <div className="flex items-center justify-between border-b border-slate-800 pb-3">
               <h3 className="text-base font-bold text-slate-100 flex items-center gap-2">
                 <Edit3 className="w-4 h-4 text-indigo-400" />
-                <span>{lang === 'fr' ? `Modifier le profil de ${editingPuppy.name}` : `Edit Profile: ${editingPuppy.name}`}</span>
+                <span>{t.puppies.editProfileTitle.replace('{name}', editingPuppy.name)}</span>
               </h3>
               <button
                 onClick={() => setEditingPuppy(null)}

@@ -481,10 +481,10 @@ export function App() {
           <span>PupPace &bull; Household Puppy Sync Platform</span>
           <div className="flex items-center gap-3">
             <button onClick={() => handleSelectMainTab('carnetdesante')} className="hover:text-slate-400 transition cursor-pointer">
-              {lang === 'fr' ? 'Carnet de Santé' : 'Health Passport'}
+              {t.nav.carnetDeSante}
             </button>
             <span>&bull;</span>
-            <button onClick={() => handleSelectMainTab('careguide')} className="hover:text-slate-400 transition cursor-pointer">Care Guide</button>
+            <button onClick={() => handleSelectMainTab('careguide')} className="hover:text-slate-400 transition cursor-pointer">{t.nav.careGuide}</button>
             <span>&bull;</span>
             <a href="/privacy" className="hover:text-slate-400 transition">Privacy</a>
             <span>&bull;</span>

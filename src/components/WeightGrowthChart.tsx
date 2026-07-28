@@ -14,7 +14,7 @@ export const WeightGrowthChart: React.FC<WeightGrowthChartProps> = ({
   profile,
   onOpenQuickLogModal,
 }) => {
-  const { lang, t } = useI18n();
+  const { t } = useI18n();
 
   // Extract and sort weight entries chronologically
   const weightLogs = React.useMemo(() => {
@@ -55,16 +55,14 @@ export const WeightGrowthChart: React.FC<WeightGrowthChartProps> = ({
           </div>
           <div>
             <h3 className="text-sm font-bold text-slate-100 flex items-center gap-2">
-              <span>{lang === 'fr' ? 'Courbe de Croissance & Poids' : 'Weight & Growth Curve Chart'}</span>
+              <span>{t.weightChart.title}</span>
               <span className="text-[10px] bg-emerald-950 text-emerald-400 border border-emerald-800/50 px-2 py-0.5 rounded-full font-bold flex items-center gap-1">
                 <ShieldCheck className="w-3 h-3" />
-                <span>{lang === 'fr' ? 'Croissance Harmonieuse' : 'Healthy Pace'}</span>
+                <span>{t.weightChart.healthyPace}</span>
               </span>
             </h3>
             <p className="text-xs text-slate-400">
-              {lang === 'fr'
-                ? `Âge du chiot : ${ageWeeks} semaines • Poids actuel : ${latestWeight} kg`
-                : `Puppy age: ${ageWeeks} weeks • Current weight: ${latestWeight} kg`}
+              {t.weightChart.puppyAgeInfo.replace('{weeks}', String(ageWeeks)).replace('{weight}', String(latestWeight))}
             </p>
           </div>
         </div>
@@ -74,14 +72,14 @@ export const WeightGrowthChart: React.FC<WeightGrowthChartProps> = ({
           className="flex items-center gap-1.5 bg-pink-600 hover:bg-pink-500 text-white font-bold text-xs px-3.5 py-2 rounded-xl shadow transition active:scale-95 cursor-pointer"
         >
           <Plus className="w-4 h-4" />
-          <span>{lang === 'fr' ? 'Enregistrer une Pesée' : 'Log Weight'}</span>
+          <span>{t.weightChart.logWeight}</span>
         </button>
       </div>
 
       {/* Visual Weight Curve Chart */}
       <div className="space-y-2">
         <div className="flex items-center justify-between text-xs text-slate-400 px-1 font-mono">
-          <span>{lang === 'fr' ? 'Standard Race (Cocker)' : 'Breed Standard'}</span>
+          <span>{t.weightChart.breedStandard}</span>
           <span>{latestWeight} {t.units.kg} / 13.0 {t.units.kg} (Target)</span>
         </div>
 
@@ -123,7 +121,7 @@ export const WeightGrowthChart: React.FC<WeightGrowthChartProps> = ({
         <div className="pt-2 border-t border-slate-800 space-y-1.5">
           <div className="text-xs font-bold text-slate-400 flex items-center gap-1.5">
             <TrendingUp className="w-3.5 h-3.5 text-pink-400" />
-            <span>{lang === 'fr' ? 'Historique des Pesées' : 'Recent Weight History'}</span>
+            <span>{t.weightChart.recentHistory}</span>
           </div>
           <div className="flex gap-2 overflow-x-auto pb-1">
             {weightLogs.slice(-5).map((log) => (
@@ -133,7 +131,7 @@ export const WeightGrowthChart: React.FC<WeightGrowthChartProps> = ({
               >
                 <span className="font-bold text-pink-300">{log.weightKg} {t.units.kg}</span>
                 <span className="text-[10px] text-slate-500 font-mono">
-                  {new Date(log.timestamp).toLocaleDateString(lang === 'fr' ? 'fr-FR' : 'en-US', {
+                  {new Date(log.timestamp).toLocaleDateString(t.brand === 'PupPace' ? 'fr-FR' : 'en-US', {
                     month: 'short',
                     day: 'numeric',
                   })}
