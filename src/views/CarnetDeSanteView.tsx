@@ -62,15 +62,19 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePupp
     }
   }, [activePuppy?.id]);
 
+  const sortByDateDesc = <T extends { date: string }>(arr: T[]): T[] => {
+    return [...arr].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  };
+
   const loadHealthRecords = async () => {
     if (!activePuppy?.id) return;
     const vRes = await fetchHealthRecords(activePuppy.id, 'vaccination');
     if (vRes) {
-      setVaccinations(vRes);
+      setVaccinations(sortByDateDesc(vRes));
     }
     const dRes = await fetchHealthRecords(activePuppy.id, 'deworming');
     if (dRes) {
-      setDewormingLogs(dRes);
+      setDewormingLogs(sortByDateDesc(dRes));
     }
   };
 
@@ -88,7 +92,7 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePupp
 
     const created = await createHealthRecord(newEntry);
     if (created) {
-      setVaccinations((prev) => [created, ...prev]);
+      setVaccinations((prev) => sortByDateDesc([created, ...prev]));
       setIsAddingVaccine(false);
     }
   };
@@ -112,8 +116,8 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePupp
     const newEntry = {
       puppyId: activePuppy.id,
       type: 'deworming',
-      name: productName.trim() || 'Milbemax Tab / Milprazon',
-      productName: productName.trim() || 'Milbemax Tab / Milprazon',
+      name: productName.trim() || 'Credelio Plus',
+      productName: productName.trim() || 'Credelio Plus',
       date: dewormAdminDate,
       boosterDate: dewormNextDate,
       weightAtTime: activePuppy.weightKg,
@@ -121,7 +125,7 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePupp
 
     const created = await createHealthRecord(newEntry);
     if (created) {
-      setDewormingLogs((prev) => [created, ...prev]);
+      setDewormingLogs((prev) => sortByDateDesc([created, ...prev]));
       setIsAddingDeworming(false);
     }
   };
