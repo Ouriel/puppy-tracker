@@ -33,8 +33,8 @@ export function detectSleepSchedule(activities: Activity[]): { bedtimeHour: numb
   const eveningHours: number[] = [];
   const morningHours: number[] = [];
 
-  activities.forEach((a) => {
-    const hr = parseIsoDate(a.timestamp).getHours();
+  activities.forEach((activity) => {
+    const hr = parseIsoDate(activity.timestamp).getHours();
     if (hr >= 21 || hr <= 1) {
       eveningHours.push(hr >= 21 ? hr : hr + 24);
     } else if (hr >= 5 && hr <= 9) {
@@ -63,8 +63,8 @@ export function calculateLearnedIntervalMinutes(
   sleepSchedule = { bedtimeHour: 22, wakeupHour: 7 }
 ): { intervalMins: number; sampleCount: number; isLearned: boolean } {
   const sortedLogs = [...activities]
-    .filter((a) => a.type === type)
-    .sort((a, b) => parseIsoDate(a.timestamp).getTime() - parseIsoDate(b.timestamp).getTime());
+    .filter((activity) => activity.type === type)
+    .sort((activityA, activityB) => parseIsoDate(activityA.timestamp).getTime() - parseIsoDate(activityB.timestamp).getTime());
 
   if (sortedLogs.length < 2) {
     return { intervalMins: fallbackMinutes, sampleCount: sortedLogs.length, isLearned: false };
@@ -73,14 +73,23 @@ export function calculateLearnedIntervalMinutes(
   // Filter daytime gaps (occurring between morning wakeup and bedtime, ignoring overnight gaps)
   const intervals: number[] = [];
   for (let i = 1; i < sortedLogs.length; i++) {
-    const prevDate = parseIsoDate(sortedLogs[i - 1].timestamp);
-    const currDate = parseIsoDate(sortedLogs[i].timestamp);
-    const prevHour = prevDate.getHours();
-    const diffMins = (currDate.getTime() - prevDate.getTime()) / (1000 * 60);
+    const prevTime = parseIsoDate(sortedLogs[i - 1].timestamp);
+    const currTime = parseIsoDate(sortedLogs[i].timestamp);
 
-    const isDaytime = prevHour >= sleepSchedule.wakeupHour && prevHour < sleepSchedule.bedtimeHour;
-    if (isDaytime && diffMins >= 15 && diffMins <= 420) {
-      intervals.push(diffMins);
+    const diffMinutes = (currTime.getTime() - prevTime.getTime()) / (1000 * 60);
+
+    // Filter out multi-day lapses (> 12 hours) or negative timestamps
+    if (diffMinutes >= 15 && diffMinutes <= 12 * 60) {
+      const prevHour = prevTime.getHours();
+      const currHour = currTime.getHours();
+
+      // Check if both events happened during active daytime hours
+      const isPrevDay = prevHour >= sleepSchedule.wakeupHour && prevHour < sleepSchedule.bedtimeHour;
+      const isCurrDay = currHour >= sleepSchedule.wakeupHour && currHour < sleepSchedule.bedtimeHour;
+
+      if (isPrevDay && isCurrDay) {
+        intervals.push(diffMinutes);
+      }
     }
   }
 
@@ -88,32 +97,37 @@ export function calculateLearnedIntervalMinutes(
     return { intervalMins: fallbackMinutes, sampleCount: 0, isLearned: false };
   }
 
-  const avg = Math.round(intervals.reduce((sum, v) => sum + v, 0) / intervals.length);
-  const blended = Math.round(avg * 0.7 + fallbackMinutes * 0.3);
+  // Median average calculation
+  const sortedIntervals = [...intervals].sort((intervalA, intervalB) => intervalA - intervalB);
+  const midIndex = Math.floor(sortedIntervals.length / 2);
+  const medianMinutes = sortedIntervals.length % 2 !== 0
+    ? sortedIntervals[midIndex]
+    : Math.round((sortedIntervals[midIndex - 1] + sortedIntervals[midIndex]) / 2);
 
-  return { intervalMins: blended, sampleCount: intervals.length, isLearned: true };
+  return {
+    intervalMins: Math.max(30, Math.min(medianMinutes, 360)), // clamp between 30 min and 6 hours
+    sampleCount: intervals.length,
+    isLearned: true,
+  };
 }
 
 /**
  * Advanced Predictive Potty & Feeding Schedules with Night Sleep Detection
  */
-export function calculatePredictions(
-  activities: Activity[],
-  profile: PuppyProfile
-): PredictionResult {
+export function calculatePredictions(activities: Activity[], profile: PuppyProfile): PredictionResult {
   const now = new Date();
   const currentHour = now.getHours();
-  const sleepSchedule = detectSleepSchedule(activities);
 
+  const sleepSchedule = detectSleepSchedule(activities);
   const isCurrentlyNight = currentHour >= sleepSchedule.bedtimeHour || currentHour < sleepSchedule.wakeupHour;
 
   const sorted = [...activities].sort(
-    (a, b) => parseIsoDate(b.timestamp).getTime() - parseIsoDate(a.timestamp).getTime()
+    (activityA, activityB) => parseIsoDate(activityB.timestamp).getTime() - parseIsoDate(activityA.timestamp).getTime()
   );
 
-  const lastPee = sorted.find((a) => a.type === 'pee');
-  const lastPoop = sorted.find((a) => a.type === 'poop');
-  const lastFood = sorted.find((a) => a.type === 'food');
+  const lastPee = sorted.find((activity) => activity.type === 'pee');
+  const lastPoop = sorted.find((activity) => activity.type === 'poop');
+  const lastFood = sorted.find((activity) => activity.type === 'food');
 
   const { months } = getPuppyAge(profile.birthDate);
   const baseBladderHours = Math.max(1, Math.min(months, 4));
@@ -263,9 +277,9 @@ export function calculatePredictions(
 
   const todayStr = now.toISOString().slice(0, 10);
   const todayMeals = activities.filter(
-    (a) => a.type === 'food' && parseIsoDate(a.timestamp).toISOString().slice(0, 10) === todayStr
+    (activity) => activity.type === 'food' && parseIsoDate(activity.timestamp).toISOString().slice(0, 10) === todayStr
   );
-  const todayGramTotal = todayMeals.reduce((sum, a) => sum + (a.quantityGrams || 80), 0);
+  const todayGramTotal = todayMeals.reduce((sum, activity) => sum + (activity.quantityGrams || 80), 0);
   const isGoalReached = (profile.dailyFoodGramGoal > 0 && todayGramTotal >= profile.dailyFoodGramGoal) || todayMeals.length >= targetMeals;
 
   if (isGoalReached || currentHour >= 19 || isCurrentlyNight) {

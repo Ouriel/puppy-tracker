@@ -35,19 +35,19 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
   };
 
   const getCaretakerColor = (name: string) => {
-    const caretaker = caretakers.find((c) => c.name.toLowerCase() === name.toLowerCase());
+    const caretaker = caretakers.find((item) => item.name.toLowerCase() === name.toLowerCase());
     return caretaker ? caretaker.color : '#6366F1';
   };
 
-  const filtered = activities.filter((a) => {
-    if (filter === 'potty') return a.type === 'pee' || a.type === 'poop';
-    if (filter === 'food') return a.type === 'food';
-    if (filter === 'walk') return a.type === 'walk';
+  const filtered = activities.filter((activity) => {
+    if (filter === 'potty') return activity.type === 'pee' || activity.type === 'poop';
+    if (filter === 'food') return activity.type === 'food';
+    if (filter === 'walk') return activity.type === 'walk';
     return true;
   });
 
   const sorted = [...filtered].sort(
-    (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+    (activityA, activityB) => new Date(activityB.timestamp).getTime() - new Date(activityA.timestamp).getTime()
   );
 
   const formatTime = (isoString: string) => {

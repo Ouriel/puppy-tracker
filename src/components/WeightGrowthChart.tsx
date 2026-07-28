@@ -19,8 +19,8 @@ export const WeightGrowthChart: React.FC<WeightGrowthChartProps> = ({
   // Extract and sort weight entries chronologically
   const weightLogs = React.useMemo(() => {
     return activities
-      .filter((a) => a.type === 'weight' && a.weightKg && a.weightKg > 0)
-      .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+      .filter((activity) => activity.type === 'weight' && activity.weightKg && activity.weightKg > 0)
+      .sort((activityA, activityB) => new Date(activityA.timestamp).getTime() - new Date(activityB.timestamp).getTime());
   }, [activities]);
 
   const latestWeight = weightLogs.length > 0

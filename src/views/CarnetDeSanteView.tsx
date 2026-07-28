@@ -50,6 +50,8 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePupp
   const [vaccineType, setVaccineType] = useState<string>('CHPPi + L4');
   const [administeredDate, setAdministeredDate] = useState(new Date().toISOString().slice(0, 10));
   const [nextDueDate, setNextDueDate] = useState('');
+  const [vetClinic, setVetClinic] = useState('');
+  const [batchNumber, setBatchNumber] = useState('');
 
   // New Deworming Form
   const [productName, setProductName] = useState('Milbemax Tab / Milprazon');
@@ -90,12 +92,16 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePupp
       name: vaccineType,
       date: administeredDate,
       boosterDate: nextDueDate,
+      vetClinic: vetClinic.trim() || undefined,
+      batchNumber: batchNumber.trim() || undefined,
     };
 
     const created = await createHealthRecord(newEntry);
     if (created) {
       setVaccinations((previous) => sortByDateDesc([created, ...previous]));
       setIsAddingVaccine(false);
+      setVetClinic('');
+      setBatchNumber('');
     }
   };
 
@@ -225,7 +231,7 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePupp
                 <label className="block text-xs font-semibold text-slate-400 mb-1">{t.health.vaccineType}</label>
                 <select
                   value={vaccineType}
-                  onChange={(e) => setVaccineType(e.target.value)}
+                  onChange={(event) => setVaccineType(event.target.value)}
                   className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-teal-500 cursor-pointer"
                 >
                   <option value="CHPPi + L4">CHPPi + L4 (Carré, Hépatite, Parvo, Pi + Lepto 4)</option>
@@ -243,7 +249,7 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePupp
                 <input
                   type="date"
                   value={administeredDate}
-                  onChange={(e) => setAdministeredDate(e.target.value)}
+                  onChange={(event) => setAdministeredDate(event.target.value)}
                   className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-teal-500"
                   required
                 />
@@ -254,9 +260,33 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePupp
                 <input
                   type="date"
                   value={nextDueDate}
-                  onChange={(e) => setNextDueDate(e.target.value)}
+                  onChange={(event) => setNextDueDate(event.target.value)}
                   className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-teal-500"
                   required
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-semibold text-slate-400 mb-1">{t.health.vetClinic}</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Clinique Vétérinaire Saint-Roch"
+                  value={vetClinic}
+                  onChange={(event) => setVetClinic(event.target.value)}
+                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-teal-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-400 mb-1">{t.health.batchNumber}</label>
+                <input
+                  type="text"
+                  placeholder="e.g. BATCH-2026-X99"
+                  value={batchNumber}
+                  onChange={(event) => setBatchNumber(event.target.value)}
+                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-teal-500 font-mono"
                 />
               </div>
             </div>
@@ -335,7 +365,7 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePupp
                 <label className="block text-xs font-semibold text-slate-400 mb-1">{t.health.productName}</label>
                 <select
                   value={productName}
-                  onChange={(e) => setProductName(e.target.value)}
+                  onChange={(event) => setProductName(event.target.value)}
                   className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-amber-500 cursor-pointer"
                 >
                   <option value="Credelio Plus">Credelio Plus (Milbémycine + Lotilaner - Puces/Tiques/Vers)</option>
@@ -353,7 +383,7 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePupp
                 <input
                   type="date"
                   value={dewormAdminDate}
-                  onChange={(e) => setDewormAdminDate(e.target.value)}
+                  onChange={(event) => setDewormAdminDate(event.target.value)}
                   className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-amber-500"
                   required
                 />
@@ -364,7 +394,7 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePupp
                 <input
                   type="date"
                   value={dewormNextDate}
-                  onChange={(e) => setDewormNextDate(e.target.value)}
+                  onChange={(event) => setDewormNextDate(event.target.value)}
                   className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-amber-500"
                   required
                 />

@@ -10,23 +10,23 @@ interface StatsAnalyticsProps {
 
 export const StatsAnalytics: React.FC<StatsAnalyticsProps> = ({ activities, profile }) => {
   const { t } = useI18n();
-  const pottyLogs = activities.filter((a) => a.type === 'pee' || a.type === 'poop');
-  const outsideCount = pottyLogs.filter((a) => a.pottyLocation === 'outside').length;
-  const accidentCount = pottyLogs.filter((a) => a.pottyLocation === 'indoor_accident').length;
+  const pottyLogs = activities.filter((activity) => activity.type === 'pee' || activity.type === 'poop');
+  const outsideCount = pottyLogs.filter((activity) => activity.pottyLocation === 'outside').length;
+  const accidentCount = pottyLogs.filter((activity) => activity.pottyLocation === 'indoor_accident').length;
   const totalPotty = pottyLogs.length;
 
   const successRate = totalPotty > 0 ? Math.round((outsideCount / totalPotty) * 100) : 100;
 
   const todayStr = new Date().toISOString().slice(0, 10);
   const todayFood = activities.filter(
-    (a) => a.type === 'food' && a.timestamp.slice(0, 10) === todayStr
+    (activity) => activity.type === 'food' && activity.timestamp.slice(0, 10) === todayStr
   );
-  const todayGramTotal = todayFood.reduce((sum, a) => sum + (a.quantityGrams || 0), 0);
+  const todayGramTotal = todayFood.reduce((sum, activity) => sum + (activity.quantityGrams || 0), 0);
   const foodGoalPercent = Math.min(100, Math.round((todayGramTotal / profile.dailyFoodGramGoal) * 100));
 
   const hourlyCounts = new Array(24).fill(0);
-  pottyLogs.forEach((a) => {
-    const hour = new Date(a.timestamp).getHours();
+  pottyLogs.forEach((activity) => {
+    const hour = new Date(activity.timestamp).getHours();
     hourlyCounts[hour]++;
   });
   const maxHourCount = Math.max(...hourlyCounts, 1);
