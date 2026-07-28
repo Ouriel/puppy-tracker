@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import type { Caretaker, UserAccount, FamilyRole } from '../types';
-import { Home, Users, UserPlus, Trash2, Mail, Send, CheckCircle2, UserCheck } from 'lucide-react';
+import { Home, Users, UserPlus, Trash2, Mail, Send, CheckCircle2, UserCheck, Copy } from 'lucide-react';
+import { createUser } from '../services/api';
+import { showToast } from '../utils/toast';
 
 interface HouseholdViewProps {
   user: UserAccount;
@@ -26,17 +28,38 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
   const [name, setName] = useState('');
   const [color, setColor] = useState('#EC4899');
 
-  const handleSendEmailInvite = (event: React.FormEvent) => {
+  const handlePreApproveMember = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!inviteEmail.trim()) return;
 
     const email = inviteEmail.trim().toLowerCase();
-    setInviteSuccess(`Invitation sent to ${email}! They will receive access to your household upon signing in.`);
-    setInviteEmail('');
-    setTimeout(() => {
-      setInviteSuccess('');
-      setIsInvitingEmail(false);
-    }, 3500);
+    const created = await createUser({
+      email,
+      name: email.split('@')[0],
+      role: 'Member',
+      status: 'ACTIVE',
+    });
+
+    if (created) {
+      setInviteSuccess(`${email} pre-approved! Share link below for them to log in.`);
+      setInviteEmail('');
+      // Also add caretaker badge if not present
+      if (!caretakers.some((c) => c.name.toLowerCase() === email.split('@')[0])) {
+        onAddCaretaker({
+          id: `c-${Date.now()}`,
+          name: email.split('@')[0],
+          role: 'Member',
+          color: '#6366F1',
+          email,
+        });
+      }
+    }
+  };
+
+  const copyAppUrl = () => {
+    const url = window.location.origin;
+    navigator.clipboard.writeText(url);
+    showToast('PupPace link copied to clipboard!', 'success');
   };
 
   const handleAddSubmit = (event: React.FormEvent) => {
@@ -69,35 +92,49 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
           </div>
         </div>
 
-        {/* Invite via Email Action Button */}
+        {/* Pre-Approve Action Button */}
         <button
           onClick={() => setIsInvitingEmail(!isInvitingEmail)}
           className="flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-md transition active:scale-95 cursor-pointer"
         >
           <Mail className="w-4 h-4" />
-          <span>Invite Member via Email</span>
+          <span>Pre-Approve Family Member Email</span>
         </button>
       </div>
 
-      {/* Email Invite Box */}
+      {/* Email Registration Box */}
       {isInvitingEmail && (
-        <form onSubmit={handleSendEmailInvite} className="bg-slate-900 border border-indigo-800/60 p-6 rounded-2xl space-y-3 shadow-xl">
+        <form onSubmit={handlePreApproveMember} className="bg-slate-900 border border-indigo-800/60 p-6 rounded-2xl space-y-4 shadow-xl">
           <h3 className="text-sm font-bold text-slate-100 flex items-center gap-2">
             <Mail className="w-4 h-4 text-indigo-400" />
-            <span>Send Household Invitation Link</span>
+            <span>Authorize Google Account Email</span>
           </h3>
 
+          <p className="text-xs text-slate-400 leading-relaxed">
+            Enter your family member's Google email address to pre-authorize them. Once authorized, send them the link below so they can sign in with Google.
+          </p>
+
           {inviteSuccess && (
-            <div className="bg-emerald-950/40 border border-emerald-800/50 text-emerald-400 p-3 rounded-xl text-xs flex items-center gap-2 font-semibold">
-              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-              <span>{inviteSuccess}</span>
+            <div className="bg-emerald-950/40 border border-emerald-800/50 text-emerald-400 p-3.5 rounded-xl text-xs flex flex-wrap items-center justify-between gap-2 font-semibold">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                <span>{inviteSuccess}</span>
+              </div>
+              <button
+                type="button"
+                onClick={copyAppUrl}
+                className="bg-emerald-800 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1 cursor-pointer"
+              >
+                <Copy className="w-3.5 h-3.5" />
+                <span>Copy App Link</span>
+              </button>
             </div>
           )}
 
           <div className="flex gap-2">
             <input
               type="email"
-              placeholder="Enter email address (e.g. partner@family.com)"
+              placeholder="Enter Google email address (e.g. partner@gmail.com)"
               value={inviteEmail}
               onChange={(event) => setInviteEmail(event.target.value)}
               className="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-slate-100 focus:outline-none focus:border-indigo-500"
@@ -108,7 +145,7 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
               className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs px-5 py-2.5 rounded-xl transition flex items-center gap-1.5 cursor-pointer"
             >
               <Send className="w-3.5 h-3.5" />
-              <span>Send Invite</span>
+              <span>Authorize Email</span>
             </button>
           </div>
         </form>
@@ -126,7 +163,7 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
             className="flex items-center gap-1 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs px-3.5 py-2 rounded-xl transition cursor-pointer border border-slate-700"
           >
             <UserPlus className="w-4 h-4" />
-            <span>{isAdding ? 'Cancel' : 'Add Family Member'}</span>
+            <span>{isAdding ? 'Cancel' : 'Add Family Member Badge'}</span>
           </button>
         </div>
 
@@ -161,7 +198,7 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
                 type="submit"
                 className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs px-4 py-2 rounded-xl transition cursor-pointer"
               >
-                Add Member
+                Add Member Badge
               </button>
             </div>
           </form>
