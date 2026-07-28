@@ -32,10 +32,16 @@ export const DEFAULT_CARETAKERS: Caretaker[] = [
   { id: '1', name: 'Matthieu', role: 'Member', color: '#6366F1' },
 ];
 
-let _authToken: string | null = null;
+let _authToken: string | null = typeof localStorage !== 'undefined' ? localStorage.getItem('puppace_auth_token') : null;
+
 export function setAuthToken(token: string | null) {
   _authToken = token;
+  if (typeof localStorage !== 'undefined') {
+    if (token) localStorage.setItem('puppace_auth_token', token);
+    else localStorage.removeItem('puppace_auth_token');
+  }
 }
+
 export function getAuthToken(): string | null {
   return _authToken;
 }
@@ -53,6 +59,7 @@ function householdHeaders(): Record<string, string> {
 // ── Dogs ──
 
 export async function apiFetchDogs(): Promise<PuppyProfile[] | null> {
+  if (!_authToken) return null;
   try {
     const res = await fetch('/api/dogs', { headers: householdHeaders() });
     if (res.ok) {
@@ -61,39 +68,41 @@ export async function apiFetchDogs(): Promise<PuppyProfile[] | null> {
         localStorage.setItem(STORAGE_KEY_PUPPIES, JSON.stringify(data));
         return data;
       }
-    } else {
+    } else if (res.status !== 401 && res.status !== 403) {
       const body = await res.json().catch(() => ({}));
       showToast(body.error || `Server error (${res.status}) fetching dogs`, 'error');
     }
   } catch {
-    showToast('Failed to sync dogs with server. Changes saved locally.', 'error');
+    // silent fallback to local storage
   }
   return null;
 }
 
 export async function apiPostDog(dog: PuppyProfile) {
+  if (!_authToken) return;
   try {
     const res = await fetch('/api/dogs', {
       method: 'POST',
       headers: householdHeaders(),
       body: JSON.stringify(dog),
     });
-    if (!res.ok) {
+    if (!res.ok && res.status !== 401 && res.status !== 403) {
       const body = await res.json().catch(() => ({}));
       showToast(body.error || `Server error (${res.status}) saving dog`, 'error');
     }
   } catch {
-    showToast('Failed to save dog profile to server. Changes saved locally.', 'error');
+    // silent fallback to local storage
   }
 }
 
 export async function apiDeleteDog(dogId: string) {
+  if (!_authToken) return;
   try {
     const res = await fetch(`/api/dogs?id=${dogId}`, {
       method: 'DELETE',
       headers: householdHeaders(),
     });
-    if (!res.ok) {
+    if (!res.ok && res.status !== 401 && res.status !== 403) {
       const body = await res.json().catch(() => ({}));
       showToast(body.error || `Server error (${res.status}) deleting dog`, 'error');
     }
@@ -105,6 +114,7 @@ export async function apiDeleteDog(dogId: string) {
 // ── Activities ──
 
 export async function apiFetchActivities(puppyId?: string): Promise<Activity[] | null> {
+  if (!_authToken) return null;
   try {
     const url = puppyId ? `/api/activities?puppyId=${puppyId}` : '/api/activities';
     const res = await fetch(url, { headers: householdHeaders() });
@@ -114,39 +124,41 @@ export async function apiFetchActivities(puppyId?: string): Promise<Activity[] |
         localStorage.setItem(STORAGE_KEY_ACTIVITIES, JSON.stringify(data));
         return data;
       }
-    } else {
+    } else if (res.status !== 401 && res.status !== 403) {
       const body = await res.json().catch(() => ({}));
       showToast(body.error || `Server error (${res.status}) fetching activities`, 'error');
     }
   } catch {
-    showToast('Failed to sync activities with server. Changes saved locally.', 'error');
+    // silent fallback to local storage
   }
   return null;
 }
 
 export async function apiPostActivity(activity: Activity) {
+  if (!_authToken) return;
   try {
     const res = await fetch('/api/activities', {
       method: 'POST',
       headers: householdHeaders(),
       body: JSON.stringify(activity),
     });
-    if (!res.ok) {
+    if (!res.ok && res.status !== 401 && res.status !== 403) {
       const body = await res.json().catch(() => ({}));
       showToast(body.error || `Server error (${res.status}) saving activity`, 'error');
     }
   } catch {
-    showToast('Failed to save activity to server. Changes saved locally.', 'error');
+    // silent fallback to local storage
   }
 }
 
 export async function apiDeleteActivity(activityId: string) {
+  if (!_authToken) return;
   try {
     const res = await fetch(`/api/activities?id=${activityId}`, {
       method: 'DELETE',
       headers: householdHeaders(),
     });
-    if (!res.ok) {
+    if (!res.ok && res.status !== 401 && res.status !== 403) {
       const body = await res.json().catch(() => ({}));
       showToast(body.error || `Server error (${res.status}) deleting activity`, 'error');
     }
@@ -158,28 +170,32 @@ export async function apiDeleteActivity(activityId: string) {
 // ── Health Records API Helpers ──
 
 export async function apiFetchHealthRecords(puppyId: string, type?: string): Promise<any[] | null> {
+  if (!_authToken) return null;
   try {
     const url = type
       ? `/api/health-records?puppyId=${puppyId}&type=${type}`
       : `/api/health-records?puppyId=${puppyId}`;
     const res = await fetch(url, { headers: householdHeaders() });
     if (res.ok) return await res.json();
-    const body = await res.json().catch(() => ({}));
-    showToast(body.error || `Server error (${res.status}) fetching health records`, 'error');
+    if (res.status !== 401 && res.status !== 403) {
+      const body = await res.json().catch(() => ({}));
+      showToast(body.error || `Server error (${res.status}) fetching health records`, 'error');
+    }
   } catch {
-    showToast('Failed to fetch health records from server.', 'error');
+    // silent
   }
   return null;
 }
 
 export async function apiPostHealthRecord(record: any) {
+  if (!_authToken) return;
   try {
     const res = await fetch('/api/health-records', {
       method: 'POST',
       headers: householdHeaders(),
       body: JSON.stringify(record),
     });
-    if (!res.ok) {
+    if (!res.ok && res.status !== 401 && res.status !== 403) {
       const body = await res.json().catch(() => ({}));
       showToast(body.error || `Server error (${res.status}) saving health record`, 'error');
     }
@@ -189,12 +205,13 @@ export async function apiPostHealthRecord(record: any) {
 }
 
 export async function apiDeleteHealthRecord(id: string) {
+  if (!_authToken) return;
   try {
     const res = await fetch(`/api/health-records?id=${id}`, {
       method: 'DELETE',
       headers: householdHeaders(),
     });
-    if (!res.ok) {
+    if (!res.ok && res.status !== 401 && res.status !== 403) {
       const body = await res.json().catch(() => ({}));
       showToast(body.error || `Server error (${res.status}) deleting health record`, 'error');
     }
@@ -203,21 +220,25 @@ export async function apiDeleteHealthRecord(id: string) {
   }
 }
 
-// ── Users API Helpers (Database backend) ──
+// ── Users API Helpers ──
 
 export async function apiFetchUsers(): Promise<RegisteredUserItem[] | null> {
+  if (!_authToken) return null;
   try {
     const res = await fetch('/api/users', { headers: householdHeaders() });
     if (res.ok) return await res.json();
-    const body = await res.json().catch(() => ({}));
-    showToast(body.error || `Server error (${res.status}) fetching users`, 'error');
+    if (res.status !== 401 && res.status !== 403) {
+      const body = await res.json().catch(() => ({}));
+      showToast(body.error || `Server error (${res.status}) fetching users`, 'error');
+    }
   } catch {
-    showToast('Failed to fetch users from server.', 'error');
+    // silent
   }
   return null;
 }
 
 export async function apiPostUser(user: Partial<RegisteredUserItem>) {
+  if (!_authToken) return null;
   try {
     const res = await fetch('/api/users', {
       method: 'POST',
@@ -226,7 +247,9 @@ export async function apiPostUser(user: Partial<RegisteredUserItem>) {
     });
     const body = await res.json().catch(() => ({}));
     if (!res.ok) {
-      showToast(body.error || `Server error (${res.status}) saving user`, 'error');
+      if (res.status !== 401 && res.status !== 403) {
+        showToast(body.error || `Server error (${res.status}) saving user`, 'error');
+      }
       return null;
     }
     return body;
@@ -237,6 +260,7 @@ export async function apiPostUser(user: Partial<RegisteredUserItem>) {
 }
 
 export async function apiPutUser(user: Partial<RegisteredUserItem>) {
+  if (!_authToken) return null;
   try {
     const res = await fetch('/api/users', {
       method: 'PUT',
@@ -245,7 +269,9 @@ export async function apiPutUser(user: Partial<RegisteredUserItem>) {
     });
     const body = await res.json().catch(() => ({}));
     if (!res.ok) {
-      showToast(body.error || `Server error (${res.status}) updating user`, 'error');
+      if (res.status !== 401 && res.status !== 403) {
+        showToast(body.error || `Server error (${res.status}) updating user`, 'error');
+      }
       return null;
     }
     return body;
@@ -256,6 +282,7 @@ export async function apiPutUser(user: Partial<RegisteredUserItem>) {
 }
 
 export async function apiDeleteUser(email: string) {
+  if (!_authToken) return false;
   try {
     const res = await fetch(`/api/users?email=${encodeURIComponent(email)}`, {
       method: 'DELETE',
@@ -263,7 +290,9 @@ export async function apiDeleteUser(email: string) {
     });
     const body = await res.json().catch(() => ({}));
     if (!res.ok) {
-      showToast(body.error || `Server error (${res.status}) deleting user`, 'error');
+      if (res.status !== 401 && res.status !== 403) {
+        showToast(body.error || `Server error (${res.status}) deleting user`, 'error');
+      }
       return false;
     }
     return true;
@@ -297,6 +326,7 @@ export function markDogsAsKnown(dogs: PuppyProfile[]) {
 
 export function savePuppies(puppies: PuppyProfile[]) {
   localStorage.setItem(STORAGE_KEY_PUPPIES, JSON.stringify(puppies));
+  if (!_authToken) return;
   for (const p of puppies) {
     if (!_knownDogIds.has(p.id)) {
       _knownDogIds.add(p.id);
@@ -332,6 +362,7 @@ export function getInitialActivities(): Activity[] {
 
 export function saveActivities(activities: Activity[]) {
   localStorage.setItem(STORAGE_KEY_ACTIVITIES, JSON.stringify(activities));
+  if (!_authToken) return;
   // Post only activities that are new (not yet known to the backend)
   for (const a of activities) {
     if (!_knownActivityIds.has(a.id)) {
