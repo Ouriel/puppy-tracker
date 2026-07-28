@@ -21,14 +21,14 @@ export async function verifyAuth(req: VercelRequest): Promise<AuthContext> {
   }
 
   const token = authHeader.slice(7);
-  const googleClientId = process.env.VITE_GOOGLE_CLIENT_ID;
+  const googleClientId = process.env.VITE_GOOGLE_CLIENT_ID || process.env.GOOGLE_CLIENT_ID;
 
   // Verify the Google JWT cryptographically
   let payload;
   try {
     const ticket = await client.verifyIdToken({
       idToken: token,
-      audience: googleClientId,
+      ...(googleClientId ? { audience: googleClientId } : {}),
     });
     payload = ticket.getPayload();
   } catch (err: any) {
