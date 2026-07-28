@@ -342,11 +342,12 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePupp
                   onChange={(e) => setProductName(e.target.value)}
                   className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-amber-500 cursor-pointer"
                 >
+                  <option value="Credelio Plus">Credelio Plus (Milbémycine + Lotilaner - Puces/Tiques/Vers)</option>
                   <option value="Milbemax Tab / Milprazon">Milbemax Tab / Milprazon (N°1 France)</option>
+                  <option value="Nexgard Spectra">Nexgard Spectra (Vermifuge + Tiques/Puces)</option>
                   <option value="Drontal Chien">Drontal Chien (Praziquantel / Fébantel)</option>
                   <option value="Panacur (Fenbendazole)">Panacur (Chiots / Giardiose)</option>
                   <option value="Dolpac / Procox">Dolpac / Procox</option>
-                  <option value="Nexgard Spectra">Nexgard Spectra (Vermifuge + Tiques/Puces)</option>
                   <option value="Autre vermifuge">Autre produit vermifuge</option>
                 </select>
               </div>
