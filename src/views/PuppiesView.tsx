@@ -12,26 +12,7 @@ interface PuppiesViewProps {
   onDeletePuppy: (id: string) => void;
 }
 
-export const DOG_BREEDS = [
-  'English Cocker Spaniel / Cocker Anglais',
-  'American Cocker Spaniel / Cocker Américain',
-  'French Bulldog / Bouledogue Français',
-  'Golden Retriever',
-  'Labrador Retriever',
-  'Australian Shepherd / Berger Australien',
-  'German Shepherd / Berger Allemand',
-  'Beagle',
-  'Poodle / Caniche',
-  'Cavalier King Charles',
-  'Border Collie',
-  'Dachshund / Teckel',
-  'Jack Russell Terrier',
-  'Chihuahua',
-  'Siberian Husky',
-  'Mixed Breed / Bâtard (Croisé)',
-  'Unknown / Inconnu',
-  'Other',
-];
+import { DOG_BREEDS } from '../constants/breeds';
 
 export const PuppiesView: React.FC<PuppiesViewProps> = ({
   puppies,
