@@ -58,7 +58,7 @@ export function detectSleepSchedule(activities: Activity[]): { bedtimeHour: numb
  */
 export function calculateLearnedIntervalMinutes(
   activities: Activity[],
-  type: 'pee' | 'poop',
+  type: 'pee' | 'poop' | 'food',
   fallbackMinutes: number,
   sleepSchedule = { bedtimeHour: 22, wakeupHour: 7 }
 ): { intervalMins: number; sampleCount: number; isLearned: boolean } {
@@ -249,20 +249,49 @@ export function calculatePredictions(
     poopReason = 'No poop recorded yet';
   }
 
-  // 3. Food Prediction
+  // 3. Food Prediction (Veterinary Standard & Age-Aware)
   let nextFoodExpectedAt: Date | null = null;
   let foodUrgency: 'safe' | 'soon' | 'overdue' = 'safe';
   let foodReason = '';
 
-  if (lastFood) {
+  // Veterinary standard age-based recommended daily meals if not explicitly set
+  const vetRecommendedMeals = months < 3 ? 4 : months < 6 ? 3 : 2;
+  const targetMeals = Math.max(1, profile.targetMealsPerDay || vetRecommendedMeals);
+
+  const todayStr = now.toISOString().slice(0, 10);
+  const todayMeals = activities.filter(
+    (a) => a.type === 'food' && parseIsoDate(a.timestamp).toISOString().slice(0, 10) === todayStr
+  );
+  const todayGramTotal = todayMeals.reduce((sum, a) => sum + (a.quantityGrams || 80), 0);
+  const isGoalReached = (profile.dailyFoodGramGoal > 0 && todayGramTotal >= profile.dailyFoodGramGoal) || todayMeals.length >= targetMeals;
+
+  if (isGoalReached || currentHour >= 19 || isCurrentlyNight) {
+    // Dinner completed or night time -> Next meal is tomorrow morning breakfast (~07:30 AM)
+    const targetBreakfast = new Date(now);
+    if (currentHour >= 19 || isGoalReached) {
+      targetBreakfast.setDate(targetBreakfast.getDate() + 1);
+    }
+    targetBreakfast.setHours(sleepSchedule.wakeupHour, 30, 0, 0); // ~07:30 AM
+    nextFoodExpectedAt = targetBreakfast;
+
+    if (isGoalReached) {
+      foodReason = `Today's food goal reached (${todayGramTotal}g / ${targetMeals} meals)! Next meal is breakfast tomorrow ~${sleepSchedule.wakeupHour}:30 AM`;
+      foodUrgency = 'safe';
+    } else {
+      foodReason = `Night mode: Next meal is breakfast tomorrow ~${sleepSchedule.wakeupHour}:30 AM`;
+      foodUrgency = 'safe';
+    }
+  } else if (lastFood) {
     const lastFoodTime = parseIsoDate(lastFood.timestamp).getTime();
-    const targetMeals = Math.max(1, profile.targetMealsPerDay || 3);
-    const mealIntervalHours = targetMeals > 1 ? 12 / (targetMeals - 1) : 12;
+    // 11-hour active day (07:30 to 18:30) divided evenly across targetMeals - 1 gaps
+    const mealIntervalHours = targetMeals > 1 ? 11 / (targetMeals - 1) : 11;
     nextFoodExpectedAt = new Date(lastFoodTime + mealIntervalHours * 60 * 60 * 1000);
-    foodReason = `Next of ${targetMeals} daily meals (~every ${mealIntervalHours}h)`;
+
+    const formattedInterval = (Math.round(mealIntervalHours * 10) / 10).toString();
+    foodReason = `Vet guideline for ${months}mo puppy: ${targetMeals} daily meals (~every ${formattedInterval}h)`;
 
     const minsUntilFood = (nextFoodExpectedAt.getTime() - now.getTime()) / (1000 * 60);
-    if (minsUntilFood <= -15) {
+    if (minsUntilFood <= -20) {
       foodUrgency = 'overdue';
     } else if (minsUntilFood <= 30) {
       foodUrgency = 'soon';
@@ -270,7 +299,7 @@ export function calculatePredictions(
       foodUrgency = 'safe';
     }
   } else {
-    foodReason = 'No meal recorded today';
+    foodReason = `No meal recorded today (${targetMeals} meals/day recommended for ${months}mo puppy)`;
   }
 
   return {
