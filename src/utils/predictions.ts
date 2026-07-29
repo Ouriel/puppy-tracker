@@ -135,7 +135,6 @@ export function calculatePredictions(activities: Activity[], profile: PuppyProfi
   const lastPee = sorted.find((activity) => activity.type === 'pee');
   const lastPoop = sorted.find((activity) => activity.type === 'poop');
   const lastFood = sorted.find((activity) => activity.type === 'food');
-  const lastWalk = sorted.find((activity) => activity.type === 'walk');
 
   const { months } = getPuppyAge(profile.birthDate);
   const baseBladderHours = Math.max(1, Math.min(months, 4));
@@ -191,18 +190,6 @@ export function calculatePredictions(activities: Activity[], profile: PuppyProfi
         peeReason = `Pup fed ${minsSinceMeal}m ago — post-meal potty break is overdue!`;
       } else {
         peeReason = `Pup fed recently (${minsSinceMeal}m ago). Pees ~15-20m post-meal.`;
-      }
-    } else if (lastWalk && parseIsoDate(lastWalk.timestamp).getTime() > lastPeeTime) {
-      const walkTime = parseIsoDate(lastWalk.timestamp).getTime();
-      const postWalkPee = new Date(walkTime + 15 * 60 * 1000);
-      const minsSinceWalk = Math.round((now.getTime() - walkTime) / (1000 * 60));
-
-      nextPeeExpectedAt = postWalkPee;
-
-      if (minsSinceWalk > 25) {
-        peeReason = `Pup walked/played ${minsSinceWalk}m ago — exercise stimulates potty break!`;
-      } else {
-        peeReason = `Pup walked/played recently (${minsSinceWalk}m ago). Exercise stimulates bladder ~10-20m post-walk.`;
       }
     } else {
       nextPeeExpectedAt = standardPeeExpectedAt;
