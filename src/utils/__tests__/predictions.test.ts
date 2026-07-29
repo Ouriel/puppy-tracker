@@ -44,4 +44,21 @@ describe('predictions utility', () => {
     expect(predictions.peeReason).toContain('Pup fed recently');
     expect(predictions.nextPeeExpectedAt).not.toBeNull();
   });
+
+  it('correctly predicts morning breakfast without overnight overdue bug', () => {
+    const todayMorning = new Date();
+    todayMorning.setHours(7, 30, 0, 0);
+
+    const yesterdayDinner = new Date(todayMorning);
+    yesterdayDinner.setDate(yesterdayDinner.getDate() - 1);
+    yesterdayDinner.setHours(20, 0, 0, 0);
+
+    const activities: Activity[] = [
+      { id: '1', puppyId: 'pup-1', type: 'food', timestamp: yesterdayDinner.toISOString(), loggedBy: 'Matthieu' },
+    ];
+
+    const predictions = calculatePredictions(activities, mockProfile, todayMorning);
+    expect(predictions.foodUrgency).not.toBe('overdue');
+    expect(predictions.nextFoodExpectedAt).not.toBeNull();
+  });
 });

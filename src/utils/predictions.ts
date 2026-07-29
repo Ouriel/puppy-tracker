@@ -6,6 +6,13 @@ function parseIsoDate(timestamp: string): Date {
   return new Date(formatted);
 }
 
+function formatLocalDate(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 export function getPuppyAge(birthDateIso: string): { weeks: number; months: number; text: string } {
   const birth = parseIsoDate(birthDateIso);
   const now = new Date();
@@ -114,8 +121,8 @@ export function calculateLearnedIntervalMinutes(
 /**
  * Advanced Predictive Potty & Feeding Schedules with Night Sleep Detection
  */
-export function calculatePredictions(activities: Activity[], profile: PuppyProfile): PredictionResult {
-  const now = new Date();
+export function calculatePredictions(activities: Activity[], profile: PuppyProfile, referenceTime?: Date): PredictionResult {
+  const now = referenceTime || new Date();
   const currentHour = now.getHours();
 
   const sleepSchedule = detectSleepSchedule(activities);
@@ -267,7 +274,7 @@ export function calculatePredictions(activities: Activity[], profile: PuppyProfi
     poopReason = 'No poop recorded yet';
   }
 
-  // 3. Food Prediction (Veterinary Standard & Age-Aware)
+  // 3. Food Prediction (Veterinary Standard, Sleep-Aware & Smart Daytime Schedule)
   let nextFoodExpectedAt: Date | null = null;
   let foodUrgency: 'safe' | 'soon' | 'overdue' = 'safe';
   let foodReason = '';
@@ -275,46 +282,73 @@ export function calculatePredictions(activities: Activity[], profile: PuppyProfi
   const vetRecommendedMeals = months < 3 ? 4 : months < 6 ? 3 : 2;
   const targetMeals = Math.max(1, profile.targetMealsPerDay || vetRecommendedMeals);
 
-  const todayStr = now.toISOString().slice(0, 10);
+  const todayDateStr = formatLocalDate(now);
   const todayMeals = activities.filter(
-    (activity) => activity.type === 'food' && parseIsoDate(activity.timestamp).toISOString().slice(0, 10) === todayStr
+    (activity) => activity.type === 'food' && formatLocalDate(parseIsoDate(activity.timestamp)) === todayDateStr
   );
   const todayGramTotal = todayMeals.reduce((sum, activity) => sum + (activity.quantityGrams || 80), 0);
   const isGoalReached = (profile.dailyFoodGramGoal > 0 && todayGramTotal >= profile.dailyFoodGramGoal) || todayMeals.length >= targetMeals;
 
-  if (isGoalReached || currentHour >= 19 || isCurrentlyNight) {
-    const targetBreakfast = new Date(now);
-    if (currentHour >= 19 || isGoalReached) {
-      targetBreakfast.setDate(targetBreakfast.getDate() + 1);
-    }
-    targetBreakfast.setHours(sleepSchedule.wakeupHour, 30, 0, 0); // ~07:30 AM
-    nextFoodExpectedAt = targetBreakfast;
+  const targetBreakfastToday = new Date(now);
+  targetBreakfastToday.setHours(sleepSchedule.wakeupHour, 30, 0, 0);
 
-    if (isGoalReached) {
-      foodReason = `Today's food goal reached (${todayGramTotal}g / ${targetMeals} meals). Next: ~${sleepSchedule.wakeupHour}:30 AM`;
+  if (isCurrentlyNight) {
+    // Night mode: puppy is sleeping until morning
+    const targetBreakfastTomorrow = new Date(now);
+    if (currentHour >= sleepSchedule.bedtimeHour) {
+      targetBreakfastTomorrow.setDate(targetBreakfastTomorrow.getDate() + 1);
+    }
+    targetBreakfastTomorrow.setHours(sleepSchedule.wakeupHour, 30, 0, 0);
+    nextFoodExpectedAt = targetBreakfastTomorrow;
+    foodUrgency = 'safe';
+    foodReason = `Night mode: Puppy sleeping until breakfast at ~${sleepSchedule.wakeupHour}:30 AM`;
+  } else if (isGoalReached || currentHour >= 20) {
+    // Goal reached or late evening: next meal is breakfast tomorrow
+    const targetBreakfastTomorrow = new Date(now);
+    targetBreakfastTomorrow.setDate(targetBreakfastTomorrow.getDate() + 1);
+    targetBreakfastTomorrow.setHours(sleepSchedule.wakeupHour, 30, 0, 0);
+    nextFoodExpectedAt = targetBreakfastTomorrow;
+    foodUrgency = 'safe';
+    foodReason = isGoalReached
+      ? `Today's food goal reached (${todayGramTotal}g / ${targetMeals} meals). Next: Breakfast tomorrow ~${sleepSchedule.wakeupHour}:30 AM`
+      : `Evening mode: Next meal is breakfast tomorrow ~${sleepSchedule.wakeupHour}:30 AM`;
+  } else if (todayMeals.length === 0) {
+    // Morning / daytime before first meal of the day: next meal is TODAY's Breakfast
+    nextFoodExpectedAt = targetBreakfastToday;
+    const minsUntilBreakfast = (targetBreakfastToday.getTime() - now.getTime()) / (1000 * 60);
+
+    if (minsUntilBreakfast > 30) {
       foodUrgency = 'safe';
+      foodReason = `Puppy resting. Breakfast scheduled at ~${sleepSchedule.wakeupHour}:30 AM (Meal 1 of ${targetMeals})`;
+    } else if (minsUntilBreakfast >= -60) {
+      foodUrgency = minsUntilBreakfast < 0 ? 'soon' : 'safe';
+      foodReason = `Morning breakfast due (~${sleepSchedule.wakeupHour}:30 AM, Meal 1 of ${targetMeals})`;
     } else {
-      foodReason = `Night mode: Next meal is breakfast tomorrow ~${sleepSchedule.wakeupHour}:30 AM`;
-      foodUrgency = 'safe';
+      foodUrgency = 'overdue';
+      foodReason = `Breakfast overdue (expected ~${sleepSchedule.wakeupHour}:30 AM, Meal 1 of ${targetMeals})`;
     }
-  } else if (lastFood) {
-    const lastFoodTime = parseIsoDate(lastFood.timestamp).getTime();
-    const mealIntervalHours = targetMeals > 1 ? 11 / (targetMeals - 1) : 11;
-    nextFoodExpectedAt = new Date(lastFoodTime + mealIntervalHours * 60 * 60 * 1000);
+  } else {
+    // Daytime meals (Lunch / Dinner): calculate from the most recent meal logged today
+    const lastMealToday = todayMeals.reduce((latest, current) => {
+      return parseIsoDate(current.timestamp).getTime() > parseIsoDate(latest.timestamp).getTime() ? current : latest;
+    }, todayMeals[0]);
 
+    const lastMealTime = parseIsoDate(lastMealToday.timestamp).getTime();
+    const daytimeWakingHours = Math.max(10, sleepSchedule.bedtimeHour - sleepSchedule.wakeupHour);
+    const mealIntervalHours = targetMeals > 1 ? daytimeWakingHours / targetMeals : daytimeWakingHours;
+
+    nextFoodExpectedAt = new Date(lastMealTime + mealIntervalHours * 60 * 60 * 1000);
     const formattedInterval = (Math.round(mealIntervalHours * 10) / 10).toString();
-    foodReason = `Vet guideline for ${months}mo puppy: ${targetMeals} daily meals (~every ${formattedInterval}h)`;
+    foodReason = `Daytime meal schedule: ${todayMeals.length}/${targetMeals} meals logged today (~every ${formattedInterval}h)`;
 
     const minsUntilFood = (nextFoodExpectedAt.getTime() - now.getTime()) / (1000 * 60);
-    if (minsUntilFood <= -20) {
+    if (minsUntilFood <= -30) {
       foodUrgency = 'overdue';
     } else if (minsUntilFood <= 30) {
       foodUrgency = 'soon';
     } else {
       foodUrgency = 'safe';
     }
-  } else {
-    foodReason = `No meal recorded today (${targetMeals} meals/day recommended for ${months}mo puppy)`;
   }
 
   return {
