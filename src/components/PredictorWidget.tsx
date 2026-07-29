@@ -26,7 +26,9 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = ({
     return () => clearInterval(timer);
   }, []);
 
-  const dailyGoal = profile.dailyFoodGramGoal || 200;
+  const targetMeals = Math.max(1, profile.targetMealsPerDay || 3);
+  const dailyGoal = profile.dailyFoodGramGoal || 240;
+  const portionPerMealGrams = Math.round(dailyGoal / targetMeals);
   const remainingFoodGrams = Math.max(0, dailyGoal - todayFoodLoggedGrams);
 
   const formatCountdown = (targetDate: Date | null) => {
@@ -283,7 +285,7 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = ({
             className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs py-2 px-3 rounded-lg flex items-center justify-center gap-1.5 shadow transition active:scale-95 cursor-pointer mt-2"
           >
             <Utensils className="w-3.5 h-3.5" />
-            <span>{t.dashboard.feedMealNow} ({remainingFoodGrams}g)</span>
+            <span>{t.dashboard.feedMealNow} ({portionPerMealGrams}g)</span>
           </button>
         </div>
       </div>

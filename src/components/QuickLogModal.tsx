@@ -9,6 +9,7 @@ interface QuickLogModalProps {
   isOpen: boolean;
   initialType?: ActivityType;
   initialLocation?: PottyLocation;
+  defaultMealPortionGrams?: number;
   caretakers: Caretaker[];
   currentUser: string;
   onClose: () => void;
@@ -19,6 +20,7 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
   isOpen,
   initialType = 'pee',
   initialLocation = 'outside',
+  defaultMealPortionGrams = 80,
   caretakers,
   currentUser,
   onClose,
@@ -34,7 +36,7 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
   const [stoolConsistency, setStoolConsistency] = useState<StoolConsistency>('normal');
 
   const [foodType, setFoodType] = useState<FoodType>('kibble');
-  const [quantityGrams, setQuantityGrams] = useState<number>(80);
+  const [quantityGrams, setQuantityGrams] = useState<number>(defaultMealPortionGrams);
   const [quantityCups, setQuantityCups] = useState<number>(0.75);
 
   const [durationMinutes, setDurationMinutes] = useState<number>(30);
@@ -46,7 +48,10 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
     setPottyLocation(initialLocation);
     setTimestamp(getLocalDatetimeString());
     setLoggedBy(currentUser);
-  }, [initialType, initialLocation, currentUser, isOpen]);
+    if (defaultMealPortionGrams) {
+      setQuantityGrams(defaultMealPortionGrams);
+    }
+  }, [initialType, initialLocation, currentUser, defaultMealPortionGrams, isOpen]);
 
   if (!isOpen) return null;
 

@@ -273,13 +273,15 @@ export function App() {
       return;
     }
 
+    const defaultPortionGrams = Math.round((activePuppy.dailyFoodGramGoal || 240) / Math.max(1, activePuppy.targetMealsPerDay || 3));
+
     const newActivity: Omit<Activity, 'id'> = {
       puppyId: activePuppy.id,
       type,
       timestamp: new Date().toISOString(),
       loggedBy: currentUser,
       ...(defaultLocation ? { pottyLocation: defaultLocation } : {}),
-      ...(type === 'food' ? { foodType: 'kibble', quantityGrams: 80 } : {}),
+      ...(type === 'food' ? { foodType: 'kibble', quantityGrams: defaultPortionGrams } : {}),
     };
 
     const created = await createActivity(newActivity);
@@ -523,6 +525,7 @@ export function App() {
         <QuickLogModal
           isOpen={isQuickLogOpen}
           initialType={quickLogType}
+          defaultMealPortionGrams={Math.round((activePuppy.dailyFoodGramGoal || 240) / Math.max(1, activePuppy.targetMealsPerDay || 3))}
           onClose={() => setIsQuickLogOpen(false)}
           onSave={handleAddActivity}
           caretakers={caretakers}
