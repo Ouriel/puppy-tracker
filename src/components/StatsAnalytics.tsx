@@ -23,7 +23,8 @@ export const StatsAnalytics: React.FC<StatsAnalyticsProps> = ({ activities, prof
     (activity) => activity.type === 'food' && isSameLocalDate(activity.timestamp, now)
   );
   const todayGramTotal = todayFood.reduce((sum, activity) => sum + (activity.quantityGrams || 0), 0);
-  const foodGoalPercent = Math.min(100, Math.round((todayGramTotal / profile.dailyFoodGramGoal) * 100));
+  const dailyGoal = profile.dailyFoodGramGoal > 0 ? profile.dailyFoodGramGoal : 240;
+  const foodGoalPercent = Math.min(100, Math.round((todayGramTotal / dailyGoal) * 100));
 
   const hourlyCounts = new Array(24).fill(0);
   pottyLogs.forEach((activity) => {

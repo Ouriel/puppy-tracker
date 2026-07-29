@@ -88,7 +88,7 @@ export const WeightGrowthChart: React.FC<WeightGrowthChartProps> = ({
           {/* Target Zone Gradient */}
           <div
             className="h-full bg-gradient-to-r from-indigo-600 via-purple-500 to-pink-500 rounded-full transition-all duration-700"
-            style={{ width: `${Math.min(100, (latestWeight / 14) * 100)}%` }}
+            style={{ width: `${Math.min(100, Math.max(0, Math.round(((isNaN(latestWeight) ? 0 : latestWeight) / 14) * 100)))}%` }}
           />
         </div>
 
