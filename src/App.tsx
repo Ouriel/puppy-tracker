@@ -19,6 +19,7 @@ import {
   fetchHealthRecords,
   createCaretaker,
   deleteCaretaker,
+  exchangeSessionToken,
 } from './services/api';
 import { calculatePredictions } from './utils/predictions';
 import { Navbar, type MainTabType } from './components/Navbar';
@@ -129,6 +130,21 @@ export function App() {
           fetchHousehold(),
         ]);
 
+        // Background session token upgrade to long-lived 90-day PupPace Session Token
+        exchangeSessionToken().then((res) => {
+          if (res?.sessionToken) {
+            setAuthToken(res.sessionToken);
+            if (res.user) {
+              setUser((previous) => ({
+                ...previous,
+                email: res.user.email,
+                name: res.user.name,
+                role: res.user.role as FamilyRole,
+              }));
+            }
+          }
+        }).catch(() => {});
+
         if (remoteDogs) {
           setPuppies(remoteDogs);
           const targetId = activePuppyId || (remoteDogs.length > 0 ? remoteDogs[0].id : null);
@@ -223,6 +239,22 @@ export function App() {
     setAuthToken(token);
     setIsAuthenticated(true);
     setUser((previous) => ({ ...previous, email, name }));
+
+    // Exchange Google 1-hour ID Token for long-lived 90-day PupPace Session Token
+    exchangeSessionToken(token).then((res) => {
+      if (res?.sessionToken) {
+        setAuthToken(res.sessionToken);
+        if (res.user) {
+          setUser((previous) => ({
+            ...previous,
+            email: res.user.email,
+            name: res.user.name,
+            role: res.user.role as FamilyRole,
+          }));
+        }
+      }
+    }).catch(() => {});
+
     return { success: true };
   };
 

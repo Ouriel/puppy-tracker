@@ -198,3 +198,27 @@ export async function deleteUser(email: string): Promise<boolean> {
   });
   return !!res?.success;
 }
+
+export async function exchangeSessionToken(rawToken?: string): Promise<{ sessionToken: string; user: RegisteredUserItem } | null> {
+  const token = rawToken || getAuthToken();
+  if (!token) return null;
+
+  try {
+    const res = await fetch('/api/auth/session', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      return data;
+    }
+  } catch (err) {
+    console.error('Failed to exchange session token', err);
+  }
+  return null;
+}
+

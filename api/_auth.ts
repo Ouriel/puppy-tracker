@@ -1,3 +1,4 @@
+import crypto from 'node:crypto';
 import { OAuth2Client } from 'google-auth-library';
 import { neon } from '@neondatabase/serverless';
 import { drizzle } from 'drizzle-orm/neon-http';
@@ -6,6 +7,7 @@ import { usersTable } from '../src/db/schema.js';
 import type { VercelRequest } from '@vercel/node';
 
 const client = new OAuth2Client();
+const SESSION_SECRET = process.env.SESSION_SECRET || process.env.POSTGRES_URL || 'puppace-app-session-secret-2026';
 
 export interface AuthContext {
   email: string;
@@ -14,6 +16,67 @@ export interface AuthContext {
   role: string;
 }
 
+/**
+ * Generates a signed, long-lived PupPace App Session Token (default 90-day longevity)
+ */
+export function signAppSessionToken(payload: AuthContext, expiresInDays = 90): string {
+  const header = { alg: 'HS256', typ: 'JWT' };
+  const exp = Math.floor(Date.now() / 1000) + expiresInDays * 24 * 60 * 60;
+  const fullPayload = { ...payload, exp, iat: Math.floor(Date.now() / 1000) };
+
+  const encodedHeader = Buffer.from(JSON.stringify(header)).toString('base64url');
+  const encodedPayload = Buffer.from(JSON.stringify(fullPayload)).toString('base64url');
+
+  const signature = crypto
+    .createHmac('sha256', SESSION_SECRET)
+    .update(`${encodedHeader}.${encodedPayload}`)
+    .digest('base64url');
+
+  return `${encodedHeader}.${encodedPayload}.${signature}`;
+}
+
+/**
+ * Cryptographically verifies PupPace App Session Token signature & expiration
+ */
+export function verifyAppSessionToken(token: string): AuthContext | null {
+  try {
+    const parts = token.split('.');
+    if (parts.length !== 3) return null;
+
+    const [encodedHeader, encodedPayload, signature] = parts;
+    const expectedSignature = crypto
+      .createHmac('sha256', SESSION_SECRET)
+      .update(`${encodedHeader}.${encodedPayload}`)
+      .digest('base64url');
+
+    if (signature.length !== expectedSignature.length) return null;
+    if (!crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expectedSignature))) {
+      return null;
+    }
+
+    const payload = JSON.parse(Buffer.from(encodedPayload, 'base64url').toString('utf-8'));
+    if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) {
+      return null; // Expired
+    }
+
+    if (!payload.email || !payload.householdId) return null;
+
+    return {
+      email: payload.email,
+      name: payload.name || payload.email.split('@')[0],
+      householdId: payload.householdId,
+      role: payload.role || 'Member',
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Authenticates incoming API requests:
+ * 1. Checks long-lived PupPace App Session Token (90 days, 0ms fast path)
+ * 2. Fallback: Verifies Google OAuth ID token on initial SSO login & issues long-lived session
+ */
 export async function verifyAuth(req: VercelRequest): Promise<AuthContext> {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -21,9 +84,15 @@ export async function verifyAuth(req: VercelRequest): Promise<AuthContext> {
   }
 
   const token = authHeader.slice(7);
-  const googleClientId = process.env.VITE_GOOGLE_CLIENT_ID || process.env.GOOGLE_CLIENT_ID;
 
-  // Verify the Google JWT cryptographically
+  // 1. Try verifying as PupPace App Session Token (90-day validity, 0ms fast path)
+  const appSession = verifyAppSessionToken(token);
+  if (appSession) {
+    return appSession;
+  }
+
+  // 2. Fallback: Verify as Google OAuth ID Token (Google SSO initial login)
+  const googleClientId = process.env.VITE_GOOGLE_CLIENT_ID || process.env.GOOGLE_CLIENT_ID;
   let payload;
   try {
     const ticket = await client.verifyIdToken({
@@ -39,7 +108,7 @@ export async function verifyAuth(req: VercelRequest): Promise<AuthContext> {
     throw { status: 401, message: 'Invalid token payload' };
   }
 
-  // Look up the user in the database
+  // Look up user in database
   const dbUrl = process.env.POSTGRES_URL || process.env.DATABASE_URL || '';
   if (!dbUrl) {
     throw { status: 500, message: 'Database connection URL missing' };
@@ -65,7 +134,7 @@ export async function verifyAuth(req: VercelRequest): Promise<AuthContext> {
         email: userEmail,
         name: payload.name || userEmail.split('@')[0],
         role: isSuperAdmin ? 'SuperAdmin' : 'Member',
-        status: isSuperAdmin ? 'ACTIVE' : 'ACTIVE',
+        status: 'ACTIVE',
       })
       .returning();
     user = created;
