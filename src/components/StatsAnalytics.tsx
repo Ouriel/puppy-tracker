@@ -74,37 +74,7 @@ export const StatsAnalytics: React.FC<StatsAnalyticsProps> = ({ activities, prof
         </div>
       </div>
 
-      <div className="bg-slate-800/80 border border-slate-700/80 rounded-2xl p-4 shadow-xl backdrop-blur-md">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <div className="p-2 bg-purple-500/20 text-purple-400 rounded-lg">
-              <Utensils className="w-5 h-5" />
-            </div>
-            <div>
-              <h3 className="text-sm font-bold text-slate-100">{t.dashboard.todaysNutrition}</h3>
-              <p className="text-[11px] text-slate-400">
-                {todayGramTotal}{t.units.grams} / {profile.dailyFoodGramGoal}{t.units.grams}
-              </p>
-            </div>
-          </div>
-          <span className="text-xl font-extrabold text-purple-400">
-            {todayFood.length} {t.potty.food}
-          </span>
-        </div>
-
-        <div className="w-full bg-slate-900 h-3 rounded-full overflow-hidden mb-3 border border-slate-700">
-          <div
-            className="bg-gradient-to-r from-purple-500 to-indigo-500 h-full transition-all duration-500"
-            style={{ width: `${foodGoalPercent}%` }}
-          />
-        </div>
-
-        <div className="text-xs text-slate-300 bg-slate-900/50 p-2.5 rounded-xl border border-slate-700/60 flex items-center justify-between">
-          <span>{t.dashboard.targetMealsPerDay}</span>
-          <span className="font-bold text-purple-300">{profile.targetMealsPerDay}</span>
-        </div>
-      </div>
-
+      {/* Card 2: Potty Peak Hours Graph (Aligned under Potty Cards) */}
       <div className="bg-slate-800/80 border border-slate-700/80 rounded-2xl p-4 shadow-xl backdrop-blur-md">
         <div className="flex items-center gap-2 mb-3">
           <div className="p-2 bg-sky-500/20 text-sky-400 rounded-lg">
@@ -151,6 +121,38 @@ export const StatsAnalytics: React.FC<StatsAnalyticsProps> = ({ activities, prof
           <span>16h</span>
           <span>20h</span>
           <span>23h</span>
+        </div>
+      </div>
+
+      {/* Card 3: Today's Nutrition (Aligned directly under Food Predictor Card) */}
+      <div className="bg-slate-800/80 border border-slate-700/80 rounded-2xl p-4 shadow-xl backdrop-blur-md">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <div className="p-2 bg-purple-500/20 text-purple-400 rounded-lg">
+              <Utensils className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-slate-100">{t.dashboard.todaysNutrition}</h3>
+              <p className="text-[11px] text-slate-400">
+                {todayGramTotal}{t.units.grams} / {profile.dailyFoodGramGoal}{t.units.grams}
+              </p>
+            </div>
+          </div>
+          <span className="text-xl font-extrabold text-purple-400">
+            {todayFood.length} {t.potty.food}
+          </span>
+        </div>
+
+        <div className="w-full bg-slate-900 h-3 rounded-full overflow-hidden mb-3 border border-slate-700">
+          <div
+            className="bg-gradient-to-r from-purple-500 to-indigo-500 h-full transition-all duration-500"
+            style={{ width: `${foodGoalPercent}%` }}
+          />
+        </div>
+
+        <div className="text-xs text-slate-300 bg-slate-900/50 p-2.5 rounded-xl border border-slate-700/60 flex items-center justify-between">
+          <span>{t.dashboard.targetMealsPerDay}</span>
+          <span className="font-bold text-purple-300">{profile.targetMealsPerDay}</span>
         </div>
       </div>
     </div>
