@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getPuppyAge, calculateLearnedIntervalMinutes, calculatePredictions } from '../predictions';
+import { getPuppyAge, calculateLearnedIntervalMinutes, calculatePredictions, calculateVetFoodGramGoal } from '../predictions';
 import type { Activity, PuppyProfile } from '../../types';
 
 describe('predictions utility', () => {
@@ -74,5 +74,11 @@ describe('predictions utility', () => {
     const predictions = calculatePredictions(activities, mockProfile, now);
     expect(predictions.peeUrgency).toBe('overdue');
     expect(predictions.peeReason).toContain('overdue');
+  });
+
+  it('calculates veterinary food gram goal correctly based on RER and MER', () => {
+    const goal = calculateVetFoodGramGoal(6.5, 3);
+    expect(goal).toBeGreaterThan(150);
+    expect(goal).toBeLessThan(350);
   });
 });

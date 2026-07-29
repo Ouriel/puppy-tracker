@@ -4,7 +4,7 @@ import { parseIsoDate, formatLocalDate } from './date';
 export function getPuppyAge(birthDateIso: string): { weeks: number; months: number; text: string } {
   const birth = parseIsoDate(birthDateIso);
   const now = new Date();
-  const diffMs = now.getTime() - birth.getTime();
+  const diffMs = Math.max(0, now.getTime() - birth.getTime());
   const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
   const weeks = Math.floor(diffDays / 7);
   const months = (diffDays / 30.4375).toFixed(1);
@@ -16,6 +16,18 @@ export function getPuppyAge(birthDateIso: string): { weeks: number; months: numb
     const w = Math.floor((diffDays % 30.4375) / 7);
     return { weeks, months: Number(months), text: `${m} mo ${w} wk old` };
   }
+}
+
+/**
+ * Calculates veterinary recommended daily food gram intake based on weight and growth stage (RER / MER)
+ */
+export function calculateVetFoodGramGoal(weightKg: number, ageMonths: number): number {
+  if (!weightKg || weightKg <= 0) return 240;
+  const rer = 70 * Math.pow(weightKg, 0.75);
+  const merMultiplier = ageMonths < 4 ? 3.0 : ageMonths < 12 ? 2.0 : 1.6;
+  const dailyKcal = rer * merMultiplier;
+  const kcalPerGram = 3.8; // Standard AAFCO growth kibble density (~380 kcal/cup)
+  return Math.round(dailyKcal / kcalPerGram);
 }
 
 /**
@@ -123,6 +135,7 @@ export function calculatePredictions(activities: Activity[], profile: PuppyProfi
   const lastPee = sorted.find((activity) => activity.type === 'pee');
   const lastPoop = sorted.find((activity) => activity.type === 'poop');
   const lastFood = sorted.find((activity) => activity.type === 'food');
+  const lastWalk = sorted.find((activity) => activity.type === 'walk');
 
   const { months } = getPuppyAge(profile.birthDate);
   const baseBladderHours = Math.max(1, Math.min(months, 4));
@@ -169,15 +182,27 @@ export function calculatePredictions(activities: Activity[], profile: PuppyProfi
       }
     } else if (lastFood && parseIsoDate(lastFood.timestamp).getTime() > lastPeeTime) {
       const foodTime = parseIsoDate(lastFood.timestamp).getTime();
-      const postFoodPee = new Date(foodTime + 25 * 60 * 1000);
+      const postFoodPee = new Date(foodTime + 20 * 60 * 1000);
       const minsSinceMeal = Math.round((now.getTime() - foodTime) / (1000 * 60));
 
       nextPeeExpectedAt = postFoodPee;
 
-      if (minsSinceMeal > 30) {
+      if (minsSinceMeal > 25) {
         peeReason = `Pup fed ${minsSinceMeal}m ago — post-meal potty break is overdue!`;
       } else {
-        peeReason = `Pup fed recently (${minsSinceMeal}m ago). Pees ~20-30m post-meal.`;
+        peeReason = `Pup fed recently (${minsSinceMeal}m ago). Pees ~15-20m post-meal.`;
+      }
+    } else if (lastWalk && parseIsoDate(lastWalk.timestamp).getTime() > lastPeeTime) {
+      const walkTime = parseIsoDate(lastWalk.timestamp).getTime();
+      const postWalkPee = new Date(walkTime + 15 * 60 * 1000);
+      const minsSinceWalk = Math.round((now.getTime() - walkTime) / (1000 * 60));
+
+      nextPeeExpectedAt = postWalkPee;
+
+      if (minsSinceWalk > 25) {
+        peeReason = `Pup walked/played ${minsSinceWalk}m ago — exercise stimulates potty break!`;
+      } else {
+        peeReason = `Pup walked/played recently (${minsSinceWalk}m ago). Exercise stimulates bladder ~10-20m post-walk.`;
       }
     } else {
       nextPeeExpectedAt = standardPeeExpectedAt;
