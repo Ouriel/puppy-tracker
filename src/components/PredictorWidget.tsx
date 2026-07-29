@@ -7,6 +7,7 @@ interface PredictorWidgetProps {
   predictions: PredictionResult;
   profile: PuppyProfile;
   todayFoodLoggedGrams: number;
+  todayMealsCount?: number;
   onQuickAction: (type: ActivityType, defaultLocation?: 'outside' | 'indoor_accident') => void;
   onOpenQuickLogModal: (type?: ActivityType) => void;
 }
@@ -15,6 +16,7 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = ({
   predictions,
   profile,
   todayFoodLoggedGrams,
+  todayMealsCount = 0,
   onQuickAction,
   onOpenQuickLogModal,
 }) => {
@@ -28,8 +30,12 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = ({
 
   const targetMeals = Math.max(1, profile.targetMealsPerDay || 3);
   const dailyGoal = profile.dailyFoodGramGoal || 240;
-  const portionPerMealGrams = Math.round(dailyGoal / targetMeals);
   const remainingFoodGrams = Math.max(0, dailyGoal - todayFoodLoggedGrams);
+  const remainingMealsToday = Math.max(1, targetMeals - todayMealsCount);
+
+  const portionLeftForNextMeal = remainingFoodGrams > 0
+    ? Math.max(10, Math.round(remainingFoodGrams / remainingMealsToday))
+    : Math.round(dailyGoal / targetMeals);
 
   const formatCountdown = (targetDate: Date | null) => {
     if (!targetDate) return t.dashboard.noLogYet;
@@ -285,7 +291,7 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = ({
             className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs py-2 px-3 rounded-lg flex items-center justify-center gap-1.5 shadow transition active:scale-95 cursor-pointer mt-2"
           >
             <Utensils className="w-3.5 h-3.5" />
-            <span>{t.dashboard.feedMealNow} ({portionPerMealGrams}g)</span>
+            <span>{t.dashboard.feedMealNow} ({portionLeftForNextMeal}g)</span>
           </button>
         </div>
       </div>

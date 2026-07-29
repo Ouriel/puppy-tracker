@@ -273,7 +273,13 @@ export function App() {
       return;
     }
 
-    const defaultPortionGrams = Math.round((activePuppy.dailyFoodGramGoal || 240) / Math.max(1, activePuppy.targetMealsPerDay || 3));
+    const targetMeals = Math.max(1, activePuppy.targetMealsPerDay || 3);
+    const dailyGoal = activePuppy.dailyFoodGramGoal || 240;
+    const remainingFoodGrams = Math.max(0, dailyGoal - todayFoodLoggedGrams);
+    const remainingMealsToday = Math.max(1, targetMeals - todayMealsCount);
+    const portionGrams = remainingFoodGrams > 0
+      ? Math.max(10, Math.round(remainingFoodGrams / remainingMealsToday))
+      : Math.round(dailyGoal / targetMeals);
 
     const newActivity: Omit<Activity, 'id'> = {
       puppyId: activePuppy.id,
@@ -281,7 +287,7 @@ export function App() {
       timestamp: new Date().toISOString(),
       loggedBy: currentUser,
       ...(defaultLocation ? { pottyLocation: defaultLocation } : {}),
-      ...(type === 'food' ? { foodType: 'kibble', quantityGrams: defaultPortionGrams } : {}),
+      ...(type === 'food' ? { foodType: 'kibble', quantityGrams: portionGrams } : {}),
     };
 
     const created = await createActivity(newActivity);
@@ -339,13 +345,28 @@ export function App() {
     return calculatePredictions(activePuppyActivities, activePuppy);
   }, [activePuppyActivities, activePuppy]);
 
-  // Calculate today's logged food grams
-  const todayFoodLoggedGrams = React.useMemo(() => {
+  // Calculate today's logged food count & grams
+  const { todayFoodLoggedGrams, todayMealsCount } = React.useMemo(() => {
     const now = new Date();
-    return activePuppyActivities
-      .filter((activity) => activity.type === 'food' && isSameLocalDate(activity.timestamp, now))
-      .reduce((sum, activity) => sum + (activity.quantityGrams || 80), 0);
+    const todayFood = activePuppyActivities.filter(
+      (activity) => activity.type === 'food' && isSameLocalDate(activity.timestamp, now)
+    );
+    const grams = todayFood.reduce((sum, activity) => sum + (activity.quantityGrams || 80), 0);
+    return { todayFoodLoggedGrams: grams, todayMealsCount: todayFood.length };
   }, [activePuppyActivities]);
+
+  const nextMealPortionGrams = React.useMemo(() => {
+    if (!activePuppy) return 80;
+    const targetMeals = Math.max(1, activePuppy.targetMealsPerDay || 3);
+    const dailyGoal = activePuppy.dailyFoodGramGoal || 240;
+    const remainingFoodGrams = Math.max(0, dailyGoal - todayFoodLoggedGrams);
+    const remainingMealsToday = Math.max(1, targetMeals - todayMealsCount);
+
+    if (remainingFoodGrams <= 0) {
+      return Math.round(dailyGoal / targetMeals);
+    }
+    return Math.max(10, Math.round(remainingFoodGrams / remainingMealsToday));
+  }, [activePuppy, todayFoodLoggedGrams, todayMealsCount]);
 
   // Potty clean streak calculation: count unique calendar days with potty logs without accidents
   const streakDays = React.useMemo(() => {
@@ -473,6 +494,7 @@ export function App() {
                     predictions={predictions}
                     profile={activePuppy}
                     todayFoodLoggedGrams={todayFoodLoggedGrams}
+                    todayMealsCount={todayMealsCount}
                     onQuickAction={handleQuickAction}
                     onOpenQuickLogModal={handleOpenQuickLogModal}
                   />
@@ -525,7 +547,7 @@ export function App() {
         <QuickLogModal
           isOpen={isQuickLogOpen}
           initialType={quickLogType}
-          defaultMealPortionGrams={Math.round((activePuppy.dailyFoodGramGoal || 240) / Math.max(1, activePuppy.targetMealsPerDay || 3))}
+          defaultMealPortionGrams={nextMealPortionGrams}
           onClose={() => setIsQuickLogOpen(false)}
           onSave={handleAddActivity}
           caretakers={caretakers}
