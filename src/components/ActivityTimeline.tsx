@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import type { Activity, ActivityType, Caretaker } from '../types';
-import { Droplet, Footprints, Utensils, Activity as WalkIcon, Scale, Pill, Trash2 } from 'lucide-react';
+import { Droplet, Footprints, Utensils, Scale, Pill, Trash2 } from 'lucide-react';
 import { useI18n } from '../i18n';
 import { formatRelativeTime } from '../utils/date';
 
@@ -16,7 +16,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
   onDeleteActivity,
 }) => {
   const { t } = useI18n();
-  const [filter, setFilter] = useState<'all' | 'potty' | 'food' | 'walk'>('all');
+  const [filter, setFilter] = useState<'all' | 'potty' | 'food'>('all');
 
   const getIcon = (type: ActivityType) => {
     switch (type) {
@@ -26,8 +26,6 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
         return <Footprints className="w-4 h-4 text-amber-400" />;
       case 'food':
         return <Utensils className="w-4 h-4 text-purple-400" />;
-      case 'walk':
-        return <WalkIcon className="w-4 h-4 text-emerald-400" />;
       case 'weight':
         return <Scale className="w-4 h-4 text-pink-400" />;
       case 'medication':
@@ -43,7 +41,6 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
   const filtered = activities.filter((activity) => {
     if (filter === 'potty') return activity.type === 'pee' || activity.type === 'poop';
     if (filter === 'food') return activity.type === 'food';
-    if (filter === 'walk') return activity.type === 'walk';
     return true;
   });
 
@@ -105,16 +102,6 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
             }`}
           >
             {t.dashboard.mealsFilter}
-          </button>
-          <button
-            onClick={() => setFilter('walk')}
-            className={`px-3 py-1 text-xs font-semibold rounded-lg transition cursor-pointer ${
-              filter === 'walk'
-                ? 'bg-indigo-600 text-white shadow'
-                : 'text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            {t.dashboard.walksFilter}
           </button>
         </div>
       </div>

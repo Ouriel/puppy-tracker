@@ -1,4 +1,4 @@
-export type ActivityType = 'pee' | 'poop' | 'food' | 'walk' | 'weight' | 'medication';
+export type ActivityType = 'pee' | 'poop' | 'food' | 'weight' | 'medication';
 
 export type PottyLocation = 'outside' | 'indoor_accident';
 

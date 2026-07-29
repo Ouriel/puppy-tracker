@@ -46,13 +46,11 @@ export const fr = {
     all: 'Tous',
     pottyFilter: 'Pipi 💧',
     mealsFilter: 'Repas 🍖',
-    walksFilter: 'Promenades 🐾',
   },
   potty: {
     pee: 'Pipi',
     poop: 'Caca',
     food: 'Nourriture',
-    walk: 'Promenade',
     weight: 'Poids',
     medication: 'Médicament',
     nextPee: 'Prochain Pipi',

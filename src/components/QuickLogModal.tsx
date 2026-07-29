@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import type { Activity, ActivityType, Caretaker, FoodType, PottyLocation, StoolConsistency } from '../types';
-import { X, Droplet, Footprints, Utensils, Activity as WalkIcon, Scale, Pill, Check } from 'lucide-react';
+import { X, Droplet, Footprints, Utensils, Scale, Pill, Check } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { useI18n } from '../i18n';
 import { getLocalDatetimeString } from '../utils/date';
@@ -39,7 +39,6 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
   const [quantityGrams, setQuantityGrams] = useState<number>(defaultMealPortionGrams);
   const [quantityCups, setQuantityCups] = useState<number>(0.75);
 
-  const [durationMinutes, setDurationMinutes] = useState<number>(30);
   const [weightKg, setWeightKg] = useState<number>(8.5);
   const [medicationName, setMedicationName] = useState<string>('Flea & Tick Prevention');
 
@@ -58,31 +57,30 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
   const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault();
 
+    if (type === 'pee' || type === 'poop') {
+      confetti({
+        particleCount: 50,
+        spread: 60,
+        origin: { y: 0.8 },
+      });
+    }
+
     const newActivity: Omit<Activity, 'id' | 'puppyId'> = {
       type,
       timestamp: new Date(timestamp).toISOString(),
       loggedBy,
-      notes: notes.trim() || undefined,
+      notes: notes.trim() ? notes.trim() : undefined,
     };
 
-    if (type === 'pee' || type === 'poop') {
+    if (type === 'pee') {
       newActivity.pottyLocation = pottyLocation;
-      if (type === 'poop') {
-        newActivity.stoolConsistency = stoolConsistency;
-      }
-      if (pottyLocation === 'outside') {
-        confetti({
-          particleCount: 50,
-          spread: 60,
-          origin: { y: 0.7 },
-        });
-      }
+    } else if (type === 'poop') {
+      newActivity.pottyLocation = pottyLocation;
+      newActivity.stoolConsistency = stoolConsistency;
     } else if (type === 'food') {
       newActivity.foodType = foodType;
       newActivity.quantityGrams = quantityGrams;
       newActivity.quantityCups = quantityCups;
-    } else if (type === 'walk') {
-      newActivity.durationMinutes = durationMinutes;
     } else if (type === 'weight') {
       newActivity.weightKg = weightKg;
     } else if (type === 'medication') {
@@ -97,7 +95,6 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
     { type: 'pee', label: t.potty.pee, icon: <Droplet className="w-5 h-5" />, color: 'hover:bg-sky-500/20 hover:text-sky-400' },
     { type: 'poop', label: t.potty.poop, icon: <Footprints className="w-5 h-5" />, color: 'hover:bg-amber-500/20 hover:text-amber-400' },
     { type: 'food', label: t.potty.food, icon: <Utensils className="w-5 h-5" />, color: 'hover:bg-purple-500/20 hover:text-purple-400' },
-    { type: 'walk', label: t.potty.walk, icon: <WalkIcon className="w-5 h-5" />, color: 'hover:bg-emerald-500/20 hover:text-emerald-400' },
     { type: 'weight', label: t.potty.weight, icon: <Scale className="w-5 h-5" />, color: 'hover:bg-pink-500/20 hover:text-pink-400' },
     { type: 'medication', label: t.potty.medication, icon: <Pill className="w-5 h-5" />, color: 'hover:bg-red-500/20 hover:text-red-400' },
   ];
@@ -270,32 +267,6 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
                     className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-base text-slate-100 focus:outline-none focus:border-indigo-500"
                   />
                 </div>
-              </div>
-            </div>
-          )}
-
-          {type === 'walk' && (
-            <div className="bg-slate-950/40 p-4 rounded-xl border border-slate-800">
-              <label className="block text-xs font-semibold text-slate-400 mb-1">
-                {t.potty.duration}
-              </label>
-              <input
-                type="number"
-                value={durationMinutes}
-                onChange={(event) => setDurationMinutes(Number(event.target.value))}
-                className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-base text-slate-100 focus:outline-none focus:border-indigo-500"
-              />
-              <div className="flex gap-2 mt-2">
-                {[15, 30, 45, 60, 90, 120].map((minutesPreset) => (
-                  <button
-                    type="button"
-                    key={minutesPreset}
-                    onClick={() => setDurationMinutes(minutesPreset)}
-                    className="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded-lg border border-slate-700 cursor-pointer"
-                  >
-                    {minutesPreset} min
-                  </button>
-                ))}
               </div>
             </div>
           )}

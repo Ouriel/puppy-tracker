@@ -5,7 +5,6 @@ export const ActivityTypeSchema = z.enum([
   'pee',
   'poop',
   'food',
-  'walk',
   'weight',
   'medication',
 ]);
