@@ -2,6 +2,7 @@ import React from 'react';
 import type { Activity, PuppyProfile } from '../types';
 import { TrendingUp, ShieldCheck, Utensils } from 'lucide-react';
 import { useI18n } from '../i18n';
+import { isSameLocalDate } from '../utils/date';
 
 interface StatsAnalyticsProps {
   activities: Activity[];
@@ -17,9 +18,9 @@ export const StatsAnalytics: React.FC<StatsAnalyticsProps> = ({ activities, prof
 
   const successRate = totalPotty > 0 ? Math.round((outsideCount / totalPotty) * 100) : 100;
 
-  const todayStr = new Date().toISOString().slice(0, 10);
+  const now = new Date();
   const todayFood = activities.filter(
-    (activity) => activity.type === 'food' && activity.timestamp.slice(0, 10) === todayStr
+    (activity) => activity.type === 'food' && isSameLocalDate(activity.timestamp, now)
   );
   const todayGramTotal = todayFood.reduce((sum, activity) => sum + (activity.quantityGrams || 0), 0);
   const foodGoalPercent = Math.min(100, Math.round((todayGramTotal / profile.dailyFoodGramGoal) * 100));

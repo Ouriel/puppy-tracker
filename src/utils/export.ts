@@ -1,4 +1,5 @@
 import type { Activity, PuppyProfile } from '../types';
+import { formatLocalDate } from './date';
 
 export function exportActivitiesToCSV(activities: Activity[], profile: PuppyProfile) {
   const headers = ['Timestamp', 'Type', 'Logged By', 'Location / Consistency', 'Quantity / Duration', 'Notes'];
@@ -30,7 +31,7 @@ export function exportActivitiesToCSV(activities: Activity[], profile: PuppyProf
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.setAttribute('href', url);
-  link.setAttribute('download', `${profile.name}_activity_log_${new Date().toISOString().slice(0, 10)}.csv`);
+  link.setAttribute('download', `${profile.name}_activity_log_${formatLocalDate()}.csv`);
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);

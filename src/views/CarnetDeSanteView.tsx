@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import type { PuppyProfile } from '../types';
 import { Syringe, ShieldCheck, Plus, Pill, Trash2 } from 'lucide-react';
 import { useI18n } from '../i18n';
+import { formatLocalDate } from '../utils/date';
 import {
   fetchHealthRecords,
   createHealthRecord,
@@ -48,14 +49,14 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePupp
 
   // New Vaccine Form
   const [vaccineType, setVaccineType] = useState<string>('CHPPi + L4');
-  const [administeredDate, setAdministeredDate] = useState(new Date().toISOString().slice(0, 10));
+  const [administeredDate, setAdministeredDate] = useState(() => formatLocalDate());
   const [nextDueDate, setNextDueDate] = useState('');
   const [vetClinic, setVetClinic] = useState('');
   const [batchNumber, setBatchNumber] = useState('');
 
   // New Deworming Form
   const [productName, setProductName] = useState('Milbemax Tab / Milprazon');
-  const [dewormAdminDate, setDewormAdminDate] = useState(new Date().toISOString().slice(0, 10));
+  const [dewormAdminDate, setDewormAdminDate] = useState(() => formatLocalDate());
   const [dewormNextDate, setDewormNextDate] = useState('');
 
   const sortByDateDesc = <T extends { date: string }>(arr: T[]): T[] => {

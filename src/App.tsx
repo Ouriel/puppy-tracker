@@ -22,6 +22,7 @@ import {
   exchangeSessionToken,
 } from './services/api';
 import { calculatePredictions } from './utils/predictions';
+import { formatLocalDate, isSameLocalDate } from './utils/date';
 import { Navbar, type MainTabType } from './components/Navbar';
 import { QuickLogModal } from './components/QuickLogModal';
 import { PredictorWidget } from './components/PredictorWidget';
@@ -338,9 +339,9 @@ export function App() {
 
   // Calculate today's logged food grams
   const todayFoodLoggedGrams = React.useMemo(() => {
-    const todayStr = new Date().toISOString().slice(0, 10);
+    const now = new Date();
     return activePuppyActivities
-      .filter((activity) => activity.type === 'food' && activity.timestamp.slice(0, 10) === todayStr)
+      .filter((activity) => activity.type === 'food' && isSameLocalDate(activity.timestamp, now))
       .reduce((sum, activity) => sum + (activity.quantityGrams || 80), 0);
   }, [activePuppyActivities]);
 
@@ -358,7 +359,7 @@ export function App() {
     }
 
     const uniqueDays = new Set(
-      pottyLogs.map((activity) => new Date(activity.timestamp).toISOString().slice(0, 10))
+      pottyLogs.map((activity) => formatLocalDate(new Date(activity.timestamp)))
     );
     return uniqueDays.size;
   }, [activePuppyActivities]);

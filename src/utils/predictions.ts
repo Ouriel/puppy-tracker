@@ -1,17 +1,5 @@
 import type { Activity, PredictionResult, PuppyProfile } from '../types';
-
-function parseIsoDate(timestamp: string): Date {
-  if (!timestamp) return new Date();
-  const formatted = timestamp.includes('T') ? timestamp : timestamp.replace(' ', 'T');
-  return new Date(formatted);
-}
-
-function formatLocalDate(date: Date): string {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-}
+import { parseIsoDate, formatLocalDate } from './date';
 
 export function getPuppyAge(birthDateIso: string): { weeks: number; months: number; text: string } {
   const birth = parseIsoDate(birthDateIso);

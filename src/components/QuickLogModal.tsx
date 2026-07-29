@@ -3,6 +3,7 @@ import type { Activity, ActivityType, Caretaker, FoodType, PottyLocation, StoolC
 import { X, Droplet, Footprints, Utensils, Activity as WalkIcon, Scale, Pill, Check } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { useI18n } from '../i18n';
+import { getLocalDatetimeString } from '../utils/date';
 
 interface QuickLogModalProps {
   isOpen: boolean;
@@ -12,15 +13,6 @@ interface QuickLogModalProps {
   currentUser: string;
   onClose: () => void;
   onSave: (activity: Omit<Activity, 'id' | 'puppyId'>) => void;
-}
-
-function getLocalDatetimeString(date = new Date()): string {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  const hours = String(date.getHours()).padStart(2, '0');
-  const minutes = String(date.getMinutes()).padStart(2, '0');
-  return `${year}-${month}-${day}T${hours}:${minutes}`;
 }
 
 export const QuickLogModal: React.FC<QuickLogModalProps> = ({

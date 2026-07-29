@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import type { Activity, ActivityType, Caretaker } from '../types';
 import { Droplet, Footprints, Utensils, Activity as WalkIcon, Scale, Pill, Trash2 } from 'lucide-react';
 import { useI18n } from '../i18n';
+import { formatRelativeTime } from '../utils/date';
 
 interface ActivityTimelineProps {
   activities: Activity[];
@@ -50,20 +51,13 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
     (activityA, activityB) => new Date(activityB.timestamp).getTime() - new Date(activityA.timestamp).getTime()
   );
 
+  const { lang } = useI18n();
+
   const formatTime = (isoString: string) => {
-    const date = new Date(isoString);
-    const now = new Date();
-    const diffHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60);
-
-    const timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
-    if (diffHours < 24 && date.getDate() === now.getDate()) {
-      return `${t.dashboard.today} ${timeStr}`;
-    } else if (diffHours < 48 && date.getDate() === now.getDate() - 1) {
-      return `${t.dashboard.yesterday} ${timeStr}`;
-    } else {
-      return `${date.toLocaleDateString([], { month: 'short', day: 'numeric' })} ${timeStr}`;
-    }
+    return formatRelativeTime(isoString, lang as 'en' | 'fr', {
+      today: t.dashboard.today,
+      yesterday: t.dashboard.yesterday,
+    });
   };
 
   return (
