@@ -50,6 +50,7 @@ PupPace — Smart Household Puppy Activity Tracker & Potty Predictor. React + Vi
 ### Deployment & Workflow
 
 - NEVER run `sleep` or poll Vercel after `git push`. Commit, push, and immediately inform the user.
+- **Research Directives**: When asked to research, analyze, or compare options, ONLY present the findings, trade-offs, and options to the user. DO NOT write, edit, or push code without presenting options and getting explicit user approval.
 
 ## Key Files
 
@@ -72,3 +73,4 @@ PupPace — Smart Household Puppy Activity Tracker & Potty Predictor. React + Vi
 - Don't use `(e) =>` or `(p) =>` — spell out parameter names (`(event) =>`, `(puppy) =>`, `(activity) =>`)
 - Don't run `sleep` commands or poll deployment CLI after `git push` — inform the user immediately
 - Don't write tests that assert `null === null` or `true === true` — exercise real domain code
+- Don't write or commit code when asked to research — present options and wait for explicit user choice first
