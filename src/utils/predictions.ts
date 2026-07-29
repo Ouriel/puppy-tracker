@@ -170,15 +170,14 @@ export function calculatePredictions(activities: Activity[], profile: PuppyProfi
     } else if (lastFood && parseIsoDate(lastFood.timestamp).getTime() > lastPeeTime) {
       const foodTime = parseIsoDate(lastFood.timestamp).getTime();
       const postFoodPee = new Date(foodTime + 25 * 60 * 1000);
+      const minsSinceMeal = Math.round((now.getTime() - foodTime) / (1000 * 60));
 
-      if (postFoodPee.getTime() < now.getTime() && standardPeeExpectedAt.getTime() > postFoodPee.getTime()) {
-        nextPeeExpectedAt = standardPeeExpectedAt;
-        peeReason = learnedPee.isLearned
-          ? `Adaptive AI: Learned ~${learnedPee.intervalMins}m average bladder interval`
-          : `Based on ~${Math.round(learnedPee.intervalMins)}m age bladder capacity`;
+      nextPeeExpectedAt = postFoodPee;
+
+      if (minsSinceMeal > 30) {
+        peeReason = `Pup fed ${minsSinceMeal}m ago — post-meal potty break is overdue!`;
       } else {
-        nextPeeExpectedAt = postFoodPee;
-        peeReason = `Pup fed recently (pees ~20-30m post-meal). Learned interval: ~${learnedPee.intervalMins}m`;
+        peeReason = `Pup fed recently (${minsSinceMeal}m ago). Pees ~20-30m post-meal.`;
       }
     } else {
       nextPeeExpectedAt = standardPeeExpectedAt;
@@ -229,15 +228,14 @@ export function calculatePredictions(activities: Activity[], profile: PuppyProfi
     } else if (lastFood && parseIsoDate(lastFood.timestamp).getTime() > lastPoopTime) {
       const foodTime = parseIsoDate(lastFood.timestamp).getTime();
       const postFoodPoopTime = foodTime + 35 * 60 * 1000;
+      const minsSinceMeal = Math.round((now.getTime() - foodTime) / (1000 * 60));
 
-      if (postFoodPoopTime < now.getTime() && standardPoopExpectedAt.getTime() > postFoodPoopTime) {
-        nextPoopExpectedAt = standardPoopExpectedAt;
-        poopReason = learnedPoop.isLearned
-          ? `Adaptive AI: Learned ~${(learnedPoop.intervalMins / 60).toFixed(1)}h average digest interval`
-          : 'Standard digestive interval (~5h)';
+      nextPoopExpectedAt = new Date(postFoodPoopTime);
+
+      if (minsSinceMeal > 45) {
+        poopReason = `Pup fed ${minsSinceMeal}m ago — post-meal poop break (gastrocolic reflex) is overdue!`;
       } else {
-        nextPoopExpectedAt = new Date(postFoodPoopTime);
-        poopReason = `Pup fed recently (gastrocolic reflex ~30-45m). Learned interval: ~${(learnedPoop.intervalMins / 60).toFixed(1)}h`;
+        poopReason = `Pup fed recently (${minsSinceMeal}m ago). Gastrocolic reflex triggers poop ~30-45m post-meal.`;
       }
     } else {
       nextPoopExpectedAt = standardPoopExpectedAt;

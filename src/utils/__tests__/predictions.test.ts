@@ -61,4 +61,18 @@ describe('predictions utility', () => {
     expect(predictions.foodUrgency).not.toBe('overdue');
     expect(predictions.nextFoodExpectedAt).not.toBeNull();
   });
+
+  it('triggers overdue status when post-meal potty break is not yet fulfilled', () => {
+    const now = new Date();
+
+    // Food logged 40 minutes ago, no pee logged since
+    const activities: Activity[] = [
+      { id: '1', puppyId: 'pup-1', type: 'pee', timestamp: new Date(now.getTime() - 120 * 60 * 1000).toISOString(), loggedBy: 'Matthieu' },
+      { id: '2', puppyId: 'pup-1', type: 'food', timestamp: new Date(now.getTime() - 40 * 60 * 1000).toISOString(), loggedBy: 'Matthieu' },
+    ];
+
+    const predictions = calculatePredictions(activities, mockProfile, now);
+    expect(predictions.peeUrgency).toBe('overdue');
+    expect(predictions.peeReason).toContain('overdue');
+  });
 });
