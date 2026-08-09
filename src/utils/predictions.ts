@@ -165,13 +165,12 @@ export function calculatePredictions(activities: Activity[], profile: PuppyProfi
   if (lastPee) {
     const lastPeeDate = parseIsoDate(lastPee.timestamp);
     const lastPeeTime = lastPeeDate.getTime();
-    const lastPeeHour = lastPeeDate.getHours();
 
     standardPeeExpectedAt = new Date(lastPeeTime + learnedPee.intervalMins * 60 * 1000);
 
-    const isLateEveningPee = lastPeeHour >= sleepSchedule.bedtimeHour - 1 || lastPeeHour < sleepSchedule.wakeupHour;
+    const isNightTime = isCurrentlyNight || currentHour >= sleepSchedule.bedtimeHour - 1;
 
-    if (isLateEveningPee || isCurrentlyNight) {
+    if (isNightTime) {
       peeMode = 'night_sleep';
       const targetWakeup = new Date(now);
       if (currentHour >= sleepSchedule.bedtimeHour) {
@@ -239,13 +238,12 @@ export function calculatePredictions(activities: Activity[], profile: PuppyProfi
   if (lastPoop) {
     const lastPoopDate = parseIsoDate(lastPoop.timestamp);
     const lastPoopTime = lastPoopDate.getTime();
-    const lastPoopHour = lastPoopDate.getHours();
 
     standardPoopExpectedAt = new Date(lastPoopTime + learnedPoop.intervalMins * 60 * 1000);
 
-    const isEveningPoop = lastPoopHour >= 19 || lastPoopHour < sleepSchedule.wakeupHour;
+    const isNightTime = isCurrentlyNight || currentHour >= sleepSchedule.bedtimeHour - 1;
 
-    if (isEveningPoop || isCurrentlyNight) {
+    if (isNightTime) {
       poopMode = 'night_sleep';
       const targetMorningPoop = new Date(now);
       if (currentHour >= 19) {

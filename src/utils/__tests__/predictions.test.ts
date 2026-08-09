@@ -81,4 +81,15 @@ describe('predictions utility', () => {
     expect(goal).toBeGreaterThan(150);
     expect(goal).toBeLessThan(350);
   });
+
+  it('does not trigger night mode during daytime hours (e.g. 16:12 PM) even if last poop was logged late yesterday', () => {
+    const afternoon = new Date(2026, 7, 9, 16, 12); // 16:12 PM
+    const activities: Activity[] = [
+      { id: '1', puppyId: 'pup-1', type: 'poop', timestamp: new Date(2026, 7, 8, 21, 11).toISOString(), loggedBy: 'Matthieu' },
+    ];
+    const predictions = calculatePredictions(activities, mockProfile, afternoon);
+    expect(predictions.poopMode).not.toBe('night_sleep');
+    expect(predictions.poopReason).not.toContain('Night mode');
+    expect(predictions.poopUrgency).toBe('overdue');
+  });
 });
