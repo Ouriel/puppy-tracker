@@ -4,7 +4,7 @@ import { Scale, TrendingUp, Plus, ShieldCheck } from 'lucide-react';
 import { useI18n } from '../i18n';
 import { parseIsoDate } from '../utils/date';
 
-function getExpectedAdultWeight(breed: string): number {
+export function getExpectedAdultWeight(breed: string): number {
   const breedLower = breed.toLowerCase();
   // Small breeds (3-9 kg adult)
   if (breedLower.includes('chihuahua')) return 3;
@@ -27,7 +27,7 @@ function getExpectedAdultWeight(breed: string): number {
   return 13;
 }
 
-function scaleGrowthBenchmarks(adultWeightKg: number): Array<{ label: string; expectedKg: number; minKg: number; maxKg: number; weeks: number }> {
+export function scaleGrowthBenchmarks(adultWeightKg: number): Array<{ label: string; expectedKg: number; minKg: number; maxKg: number; weeks: number }> {
   const scale = adultWeightKg / 13; // 13 kg is the Cocker reference
   return [
     { label: '8w', expectedKg: Math.round(2.5 * scale * 10) / 10, minKg: Math.round(2.0 * scale * 10) / 10, maxKg: Math.round(3.2 * scale * 10) / 10, weeks: 8 },
