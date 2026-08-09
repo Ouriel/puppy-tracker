@@ -4,6 +4,15 @@ import { drizzle } from 'drizzle-orm/neon-http';
 import { eq, and } from 'drizzle-orm';
 import { caretakersTable, householdsTable } from '../src/db/schema.js';
 import { verifyAuth } from './_auth.js';
+import { z } from 'zod';
+
+const CaretakerInputSchema = z.object({
+  id: z.string().optional(),
+  name: z.string().min(1, 'Name is required'),
+  role: z.string().min(1, 'Role is required'),
+  color: z.string().optional(),
+  email: z.string().email('Invalid email format').nullable().optional().or(z.literal('')),
+});
 
 function getDb() {
   const connectionString = process.env.POSTGRES_URL || process.env.DATABASE_URL || '';
@@ -46,17 +55,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         .where(eq(caretakersTable.householdId, householdId));
 
       return res.status(200).json({
-        household: household || { id: householdId, familyPackId: auth.familyPackId, name: 'Family Pack' },
+        household: household || { id: householdId, familyPackId: (auth as any).familyPackId, name: 'Family Pack' },
         caretakers,
       });
     }
 
     // POST /api/households — Add a new caretaker
     if (req.method === 'POST') {
-      const body = req.body || {};
-      if (!body.name || !body.role) {
-        return res.status(400).json({ error: 'name and role are required' });
+      const parsed = CaretakerInputSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: 'Invalid caretaker payload', details: parsed.error.issues });
       }
+      const body = parsed.data;
 
       const id = body.id || `ct-${Date.now()}`;
       const color = body.color || 'bg-amber-500';

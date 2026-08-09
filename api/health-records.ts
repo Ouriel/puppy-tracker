@@ -4,6 +4,21 @@ import { drizzle } from 'drizzle-orm/neon-http';
 import { eq, and, desc } from 'drizzle-orm';
 import { healthRecordsTable } from '../src/db/schema.js';
 import { verifyAuth } from './_auth.js';
+import { z } from 'zod';
+
+const HealthRecordSchema = z.object({
+  id: z.string().optional(),
+  puppyId: z.string().min(1, 'puppyId is required'),
+  type: z.string().min(1, 'type is required'),
+  name: z.string().min(1, 'name is required'),
+  date: z.string().min(1, 'date is required'),
+  boosterDate: z.string().nullable().optional(),
+  batchNumber: z.string().nullable().optional(),
+  vetClinic: z.string().nullable().optional(),
+  productName: z.string().nullable().optional(),
+  weightAtTime: z.number().or(z.string()).nullable().optional(),
+  notes: z.string().nullable().optional(),
+});
 
 function getDb() {
   const connectionString = process.env.POSTGRES_URL || process.env.DATABASE_URL || '';
@@ -54,10 +69,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // POST /api/health-records
     if (req.method === 'POST') {
-      const body = req.body || {};
-      if (!body.puppyId || !body.type || !body.name || !body.date) {
-        return res.status(400).json({ error: 'puppyId, type, name, and date are required' });
+      const parsed = HealthRecordSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: 'Invalid health record payload', details: parsed.error.issues });
       }
+      const body = parsed.data;
 
       const id = body.id || `hr-${Date.now()}`;
 

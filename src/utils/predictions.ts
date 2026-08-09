@@ -192,7 +192,7 @@ export function calculatePredictions(activities: Activity[], profile: PuppyProfi
         nextPeeExpectedAt = targetWakeup;
         peeReason = `Night mode: Sleeping until ~${sleepSchedule.wakeupHour}:00 AM morning wakeup`;
       }
-    } else if (lastFood && parseIsoDate(lastFood.timestamp).getTime() > lastPeeTime) {
+    } else if (months < 6 && lastFood && parseIsoDate(lastFood.timestamp).getTime() > lastPeeTime) {
       peeMode = 'post_meal_override';
       const foodTime = parseIsoDate(lastFood.timestamp).getTime();
       const postFoodPee = new Date(foodTime + 20 * 60 * 1000);
@@ -254,7 +254,7 @@ export function calculatePredictions(activities: Activity[], profile: PuppyProfi
       targetMorningPoop.setHours(sleepSchedule.wakeupHour + 1, 0, 0, 0); // ~8:00 AM post-breakfast
       nextPoopExpectedAt = targetMorningPoop;
       poopReason = `Night mode: Sleeping overnight. Expected post-breakfast (~${sleepSchedule.wakeupHour + 1}:00 AM)`;
-    } else if (lastFood && parseIsoDate(lastFood.timestamp).getTime() > lastPoopTime) {
+    } else if (months < 6 && lastFood && parseIsoDate(lastFood.timestamp).getTime() > lastPoopTime) {
       poopMode = 'post_meal_override';
       const foodTime = parseIsoDate(lastFood.timestamp).getTime();
       const postFoodPoopTime = foodTime + 35 * 60 * 1000;
