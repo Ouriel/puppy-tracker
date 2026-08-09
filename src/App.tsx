@@ -5,6 +5,8 @@ import {
   getStoredCaretakers,
   getActivePuppyId,
   setActivePuppyId,
+  getOfflineQueue,
+  clearOfflineQueue,
   clearAllData,
 } from './utils/storage';
 import { getAuthToken, setAuthToken, clearAuthToken } from './utils/auth';
@@ -114,8 +116,6 @@ export function App() {
   const [isQuickLogOpen, setIsQuickLogOpen] = useState(false);
   const [quickLogType, setQuickLogType] = useState<ActivityType>('pee');
 
-
-
   // Synchronous Parallel Database Load via REST API
   useEffect(() => {
     async function loadDatabaseState() {
@@ -174,6 +174,55 @@ export function App() {
     }
     loadDatabaseState();
   }, [isAuthenticated, activePuppyId]);
+
+  // Silent Background Real-Time Synchronization & Offline Queue Flush (15s polling + Focus/Online events)
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    const syncRealtimeData = async () => {
+      if (document.visibilityState !== 'visible' || (typeof navigator !== 'undefined' && !navigator.onLine)) {
+        return;
+      }
+
+      // 1. Flush queued offline items if reconnected
+      const offlineQueue = getOfflineQueue();
+      if (offlineQueue.length > 0) {
+        clearOfflineQueue();
+        for (const offlineItem of offlineQueue) {
+          await createActivity(offlineItem);
+        }
+        showToast('Synced offline activities!', 'success');
+      }
+
+      // 2. Quiet background revalidation of dogs & activities (0ms UI flicker)
+      const [remoteDogs, remoteActivities] = await Promise.all([
+        fetchDogs(),
+        fetchActivities(),
+      ]);
+
+      if (remoteDogs && remoteDogs.length > 0) {
+        setPuppies(remoteDogs);
+      }
+      if (remoteActivities) {
+        setActivities(remoteActivities);
+      }
+    };
+
+    const handleSyncEvent = () => {
+      syncRealtimeData();
+    };
+
+    window.addEventListener('focus', handleSyncEvent);
+    window.addEventListener('online', handleSyncEvent);
+
+    const timer = setInterval(syncRealtimeData, 15000); // 15s low-overhead polling
+
+    return () => {
+      window.removeEventListener('focus', handleSyncEvent);
+      window.removeEventListener('online', handleSyncEvent);
+      clearInterval(timer);
+    };
+  }, [isAuthenticated]);
 
   const activePuppy = puppies.find((puppy) => puppy.id === activePuppyId) || (puppies.length > 0 ? puppies[0] : null);
 

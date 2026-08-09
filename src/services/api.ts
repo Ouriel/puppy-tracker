@@ -1,6 +1,7 @@
 import type { Activity, PuppyProfile, Caretaker, RegisteredUserItem } from '../types';
 import { getAuthToken, clearAuthToken } from '../utils/auth';
 import { showToast } from '../utils/toast';
+import { saveToOfflineQueue } from '../utils/storage';
 
 export type { RegisteredUserItem };
 
@@ -110,10 +111,29 @@ export async function fetchActivities(puppyId?: string): Promise<Activity[] | nu
 }
 
 export async function createActivity(activity: Omit<Activity, 'id'> & { id?: string }): Promise<Activity | null> {
-  return request<Activity>('/api/activities', {
+  const prepared: Activity = {
+    ...activity,
+    id: activity.id || `act-${Date.now()}`,
+  };
+
+  if (typeof navigator !== 'undefined' && !navigator.onLine) {
+    saveToOfflineQueue(prepared);
+    showToast('Saved offline. Will sync when reconnected.', 'info');
+    return prepared;
+  }
+
+  const created = await request<Activity>('/api/activities', {
     method: 'POST',
-    body: JSON.stringify(activity),
+    body: JSON.stringify(prepared),
   });
+
+  if (!created) {
+    saveToOfflineQueue(prepared);
+    showToast('Saved offline. Will sync when reconnected.', 'info');
+    return prepared;
+  }
+
+  return created;
 }
 
 export async function deleteActivity(id: string): Promise<boolean> {

@@ -246,7 +246,7 @@ export function calculatePredictions(activities: Activity[], profile: PuppyProfi
     if (isNightTime) {
       poopMode = 'night_sleep';
       const targetMorningPoop = new Date(now);
-      if (currentHour >= 19) {
+      if (currentHour >= sleepSchedule.bedtimeHour - 2) {
         targetMorningPoop.setDate(targetMorningPoop.getDate() + 1);
       }
       targetMorningPoop.setHours(sleepSchedule.wakeupHour + 1, 0, 0, 0); // ~8:00 AM post-breakfast
@@ -261,9 +261,9 @@ export function calculatePredictions(activities: Activity[], profile: PuppyProfi
       nextPoopExpectedAt = new Date(postFoodPoopTime);
 
       if (minsSinceMeal > 45) {
-        poopReason = `Pup fed ${minsSinceMeal}m ago — post-meal poop break (gastrocolic reflex) is overdue!`;
+        poopReason = `Pup fed ${formatMinutesToXhXX(minsSinceMeal)} ago — post-meal poop break (gastrocolic reflex) is overdue!`;
       } else {
-        poopReason = `Pup fed recently (${minsSinceMeal}m ago). Gastrocolic reflex triggers poop ~30-45m post-meal.`;
+        poopReason = `Pup fed recently (${formatMinutesToXhXX(minsSinceMeal)} ago). Gastrocolic reflex triggers poop ~30-45m post-meal.`;
       }
     } else {
       poopMode = 'daytime_baseline';
@@ -302,11 +302,13 @@ export function calculatePredictions(activities: Activity[], profile: PuppyProfi
   const todayMeals = activities.filter(
     (activity) => activity.type === 'food' && formatLocalDate(parseIsoDate(activity.timestamp)) === todayDateStr
   );
-  const todayGramTotal = todayMeals.reduce((sum, activity) => sum + (activity.quantityGrams || 80), 0);
+  const todayGramTotal = todayMeals.reduce((sum, activity) => sum + (activity.quantityGrams ?? 80), 0);
   const isGoalReached = (profile.dailyFoodGramGoal > 0 && todayGramTotal >= profile.dailyFoodGramGoal) || todayMeals.length >= targetMeals;
 
   const targetBreakfastToday = new Date(now);
   targetBreakfastToday.setHours(sleepSchedule.wakeupHour, 30, 0, 0);
+
+  const lateEveningFoodHour = Math.max(19, sleepSchedule.bedtimeHour - 2);
 
   if (isCurrentlyNight) {
     foodMode = 'night_sleep';
@@ -318,7 +320,7 @@ export function calculatePredictions(activities: Activity[], profile: PuppyProfi
     nextFoodExpectedAt = targetBreakfastTomorrow;
     foodUrgency = 'safe';
     foodReason = `Night mode: Puppy sleeping until breakfast at ~${sleepSchedule.wakeupHour}:30 AM`;
-  } else if (isGoalReached || currentHour >= 20) {
+  } else if (isGoalReached || currentHour >= lateEveningFoodHour) {
     foodMode = 'goal_reached';
     const targetBreakfastTomorrow = new Date(now);
     targetBreakfastTomorrow.setDate(targetBreakfastTomorrow.getDate() + 1);
