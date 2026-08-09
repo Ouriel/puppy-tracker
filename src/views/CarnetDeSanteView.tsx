@@ -40,17 +40,70 @@ interface CarnetDeSanteViewProps {
 export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePuppy }) => {
   const { t } = useI18n();
 
-  const getProtocolStatus = (dueDate: string | null | undefined): { label: string; className: string } => {
-    if (!dueDate) return { label: t.health.statusConform, className: 'bg-emerald-950 text-emerald-400 border-emerald-800/50' };
-    const due = new Date(dueDate);
+  const getVaccineStatus = (
+    vaccine: VaccinationEntry,
+    allVaccines: VaccinationEntry[]
+  ): { label: string; className: string } => {
+    if (!vaccine.boosterDate) {
+      return { label: `✅ ${t.health.statusUpToDate}`, className: 'bg-emerald-950 text-emerald-400 border-emerald-800/50 font-bold' };
+    }
+
+    const sorted = [...allVaccines].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    const isLatest = sorted.length > 0 && sorted[0].id === vaccine.id;
+    const hasSubsequent = allVaccines.some(
+      (other) => other.id !== vaccine.id && new Date(other.date).getTime() >= new Date(vaccine.date).getTime()
+    );
+
+    if (!isLatest || hasSubsequent) {
+      return {
+        label: `✅ ${t.health.statusFulfilled}`,
+        className: 'bg-slate-800/90 text-slate-300 border-slate-700/60 font-medium',
+      };
+    }
+
+    const due = new Date(vaccine.boosterDate);
     const now = new Date();
     const daysUntilDue = Math.floor((due.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+
     if (daysUntilDue < 0) {
-      return { label: '⚠️ Overdue', className: 'bg-red-950 text-red-400 border-red-800/50' };
+      return { label: '⚠️ Overdue', className: 'bg-red-950 text-red-400 border-red-800/50 font-bold' };
     } else if (daysUntilDue <= 14) {
-      return { label: '⏰ Due Soon', className: 'bg-amber-950 text-amber-400 border-amber-800/50' };
+      return { label: '⏰ Due Soon', className: 'bg-amber-950 text-amber-400 border-amber-800/50 font-bold' };
     }
-    return { label: t.health.statusConform, className: 'bg-emerald-950 text-emerald-400 border-emerald-800/50' };
+    return { label: `✅ ${t.health.statusUpToDate}`, className: 'bg-emerald-950 text-emerald-400 border-emerald-800/50 font-bold' };
+  };
+
+  const getDewormingStatus = (
+    deworming: DewormingEntry,
+    allDewormings: DewormingEntry[]
+  ): { label: string; className: string } => {
+    if (!deworming.boosterDate) {
+      return { label: `✅ ${t.health.statusUpToDate}`, className: 'bg-emerald-950 text-emerald-400 border-emerald-800/50 font-bold' };
+    }
+
+    const sorted = [...allDewormings].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    const isLatest = sorted.length > 0 && sorted[0].id === deworming.id;
+    const hasSubsequent = allDewormings.some(
+      (other) => other.id !== deworming.id && new Date(other.date).getTime() >= new Date(deworming.date).getTime()
+    );
+
+    if (!isLatest || hasSubsequent) {
+      return {
+        label: `✅ ${t.health.statusFulfilled}`,
+        className: 'bg-slate-800/90 text-slate-300 border-slate-700/60 font-medium',
+      };
+    }
+
+    const due = new Date(deworming.boosterDate);
+    const now = new Date();
+    const daysUntilDue = Math.floor((due.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+
+    if (daysUntilDue < 0) {
+      return { label: '⚠️ Overdue', className: 'bg-red-950 text-red-400 border-red-800/50 font-bold' };
+    } else if (daysUntilDue <= 14) {
+      return { label: '⏰ Due Soon', className: 'bg-amber-950 text-amber-400 border-amber-800/50 font-bold' };
+    }
+    return { label: `✅ ${t.health.statusUpToDate}`, className: 'bg-emerald-950 text-emerald-400 border-emerald-800/50 font-bold' };
   };
 
   const [vaccinations, setVaccinations] = useState<VaccinationEntry[]>([]);
@@ -341,8 +394,8 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePupp
               <div className="flex items-center gap-3">
                 <div className="text-right">
                   <div className="text-xs font-bold text-amber-300">{t.health.booster}: {vaccine.boosterDate}</div>
-                  <div className={`text-[10px] px-2 py-0.5 rounded border inline-block ${getProtocolStatus(vaccine.boosterDate).className}`}>
-                    {getProtocolStatus(vaccine.boosterDate).label}
+                  <div className={`text-[10px] px-2 py-0.5 rounded border inline-block ${getVaccineStatus(vaccine, vaccinations).className}`}>
+                    {getVaccineStatus(vaccine, vaccinations).label}
                   </div>
                 </div>
                 <button
@@ -453,8 +506,8 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePupp
               <div className="flex items-center gap-3">
                 <div className="text-right">
                   <div className="text-xs font-bold text-amber-300">{t.health.nextDeworming}: {deworming.boosterDate}</div>
-                  <div className={`text-[10px] px-2 py-0.5 rounded border inline-block ${getProtocolStatus(deworming.boosterDate).className}`}>
-                    {getProtocolStatus(deworming.boosterDate).label}
+                  <div className={`text-[10px] px-2 py-0.5 rounded border inline-block ${getDewormingStatus(deworming, dewormingLogs).className}`}>
+                    {getDewormingStatus(deworming, dewormingLogs).label}
                   </div>
                 </div>
                 <button

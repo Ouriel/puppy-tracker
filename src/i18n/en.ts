@@ -154,6 +154,7 @@ export const en = {
     weightAtTime: 'Weight at Time (kg)',
     statusConform: 'Compliant',
     statusUpToDate: 'Up to Date',
+    statusFulfilled: 'Fulfilled / Renewed',
     saveVaccine: 'Save Vaccine Record',
     saveDeworming: 'Save Deworming Entry',
     injectedOn: 'Administered',
