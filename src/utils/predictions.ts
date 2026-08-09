@@ -356,10 +356,10 @@ export function calculatePredictions(
     if (isNightTime) {
       poopMode = 'night_sleep';
       const targetMorningPoop = new Date(now);
-      if (isCurrentlyNight || currentHour >= Math.floor(sleepSchedule.bedtimeHour - 2)) {
+      if (currentHour >= Math.floor(sleepSchedule.bedtimeHour - 2)) {
         targetMorningPoop.setDate(targetMorningPoop.getDate() + 1);
       }
-      const wakeH = Math.floor(sleepSchedule.wakeupHour) + 1;
+      const wakeH = Math.min(23, Math.floor(sleepSchedule.wakeupHour) + 1);
       const wakeM = Math.round((sleepSchedule.wakeupHour - Math.floor(sleepSchedule.wakeupHour)) * 60);
       targetMorningPoop.setHours(wakeH, wakeM, 0, 0);
       nextPoopExpectedAt = targetMorningPoop;
