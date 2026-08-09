@@ -96,3 +96,18 @@ export interface PottyStats {
   successRatePercentage: number;
   streakDays: number;
 }
+
+export interface HealthRecord {
+  id: string;
+  householdId: string;
+  puppyId: string;
+  type: 'vaccination' | 'deworming';
+  name: string;
+  date: string;
+  boosterDate?: string;
+  batchNumber?: string;
+  vetClinic?: string;
+  productName?: string;
+  weightAtTime?: number;
+  notes?: string;
+}

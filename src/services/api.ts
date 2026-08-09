@@ -1,4 +1,4 @@
-import type { Activity, PuppyProfile, Caretaker, RegisteredUserItem } from '../types';
+import type { Activity, PuppyProfile, Caretaker, RegisteredUserItem, HealthRecord } from '../types';
 import { getAuthToken, clearAuthToken } from '../utils/auth';
 import { showToast } from '../utils/toast';
 import { saveToOfflineQueue } from '../utils/storage';
@@ -145,15 +145,15 @@ export async function deleteActivity(id: string): Promise<boolean> {
 
 // ── Health Records API ──
 
-export async function fetchHealthRecords(puppyId: string, type?: string): Promise<any[] | null> {
+export async function fetchHealthRecords(puppyId: string, type?: string): Promise<HealthRecord[] | null> {
   const url = type
     ? `/api/health-records?puppyId=${encodeURIComponent(puppyId)}&type=${encodeURIComponent(type)}`
     : `/api/health-records?puppyId=${encodeURIComponent(puppyId)}`;
-  return request<any[]>(url);
+  return request<HealthRecord[]>(url);
 }
 
-export async function createHealthRecord(record: any): Promise<any | null> {
-  return request<any>('/api/health-records', {
+export async function createHealthRecord(record: Omit<HealthRecord, 'id' | 'householdId'> & { id?: string }): Promise<HealthRecord | null> {
+  return request<HealthRecord>('/api/health-records', {
     method: 'POST',
     body: JSON.stringify(record),
   });

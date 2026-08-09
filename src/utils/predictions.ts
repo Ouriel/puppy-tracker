@@ -1,6 +1,33 @@
 import type { Activity, PredictionResult, PuppyProfile, ScheduleMode, FoodScheduleMode } from '../types';
 import { parseIsoDate, formatLocalDate, formatMinutesToXhXX } from './date';
 
+/**
+ * Wrap-aware check: is the given hour within daytime (between wakeup and bedtime)?
+ * Correctly handles schedules where bedtime wraps past midnight (e.g., bedtime=1, wakeup=7).
+ */
+function isDaytimeHour(hour: number, wakeupHour: number, bedtimeHour: number): boolean {
+  if (bedtimeHour > wakeupHour) {
+    return hour >= wakeupHour && hour < bedtimeHour;
+  }
+  // Wrapped schedule (e.g., wakeup=7, bedtime=1): daytime = 7..23, 0
+  return hour >= wakeupHour || hour < bedtimeHour;
+}
+
+/**
+ * Wrap-aware check: is the given hour within nighttime?
+ */
+function isNighttimeHour(hour: number, wakeupHour: number, bedtimeHour: number): boolean {
+  return !isDaytimeHour(hour, wakeupHour, bedtimeHour);
+}
+
+/**
+ * Wrap-aware waking hours calculation.
+ * For wakeup=7, bedtime=22: returns 15. For wakeup=7, bedtime=1: returns 18.
+ */
+function getWakingHours(wakeupHour: number, bedtimeHour: number): number {
+  return ((bedtimeHour - wakeupHour) + 24) % 24;
+}
+
 export function getPuppyAge(birthDateIso: string): { weeks: number; months: number; text: string } {
   const birth = parseIsoDate(birthDateIso);
   const now = new Date();
@@ -23,6 +50,7 @@ export function getPuppyAge(birthDateIso: string): { weeks: number; months: numb
  */
 export function calculateVetFoodGramGoal(weightKg: number, ageMonths: number): number {
   if (!weightKg || weightKg <= 0) return 240;
+  if (!ageMonths || isNaN(ageMonths) || ageMonths < 0) ageMonths = 6;
   const rer = 70 * Math.pow(weightKg, 0.75);
   const merMultiplier = ageMonths < 4 ? 3.0 : ageMonths < 12 ? 2.0 : 1.6;
   const dailyKcal = rer * merMultiplier;
@@ -48,19 +76,19 @@ export function detectSleepSchedule(activities: Activity[]): { bedtimeHour: numb
 
   targetLogs.forEach((activity) => {
     const hr = parseIsoDate(activity.timestamp).getHours();
-    if (hr >= 20 || hr <= 3) {
-      eveningHours.push(hr >= 20 ? hr : hr + 24);
-    } else if (hr >= 4 && hr <= 10) {
+    if (hr >= 21 || hr <= 1) {
+      eveningHours.push(hr >= 21 ? hr : hr + 24);
+    } else if (hr >= 5 && hr <= 9) {
       morningHours.push(hr);
     }
   });
 
   const bedtimeHour = eveningHours.length >= 3
-    ? Math.round(eveningHours.reduce((s, h) => s + h, 0) / eveningHours.length) % 24
+    ? Math.round(eveningHours.reduce((sum, hour) => sum + hour, 0) / eveningHours.length) % 24
     : 22;
 
   const wakeupHour = morningHours.length >= 3
-    ? Math.round(morningHours.reduce((s, h) => s + h, 0) / morningHours.length)
+    ? Math.round(morningHours.reduce((sum, hour) => sum + hour, 0) / morningHours.length)
     : 7;
 
   return { bedtimeHour, wakeupHour };
@@ -102,8 +130,8 @@ export function calculateLearnedIntervalMinutes(
       const currHour = currTime.getHours();
 
       // Check if both events happened during active daytime hours
-      const isPrevDay = prevHour >= sleepSchedule.wakeupHour && prevHour < sleepSchedule.bedtimeHour;
-      const isCurrDay = currHour >= sleepSchedule.wakeupHour && currHour < sleepSchedule.bedtimeHour;
+      const isPrevDay = isDaytimeHour(prevHour, sleepSchedule.wakeupHour, sleepSchedule.bedtimeHour);
+      const isCurrDay = isDaytimeHour(currHour, sleepSchedule.wakeupHour, sleepSchedule.bedtimeHour);
 
       if (isPrevDay && isCurrDay) {
         intervals.push(diffMinutes);
@@ -137,7 +165,7 @@ export function calculatePredictions(activities: Activity[], profile: PuppyProfi
   const currentHour = now.getHours();
 
   const sleepSchedule = detectSleepSchedule(activities);
-  const isCurrentlyNight = currentHour >= sleepSchedule.bedtimeHour || currentHour < sleepSchedule.wakeupHour;
+  const isCurrentlyNight = isNighttimeHour(currentHour, sleepSchedule.wakeupHour, sleepSchedule.bedtimeHour);
 
   const sorted = [...activities].sort(
     (activityA, activityB) => parseIsoDate(activityB.timestamp).getTime() - parseIsoDate(activityA.timestamp).getTime()
@@ -168,7 +196,8 @@ export function calculatePredictions(activities: Activity[], profile: PuppyProfi
 
     standardPeeExpectedAt = new Date(lastPeeTime + learnedPee.intervalMins * 60 * 1000);
 
-    const isNightTime = isCurrentlyNight || currentHour >= sleepSchedule.bedtimeHour - 1;
+    const isApproachingBedtime = currentHour === ((sleepSchedule.bedtimeHour - 1 + 24) % 24);
+    const isNightTime = isCurrentlyNight || isApproachingBedtime;
 
     if (isNightTime) {
       peeMode = 'night_sleep';
@@ -241,12 +270,14 @@ export function calculatePredictions(activities: Activity[], profile: PuppyProfi
 
     standardPoopExpectedAt = new Date(lastPoopTime + learnedPoop.intervalMins * 60 * 1000);
 
-    const isNightTime = isCurrentlyNight || currentHour >= sleepSchedule.bedtimeHour - 1;
+    const isApproachingBedtime = currentHour === ((sleepSchedule.bedtimeHour - 1 + 24) % 24);
+    const isNightTime = isCurrentlyNight || isApproachingBedtime;
 
     if (isNightTime) {
       poopMode = 'night_sleep';
       const targetMorningPoop = new Date(now);
-      if (currentHour >= sleepSchedule.bedtimeHour - 2) {
+      const twoHoursBeforeBed = ((sleepSchedule.bedtimeHour - 2 + 24) % 24);
+      if (isCurrentlyNight || currentHour >= twoHoursBeforeBed) {
         targetMorningPoop.setDate(targetMorningPoop.getDate() + 1);
       }
       targetMorningPoop.setHours(sleepSchedule.wakeupHour + 1, 0, 0, 0); // ~8:00 AM post-breakfast
@@ -339,7 +370,7 @@ export function calculatePredictions(activities: Activity[], profile: PuppyProfi
       foodUrgency = 'safe';
       foodReason = `Puppy resting. Breakfast scheduled at ~${sleepSchedule.wakeupHour}:30 AM (Meal 1 of ${targetMeals})`;
     } else if (minsUntilBreakfast >= -60) {
-      foodUrgency = minsUntilBreakfast < 0 ? 'soon' : 'safe';
+      foodUrgency = minsUntilBreakfast <= 15 ? 'soon' : 'safe';
       foodReason = `Morning breakfast due (~${sleepSchedule.wakeupHour}:30 AM, Meal 1 of ${targetMeals})`;
     } else {
       foodUrgency = 'overdue';
@@ -352,7 +383,7 @@ export function calculatePredictions(activities: Activity[], profile: PuppyProfi
     }, todayMeals[0]);
 
     const lastMealTime = parseIsoDate(lastMealToday.timestamp).getTime();
-    const daytimeWakingHours = Math.max(10, sleepSchedule.bedtimeHour - sleepSchedule.wakeupHour);
+    const daytimeWakingHours = Math.max(10, getWakingHours(sleepSchedule.wakeupHour, sleepSchedule.bedtimeHour));
     const mealIntervalHours = targetMeals > 1 ? daytimeWakingHours / targetMeals : daytimeWakingHours;
 
     nextFoodExpectedAt = new Date(lastMealTime + mealIntervalHours * 60 * 60 * 1000);

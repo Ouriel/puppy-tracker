@@ -89,7 +89,7 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePupp
 
     const newEntry = {
       puppyId: activePuppy.id,
-      type: 'vaccination',
+      type: 'vaccination' as const,
       name: vaccineType,
       date: administeredDate,
       boosterDate: nextDueDate,
@@ -121,7 +121,7 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePupp
 
     const newEntry = {
       puppyId: activePuppy.id,
-      type: 'deworming',
+      type: 'deworming' as const,
       name: productName.trim() || 'Credelio Plus',
       productName: productName.trim() || 'Credelio Plus',
       date: dewormAdminDate,
