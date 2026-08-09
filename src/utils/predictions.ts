@@ -35,16 +35,22 @@ export function calculateVetFoodGramGoal(weightKg: number, ageMonths: number): n
  */
 export function detectSleepSchedule(activities: Activity[]): { bedtimeHour: number; wakeupHour: number } {
   const defaultSchedule = { bedtimeHour: 22, wakeupHour: 7 }; // 10:00 PM to 7:00 AM
-  if (activities.length < 5) return defaultSchedule;
+
+  // Filter logs to last 30 days to avoid historical bloat & reflect current sleep patterns
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  const recentActivities = activities.filter((activity) => parseIsoDate(activity.timestamp) >= thirtyDaysAgo);
+  const targetLogs = recentActivities.length >= 5 ? recentActivities : activities;
+
+  if (targetLogs.length < 5) return defaultSchedule;
 
   const eveningHours: number[] = [];
   const morningHours: number[] = [];
 
-  activities.forEach((activity) => {
+  targetLogs.forEach((activity) => {
     const hr = parseIsoDate(activity.timestamp).getHours();
-    if (hr >= 21 || hr <= 1) {
-      eveningHours.push(hr >= 21 ? hr : hr + 24);
-    } else if (hr >= 5 && hr <= 9) {
+    if (hr >= 20 || hr <= 3) {
+      eveningHours.push(hr >= 20 ? hr : hr + 24);
+    } else if (hr >= 4 && hr <= 10) {
       morningHours.push(hr);
     }
   });
@@ -69,7 +75,12 @@ export function calculateLearnedIntervalMinutes(
   fallbackMinutes: number,
   sleepSchedule = { bedtimeHour: 22, wakeupHour: 7 }
 ): { intervalMins: number; sampleCount: number; isLearned: boolean } {
-  const sortedLogs = [...activities]
+  // Use last 30 days of activities to reflect current puppy age & capacity
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  const recentActivities = activities.filter((activity) => parseIsoDate(activity.timestamp) >= thirtyDaysAgo);
+  const targetActivities = recentActivities.length >= 5 ? recentActivities : activities;
+
+  const sortedLogs = [...targetActivities]
     .filter((activity) => activity.type === type)
     .sort((activityA, activityB) => parseIsoDate(activityA.timestamp).getTime() - parseIsoDate(activityB.timestamp).getTime());
 
