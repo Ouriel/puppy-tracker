@@ -76,3 +76,19 @@ export function formatRelativeTime(
     return `${dateStr} ${timeStr}`;
   }
 }
+
+/**
+ * Formats minute durations into human-readable XhXX format when >= 60 (e.g. 75m -> 1h15, 120m -> 2h, 125m -> 2h05)
+ */
+export function formatMinutesToXhXX(minutes: number): string {
+  const totalMins = Math.round(minutes);
+  if (totalMins < 60) {
+    return `${totalMins}m`;
+  }
+  const hours = Math.floor(totalMins / 60);
+  const mins = totalMins % 60;
+  if (mins === 0) {
+    return `${hours}h`;
+  }
+  return `${hours}h${String(mins).padStart(2, '0')}`;
+}

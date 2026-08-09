@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import type { PredictionResult, ActivityType, PuppyProfile } from '../types';
 import { Droplet, Utensils, AlertCircle, Clock, CheckCircle2, Sparkles, Footprints } from 'lucide-react';
 import { useI18n } from '../i18n';
+import { formatMinutesToXhXX } from '../utils/date';
 
 interface PredictorWidgetProps {
   predictions: PredictionResult;
@@ -45,20 +46,11 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = ({
 
     if (diffMins < 0) {
       const overdueMins = Math.abs(diffMins);
-      if (overdueMins < 60) {
-        return `${overdueMins}m ${t.dashboard.overdueText}!`;
-      }
-      const h = Math.floor(overdueMins / 60);
-      const m = overdueMins % 60;
-      return m > 0 ? `${h}h ${m}m ${t.dashboard.overdueText}` : `${h}h ${t.dashboard.overdueText}`;
+      return `${formatMinutesToXhXX(overdueMins)} ${t.dashboard.overdueText}`;
     } else if (diffMins === 0) {
       return t.dashboard.dueNow;
-    } else if (diffMins < 60) {
-      return `~${diffMins} min`;
     } else {
-      const h = Math.floor(diffMins / 60);
-      const m = diffMins % 60;
-      return m > 0 ? `~${h}h ${m}m` : `~${h}h`;
+      return `~${formatMinutesToXhXX(diffMins)}`;
     }
   };
 
@@ -70,18 +62,11 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = ({
 
     if (diffMins < 0) {
       const overdueMins = Math.abs(diffMins);
-      if (overdueMins < 60) return `${overdueMins}m ${t.dashboard.overdueText}`;
-      const h = Math.floor(overdueMins / 60);
-      const m = overdueMins % 60;
-      return m > 0 ? `${h}h ${m}m ${t.dashboard.overdueText}` : `${h}h ${t.dashboard.overdueText}`;
+      return `${formatMinutesToXhXX(overdueMins)} ${t.dashboard.overdueText}`;
     } else if (diffMins === 0) {
       return t.dashboard.dueNow;
-    } else if (diffMins < 60) {
-      return `${diffMins} min`;
     } else {
-      const h = Math.floor(diffMins / 60);
-      const m = diffMins % 60;
-      return m > 0 ? `${h}h ${m}m` : `${h}h`;
+      return formatMinutesToXhXX(diffMins);
     }
   };
 

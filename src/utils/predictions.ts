@@ -1,5 +1,5 @@
 import type { Activity, PredictionResult, PuppyProfile, ScheduleMode, FoodScheduleMode } from '../types';
-import { parseIsoDate, formatLocalDate } from './date';
+import { parseIsoDate, formatLocalDate, formatMinutesToXhXX } from './date';
 
 export function getPuppyAge(birthDateIso: string): { weeks: number; months: number; text: string } {
   const birth = parseIsoDate(birthDateIso);
@@ -201,16 +201,16 @@ export function calculatePredictions(activities: Activity[], profile: PuppyProfi
       nextPeeExpectedAt = postFoodPee;
 
       if (minsSinceMeal > 25) {
-        peeReason = `Pup fed ${minsSinceMeal}m ago — post-meal potty break is overdue!`;
+        peeReason = `Pup fed ${formatMinutesToXhXX(minsSinceMeal)} ago — post-meal potty break is overdue!`;
       } else {
-        peeReason = `Pup fed recently (${minsSinceMeal}m ago). Pees ~15-20m post-meal.`;
+        peeReason = `Pup fed recently (${formatMinutesToXhXX(minsSinceMeal)} ago). Pees ~15-20m post-meal.`;
       }
     } else {
       peeMode = 'daytime_baseline';
       nextPeeExpectedAt = standardPeeExpectedAt;
       peeReason = learnedPee.isLearned
-        ? `Adaptive AI: Learned ~${learnedPee.intervalMins}m average bladder interval`
-        : `Based on ~${Math.round(learnedPee.intervalMins)}m age bladder capacity`;
+        ? `Adaptive AI: Learned ~${formatMinutesToXhXX(learnedPee.intervalMins)} average bladder interval`
+        : `Based on ~${formatMinutesToXhXX(learnedPee.intervalMins)} age bladder capacity`;
     }
 
     if (nextPeeExpectedAt) {

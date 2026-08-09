@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { formatLocalDate, getLocalDatetimeString, isSameLocalDate, formatRelativeTime } from '../date';
+import { formatLocalDate, getLocalDatetimeString, isSameLocalDate, formatRelativeTime, formatMinutesToXhXX } from '../date';
 
 describe('date utility module', () => {
   it('formatLocalDate formats date in local YYYY-MM-DD', () => {
@@ -30,5 +30,14 @@ describe('date utility module', () => {
     const yesterdayLog = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1, 20, 0).toISOString();
     const formattedYesterday = formatRelativeTime(yesterdayLog, 'en', { today: 'Today', yesterday: 'Yesterday' });
     expect(formattedYesterday).toContain('Yesterday');
+  });
+
+  it('formatMinutesToXhXX formats minutes < 60 as minutes and >= 60 as XhXX', () => {
+    expect(formatMinutesToXhXX(45)).toBe('45m');
+    expect(formatMinutesToXhXX(60)).toBe('1h');
+    expect(formatMinutesToXhXX(75)).toBe('1h15');
+    expect(formatMinutesToXhXX(120)).toBe('2h');
+    expect(formatMinutesToXhXX(125)).toBe('2h05');
+    expect(formatMinutesToXhXX(150)).toBe('2h30');
   });
 });
