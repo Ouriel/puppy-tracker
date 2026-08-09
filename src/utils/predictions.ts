@@ -209,7 +209,7 @@ export function calculatePredictions(activities: Activity[], profile: PuppyProfi
       peeMode = 'daytime_baseline';
       nextPeeExpectedAt = standardPeeExpectedAt;
       peeReason = learnedPee.isLearned
-        ? `Adaptive AI: Learned ~${formatMinutesToXhXX(learnedPee.intervalMins)} average bladder interval`
+        ? `Learned average: ~${formatMinutesToXhXX(learnedPee.intervalMins)} bladder interval (30-day history)`
         : `Based on ~${formatMinutesToXhXX(learnedPee.intervalMins)} age bladder capacity`;
     }
 
@@ -271,7 +271,7 @@ export function calculatePredictions(activities: Activity[], profile: PuppyProfi
       poopMode = 'daytime_baseline';
       nextPoopExpectedAt = standardPoopExpectedAt;
       poopReason = learnedPoop.isLearned
-        ? `Adaptive AI: Learned ~${(learnedPoop.intervalMins / 60).toFixed(1)}h average digest interval`
+        ? `Learned average: ~${formatMinutesToXhXX(learnedPoop.intervalMins)} digestive interval (30-day history)`
         : 'Standard digestive interval (~5h)';
     }
 
