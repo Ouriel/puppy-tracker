@@ -148,10 +148,10 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = ({
                     <span className="text-lg font-bold text-slate-100">
                       {formatCountdown(predictions.nextPeeExpectedAt)}
                     </span>
-                    {/* Standard baseline label if post-meal active */}
-                    {predictions.standardPeeExpectedAt &&
-                      predictions.nextPeeExpectedAt &&
-                      Math.abs(predictions.nextPeeExpectedAt.getTime() - predictions.standardPeeExpectedAt.getTime()) > 5 * 60 * 1000 && (
+                    {/* Standard baseline label if post-meal active during daytime */}
+                    {predictions.isPostMealPee &&
+                      !predictions.isNightMode &&
+                      predictions.standardPeeExpectedAt && (
                         <span className="text-xs font-bold text-sky-400 bg-sky-950/60 border border-sky-800/60 px-2 py-0.5 rounded-lg">
                           ({t.potty.withoutMeal} ~{formatTimeLeft(predictions.standardPeeExpectedAt)})
                         </span>
@@ -206,9 +206,9 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = ({
                     <span className="text-lg font-bold text-slate-100">
                       {formatCountdown(predictions.nextPoopExpectedAt)}
                     </span>
-                    {predictions.standardPoopExpectedAt &&
-                      predictions.nextPoopExpectedAt &&
-                      Math.abs(predictions.nextPoopExpectedAt.getTime() - predictions.standardPoopExpectedAt.getTime()) > 5 * 60 * 1000 && (
+                    {predictions.isPostMealPoop &&
+                      !predictions.isNightMode &&
+                      predictions.standardPoopExpectedAt && (
                         <span className="text-xs font-bold text-amber-400 bg-amber-950/60 border border-amber-800/60 px-2 py-0.5 rounded-lg">
                           ({t.potty.withoutMeal} ~{formatTimeLeft(predictions.standardPoopExpectedAt)})
                         </span>

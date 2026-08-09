@@ -61,17 +61,21 @@ export interface Caretaker {
 export interface PredictionResult {
   nextPeeExpectedAt: Date | null;
   standardPeeExpectedAt?: Date | null;
+  isPostMealPee?: boolean;
   peeUrgency: 'safe' | 'soon' | 'overdue';
   peeReason: string;
   
   nextPoopExpectedAt: Date | null;
   standardPoopExpectedAt?: Date | null;
+  isPostMealPoop?: boolean;
   poopUrgency: 'safe' | 'soon' | 'overdue';
   poopReason: string;
 
   nextFoodExpectedAt: Date | null;
   foodUrgency: 'safe' | 'soon' | 'overdue';
   foodReason: string;
+
+  isNightMode?: boolean;
 }
 
 export interface PottyStats {

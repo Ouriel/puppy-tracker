@@ -360,17 +360,44 @@ export function calculatePredictions(activities: Activity[], profile: PuppyProfi
     }
   }
 
+  let isPostMealPee = false;
+  if (lastPee) {
+    const lastPeeDate = parseIsoDate(lastPee.timestamp);
+    const lastPeeTime = lastPeeDate.getTime();
+    const lastPeeHour = lastPeeDate.getHours();
+    const isLateEveningPee = lastPeeHour >= sleepSchedule.bedtimeHour - 1 || lastPeeHour < sleepSchedule.wakeupHour;
+
+    if (!(isLateEveningPee || isCurrentlyNight) && lastFood && parseIsoDate(lastFood.timestamp).getTime() > lastPeeTime) {
+      isPostMealPee = true;
+    }
+  }
+
+  let isPostMealPoop = false;
+  if (lastPoop) {
+    const lastPoopDate = parseIsoDate(lastPoop.timestamp);
+    const lastPoopTime = lastPoopDate.getTime();
+    const lastPoopHour = lastPoopDate.getHours();
+    const isEveningPoop = lastPoopHour >= 19 || lastPoopHour < sleepSchedule.wakeupHour;
+
+    if (!(isEveningPoop || isCurrentlyNight) && lastFood && parseIsoDate(lastFood.timestamp).getTime() > lastPoopTime) {
+      isPostMealPoop = true;
+    }
+  }
+
   return {
     nextPeeExpectedAt,
     standardPeeExpectedAt,
+    isPostMealPee,
     peeUrgency,
     peeReason,
     nextPoopExpectedAt,
     standardPoopExpectedAt,
+    isPostMealPoop,
     poopUrgency,
     poopReason,
     nextFoodExpectedAt,
     foodUrgency,
     foodReason,
+    isNightMode: isCurrentlyNight,
   };
 }
