@@ -46,6 +46,7 @@ PupPace — Smart Household Puppy Activity Tracker & Potty Predictor. React + Vi
 
 - ZERO runtime DDL (`CREATE TABLE IF NOT EXISTS`) in API handlers — runtime queries are strictly business logic (`SELECT`, `INSERT`, `UPDATE`, `DELETE`).
 - Canonical schemas live in `src/db/schema.ts`. Migrations are generated via `npx drizzle-kit generate` into `drizzle/`.
+- Safe DB Inspection Script: `npm run db:inspect` (or `npx tsx scripts/inspect_db.ts`) — inspects tables, row counts, puppy profiles, and runs prediction engine diagnostics against real database logs without hardcoded secrets.
 
 ### Deployment & Workflow
 
@@ -59,8 +60,9 @@ PupPace — Smart Household Puppy Activity Tracker & Potty Predictor. React + Vi
 | `src/types/index.ts`         | Canonical domain interfaces (`Activity`, `PuppyProfile`, `PredictionResult`)         |
 | `src/db/schema.ts`           | Single source of truth Drizzle ORM database tables                                    |
 | `src/services/api.ts`        | SWR-cached REST API client & fetch helpers                                            |
+| `scripts/inspect_db.ts`      | Safe database inspection & live prediction engine diagnostics script                    |
 | `src/i18n/en.ts` & `fr.ts`   | English & French localization dictionaries                                           |
-| `src/utils/predictions.ts`   | Adaptive AI algorithm for next potty & meal predictions                              |
+| `src/utils/predictions.ts`   | Learner algorithm for next potty & meal predictions                                   |
 | `src/views/HouseholdSettingsView.tsx` | Combined Chiens & Membres configuration view                              |
 | `src/views/CarnetDeSanteView.tsx`     | French & International veterinary health protocol passport                          |
 
