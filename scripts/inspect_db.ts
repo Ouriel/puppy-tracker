@@ -51,15 +51,33 @@ async function runInspection() {
   const sql = neon(dbUrl);
 
   // 1. Table Inventory & Row Counts
-  const tables = await sql`SELECT table_name FROM information_schema.tables WHERE table_schema = 'public';`;
-  console.log(`📋 Database Tables (${tables.length}):`);
-  for (const t of tables) {
-    const tableStr = String(t.table_name);
+  console.log('📋 Database Tables:');
+  const tableList = ['activities', 'caretakers', 'households', 'users', 'puppies', 'health_records'];
+  for (const tableName of tableList) {
     try {
-      const countRes = await sql`SELECT COUNT(*) as count FROM ${sql(tableStr)};`;
-      console.log(`   • ${tableStr.padEnd(20)} ${countRes[0].count} rows`);
+      let count = 0;
+      if (tableName === 'activities') {
+        const res = await sql`SELECT COUNT(*) as c FROM activities;`;
+        count = Number(res[0].c);
+      } else if (tableName === 'caretakers') {
+        const res = await sql`SELECT COUNT(*) as c FROM caretakers;`;
+        count = Number(res[0].c);
+      } else if (tableName === 'households') {
+        const res = await sql`SELECT COUNT(*) as c FROM households;`;
+        count = Number(res[0].c);
+      } else if (tableName === 'users') {
+        const res = await sql`SELECT COUNT(*) as c FROM users;`;
+        count = Number(res[0].c);
+      } else if (tableName === 'puppies') {
+        const res = await sql`SELECT COUNT(*) as c FROM puppies;`;
+        count = Number(res[0].c);
+      } else if (tableName === 'health_records') {
+        const res = await sql`SELECT COUNT(*) as c FROM health_records;`;
+        count = Number(res[0].c);
+      }
+      console.log(`   • ${tableName.padEnd(20)} ${count} rows`);
     } catch {
-      console.log(`   • ${tableStr.padEnd(20)} N/A`);
+      console.log(`   • ${tableName.padEnd(20)} N/A`);
     }
   }
 
@@ -112,13 +130,13 @@ async function runInspection() {
 
     console.log(`\n🔮 Live Prediction Engine Diagnostics (${profile.name}):`);
     const sleepSchedule = detectSleepSchedule(puppyActivities);
-    console.log(`   • Sleep Schedule      : Bedtime ~${sleepSchedule.bedtimeHour}:00 | Wakeup ~${sleepSchedule.wakeupHour}:00`);
+    console.log(`   • Sleep Schedule      : Bedtime ~${sleepSchedule.bedtimeStr} | Wakeup ~${sleepSchedule.wakeupStr}`);
 
     const learnedPee = calculateLearnedIntervalMinutes(puppyActivities, 'pee', 120, sleepSchedule);
-    console.log(`   • Learned Pee Interval: ${learnedPee.intervalMins}m (Learned: ${learnedPee.isLearned}, Samples: ${learnedPee.sampleCount})`);
+    console.log(`   • Learned Pee Interval: ${Math.round(learnedPee.intervalMins)}m (Learned: ${learnedPee.isLearned}, Samples: ${learnedPee.sampleCount})`);
 
     const learnedPoop = calculateLearnedIntervalMinutes(puppyActivities, 'poop', 300, sleepSchedule);
-    console.log(`   • Learned Poop Interval: ${learnedPoop.intervalMins}m (Learned: ${learnedPoop.isLearned}, Samples: ${learnedPoop.sampleCount})`);
+    console.log(`   • Learned Poop Interval: ${Math.round(learnedPoop.intervalMins)}m (Learned: ${learnedPoop.isLearned}, Samples: ${learnedPoop.sampleCount})`);
 
     const predictions = calculatePredictions(puppyActivities, profile);
     console.log(`   • Pee Card            : Mode=${predictions.peeMode} | Urgency=${predictions.peeUrgency} | Next=${predictions.nextPeeExpectedAt ? predictions.nextPeeExpectedAt.toLocaleTimeString() : 'N/A'}`);
