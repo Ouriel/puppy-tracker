@@ -246,6 +246,7 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
                         onUpdateCaretaker(caretaker.id, {
                           name: editName.trim(),
                           color: editColor,
+                          role: caretaker.role,
                         });
                         setEditingId(null);
                       }}
