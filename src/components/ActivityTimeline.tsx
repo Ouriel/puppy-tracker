@@ -1,22 +1,26 @@
 import React, { useState } from 'react';
 import type { Activity, ActivityType, Caretaker } from '../types';
-import { Droplet, Footprints, Utensils, Scale, Pill, Trash2 } from 'lucide-react';
+import { Droplet, Footprints, Utensils, Scale, Pill, Trash2, Pencil } from 'lucide-react';
 import { useI18n } from '../i18n';
 import { formatRelativeTime, parseIsoDate } from '../utils/date';
+import { EditActivityModal } from './EditActivityModal';
 
 interface ActivityTimelineProps {
   activities: Activity[];
   caretakers: Caretaker[];
   onDeleteActivity: (id: string) => void;
+  onUpdateActivity?: (updated: Partial<Activity> & { id: string }) => void;
 }
 
 export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
   activities,
   caretakers,
   onDeleteActivity,
+  onUpdateActivity,
 }) => {
   const { t } = useI18n();
   const [filter, setFilter] = useState<'all' | 'potty' | 'food'>('all');
+  const [editingActivity, setEditingActivity] = useState<Activity | null>(null);
 
   const getIcon = (type: ActivityType) => {
     switch (type) {
@@ -195,23 +199,47 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
                   </div>
                 </div>
 
-                <button
-                  onClick={() => {
-                    const confirmMsg = 'Are you sure you want to delete this activity log?';
-                    if (window.confirm(confirmMsg)) {
-                      onDeleteActivity(item.id);
-                    }
-                  }}
-                  title="Delete log"
-                  aria-label="Delete log"
-                  className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 p-2 rounded-xl text-slate-400 hover:text-red-400 bg-slate-800/80 sm:bg-transparent hover:bg-slate-800 transition cursor-pointer border border-slate-700/60 sm:border-transparent shrink-0"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
+                <div className="flex items-center gap-1 shrink-0 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition">
+                  {onUpdateActivity && (
+                    <button
+                      onClick={() => setEditingActivity(item)}
+                      title="Edit activity log"
+                      aria-label="Edit activity log"
+                      className="p-2 rounded-xl text-slate-400 hover:text-indigo-400 bg-slate-800/80 sm:bg-transparent hover:bg-slate-800 transition cursor-pointer border border-slate-700/60 sm:border-transparent"
+                    >
+                      <Pencil className="w-4 h-4" />
+                    </button>
+                  )}
+
+                  <button
+                    onClick={() => {
+                      const confirmMsg = 'Are you sure you want to delete this activity log?';
+                      if (window.confirm(confirmMsg)) {
+                        onDeleteActivity(item.id);
+                      }
+                    }}
+                    title="Delete log"
+                    aria-label="Delete log"
+                    className="p-2 rounded-xl text-slate-400 hover:text-red-400 bg-slate-800/80 sm:bg-transparent hover:bg-slate-800 transition cursor-pointer border border-slate-700/60 sm:border-transparent"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
             );
           })}
         </div>
+      )}
+
+      {editingActivity && onUpdateActivity && (
+        <EditActivityModal
+          activity={editingActivity}
+          onSave={(updated) => {
+            onUpdateActivity(updated);
+            setEditingActivity(null);
+          }}
+          onClose={() => setEditingActivity(null)}
+        />
       )}
     </div>
   );

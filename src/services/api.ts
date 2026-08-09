@@ -136,6 +136,13 @@ export async function createActivity(activity: Omit<Activity, 'id'> & { id?: str
   return created;
 }
 
+export async function updateActivity(activity: Partial<Activity> & { id: string }): Promise<Activity | null> {
+  return request<Activity>('/api/activities', {
+    method: 'PUT',
+    body: JSON.stringify(activity),
+  });
+}
+
 export async function deleteActivity(id: string): Promise<boolean> {
   const res = await request<{ success: boolean }>(`/api/activities?id=${encodeURIComponent(id)}`, {
     method: 'DELETE',
@@ -155,6 +162,13 @@ export async function fetchHealthRecords(puppyId: string, type?: string): Promis
 export async function createHealthRecord(record: Omit<HealthRecord, 'id' | 'householdId'> & { id?: string }): Promise<HealthRecord | null> {
   return request<HealthRecord>('/api/health-records', {
     method: 'POST',
+    body: JSON.stringify(record),
+  });
+}
+
+export async function updateHealthRecord(record: Partial<HealthRecord> & { id: string }): Promise<HealthRecord | null> {
+  return request<HealthRecord>('/api/health-records', {
+    method: 'PUT',
     body: JSON.stringify(record),
   });
 }

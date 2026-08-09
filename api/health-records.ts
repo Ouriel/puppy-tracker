@@ -31,7 +31,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     ? 'http://localhost:5173'
     : 'https://puppace.vercel.app';
   res.setHeader('Access-Control-Allow-Origin', allowedOrigin);
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
   if (req.method === 'OPTIONS') return res.status(200).end();
@@ -95,6 +95,34 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         })
         .returning();
       return res.status(201).json(created);
+    }
+
+    // PUT /api/health-records
+    if (req.method === 'PUT') {
+      const parsed = HealthRecordSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: 'Invalid health record payload', details: parsed.error.issues });
+      }
+      const body = parsed.data;
+      if (!body.id) return res.status(400).json({ error: 'id is required' });
+
+      const [updated] = await db
+        .update(healthRecordsTable)
+        .set({
+          name: body.name,
+          date: body.date,
+          boosterDate: body.boosterDate || null,
+          batchNumber: body.batchNumber || null,
+          vetClinic: body.vetClinic || null,
+          productName: body.productName || null,
+          weightAtTime: body.weightAtTime ? Number(body.weightAtTime) : null,
+          notes: body.notes || null,
+        })
+        .where(and(eq(healthRecordsTable.id, body.id), eq(healthRecordsTable.householdId, householdId)))
+        .returning();
+
+      if (!updated) return res.status(404).json({ error: 'Health record not found' });
+      return res.status(200).json(updated);
     }
 
     // DELETE /api/health-records?id=xxx

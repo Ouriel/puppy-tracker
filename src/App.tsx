@@ -16,6 +16,7 @@ import {
   deleteDog,
   fetchActivities,
   createActivity,
+  updateActivity,
   deleteActivity,
   fetchHousehold,
   fetchHealthRecords,
@@ -381,6 +382,16 @@ export function App() {
     }
   };
 
+  const handleUpdateActivity = async (updatedFields: Partial<Activity> & { id: string }) => {
+    const updated = await updateActivity(updatedFields);
+    if (updated) {
+      setActivities((previous) =>
+        previous.map((act) => (act.id === updatedFields.id ? { ...act, ...updated } : act))
+      );
+      showToast('Activity log updated.', 'success');
+    }
+  };
+
   const handleDeleteActivity = async (id: string) => {
     const ok = await deleteActivity(id);
     if (ok) {
@@ -584,6 +595,7 @@ export function App() {
                   activities={activePuppyActivities}
                   caretakers={caretakers}
                   onDeleteActivity={handleDeleteActivity}
+                  onUpdateActivity={handleUpdateActivity}
                 />
               </div>
             )}
