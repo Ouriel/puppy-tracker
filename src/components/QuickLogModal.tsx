@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import type { Activity, ActivityType, Caretaker, FoodType, PottyLocation, StoolConsistency } from '../types';
+import type { Activity, ActivityType, FoodType, PottyLocation, StoolConsistency } from '../types';
 import { X, Droplet, Footprints, Utensils, Scale, Pill, Check } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { useI18n } from '../i18n';
@@ -10,7 +10,6 @@ interface QuickLogModalProps {
   initialType?: ActivityType;
   initialLocation?: PottyLocation;
   defaultMealPortionGrams?: number;
-  caretakers: Caretaker[];
   currentUser: string;
   onClose: () => void;
   onSave: (activity: Omit<Activity, 'id' | 'puppyId'>) => void;
@@ -21,14 +20,12 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
   initialType = 'pee',
   initialLocation = 'outside',
   defaultMealPortionGrams = 80,
-  caretakers,
   currentUser,
   onClose,
   onSave,
 }) => {
   const { t } = useI18n();
   const [type, setType] = useState<ActivityType>(initialType);
-  const [loggedBy, setLoggedBy] = useState<string>(currentUser);
   const [timestamp, setTimestamp] = useState<string>(getLocalDatetimeString());
   const [notes, setNotes] = useState('');
 
@@ -61,7 +58,7 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
     const newActivity: Omit<Activity, 'id' | 'puppyId'> = {
       type,
       timestamp: new Date(timestamp).toISOString(),
-      loggedBy,
+      loggedBy: currentUser,
       notes: notes.trim() ? notes.trim() : undefined,
     };
 
@@ -310,17 +307,13 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
               <label className="block text-xs font-semibold text-slate-400 mb-1">
                 Logged By
               </label>
-              <select
-                value={loggedBy}
-                onChange={(event) => setLoggedBy(event.target.value)}
-                className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-xs text-slate-100 focus:outline-none focus:border-indigo-500 cursor-pointer"
-              >
-                {caretakers.map((caretaker) => (
-                  <option key={caretaker.id} value={caretaker.name}>
-                    {caretaker.name}
-                  </option>
-                ))}
-              </select>
+              <input
+                type="text"
+                value={currentUser}
+                readOnly
+                disabled
+                className="w-full bg-slate-900 border border-slate-700/60 rounded-xl px-3 py-2.5 text-xs font-bold text-indigo-300 cursor-not-allowed opacity-90"
+              />
             </div>
           </div>
 

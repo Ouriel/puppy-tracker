@@ -142,6 +142,7 @@ export function App() {
                 name: res.user.name,
                 role: res.user.role as FamilyRole,
               }));
+              setCurrentUser(res.user.name);
             }
           }
         }).catch(() => {});
@@ -287,6 +288,7 @@ export function App() {
     setAuthToken(token);
     setIsAuthenticated(true);
     setUser((previous) => ({ ...previous, email, name }));
+    setCurrentUser(name);
 
     // Exchange Google 1-hour ID Token for long-lived 90-day PupPace Session Token
     exchangeSessionToken(token).then((res) => {
@@ -299,6 +301,7 @@ export function App() {
             name: res.user.name,
             role: res.user.role as FamilyRole,
           }));
+          setCurrentUser(res.user.name);
         }
       }
     }).catch(() => {});
@@ -598,7 +601,6 @@ export function App() {
           defaultMealPortionGrams={nextMealPortionGrams}
           onClose={() => setIsQuickLogOpen(false)}
           onSave={handleAddActivity}
-          caretakers={caretakers}
           currentUser={currentUser}
         />
       )}
