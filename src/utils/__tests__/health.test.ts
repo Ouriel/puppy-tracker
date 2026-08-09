@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { calculateNextVaccineBooster, calculateNextDewormingDate } from '../health';
+import { calculateNextVaccineBooster, calculateNextDewormingDate, calculateNextAntiparasiticDate } from '../health';
 import type { HealthRecord } from '../../types';
 
 describe('Health Passport — French Veterinary Protocol & Dataset Test Suite', () => {
@@ -114,6 +114,21 @@ describe('Health Passport — French Veterinary Protocol & Dataset Test Suite', 
   it('calculates 1-year Rabies (Rage) annual booster date', () => {
     const nextDue = calculateNextVaccineBooster('2026-07-22', 'Rage');
     expect(nextDue).toBe('2027-07-22');
+  });
+
+  it('calculates Credelio Plus, Nexgard Spectra, and Simparica Trio as strictly monthly (+1 month)', () => {
+    expect(calculateNextAntiparasiticDate('2026-06-15', 'Credelio Plus', 4)).toBe('2026-07-15');
+    expect(calculateNextAntiparasiticDate('2026-06-15', 'Nexgard Spectra', 8)).toBe('2026-07-15');
+    expect(calculateNextAntiparasiticDate('2026-06-15', 'Simparica Trio', 12)).toBe('2026-07-15');
+  });
+
+  it('calculates Bravecto as quarterly (+3 months / 12 weeks)', () => {
+    expect(calculateNextAntiparasiticDate('2026-06-15', 'Bravecto', 8)).toBe('2026-09-15');
+  });
+
+  it('calculates Milbemax puppy as monthly (<6m) and adult as quarterly (>=6m)', () => {
+    expect(calculateNextAntiparasiticDate('2026-06-15', 'Milbemax Tab', 3)).toBe('2026-07-15');
+    expect(calculateNextAntiparasiticDate('2026-06-15', 'Milbemax Tab', 8)).toBe('2026-09-15');
   });
 
   it('calculates biweekly vermifuge under 2 months according to ESCCAP France', () => {

@@ -8,6 +8,8 @@ import {
   createHealthRecord,
   deleteHealthRecord,
 } from '../services/api';
+import { calculateNextAntiparasiticDate } from '../utils/health';
+import { getPuppyAge } from '../utils/predictions';
 
 interface VaccinationEntry {
   id: string;
@@ -121,9 +123,17 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePupp
   const [batchNumber, setBatchNumber] = useState('');
 
   // New Deworming Form
-  const [productName, setProductName] = useState('Milbemax Tab / Milprazon');
+  const [productName, setProductName] = useState('Credelio Plus');
   const [dewormAdminDate, setDewormAdminDate] = useState(() => formatLocalDate());
   const [dewormNextDate, setDewormNextDate] = useState('');
+
+  // Auto-calculate next deworming / antiparasitic booster date based on product SPC & ESCCAP
+  useEffect(() => {
+    if (!dewormAdminDate) return;
+    const ageMonths = activePuppy?.birthDate ? getPuppyAge(activePuppy.birthDate).months : 3;
+    const calculated = calculateNextAntiparasiticDate(dewormAdminDate, productName, ageMonths);
+    setDewormNextDate(calculated);
+  }, [dewormAdminDate, productName, activePuppy?.birthDate]);
 
   const sortByDateDesc = <T extends { date: string }>(arr: T[]): T[] => {
     return [...arr].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
@@ -437,13 +447,15 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePupp
                   onChange={(event) => setProductName(event.target.value)}
                   className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-amber-500 cursor-pointer"
                 >
-                  <option value="Credelio Plus">Credelio Plus (Milbémycine + Lotilaner - Puces/Tiques/Vers)</option>
-                  <option value="Milbemax Tab / Milprazon">Milbemax Tab / Milprazon (N°1 France)</option>
-                  <option value="Nexgard Spectra">Nexgard Spectra (Vermifuge + Tiques/Puces)</option>
-                  <option value="Drontal Chien">Drontal Chien (Praziquantel / Fébantel)</option>
+                  <option value="Credelio Plus">Credelio Plus (Tout-en-1: Puces, Tiques, Vers • Mensuel)</option>
+                  <option value="Nexgard Spectra">Nexgard Spectra (Tout-en-1: Puces, Tiques, Vers • Mensuel)</option>
+                  <option value="Simparica Trio">Simparica Trio (Tout-en-1: Puces, Tiques, Vers • Mensuel)</option>
+                  <option value="Milbemax Tab / Milprazon">Milbemax Tab / Milprazon (Vers • Mensuel &lt;6m, 3m adulte)</option>
+                  <option value="Drontal Chien">Drontal Chien (Vers internes • 3 mois adulte)</option>
+                  <option value="Bravecto">Bravecto (Puces &amp; Tiques • Trimestriel 12 sem)</option>
                   <option value="Panacur (Fenbendazole)">Panacur (Chiots / Giardiose)</option>
                   <option value="Dolpac / Procox">Dolpac / Procox</option>
-                  <option value="Autre vermifuge">Autre produit vermifuge</option>
+                  <option value="Autre antiparasitaire">Autre antiparasitaire / vermifuge</option>
                 </select>
               </div>
 
