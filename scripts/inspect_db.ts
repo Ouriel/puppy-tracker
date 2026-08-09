@@ -124,8 +124,10 @@ async function runInspection() {
         timestamp: a.timestamp instanceof Date ? a.timestamp.toISOString() : new Date(a.timestamp).toISOString(),
         loggedBy: a.logged_by || 'User',
         pottyLocation: a.potty_location,
+        stoolConsistency: a.stool_consistency,
         foodType: a.food_type,
         quantityGrams: a.quantity_grams,
+        notes: a.notes,
       }));
 
     console.log(`\n🔮 Live Prediction Engine Diagnostics (${profile.name}):`);
@@ -147,6 +149,22 @@ async function runInspection() {
 
     console.log(`   • Food Card           : Mode=${predictions.foodMode} | Urgency=${predictions.foodUrgency} | Next=${predictions.nextFoodExpectedAt ? predictions.nextFoodExpectedAt.toLocaleTimeString() : 'N/A'}`);
     console.log(`     Reason              : "${predictions.foodReason}"`);
+
+    // 5. Recent Activity Trail (Last 20 entries)
+    console.log('\n📜 Recent Activity Trail (Last 20 entries):');
+    const recentTrail = [...puppyActivities].reverse().slice(0, 20);
+    recentTrail.forEach((a) => {
+      const time = new Date(a.timestamp).toLocaleString('fr-FR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+      const details = [
+        a.pottyLocation ? `loc:${a.pottyLocation}` : '',
+        a.stoolConsistency ? `stool:${a.stoolConsistency}` : '',
+        a.quantityGrams ? `${a.quantityGrams}g` : '',
+        a.loggedBy ? `by:${a.loggedBy}` : '',
+        a.notes ? `notes:"${a.notes}"` : '',
+      ].filter(Boolean).join(' | ');
+
+      console.log(`   • ${time.padEnd(16)} | ${a.type.padEnd(6)} | ${details}`);
+    });
   }
 
   console.log('\n====================================================\n');
