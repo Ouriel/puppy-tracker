@@ -188,9 +188,7 @@ export function App() {
       const offlineQueue = getOfflineQueue();
       if (offlineQueue.length > 0) {
         clearOfflineQueue();
-        for (const offlineItem of offlineQueue) {
-          await createActivity(offlineItem);
-        }
+        await Promise.all(offlineQueue.map((item) => createActivity(item)));
         showToast('Synced offline activities!', 'success');
       }
 
@@ -594,6 +592,7 @@ export function App() {
       {/* Quick Event Logging Modal */}
       {activePuppy && (
         <QuickLogModal
+          key={isQuickLogOpen ? 'open' : 'closed'}
           isOpen={isQuickLogOpen}
           initialType={quickLogType}
           defaultMealPortionGrams={nextMealPortionGrams}

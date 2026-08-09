@@ -62,7 +62,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         .from(activitiesTable)
         .where(conditions)
         .orderBy(desc(activitiesTable.timestamp));
-      return res.status(200).json(activities);
+      const formatted = activities.map((act) => ({
+        ...act,
+        timestamp: act.timestamp instanceof Date ? act.timestamp.toISOString() : new Date(act.timestamp).toISOString(),
+      }));
+      return res.status(200).json(formatted);
     }
 
     // POST /api/activities
@@ -91,7 +95,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           householdId,
           puppyId: body.puppyId,
           type: body.type,
-          timestamp: body.timestamp || new Date().toISOString(),
+          timestamp: body.timestamp ? new Date(body.timestamp) : new Date(),
           loggedBy: body.loggedBy || 'Caretaker',
           pottyLocation: body.pottyLocation || null,
           stoolConsistency: body.stoolConsistency || null,

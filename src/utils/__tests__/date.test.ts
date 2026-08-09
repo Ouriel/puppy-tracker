@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { formatLocalDate, getLocalDatetimeString, isSameLocalDate, formatRelativeTime, formatMinutesToXhXX } from '../date';
+import { formatLocalDate, getLocalDatetimeString, isSameLocalDate, formatRelativeTime, formatMinutesToXhXX, parseIsoDate } from '../date';
 
 describe('date utility module', () => {
   it('formatLocalDate formats date in local YYYY-MM-DD', () => {
@@ -39,5 +39,16 @@ describe('date utility module', () => {
     expect(formatMinutesToXhXX(120)).toBe('2h');
     expect(formatMinutesToXhXX(125)).toBe('2h05');
     expect(formatMinutesToXhXX(150)).toBe('2h30');
+  });
+
+  it('parseIsoDate safely parses ISO strings and date-only YYYY-MM-DD strings', () => {
+    const dOnly = parseIsoDate('2026-03-27');
+    expect(dOnly.getFullYear()).toBe(2026);
+    expect(dOnly.getMonth()).toBe(2); // March = index 2
+    expect(dOnly.getDate()).toBe(27);
+
+    const isoStr = '2026-08-09T21:10:14.280Z';
+    const parsedIso = parseIsoDate(isoStr);
+    expect(parsedIso.toISOString()).toBe(isoStr);
   });
 });

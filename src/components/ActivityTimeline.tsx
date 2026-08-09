@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import type { Activity, ActivityType, Caretaker } from '../types';
 import { Droplet, Footprints, Utensils, Scale, Pill, Trash2 } from 'lucide-react';
 import { useI18n } from '../i18n';
-import { formatRelativeTime } from '../utils/date';
+import { formatRelativeTime, parseIsoDate } from '../utils/date';
 
 interface ActivityTimelineProps {
   activities: Activity[];
@@ -45,7 +45,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
   });
 
   const sorted = [...filtered].sort(
-    (activityA, activityB) => new Date(activityB.timestamp).getTime() - new Date(activityA.timestamp).getTime()
+    (activityA, activityB) => parseIsoDate(activityB.timestamp).getTime() - parseIsoDate(activityA.timestamp).getTime()
   );
 
   const { lang } = useI18n();

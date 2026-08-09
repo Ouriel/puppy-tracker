@@ -1,5 +1,5 @@
 import type { Activity, PredictionResult, PuppyProfile, ScheduleMode, FoodScheduleMode } from '../types';
-import { parseIsoDate, formatLocalDate, formatMinutesToXhXX } from './date';
+import { parseIsoDate, formatLocalDate, formatMinutesToXhXX, getLocalHour, getUserTimezone } from './date';
 
 /**
  * Wrap-aware check: is the given hour within daytime (between wakeup and bedtime)?
@@ -22,7 +22,7 @@ function isNighttimeHour(hour: number, wakeupHour: number, bedtimeHour: number):
 
 /**
  * Wrap-aware waking hours calculation.
- * For wakeup=7, bedtime=22: returns 15. For wakeup=7, bedtime=1: returns 18.
+ * For wakeup=7.2, bedtime=22.2: returns 15.
  */
 function getWakingHours(wakeupHour: number, bedtimeHour: number): number {
   return ((bedtimeHour - wakeupHour) + 24) % 24;
@@ -52,46 +52,105 @@ export function calculateVetFoodGramGoal(weightKg: number, ageMonths: number): n
   if (!weightKg || weightKg <= 0) return 240;
   if (!ageMonths || isNaN(ageMonths) || ageMonths < 0) ageMonths = 6;
   const rer = 70 * Math.pow(weightKg, 0.75);
-  const merMultiplier = ageMonths < 4 ? 3.0 : ageMonths < 12 ? 2.0 : 1.6;
+  const merMultiplier = ageMonths < 4 ? 3.0 : ageMonths <= 12 ? 2.0 : 1.6;
   const dailyKcal = rer * merMultiplier;
   const kcalPerGram = 3.8; // Standard AAFCO growth kibble density (~380 kcal/cup)
   return Math.round(dailyKcal / kcalPerGram);
 }
 
 /**
- * Learns puppy's typical night sleep schedule (bedtime & morning wakeup) from activity logs
+ * Learns puppy's exact night sleep schedule (bedtime & morning wakeup) with minute precision from activity logs
  */
-export function detectSleepSchedule(activities: Activity[]): { bedtimeHour: number; wakeupHour: number } {
-  const defaultSchedule = { bedtimeHour: 22, wakeupHour: 7 }; // 10:00 PM to 7:00 AM
+export function detectSleepSchedule(
+  activities: Activity[],
+  timeZone?: string
+): { bedtimeHour: number; wakeupHour: number; bedtimeStr: string; wakeupStr: string } {
+  const defaultSchedule = { bedtimeHour: 22, wakeupHour: 7, bedtimeStr: '22:00', wakeupStr: '07:00' };
 
-  // Filter logs to last 30 days to avoid historical bloat & reflect current sleep patterns
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
   const recentActivities = activities.filter((activity) => parseIsoDate(activity.timestamp) >= thirtyDaysAgo);
   const targetLogs = recentActivities.length >= 5 ? recentActivities : activities;
 
   if (targetLogs.length < 5) return defaultSchedule;
 
-  const eveningHours: number[] = [];
-  const morningHours: number[] = [];
+  const tz = timeZone || getUserTimezone();
+  const byDate: Record<string, Date[]> = {};
 
   targetLogs.forEach((activity) => {
-    const hr = parseIsoDate(activity.timestamp).getHours();
-    if (hr >= 21 || hr <= 1) {
-      eveningHours.push(hr >= 21 ? hr : hr + 24);
-    } else if (hr >= 5 && hr <= 9) {
-      morningHours.push(hr);
+    const d = parseIsoDate(activity.timestamp);
+    const dateStr = formatLocalDate(d, tz);
+    if (!byDate[dateStr]) byDate[dateStr] = [];
+    byDate[dateStr].push(d);
+  });
+
+  const morningMins: number[] = [];
+  const eveningMins: number[] = [];
+
+  Object.values(byDate).forEach((logs) => {
+    if (logs.length >= 2) {
+      const sortedLogs = [...logs].sort((a, b) => a.getTime() - b.getTime());
+      const first = sortedLogs[0];
+      const last = sortedLogs[sortedLogs.length - 1];
+
+      const firstM = getLocalHour(first, tz) * 60 + first.getMinutes();
+      const lastM = getLocalHour(last, tz) * 60 + last.getMinutes();
+
+      if (firstM >= 4 * 60 && firstM <= 10 * 60) morningMins.push(firstM);
+      if (lastM >= 19 * 60 || lastM <= 3 * 60) eveningMins.push(lastM >= 19 * 60 ? lastM : lastM + 24 * 60);
     }
   });
 
-  const bedtimeHour = eveningHours.length >= 3
-    ? Math.round(eveningHours.reduce((sum, hour) => sum + hour, 0) / eveningHours.length) % 24
-    : 22;
+  const avgWakeMins = morningMins.length ? Math.round(morningMins.reduce((a, b) => a + b, 0) / morningMins.length) : 7 * 60;
+  const avgBedMins = eveningMins.length ? Math.round(eveningMins.reduce((a, b) => a + b, 0) / eveningMins.length) % (24 * 60) : 22 * 60;
 
-  const wakeupHour = morningHours.length >= 3
-    ? Math.round(morningHours.reduce((sum, hour) => sum + hour, 0) / morningHours.length)
-    : 7;
+  const wakeupHour = avgWakeMins / 60;
+  const bedtimeHour = avgBedMins / 60;
 
-  return { bedtimeHour, wakeupHour };
+  const wH = Math.floor(avgWakeMins / 60);
+  const wM = avgWakeMins % 60;
+  const bH = Math.floor(avgBedMins / 60);
+  const bM = avgBedMins % 60;
+
+  const wakeupStr = `${String(wH).padStart(2, '0')}:${String(wM).padStart(2, '0')}`;
+  const bedtimeStr = `${String(bH).padStart(2, '0')}:${String(bM).padStart(2, '0')}`;
+
+  return { bedtimeHour, wakeupHour, bedtimeStr, wakeupStr };
+}
+
+/**
+ * Learns puppy's historical typical meal times (breakfast, lunch, dinner) from food logs
+ */
+export function detectMealSchedule(
+  activities: Activity[],
+  timeZone?: string
+): { breakfastMins: number; lunchMins: number; dinnerMins: number } {
+  const defaultMeals = { breakfastMins: 7 * 60 + 30, lunchMins: 12 * 60 + 30, dinnerMins: 19 * 60 + 30 };
+
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  const foodLogs = activities.filter(
+    (activity) => activity.type === 'food' && parseIsoDate(activity.timestamp) >= thirtyDaysAgo
+  );
+
+  if (foodLogs.length < 3) return defaultMeals;
+
+  const tz = timeZone || getUserTimezone();
+  const bfasts: number[] = [];
+  const lunches: number[] = [];
+  const dinners: number[] = [];
+
+  foodLogs.forEach((f) => {
+    const d = parseIsoDate(f.timestamp);
+    const m = getLocalHour(d, tz) * 60 + d.getMinutes();
+    if (m >= 5 * 60 && m < 11 * 60) bfasts.push(m);
+    else if (m >= 11 * 60 && m < 16 * 60) lunches.push(m);
+    else if (m >= 16 * 60 && m <= 23 * 60 + 59) dinners.push(m);
+  });
+
+  const breakfastMins = bfasts.length ? Math.round(bfasts.reduce((a, b) => a + b, 0) / bfasts.length) : defaultMeals.breakfastMins;
+  const lunchMins = lunches.length ? Math.round(lunches.reduce((a, b) => a + b, 0) / lunches.length) : defaultMeals.lunchMins;
+  const dinnerMins = dinners.length ? Math.round(dinners.reduce((a, b) => a + b, 0) / dinners.length) : defaultMeals.dinnerMins;
+
+  return { breakfastMins, lunchMins, dinnerMins };
 }
 
 /**
@@ -101,9 +160,9 @@ export function calculateLearnedIntervalMinutes(
   activities: Activity[],
   type: 'pee' | 'poop' | 'food',
   fallbackMinutes: number,
-  sleepSchedule = { bedtimeHour: 22, wakeupHour: 7 }
+  sleepSchedule = { bedtimeHour: 22, wakeupHour: 7 },
+  timeZone?: string
 ): { intervalMins: number; sampleCount: number; isLearned: boolean } {
-  // Use last 30 days of activities to reflect current puppy age & capacity
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
   const recentActivities = activities.filter((activity) => parseIsoDate(activity.timestamp) >= thirtyDaysAgo);
   const targetActivities = recentActivities.length >= 5 ? recentActivities : activities;
@@ -116,7 +175,8 @@ export function calculateLearnedIntervalMinutes(
     return { intervalMins: fallbackMinutes, sampleCount: sortedLogs.length, isLearned: false };
   }
 
-  // Filter daytime gaps (occurring between morning wakeup and bedtime, ignoring overnight gaps)
+  // Filter daytime gaps occurring between morning wakeup and bedtime
+  const minThresholdMins = type === 'pee' ? 45 : 15; // Exclude short double-void walk pees (<45m)
   const intervals: number[] = [];
   for (let i = 1; i < sortedLogs.length; i++) {
     const prevTime = parseIsoDate(sortedLogs[i - 1].timestamp);
@@ -124,12 +184,10 @@ export function calculateLearnedIntervalMinutes(
 
     const diffMinutes = (currTime.getTime() - prevTime.getTime()) / (1000 * 60);
 
-    // Filter out multi-day lapses (> 12 hours) or negative timestamps
-    if (diffMinutes >= 15 && diffMinutes <= 12 * 60) {
-      const prevHour = prevTime.getHours();
-      const currHour = currTime.getHours();
+    if (diffMinutes >= minThresholdMins && diffMinutes <= 12 * 60) {
+      const prevHour = getLocalHour(prevTime, timeZone);
+      const currHour = getLocalHour(currTime, timeZone);
 
-      // Check if both events happened during active daytime hours
       const isPrevDay = isDaytimeHour(prevHour, sleepSchedule.wakeupHour, sleepSchedule.bedtimeHour);
       const isCurrDay = isDaytimeHour(currHour, sleepSchedule.wakeupHour, sleepSchedule.bedtimeHour);
 
@@ -143,7 +201,6 @@ export function calculateLearnedIntervalMinutes(
     return { intervalMins: fallbackMinutes, sampleCount: 0, isLearned: false };
   }
 
-  // Median average calculation
   const sortedIntervals = [...intervals].sort((intervalA, intervalB) => intervalA - intervalB);
   const midIndex = Math.floor(sortedIntervals.length / 2);
   const medianMinutes = sortedIntervals.length % 2 !== 0
@@ -151,23 +208,32 @@ export function calculateLearnedIntervalMinutes(
     : Math.round((sortedIntervals[midIndex - 1] + sortedIntervals[midIndex]) / 2);
 
   return {
-    intervalMins: Math.max(30, Math.min(medianMinutes, 360)), // clamp between 30 min and 6 hours
+    intervalMins: Math.max(30, Math.min(medianMinutes, 360)),
     sampleCount: intervals.length,
     isLearned: true,
   };
 }
 
 /**
- * Advanced Predictive Potty & Feeding Schedules with Night Sleep Detection
+ * Advanced Predictive Potty & Feeding Schedules with Night Sleep Detection & Timezone Awareness
  */
-export function calculatePredictions(activities: Activity[], profile: PuppyProfile, referenceTime?: Date): PredictionResult {
+export function calculatePredictions(
+  activities: Activity[],
+  profile: PuppyProfile,
+  referenceTime?: Date,
+  timeZone?: string
+): PredictionResult {
+  const tz = timeZone || getUserTimezone();
   const now = referenceTime || new Date();
-  const currentHour = now.getHours();
+  const currentHour = getLocalHour(now, tz);
 
-  const sleepSchedule = detectSleepSchedule(activities);
+  const pastActivities = activities.filter((activity) => parseIsoDate(activity.timestamp).getTime() <= now.getTime());
+
+  const sleepSchedule = detectSleepSchedule(pastActivities, tz);
+  const mealSchedule = detectMealSchedule(pastActivities, tz);
   const isCurrentlyNight = isNighttimeHour(currentHour, sleepSchedule.wakeupHour, sleepSchedule.bedtimeHour);
 
-  const sorted = [...activities].sort(
+  const sorted = [...pastActivities].sort(
     (activityA, activityB) => parseIsoDate(activityB.timestamp).getTime() - parseIsoDate(activityA.timestamp).getTime()
   );
 
@@ -179,9 +245,8 @@ export function calculatePredictions(activities: Activity[], profile: PuppyProfi
   const baseBladderHours = Math.max(1, Math.min(months, 4));
   const fallbackPeeIntervalMins = baseBladderHours * 60;
 
-  // Learn personalized daytime pee & poop intervals
-  const learnedPee = calculateLearnedIntervalMinutes(activities, 'pee', fallbackPeeIntervalMins, sleepSchedule);
-  const learnedPoop = calculateLearnedIntervalMinutes(activities, 'poop', 300, sleepSchedule); // 5h fallback
+  const learnedPee = calculateLearnedIntervalMinutes(pastActivities, 'pee', fallbackPeeIntervalMins, sleepSchedule, tz);
+  const learnedPoop = calculateLearnedIntervalMinutes(pastActivities, 'poop', 300, sleepSchedule, tz);
 
   // 1. Pee Prediction
   let nextPeeExpectedAt: Date | null = null;
@@ -196,16 +261,18 @@ export function calculatePredictions(activities: Activity[], profile: PuppyProfi
 
     standardPeeExpectedAt = new Date(lastPeeTime + learnedPee.intervalMins * 60 * 1000);
 
-    const isApproachingBedtime = currentHour === ((sleepSchedule.bedtimeHour - 1 + 24) % 24);
+    const isApproachingBedtime = currentHour >= Math.floor(sleepSchedule.bedtimeHour - 1);
     const isNightTime = isCurrentlyNight || isApproachingBedtime;
 
     if (isNightTime) {
       peeMode = 'night_sleep';
       const targetWakeup = new Date(now);
-      if (currentHour >= sleepSchedule.bedtimeHour) {
+      if (currentHour >= Math.floor(sleepSchedule.bedtimeHour)) {
         targetWakeup.setDate(targetWakeup.getDate() + 1);
       }
-      targetWakeup.setHours(sleepSchedule.wakeupHour, 0, 0, 0);
+      const wakeH = Math.floor(sleepSchedule.wakeupHour);
+      const wakeM = Math.round((sleepSchedule.wakeupHour - wakeH) * 60);
+      targetWakeup.setHours(wakeH, wakeM, 0, 0);
 
       if (months < 2.5) {
         const midNightPee = new Date(lastPeeTime + 4 * 60 * 60 * 1000);
@@ -214,24 +281,32 @@ export function calculatePredictions(activities: Activity[], profile: PuppyProfi
           peeReason = 'Night mode: Young puppy mid-night potty break';
         } else {
           nextPeeExpectedAt = targetWakeup;
-          peeReason = `Night mode: Sleeping until ~${sleepSchedule.wakeupHour}:00 AM morning wakeup`;
+          peeReason = `Night mode: Sleeping until ~${sleepSchedule.wakeupStr} morning wakeup`;
         }
       } else {
         nextPeeExpectedAt = targetWakeup;
-        peeReason = `Night mode: Sleeping until ~${sleepSchedule.wakeupHour}:00 AM morning wakeup`;
+        peeReason = `Night mode: Sleeping until ~${sleepSchedule.wakeupStr} morning wakeup`;
       }
-    } else if (months < 6 && lastFood && parseIsoDate(lastFood.timestamp).getTime() > lastPeeTime) {
-      peeMode = 'post_meal_override';
+    } else if (months < 8 && lastFood && parseIsoDate(lastFood.timestamp).getTime() > lastPeeTime) {
       const foodTime = parseIsoDate(lastFood.timestamp).getTime();
-      const postFoodPee = new Date(foodTime + 20 * 60 * 1000);
       const minsSinceMeal = Math.round((now.getTime() - foodTime) / (1000 * 60));
 
-      nextPeeExpectedAt = postFoodPee;
+      if (minsSinceMeal <= 60) {
+        peeMode = 'post_meal_override';
+        const postFoodPee = new Date(foodTime + 20 * 60 * 1000);
+        nextPeeExpectedAt = postFoodPee;
 
-      if (minsSinceMeal > 25) {
-        peeReason = `Pup fed ${formatMinutesToXhXX(minsSinceMeal)} ago — post-meal potty break is overdue!`;
+        if (minsSinceMeal > 25) {
+          peeReason = `Pup fed ${formatMinutesToXhXX(minsSinceMeal)} ago — post-meal potty break is overdue!`;
+        } else {
+          peeReason = `Pup fed recently (${formatMinutesToXhXX(minsSinceMeal)} ago). Pees ~15-20m post-meal.`;
+        }
       } else {
-        peeReason = `Pup fed recently (${formatMinutesToXhXX(minsSinceMeal)} ago). Pees ~15-20m post-meal.`;
+        peeMode = 'daytime_baseline';
+        nextPeeExpectedAt = standardPeeExpectedAt;
+        peeReason = learnedPee.isLearned
+          ? `Learned average: ~${formatMinutesToXhXX(learnedPee.intervalMins)} bladder interval (30-day history)`
+          : `Based on ~${formatMinutesToXhXX(learnedPee.intervalMins)} age bladder capacity`;
       }
     } else {
       peeMode = 'daytime_baseline';
@@ -270,41 +345,95 @@ export function calculatePredictions(activities: Activity[], profile: PuppyProfi
 
     standardPoopExpectedAt = new Date(lastPoopTime + learnedPoop.intervalMins * 60 * 1000);
 
-    const isApproachingBedtime = currentHour === ((sleepSchedule.bedtimeHour - 1 + 24) % 24);
+    const isApproachingBedtime = currentHour >= Math.floor(sleepSchedule.bedtimeHour - 1);
     const isNightTime = isCurrentlyNight || isApproachingBedtime;
+
+    // Constipation mode ONLY applies if the MOST RECENT poop was hard or noted huge/constipated
+    const isLastPoopConstipated = lastPoop.stoolConsistency === 'hard' ||
+      (lastPoop.notes || '').toLowerCase().match(/huge|gros|big|grand|constipat/) !== null;
+    const hoursSinceLastPoop = (now.getTime() - lastPoopTime) / (1000 * 60 * 60);
 
     if (isNightTime) {
       poopMode = 'night_sleep';
       const targetMorningPoop = new Date(now);
-      const twoHoursBeforeBed = ((sleepSchedule.bedtimeHour - 2 + 24) % 24);
-      if (isCurrentlyNight || currentHour >= twoHoursBeforeBed) {
+      if (isCurrentlyNight || currentHour >= Math.floor(sleepSchedule.bedtimeHour - 2)) {
         targetMorningPoop.setDate(targetMorningPoop.getDate() + 1);
       }
-      targetMorningPoop.setHours(sleepSchedule.wakeupHour + 1, 0, 0, 0); // ~8:00 AM post-breakfast
+      const wakeH = Math.floor(sleepSchedule.wakeupHour) + 1;
+      const wakeM = Math.round((sleepSchedule.wakeupHour - Math.floor(sleepSchedule.wakeupHour)) * 60);
+      targetMorningPoop.setHours(wakeH, wakeM, 0, 0);
       nextPoopExpectedAt = targetMorningPoop;
-      poopReason = `Night mode: Sleeping overnight. Expected post-breakfast (~${sleepSchedule.wakeupHour + 1}:00 AM)`;
-    } else if (months < 6 && lastFood && parseIsoDate(lastFood.timestamp).getTime() > lastPoopTime) {
-      poopMode = 'post_meal_override';
+      poopReason = `Night mode: Sleeping overnight. Expected post-breakfast (~${String(wakeH).padStart(2,'0')}:${String(wakeM).padStart(2,'0')})`;
+    } else if (isLastPoopConstipated && hoursSinceLastPoop < 16) {
+      poopMode = 'daytime_baseline';
+      const refractoryMinutes = Math.max(learnedPoop.intervalMins * 1.4, 480);
+      nextPoopExpectedAt = new Date(lastPoopTime + refractoryMinutes * 60 * 1000);
+      poopReason = 'Digestive system recovering from recent hard stool. Colon refilling after meals.';
+      poopUrgency = 'safe';
+    } else if (months < 8 && lastFood && parseIsoDate(lastFood.timestamp).getTime() > lastPoopTime) {
       const foodTime = parseIsoDate(lastFood.timestamp).getTime();
-      const postFoodPoopTime = foodTime + 35 * 60 * 1000;
       const minsSinceMeal = Math.round((now.getTime() - foodTime) / (1000 * 60));
 
-      nextPoopExpectedAt = new Date(postFoodPoopTime);
+      if (minsSinceMeal <= 90) {
+        poopMode = 'post_meal_override';
+        const postFoodPoopTime = foodTime + 35 * 60 * 1000;
+        nextPoopExpectedAt = new Date(postFoodPoopTime);
 
-      if (minsSinceMeal > 45) {
-        poopReason = `Pup fed ${formatMinutesToXhXX(minsSinceMeal)} ago — post-meal poop break (gastrocolic reflex) is overdue!`;
+        if (minsSinceMeal > 45) {
+          poopReason = `Pup fed ${formatMinutesToXhXX(minsSinceMeal)} ago — post-meal poop break (gastrocolic reflex) is overdue!`;
+        } else {
+          poopReason = `Pup fed recently (${formatMinutesToXhXX(minsSinceMeal)} ago). Gastrocolic reflex triggers poop ~30-45m post-meal.`;
+        }
       } else {
-        poopReason = `Pup fed recently (${formatMinutesToXhXX(minsSinceMeal)} ago). Gastrocolic reflex triggers poop ~30-45m post-meal.`;
+        const todayDateStr = formatLocalDate(now, tz);
+        const todayMealsSorted = pastActivities
+          .filter((activity) => activity.type === 'food' && formatLocalDate(parseIsoDate(activity.timestamp), tz) === todayDateStr)
+          .sort((actA, actB) => parseIsoDate(actA.timestamp).getTime() - parseIsoDate(actB.timestamp).getTime());
+
+        const todayPoops = pastActivities.filter(
+          (activity) => activity.type === 'poop' && formatLocalDate(parseIsoDate(activity.timestamp), tz) === todayDateStr
+        );
+
+        if (todayMealsSorted.length > 0 && todayPoops.length === 0) {
+          poopMode = 'daytime_baseline';
+          const latestMealTime = parseIsoDate(todayMealsSorted[todayMealsSorted.length - 1].timestamp).getTime();
+          const digestiveTransitMins = months < 6 ? 120 : 180;
+          nextPoopExpectedAt = new Date(latestMealTime + digestiveTransitMins * 60 * 1000);
+          poopReason = `Fed ${todayMealsSorted.length}× today, no poop yet. Expected ~${formatMinutesToXhXX(digestiveTransitMins)} after last meal.`;
+        } else {
+          poopMode = 'daytime_baseline';
+          nextPoopExpectedAt = standardPoopExpectedAt;
+          poopReason = learnedPoop.isLearned
+            ? `Learned average: ~${formatMinutesToXhXX(learnedPoop.intervalMins)} digestive interval (30-day history)`
+            : 'Standard digestive interval (~5h)';
+        }
       }
     } else {
-      poopMode = 'daytime_baseline';
-      nextPoopExpectedAt = standardPoopExpectedAt;
-      poopReason = learnedPoop.isLearned
-        ? `Learned average: ~${formatMinutesToXhXX(learnedPoop.intervalMins)} digestive interval (30-day history)`
-        : 'Standard digestive interval (~5h)';
+      const todayDateStr = formatLocalDate(now, tz);
+      const todayMealsSorted = pastActivities
+        .filter((activity) => activity.type === 'food' && formatLocalDate(parseIsoDate(activity.timestamp), tz) === todayDateStr)
+        .sort((actA, actB) => parseIsoDate(actA.timestamp).getTime() - parseIsoDate(actB.timestamp).getTime());
+
+      const todayPoops = pastActivities.filter(
+        (activity) => activity.type === 'poop' && formatLocalDate(parseIsoDate(activity.timestamp), tz) === todayDateStr
+      );
+
+      if (todayMealsSorted.length > 0 && todayPoops.length === 0 && months < 10) {
+        poopMode = 'daytime_baseline';
+        const latestMealTime = parseIsoDate(todayMealsSorted[todayMealsSorted.length - 1].timestamp).getTime();
+        const digestiveTransitMins = months < 6 ? 120 : 180;
+        nextPoopExpectedAt = new Date(latestMealTime + digestiveTransitMins * 60 * 1000);
+        poopReason = `Fed ${todayMealsSorted.length}× today, no poop yet. Expected ~${formatMinutesToXhXX(digestiveTransitMins)} after last meal.`;
+      } else {
+        poopMode = 'daytime_baseline';
+        nextPoopExpectedAt = standardPoopExpectedAt;
+        poopReason = learnedPoop.isLearned
+          ? `Learned average: ~${formatMinutesToXhXX(learnedPoop.intervalMins)} digestive interval (30-day history)`
+          : 'Standard digestive interval (~5h)';
+      }
     }
 
-    if (nextPoopExpectedAt) {
+    if (nextPoopExpectedAt && !isLastPoopConstipated) {
       const minsUntilPoop = (nextPoopExpectedAt.getTime() - now.getTime()) / (1000 * 60);
       if (isCurrentlyNight && minsUntilPoop > -120) {
         poopUrgency = 'safe';
@@ -320,7 +449,7 @@ export function calculatePredictions(activities: Activity[], profile: PuppyProfi
     poopReason = 'No poop recorded yet';
   }
 
-  // 3. Food Prediction (Veterinary Standard, Sleep-Aware & Smart Daytime Schedule)
+  // 3. Food Prediction (Learned Meal Schedule & Daily Goal Tracking)
   let nextFoodExpectedAt: Date | null = null;
   let foodMode: FoodScheduleMode = 'daytime_schedule';
   let foodUrgency: 'safe' | 'soon' | 'overdue' = 'safe';
@@ -329,38 +458,43 @@ export function calculatePredictions(activities: Activity[], profile: PuppyProfi
   const vetRecommendedMeals = months < 3 ? 4 : months < 6 ? 3 : 2;
   const targetMeals = Math.max(1, profile.targetMealsPerDay || vetRecommendedMeals);
 
-  const todayDateStr = formatLocalDate(now);
-  const todayMeals = activities.filter(
-    (activity) => activity.type === 'food' && formatLocalDate(parseIsoDate(activity.timestamp)) === todayDateStr
+  const todayDateStr = formatLocalDate(now, tz);
+  const todayMeals = pastActivities.filter(
+    (activity) => activity.type === 'food' && formatLocalDate(parseIsoDate(activity.timestamp), tz) === todayDateStr
   );
   const todayGramTotal = todayMeals.reduce((sum, activity) => sum + (activity.quantityGrams ?? 80), 0);
   const isGoalReached = (profile.dailyFoodGramGoal > 0 && todayGramTotal >= profile.dailyFoodGramGoal) || todayMeals.length >= targetMeals;
 
+  // Use learned meal times (breakfast, lunch, dinner)
   const targetBreakfastToday = new Date(now);
-  targetBreakfastToday.setHours(sleepSchedule.wakeupHour, 30, 0, 0);
+  const bfastH = Math.floor(mealSchedule.breakfastMins / 60);
+  const bfastM = mealSchedule.breakfastMins % 60;
+  targetBreakfastToday.setHours(bfastH, bfastM, 0, 0);
 
-  const lateEveningFoodHour = Math.max(19, sleepSchedule.bedtimeHour - 2);
+  const bfastStr = `${String(bfastH).padStart(2, '0')}:${String(bfastM).padStart(2, '0')}`;
+
+  const lateEveningFoodHour = Math.max(19, Math.floor(sleepSchedule.bedtimeHour - 2));
 
   if (isCurrentlyNight) {
     foodMode = 'night_sleep';
     const targetBreakfastTomorrow = new Date(now);
-    if (currentHour >= sleepSchedule.bedtimeHour) {
+    if (currentHour >= Math.floor(sleepSchedule.bedtimeHour)) {
       targetBreakfastTomorrow.setDate(targetBreakfastTomorrow.getDate() + 1);
     }
-    targetBreakfastTomorrow.setHours(sleepSchedule.wakeupHour, 30, 0, 0);
+    targetBreakfastTomorrow.setHours(bfastH, bfastM, 0, 0);
     nextFoodExpectedAt = targetBreakfastTomorrow;
     foodUrgency = 'safe';
-    foodReason = `Night mode: Puppy sleeping until breakfast at ~${sleepSchedule.wakeupHour}:30 AM`;
+    foodReason = `Night mode: Puppy sleeping until breakfast at ~${bfastStr}`;
   } else if (isGoalReached || currentHour >= lateEveningFoodHour) {
     foodMode = 'goal_reached';
     const targetBreakfastTomorrow = new Date(now);
     targetBreakfastTomorrow.setDate(targetBreakfastTomorrow.getDate() + 1);
-    targetBreakfastTomorrow.setHours(sleepSchedule.wakeupHour, 30, 0, 0);
+    targetBreakfastTomorrow.setHours(bfastH, bfastM, 0, 0);
     nextFoodExpectedAt = targetBreakfastTomorrow;
     foodUrgency = 'safe';
     foodReason = isGoalReached
-      ? `Today's food goal reached (${todayGramTotal}g / ${targetMeals} meals). Next: Breakfast tomorrow ~${sleepSchedule.wakeupHour}:30 AM`
-      : `Evening mode: Next meal is breakfast tomorrow ~${sleepSchedule.wakeupHour}:30 AM`;
+      ? `Today's food goal reached (${todayGramTotal}g / ${targetMeals} meals). Next: Breakfast tomorrow ~${bfastStr}`
+      : `Evening mode: Next meal is breakfast tomorrow ~${bfastStr}`;
   } else if (todayMeals.length === 0) {
     foodMode = 'daytime_schedule';
     nextFoodExpectedAt = targetBreakfastToday;
@@ -368,13 +502,13 @@ export function calculatePredictions(activities: Activity[], profile: PuppyProfi
 
     if (minsUntilBreakfast > 30) {
       foodUrgency = 'safe';
-      foodReason = `Puppy resting. Breakfast scheduled at ~${sleepSchedule.wakeupHour}:30 AM (Meal 1 of ${targetMeals})`;
+      foodReason = `Puppy resting. Breakfast scheduled at ~${bfastStr} (Meal 1 of ${targetMeals})`;
     } else if (minsUntilBreakfast >= -60) {
       foodUrgency = minsUntilBreakfast <= 15 ? 'soon' : 'safe';
-      foodReason = `Morning breakfast due (~${sleepSchedule.wakeupHour}:30 AM, Meal 1 of ${targetMeals})`;
+      foodReason = `Morning breakfast due (~${bfastStr}, Meal 1 of ${targetMeals})`;
     } else {
       foodUrgency = 'overdue';
-      foodReason = `Breakfast overdue (expected ~${sleepSchedule.wakeupHour}:30 AM, Meal 1 of ${targetMeals})`;
+      foodReason = `Breakfast overdue (expected ~${bfastStr}, Meal 1 of ${targetMeals})`;
     }
   } else {
     foodMode = 'daytime_schedule';

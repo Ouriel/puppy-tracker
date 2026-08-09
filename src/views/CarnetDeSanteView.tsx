@@ -40,6 +40,19 @@ interface CarnetDeSanteViewProps {
 export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePuppy }) => {
   const { t } = useI18n();
 
+  const getProtocolStatus = (dueDate: string | null | undefined): { label: string; className: string } => {
+    if (!dueDate) return { label: t.health.statusConform, className: 'bg-emerald-950 text-emerald-400 border-emerald-800/50' };
+    const due = new Date(dueDate);
+    const now = new Date();
+    const daysUntilDue = Math.floor((due.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    if (daysUntilDue < 0) {
+      return { label: '⚠️ Overdue', className: 'bg-red-950 text-red-400 border-red-800/50' };
+    } else if (daysUntilDue <= 14) {
+      return { label: '⏰ Due Soon', className: 'bg-amber-950 text-amber-400 border-amber-800/50' };
+    }
+    return { label: t.health.statusConform, className: 'bg-emerald-950 text-emerald-400 border-emerald-800/50' };
+  };
+
   const [vaccinations, setVaccinations] = useState<VaccinationEntry[]>([]);
   const [dewormingLogs, setDewormingLogs] = useState<DewormingEntry[]>([]);
 
@@ -328,7 +341,9 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePupp
               <div className="flex items-center gap-3">
                 <div className="text-right">
                   <div className="text-xs font-bold text-amber-300">{t.health.booster}: {vaccine.boosterDate}</div>
-                  <div className="text-[10px] text-slate-500">{t.health.statusConform}</div>
+                  <div className={`text-[10px] px-2 py-0.5 rounded border inline-block ${getProtocolStatus(vaccine.boosterDate).className}`}>
+                    {getProtocolStatus(vaccine.boosterDate).label}
+                  </div>
                 </div>
                 <button
                   onClick={() => handleDeleteVaccine(vaccine.id)}
@@ -438,7 +453,9 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePupp
               <div className="flex items-center gap-3">
                 <div className="text-right">
                   <div className="text-xs font-bold text-amber-300">{t.health.nextDeworming}: {deworming.boosterDate}</div>
-                  <div className="text-[10px] text-slate-500">{t.health.statusDewormed}</div>
+                  <div className={`text-[10px] px-2 py-0.5 rounded border inline-block ${getProtocolStatus(deworming.boosterDate).className}`}>
+                    {getProtocolStatus(deworming.boosterDate).label}
+                  </div>
                 </div>
                 <button
                   onClick={() => handleDeleteDeworming(deworming.id)}

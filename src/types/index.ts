@@ -43,11 +43,13 @@ export type FamilyRole = 'Husband' | 'Wife' | 'Partner' | 'Child' | 'Dog Walker'
 
 export interface UserAccount {
   id: string;
+  householdId?: string;
   name: string;
   email: string;
   role: FamilyRole;
-  avatarColor: string;
-  familyPackId: string;
+  avatarColor?: string;
+  familyPackId?: string;
+  status?: 'ACTIVE' | 'PENDING_APPROVAL';
 }
 
 export interface Caretaker {

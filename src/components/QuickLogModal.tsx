@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import type { Activity, ActivityType, Caretaker, FoodType, PottyLocation, StoolConsistency } from '../types';
 import { X, Droplet, Footprints, Utensils, Scale, Pill, Check } from 'lucide-react';
 import confetti from 'canvas-confetti';
@@ -42,15 +42,8 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
   const [weightKg, setWeightKg] = useState<number>(8.5);
   const [medicationName, setMedicationName] = useState<string>('Flea & Tick Prevention');
 
-  useEffect(() => {
-    setType(initialType);
-    setPottyLocation(initialLocation);
-    setTimestamp(getLocalDatetimeString());
-    setLoggedBy(currentUser);
-    if (defaultMealPortionGrams) {
-      setQuantityGrams(defaultMealPortionGrams);
-    }
-  }, [initialType, initialLocation, currentUser, defaultMealPortionGrams, isOpen]);
+  // Note: This component relies on a key prop for remounting and resetting state when opened.
+
 
   if (!isOpen) return null;
 
