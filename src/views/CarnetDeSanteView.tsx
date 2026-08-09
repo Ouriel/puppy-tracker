@@ -8,7 +8,7 @@ import {
   createHealthRecord,
   deleteHealthRecord,
 } from '../services/api';
-import { calculateNextAntiparasiticDate } from '../utils/health';
+import { calculateNextAntiparasiticDate, getHealthProtocols } from '../utils/health';
 import { getPuppyAge } from '../utils/predictions';
 
 interface VaccinationEntry {
@@ -311,13 +311,11 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePupp
                   onChange={(event) => setVaccineType(event.target.value)}
                   className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-teal-500 cursor-pointer"
                 >
-                  <option value="CHPPi + L4">CHPPi + L4 (Carré, Hépatite, Parvo, Pi + Lepto 4)</option>
-                  <option value="CHPPi">CHPPi (Carré, Hépatite, Parvovirose, Para-influenza)</option>
-                  <option value="L4 (Leptospirose)">L4 (Leptospirose 4 souches)</option>
-                  <option value="Rage (R)">{t.health.rabiesOption}</option>
-                  <option value="Toux de Chenil (Bb/Kc)">{t.health.kennelCoughOption}</option>
-                  <option value="Piroplasmose">Piroplasmose (Tiques - France)</option>
-                  <option value="Leishmaniose">Leishmaniose (Singe / Sud de France)</option>
+                  {getHealthProtocols().vaccines.map((v) => (
+                    <option key={v.id} value={v.name}>
+                      {v.fullName}
+                    </option>
+                  ))}
                 </select>
               </div>
 
@@ -447,15 +445,11 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePupp
                   onChange={(event) => setProductName(event.target.value)}
                   className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-amber-500 cursor-pointer"
                 >
-                  <option value="Credelio Plus">Credelio Plus (Tout-en-1: Puces, Tiques, Vers • Mensuel)</option>
-                  <option value="Nexgard Spectra">Nexgard Spectra (Tout-en-1: Puces, Tiques, Vers • Mensuel)</option>
-                  <option value="Simparica Trio">Simparica Trio (Tout-en-1: Puces, Tiques, Vers • Mensuel)</option>
-                  <option value="Milbemax Tab / Milprazon">Milbemax Tab / Milprazon (Vers • Mensuel &lt;6m, 3m adulte)</option>
-                  <option value="Drontal Chien">Drontal Chien (Vers internes • 3 mois adulte)</option>
-                  <option value="Bravecto">Bravecto (Puces &amp; Tiques • Trimestriel 12 sem)</option>
-                  <option value="Panacur (Fenbendazole)">Panacur (Chiots / Giardiose)</option>
-                  <option value="Dolpac / Procox">Dolpac / Procox</option>
-                  <option value="Autre antiparasitaire">Autre antiparasitaire / vermifuge</option>
+                  {getHealthProtocols().antiparasitics.map((p) => (
+                    <option key={p.id} value={p.name}>
+                      {p.label}
+                    </option>
+                  ))}
                 </select>
               </div>
 

@@ -1,27 +1,46 @@
-/**
- * Veterinary Health Protocol Utilities — Vaccine booster and deworming schedule calculations
- */
+import healthProtocols from '../data/healthProtocols.json';
+
+export interface HealthProtocolData {
+  vaccines: Array<{ id: string; name: string; fullName: string; defaultBoosterMonths: number; description: string; aliases?: string[] }>;
+  antiparasitics: Array<{
+    id: string;
+    name: string;
+    label: string;
+    category: string;
+    minAgeWeeks: number;
+    minWeightKg: number;
+    intervalMonths?: number;
+    intervalMonthsPuppy?: number;
+    intervalMonthsAdult?: number;
+    frequencyType: string;
+    activeIngredients: string;
+  }>;
+}
+
+export function getHealthProtocols(): HealthProtocolData {
+  return healthProtocols as HealthProtocolData;
+}
 
 /**
- * Calculates the next booster due date based on vaccine type.
- * - DHPP: 1-month booster for puppy primers
- * - Leptospirose: 6-month booster
- * - Rage (Rabies): Annual booster
+ * Calculates the next booster due date based on vaccine type dataset.
  */
-export function calculateNextVaccineBooster(injectionDate: string, vaccineType: 'Rage' | 'DHPP' | 'Leptospirose'): string {
+export function calculateNextVaccineBooster(injectionDate: string, vaccineType: string): string {
   const date = new Date(injectionDate);
-  if (vaccineType === 'DHPP') {
-    date.setMonth(date.getMonth() + 1); // 1 month booster for puppy primers
-  } else if (vaccineType === 'Leptospirose') {
-    date.setMonth(date.getMonth() + 6); // 6 month booster
-  } else {
-    date.setFullYear(date.getFullYear() + 1); // Annual Rabies booster
-  }
+  const typeLower = vaccineType.toLowerCase();
+  const matched = healthProtocols.vaccines.find(
+    (v) =>
+      v.name.toLowerCase().includes(typeLower) ||
+      v.id === typeLower ||
+      (v.aliases && v.aliases.some((alias) => typeLower.includes(alias) || alias.includes(typeLower)))
+  );
+
+  const months = matched ? matched.defaultBoosterMonths : 12;
+  date.setMonth(date.getMonth() + months);
   return date.toISOString().slice(0, 10);
 }
 
 /**
- * Calculates the next deworming due date following ESCCAP France protocol:
+ * Calculates the next deworming due date following ESCCAP France protocol dataset:
  * - Under 2 months: Every 2 weeks
  * - 2 to 6 months: Monthly (Milbemax / Drontal)
  * - Over 6 months: Quarterly (seasonal)
@@ -39,7 +58,7 @@ export function calculateNextDewormingDate(lastDate: string, ageMonths: number):
 }
 
 /**
- * Calculates next antiparasitic / deworming due date following product SPC & ESCCAP France guidelines:
+ * Calculates next antiparasitic / deworming due date following JSON protocol dataset:
  * - Credelio Plus / Nexgard Spectra / Simparica Trio: Monthly (all-in-one fleas, ticks & worms)
  * - Bravecto: Every 3 months (12 weeks)
  * - Milbemax / Drontal / Panacur:
@@ -55,22 +74,29 @@ export function calculateNextAntiparasiticDate(
   const date = new Date(lastDate);
   const nameLower = productName.toLowerCase();
 
-  // All-in-one monthly chewable tablets (Fleas + Ticks + Worms)
-  if (nameLower.includes('credelio') || nameLower.includes('nexgard') || nameLower.includes('simparica')) {
-    date.setMonth(date.getMonth() + 1); // Strictly monthly (30 days)
-    return date.toISOString().slice(0, 10);
+  const matched = healthProtocols.antiparasitics.find((p) =>
+    nameLower.includes(p.name.toLowerCase()) || nameLower.includes(p.id)
+  );
+
+  if (matched) {
+    if (matched.intervalMonths) {
+      date.setMonth(date.getMonth() + matched.intervalMonths);
+      return date.toISOString().slice(0, 10);
+    }
+    if (matched.frequencyType === 'esccap_age_based') {
+      if (ageMonths < 2) {
+        date.setDate(date.getDate() + 14);
+      } else if (ageMonths < 6) {
+        date.setMonth(date.getMonth() + (matched.intervalMonthsPuppy || 1));
+      } else {
+        date.setMonth(date.getMonth() + (matched.intervalMonthsAdult || 3));
+      }
+      return date.toISOString().slice(0, 10);
+    }
   }
 
-  // 12-week flea & tick tablet
-  if (nameLower.includes('bravecto')) {
-    date.setMonth(date.getMonth() + 3); // 12 weeks / 3 months
-    return date.toISOString().slice(0, 10);
-  }
-
-  // Classic internal wormers (Milbemax, Drontal, Panacur, Dolpac)
-  if (ageMonths < 2) {
-    date.setDate(date.getDate() + 14);
-  } else if (ageMonths < 6) {
+  // Fallback if not matched
+  if (ageMonths < 6) {
     date.setMonth(date.getMonth() + 1);
   } else {
     date.setMonth(date.getMonth() + 3);
