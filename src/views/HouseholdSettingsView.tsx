@@ -16,6 +16,7 @@ interface HouseholdSettingsViewProps {
   caretakers: Caretaker[];
   currentUser: string;
   onAddCaretaker: (caretaker: Caretaker) => void;
+  onUpdateCaretaker: (id: string, updatedFields: Partial<Caretaker>) => void;
   onDeleteCaretaker: (id: string) => void;
   onSwitchUserAccount: (name: string, role: FamilyRole) => void;
 }
@@ -31,6 +32,7 @@ export const HouseholdSettingsView: React.FC<HouseholdSettingsViewProps> = ({
   caretakers,
   currentUser,
   onAddCaretaker,
+  onUpdateCaretaker,
   onDeleteCaretaker,
   onSwitchUserAccount,
 }) => {
@@ -99,6 +101,7 @@ export const HouseholdSettingsView: React.FC<HouseholdSettingsViewProps> = ({
           caretakers={caretakers}
           currentUser={currentUser}
           onAddCaretaker={onAddCaretaker}
+          onUpdateCaretaker={onUpdateCaretaker}
           onDeleteCaretaker={onDeleteCaretaker}
           onSwitchUserAccount={onSwitchUserAccount}
         />

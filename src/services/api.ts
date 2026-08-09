@@ -179,6 +179,13 @@ export async function createCaretaker(caretaker: Partial<Caretaker>): Promise<Ca
   });
 }
 
+export async function updateCaretaker(caretaker: Partial<Caretaker> & { id: string }): Promise<Caretaker | null> {
+  return request<Caretaker>('/api/households', {
+    method: 'PUT',
+    body: JSON.stringify(caretaker),
+  });
+}
+
 export async function deleteCaretaker(id: string): Promise<boolean> {
   const res = await request<{ success: boolean }>(`/api/households?caretakerId=${encodeURIComponent(id)}`, {
     method: 'DELETE',

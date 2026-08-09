@@ -20,6 +20,7 @@ import {
   fetchHousehold,
   fetchHealthRecords,
   createCaretaker,
+  updateCaretaker,
   deleteCaretaker,
   exchangeSessionToken,
 } from './services/api';
@@ -279,6 +280,21 @@ export function App() {
     }
   };
 
+  const handleUpdateCaretaker = async (id: string, updatedFields: Partial<Caretaker>) => {
+    const updated = await updateCaretaker({ id, ...updatedFields });
+    if (updated) {
+      setCaretakers((previous) =>
+        previous.map((c) => (c.id === id ? { ...c, ...updated } : c))
+      );
+      const targetCaretaker = caretakers.find((c) => c.id === id);
+      if (targetCaretaker && targetCaretaker.name === currentUser && updated.name) {
+        setCurrentUser(updated.name);
+        setUser((prev) => ({ ...prev, name: updated.name! }));
+      }
+      showToast('Household member updated.', 'success');
+    }
+  };
+
   const handleSwitchUserAccount = (name: string, role: FamilyRole) => {
     setCurrentUser(name);
     setUser((previous) => ({ ...previous, name, role }));
@@ -496,6 +512,7 @@ export function App() {
             caretakers={caretakers}
             currentUser={currentUser}
             onAddCaretaker={handleAddCaretaker}
+            onUpdateCaretaker={handleUpdateCaretaker}
             onDeleteCaretaker={handleDeleteCaretaker}
             onSwitchUserAccount={handleSwitchUserAccount}
           />

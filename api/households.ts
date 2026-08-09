@@ -25,7 +25,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     ? 'http://localhost:5173'
     : 'https://puppace.vercel.app';
   res.setHeader('Access-Control-Allow-Origin', allowedOrigin);
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
   if (req.method === 'OPTIONS') return res.status(200).end();
@@ -84,6 +84,30 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         .returning();
 
       return res.status(201).json(created);
+    }
+
+    // PUT /api/households — Update an existing caretaker
+    if (req.method === 'PUT') {
+      const parsed = CaretakerInputSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: 'Invalid caretaker payload', details: parsed.error.issues });
+      }
+      const body = parsed.data;
+      if (!body.id) return res.status(400).json({ error: 'caretaker id is required' });
+
+      const [updated] = await db
+        .update(caretakersTable)
+        .set({
+          name: body.name,
+          role: body.role,
+          ...(body.color ? { color: body.color } : {}),
+          ...(body.email !== undefined ? { email: body.email || null } : {}),
+        })
+        .where(and(eq(caretakersTable.id, body.id), eq(caretakersTable.householdId, householdId)))
+        .returning();
+
+      if (!updated) return res.status(404).json({ error: 'Caretaker not found' });
+      return res.status(200).json(updated);
     }
 
     // DELETE /api/households?caretakerId=xxx — Remove a caretaker

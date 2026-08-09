@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import type { Caretaker, UserAccount, FamilyRole } from '../types';
-import { Home, Users, UserPlus, Trash2, Mail, Send, CheckCircle2, UserCheck, Copy } from 'lucide-react';
+import { Home, Users, UserPlus, Trash2, Mail, Send, CheckCircle2, UserCheck, Copy, Pencil, X, Check } from 'lucide-react';
 import { createUser } from '../services/api';
 import { showToast } from '../utils/toast';
 import { useI18n } from '../i18n';
@@ -10,6 +10,7 @@ interface HouseholdViewProps {
   caretakers: Caretaker[];
   currentUser: string;
   onAddCaretaker: (caretaker: Caretaker) => void;
+  onUpdateCaretaker: (id: string, updatedFields: Partial<Caretaker>) => void;
   onDeleteCaretaker: (id: string) => void;
   onSwitchUserAccount: (name: string, role: FamilyRole) => void;
 }
@@ -18,6 +19,7 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
   caretakers,
   currentUser,
   onAddCaretaker,
+  onUpdateCaretaker,
   onDeleteCaretaker,
   onSwitchUserAccount,
 }) => {
@@ -29,6 +31,10 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
 
   const [name, setName] = useState('');
   const [color, setColor] = useState('#EC4899');
+
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editColor, setEditColor] = useState('#EC4899');
 
   const handlePreApproveMember = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -208,6 +214,59 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
         <div className="space-y-2">
           {caretakers.map((caretaker) => {
             const isSelected = currentUser === caretaker.name;
+            const isEditingThis = editingId === caretaker.id;
+
+            if (isEditingThis) {
+              return (
+                <div
+                  key={caretaker.id}
+                  className="flex flex-wrap items-center justify-between p-3.5 bg-slate-900 border border-indigo-500/60 rounded-xl gap-3 shadow-md"
+                >
+                  <div className="flex items-center gap-3 flex-1 min-w-[200px]">
+                    <input
+                      type="color"
+                      value={editColor}
+                      onChange={(e) => setEditColor(e.target.value)}
+                      className="w-7 h-7 rounded-full bg-transparent border border-slate-700 cursor-pointer shrink-0"
+                    />
+                    <input
+                      type="text"
+                      value={editName}
+                      onChange={(e) => setEditName(e.target.value)}
+                      className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-100 font-bold focus:outline-none focus:border-indigo-500"
+                      placeholder="Member Name"
+                      autoFocus
+                    />
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => {
+                        if (!editName.trim()) return;
+                        onUpdateCaretaker(caretaker.id, {
+                          name: editName.trim(),
+                          color: editColor,
+                        });
+                        setEditingId(null);
+                      }}
+                      title="Save Changes"
+                      className="flex items-center gap-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs px-3 py-1.5 rounded-lg transition cursor-pointer"
+                    >
+                      <Check className="w-3.5 h-3.5" />
+                      <span>Save</span>
+                    </button>
+
+                    <button
+                      onClick={() => setEditingId(null)}
+                      title="Cancel"
+                      className="p-1.5 text-slate-400 hover:text-slate-200 bg-slate-800 rounded-lg transition cursor-pointer"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              );
+            }
 
             return (
               <div
@@ -225,6 +284,18 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
                 </div>
 
                 <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => {
+                      setEditingId(caretaker.id);
+                      setEditName(caretaker.name);
+                      setEditColor(caretaker.color);
+                    }}
+                    title="Edit Member Name & Color"
+                    className="p-1.5 text-slate-400 hover:text-indigo-300 hover:bg-slate-800 rounded-lg transition cursor-pointer"
+                  >
+                    <Pencil className="w-4 h-4" />
+                  </button>
+
                   {!isSelected ? (
                     <button
                       onClick={() => onSwitchUserAccount(caretaker.name, caretaker.role)}
