@@ -58,6 +58,14 @@ export interface Caretaker {
   email?: string;
 }
 
+export interface RegisteredUserItem {
+  id: string;
+  email: string;
+  name: string;
+  role: string;
+  status: 'ACTIVE' | 'PENDING_APPROVAL';
+}
+
 export type ScheduleMode = 'daytime_baseline' | 'post_meal_override' | 'night_sleep';
 export type FoodScheduleMode = 'daytime_schedule' | 'goal_reached' | 'night_sleep';
 

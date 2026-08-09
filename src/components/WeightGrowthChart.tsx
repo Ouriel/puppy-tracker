@@ -38,11 +38,11 @@ export const WeightGrowthChart: React.FC<WeightGrowthChartProps> = ({
 
   // Standard Expected Weight Curve for Cocker Spaniel & Medium Breeds (in kg)
   const growthBenchmarks = [
-    { label: '8w', expectedKg: 2.5, minKg: 2.0, maxKg: 3.2 },
-    { label: '12w', expectedKg: 5.0, minKg: 4.2, maxKg: 6.0 },
-    { label: '16w', expectedKg: 7.2, minKg: 6.0, maxKg: 8.5 },
-    { label: '6m', expectedKg: 9.5, minKg: 8.0, maxKg: 11.0 },
-    { label: '12m', expectedKg: 13.0, minKg: 11.5, maxKg: 15.0 },
+    { label: '8w', expectedKg: 2.5, minKg: 2.0, maxKg: 3.2, weeks: 8 },
+    { label: '12w', expectedKg: 5.0, minKg: 4.2, maxKg: 6.0, weeks: 12 },
+    { label: '16w', expectedKg: 7.2, minKg: 6.0, maxKg: 8.5, weeks: 16 },
+    { label: '6m', expectedKg: 9.5, minKg: 8.0, maxKg: 11.0, weeks: 26 },
+    { label: '12m', expectedKg: 13.0, minKg: 11.5, maxKg: 15.0, weeks: 52 },
   ];
 
   return (
@@ -95,7 +95,7 @@ export const WeightGrowthChart: React.FC<WeightGrowthChartProps> = ({
         {/* Benchmarks Grid */}
         <div className="grid grid-cols-5 gap-2 pt-2">
           {growthBenchmarks.map((bench) => {
-            const isPassed = ageWeeks >= parseInt(bench.label);
+            const isPassed = ageWeeks >= bench.weeks;
             return (
               <div
                 key={bench.label}

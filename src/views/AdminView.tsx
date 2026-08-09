@@ -5,8 +5,8 @@ import {
   createUser,
   updateUser,
   deleteUser,
-  type RegisteredUserItem,
 } from '../services/api';
+import type { RegisteredUserItem } from '../types';
 import { useI18n } from '../i18n';
 
 interface AdminViewProps {

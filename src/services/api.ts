@@ -1,14 +1,8 @@
-import type { Activity, PuppyProfile, Caretaker } from '../types';
+import type { Activity, PuppyProfile, Caretaker, RegisteredUserItem } from '../types';
 import { getAuthToken, clearAuthToken } from '../utils/auth';
 import { showToast } from '../utils/toast';
 
-export interface RegisteredUserItem {
-  id: string;
-  email: string;
-  name: string;
-  role: string;
-  status: 'ACTIVE' | 'PENDING_APPROVAL';
-}
+export type { RegisteredUserItem };
 
 const apiCache = new Map<string, { data: any; timestamp: number }>();
 const CACHE_TTL_MS = 60 * 1000; // 60 seconds SWR cache

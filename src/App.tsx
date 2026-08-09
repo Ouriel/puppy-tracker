@@ -351,7 +351,7 @@ export function App() {
     const todayFood = activePuppyActivities.filter(
       (activity) => activity.type === 'food' && isSameLocalDate(activity.timestamp, now)
     );
-    const grams = todayFood.reduce((sum, activity) => sum + (activity.quantityGrams || 80), 0);
+    const grams = todayFood.reduce((sum, activity) => sum + (activity.quantityGrams ?? 80), 0);
     return { todayFoodLoggedGrams: grams, todayMealsCount: todayFood.length };
   }, [activePuppyActivities]);
 
