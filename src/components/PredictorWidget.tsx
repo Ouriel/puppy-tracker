@@ -149,8 +149,7 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = ({
                       {formatCountdown(predictions.nextPeeExpectedAt)}
                     </span>
                     {/* Standard baseline label if post-meal active during daytime */}
-                    {predictions.isPostMealPee &&
-                      !predictions.isNightMode &&
+                    {predictions.peeMode === 'post_meal_override' &&
                       predictions.standardPeeExpectedAt && (
                         <span className="text-xs font-bold text-sky-400 bg-sky-950/60 border border-sky-800/60 px-2 py-0.5 rounded-lg">
                           ({t.potty.withoutMeal} ~{formatTimeLeft(predictions.standardPeeExpectedAt)})
@@ -206,8 +205,7 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = ({
                     <span className="text-lg font-bold text-slate-100">
                       {formatCountdown(predictions.nextPoopExpectedAt)}
                     </span>
-                    {predictions.isPostMealPoop &&
-                      !predictions.isNightMode &&
+                    {predictions.poopMode === 'post_meal_override' &&
                       predictions.standardPoopExpectedAt && (
                         <span className="text-xs font-bold text-amber-400 bg-amber-950/60 border border-amber-800/60 px-2 py-0.5 rounded-lg">
                           ({t.potty.withoutMeal} ~{formatTimeLeft(predictions.standardPoopExpectedAt)})

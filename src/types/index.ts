@@ -58,24 +58,26 @@ export interface Caretaker {
   email?: string;
 }
 
+export type ScheduleMode = 'daytime_baseline' | 'post_meal_override' | 'night_sleep';
+export type FoodScheduleMode = 'daytime_schedule' | 'goal_reached' | 'night_sleep';
+
 export interface PredictionResult {
   nextPeeExpectedAt: Date | null;
   standardPeeExpectedAt?: Date | null;
-  isPostMealPee?: boolean;
+  peeMode: ScheduleMode;
   peeUrgency: 'safe' | 'soon' | 'overdue';
   peeReason: string;
   
   nextPoopExpectedAt: Date | null;
   standardPoopExpectedAt?: Date | null;
-  isPostMealPoop?: boolean;
+  poopMode: ScheduleMode;
   poopUrgency: 'safe' | 'soon' | 'overdue';
   poopReason: string;
 
   nextFoodExpectedAt: Date | null;
+  foodMode: FoodScheduleMode;
   foodUrgency: 'safe' | 'soon' | 'overdue';
   foodReason: string;
-
-  isNightMode?: boolean;
 }
 
 export interface PottyStats {
