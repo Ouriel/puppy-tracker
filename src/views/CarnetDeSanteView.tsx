@@ -8,7 +8,7 @@ import {
   createHealthRecord,
   deleteHealthRecord,
 } from '../services/api';
-import { calculateNextAntiparasiticDate, getHealthProtocols } from '../utils/health';
+import { calculateNextAntiparasiticDate, calculateNextVaccineBooster, getHealthProtocols } from '../utils/health';
 import { getPuppyAge } from '../utils/predictions';
 
 interface VaccinationEntry {
@@ -121,6 +121,13 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePupp
   const [nextDueDate, setNextDueDate] = useState('');
   const [vetClinic, setVetClinic] = useState('');
   const [batchNumber, setBatchNumber] = useState('');
+
+  // Auto-calculate next vaccine booster due date based on dataset rules
+  useEffect(() => {
+    if (!administeredDate) return;
+    const calculated = calculateNextVaccineBooster(administeredDate, vaccineType);
+    setNextDueDate(calculated);
+  }, [administeredDate, vaccineType]);
 
   // New Deworming Form
   const [productName, setProductName] = useState('Credelio Plus');
