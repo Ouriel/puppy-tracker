@@ -12,6 +12,7 @@ import {
   clearAllData,
 } from './utils/storage';
 import { getAuthToken, setAuthToken, clearAuthToken } from './utils/auth';
+import { resolveCaretakerName } from './utils/caretakers';
 import {
   fetchDogs,
   createDog,
@@ -136,6 +137,13 @@ export function App() {
         ]);
 
         // Background session token upgrade to long-lived 90-day PupPace Session Token
+        let loadedCaretakers = caretakers;
+        if (hhRes?.caretakers && hhRes.caretakers.length > 0) {
+          setCaretakers(hhRes.caretakers);
+          loadedCaretakers = hhRes.caretakers;
+        }
+
+        // Background session token upgrade to long-lived 90-day PupPace Session Token
         exchangeSessionToken().then((res) => {
           if (res?.sessionToken) {
             setAuthToken(res.sessionToken);
@@ -146,7 +154,8 @@ export function App() {
                 name: res.user.name,
                 role: res.user.role as FamilyRole,
               }));
-              setCurrentUser(res.user.name);
+              const cleanCaretakerName = resolveCaretakerName(res.user.name, loadedCaretakers);
+              setCurrentUser(cleanCaretakerName);
             }
           }
         }).catch(() => {});
@@ -168,10 +177,6 @@ export function App() {
 
         if (remoteActivities) {
           setActivities(remoteActivities);
-        }
-
-        if (hhRes?.caretakers && hhRes.caretakers.length > 0) {
-          setCaretakers(hhRes.caretakers);
         }
       } finally {
         setIsLoading(false);
@@ -301,8 +306,9 @@ export function App() {
   const handleUnlockWithSSO = (email: string, name: string, token: string) => {
     setAuthToken(token);
     setIsAuthenticated(true);
+    const cleanCaretakerName = resolveCaretakerName(name, caretakers);
     setUser((previous) => ({ ...previous, email, name }));
-    setCurrentUser(name);
+    setCurrentUser(cleanCaretakerName);
 
     // Exchange Google 1-hour ID Token for long-lived 90-day PupPace Session Token
     exchangeSessionToken(token).then((res) => {
@@ -315,7 +321,8 @@ export function App() {
             name: res.user.name,
             role: res.user.role as FamilyRole,
           }));
-          setCurrentUser(res.user.name);
+          const cleanName = resolveCaretakerName(res.user.name, caretakers);
+          setCurrentUser(cleanName);
         }
       }
     }).catch(() => {});
