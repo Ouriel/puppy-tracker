@@ -1,0 +1,159 @@
+{
+  "vaccines": [
+    {
+      "id": "chppi_l4",
+      "name": "CHPPi + L4",
+      "fullName": "CHPPi + L4 / DHPP (Carré, Hépatite, Parvo, Pi + Lepto 4)",
+      "aliases": ["chppi", "dhpp", "chppi + l4", "dhpp + l4"],
+      "defaultBoosterMonths": 1,
+      "description": "Primovaccination chiot à 8, 12 et 16 semaines"
+    },
+    {
+      "id": "chppi",
+      "name": "CHPPi",
+      "fullName": "CHPPi / DHPP (Carré, Hépatite, Parvovirose, Para-influenza)",
+      "aliases": ["chppi", "dhpp"],
+      "defaultBoosterMonths": 1,
+      "description": "Protection de base chiot"
+    },
+    {
+      "id": "l4",
+      "name": "L4 (Leptospirose)",
+      "fullName": "L4 (Leptospirose 4 souches)",
+      "aliases": ["leptospirose", "l4"],
+      "defaultBoosterMonths": 6,
+      "description": "Rappel semestriel pour zones à risque"
+    },
+    {
+      "id": "rage",
+      "name": "Rage (R)",
+      "fullName": "Rage (R) - Voyage / Obligatoire",
+      "aliases": ["rage", "rabies", "r"],
+      "defaultBoosterMonths": 12,
+      "description": "Rappel annuel obligatoire pour les voyages"
+    },
+    {
+      "id": "kc",
+      "name": "Toux de Chenil (Bb/Kc)",
+      "fullName": "Toux de Chenil (Bordetella / Kc)",
+      "aliases": ["toux de chenil", "kc", "bordetella"],
+      "defaultBoosterMonths": 12,
+      "description": "Recommandé pour pension / cours collectifs"
+    },
+    {
+      "id": "piroplasmose",
+      "name": "Piroplasmose",
+      "fullName": "Piroplasmose (Tiques - France)",
+      "aliases": ["piroplasmose"],
+      "defaultBoosterMonths": 12,
+      "description": "Vaccin préventif Babésiose"
+    },
+    {
+      "id": "leishmaniose",
+      "name": "Leishmaniose",
+      "fullName": "Leishmaniose (Singe / Sud de France)",
+      "aliases": ["leishmaniose"],
+      "defaultBoosterMonths": 12,
+      "description": "Protection contre les phlébotomes"
+    }
+  ],
+  "antiparasitics": [
+    {
+      "id": "credelio_plus",
+      "name": "Credelio Plus",
+      "label": "Credelio Plus (Tout-en-1: Puces, Tiques, Vers • Mensuel)",
+      "category": "all_in_one",
+      "minAgeWeeks": 8,
+      "minWeightKg": 1.4,
+      "intervalMonths": 1,
+      "frequencyType": "monthly",
+      "activeIngredients": "Lotilaner + Milbemycin oxime"
+    },
+    {
+      "id": "nexgard_spectra",
+      "name": "Nexgard Spectra",
+      "label": "Nexgard Spectra (Tout-en-1: Puces, Tiques, Vers • Mensuel)",
+      "category": "all_in_one",
+      "minAgeWeeks": 8,
+      "minWeightKg": 2.0,
+      "intervalMonths": 1,
+      "frequencyType": "monthly",
+      "activeIngredients": "Afoxolaner + Milbemycin oxime"
+    },
+    {
+      "id": "simparica_trio",
+      "name": "Simparica Trio",
+      "label": "Simparica Trio (Tout-en-1: Puces, Tiques, Vers • Mensuel)",
+      "category": "all_in_one",
+      "minAgeWeeks": 8,
+      "minWeightKg": 1.25,
+      "intervalMonths": 1,
+      "frequencyType": "monthly",
+      "activeIngredients": "Sarolaner + Moxidectin + Pyrantel"
+    },
+    {
+      "id": "milbemax",
+      "name": "Milbemax Tab / Milprazon",
+      "label": "Milbemax Tab / Milprazon (Vers • Mensuel <6m, 3m adulte)",
+      "category": "dewormer_only",
+      "minAgeWeeks": 2,
+      "minWeightKg": 0.5,
+      "intervalMonthsPuppy": 1,
+      "intervalMonthsAdult": 3,
+      "frequencyType": "esccap_age_based",
+      "activeIngredients": "Milbemycin oxime + Praziquantel"
+    },
+    {
+      "id": "drontal",
+      "name": "Drontal Chien",
+      "label": "Drontal Chien (Vers internes • 3 mois adulte)",
+      "category": "dewormer_only",
+      "minAgeWeeks": 2,
+      "minWeightKg": 0.5,
+      "intervalMonthsPuppy": 1,
+      "intervalMonthsAdult": 3,
+      "frequencyType": "esccap_age_based",
+      "activeIngredients": "Praziquantel + Pyrantel + Febantel"
+    },
+    {
+      "id": "bravecto",
+      "name": "Bravecto",
+      "label": "Bravecto (Puces & Tiques • Trimestriel 12 sem)",
+      "category": "flea_tick_only",
+      "minAgeWeeks": 8,
+      "minWeightKg": 2.0,
+      "intervalMonths": 3,
+      "frequencyType": "quarterly",
+      "activeIngredients": "Fluralaner"
+    },
+    {
+      "id": "panacur",
+      "name": "Panacur (Fenbendazole)",
+      "label": "Panacur (Chiots / Giardiose)",
+      "category": "dewormer_only",
+      "minAgeWeeks": 2,
+      "minWeightKg": 0.5,
+      "intervalMonthsPuppy": 1,
+      "intervalMonthsAdult": 3,
+      "frequencyType": "esccap_age_based",
+      "activeIngredients": "Fenbendazole"
+    },
+    {
+      "id": "dolpac",
+      "name": "Dolpac / Procox",
+      "label": "Dolpac / Procox",
+      "category": "dewormer_only",
+      "minAgeWeeks": 2,
+      "minWeightKg": 0.5,
+      "intervalMonthsPuppy": 1,
+      "intervalMonthsAdult": 3,
+      "frequencyType": "esccap_age_based",
+      "activeIngredients": "Oxantel + Pyrantel + Praziquantel"
+    }
+  ],
+  "esccapGuidelines": {
+    "under2Months": "Toutes les 2 semaines jusqu'au sevrage",
+    "twoToSixMonths": "Une fois par mois (mensuel)",
+    "over6Months": "3 à 4 fois par an (trimestriel / au changement de saison)"
+  }
+}

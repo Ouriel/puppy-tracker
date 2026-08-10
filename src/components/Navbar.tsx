@@ -1,9 +1,9 @@
 import React from 'react';
-import type { PuppyProfile, Caretaker, UserAccount } from '../types';
-import { FileText, BookOpen, Flame, Plus, Dog, Lock, ShieldAlert, LayoutDashboard, Home, Syringe } from 'lucide-react';
+import type { PuppyProfile, UserAccount } from '../types';
+import { FileText, BookOpen, Flame, Plus, LogOut, ShieldAlert, LayoutDashboard, Settings, Syringe, Globe } from 'lucide-react';
 import type { Language } from '../i18n';
 
-export type MainTabType = 'dashboard' | 'puppies' | 'household' | 'carnetdesante' | 'admin' | 'careguide';
+export type MainTabType = 'dashboard' | 'carnetdesante' | 'settings' | 'careguide' | 'admin';
 
 interface NavbarProps {
   activeMainTab: MainTabType;
@@ -12,13 +12,10 @@ interface NavbarProps {
   activePuppy: PuppyProfile | null;
   onSelectPuppy: (puppyId: string) => void;
   user: UserAccount;
-  caretakers: Caretaker[];
-  currentUser: string;
-  onSelectUser: (user: string) => void;
   onOpenQuickLog: () => void;
   onOpenVetReport: () => void;
   onClearSampleData: () => void;
-  onLockVault: () => void;
+  onSignOut: () => void;
   streakDays: number;
   lang: Language;
   onLanguageChange: (lang: Language) => void;
@@ -32,98 +29,71 @@ export const Navbar: React.FC<NavbarProps> = ({
   activePuppy,
   onSelectPuppy,
   user,
-  caretakers,
-  currentUser,
-  onSelectUser,
   onOpenQuickLog,
   onOpenVetReport,
-  onLockVault,
+  onSignOut,
   streakDays,
   lang,
   onLanguageChange,
   t,
 }) => {
   const isSuperAdmin = user.email.toLowerCase() === 'matthieu.jacquet@gmail.com';
+  const showDogSelector = activeMainTab === 'dashboard' || activeMainTab === 'carnetdesante';
 
   return (
     <header className="sticky top-0 z-30 bg-slate-900/95 backdrop-blur-md border-b border-slate-800 text-slate-100 shadow-xl">
       <div className="max-w-6xl mx-auto px-4 py-3 space-y-3">
-        {/* Top row: Brand, Language Switcher & Active User */}
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800/60 pb-2.5">
+        {/* Top row: Flat Vector Brand Logo, Language Dropdown & Sign Out */}
+        <div className="flex items-center justify-between gap-2 border-b border-slate-800/60 pb-2.5 shrink-0">
           {/* Brand Logo */}
-          <div className="flex items-center gap-2.5">
-            <div className="p-2 bg-gradient-to-br from-amber-500 to-indigo-600 rounded-xl shadow-md">
-              <Dog className="w-5 h-5 text-white" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-base font-extrabold tracking-tight bg-gradient-to-r from-amber-300 via-indigo-300 to-pink-300 bg-clip-text text-transparent">
-                  {t.brand}
-                </span>
-                <span className="text-[10px] bg-indigo-950/90 text-indigo-300 border border-indigo-700/50 px-2 py-0.5 rounded-full font-semibold">
-                  Smart Puppy Tracker 🐾
-                </span>
-              </div>
-              <p className="text-[11px] text-slate-400">{t.headerSubtitle}</p>
+          <div className="flex items-center gap-2 min-w-0">
+            <img
+              src="/flat_cocker_spaniel_logo.jpg"
+              alt="PupPace Logo"
+              className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl object-cover ring-2 ring-amber-500/50 shadow-md shrink-0"
+            />
+            <div className="min-w-0">
+              <span className="text-sm sm:text-base font-extrabold tracking-tight bg-gradient-to-r from-amber-300 via-indigo-300 to-pink-300 bg-clip-text text-transparent block truncate">
+                {t.brand}
+              </span>
+              <p className="text-[11px] text-slate-400 hidden sm:block truncate">{t.headerSubtitle}</p>
             </div>
           </div>
 
-          {/* Controls: i18n Language Toggle, Active User Account & Lock */}
-          <div className="flex items-center gap-2 flex-wrap">
-            {/* Language Switcher */}
-            <div className="flex items-center bg-slate-950/80 border border-slate-700/80 rounded-xl p-0.5 text-xs font-semibold">
-              <button
-                onClick={() => onLanguageChange('en')}
-                className={`px-2 py-0.5 rounded-lg transition cursor-pointer flex items-center gap-1 ${
-                  lang === 'en' ? 'bg-indigo-600 text-white font-bold' : 'text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                <span>🇬🇧</span>
-                <span>EN</span>
-              </button>
-              <button
-                onClick={() => onLanguageChange('fr')}
-                className={`px-2 py-0.5 rounded-lg transition cursor-pointer flex items-center gap-1 ${
-                  lang === 'fr' ? 'bg-indigo-600 text-white font-bold' : 'text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                <span>🇫🇷</span>
-                <span>FR</span>
-              </button>
-            </div>
-
-            {/* Active User Switcher */}
-            <div className="flex items-center bg-slate-800/80 border border-slate-700/80 rounded-xl px-2.5 py-1 text-xs">
-              <span className="text-slate-400 mr-1.5 hidden sm:inline">{t.nav.activeUser}</span>
+          {/* Controls: Scalable Language Select Dropdown & Sign Out */}
+          <div className="flex items-center gap-1.5 shrink-0">
+            {/* Scalable Language Switcher Dropdown */}
+            <div className="flex items-center bg-slate-950/80 border border-slate-700/80 rounded-xl px-2 py-1 text-xs font-semibold">
+              <Globe className="w-3.5 h-3.5 text-slate-400 mr-1 shrink-0" />
               <select
-                value={currentUser}
-                onChange={(e) => onSelectUser(e.target.value)}
-                className="bg-transparent font-semibold text-pink-300 focus:outline-none cursor-pointer"
+                value={lang}
+                onChange={(event) => onLanguageChange(event.target.value as Language)}
+                aria-label="Select Language"
+                className="bg-transparent text-slate-200 focus:outline-none cursor-pointer font-bold text-xs"
               >
-                {caretakers.map((c) => (
-                  <option key={c.id} value={`${c.name} (${c.role})`} className="bg-slate-800 text-slate-200">
-                    {c.name} ({c.role})
-                  </option>
-                ))}
+                <option value="en" className="bg-slate-800 text-slate-200">🇬🇧 EN</option>
+                <option value="fr" className="bg-slate-800 text-slate-200">🇫🇷 FR</option>
               </select>
             </div>
 
-            {/* Lock App */}
+            {/* Sign Out Button */}
             <button
-              onClick={onLockVault}
-              title={t.nav.lock}
-              className="p-1.5 rounded-xl bg-indigo-950/80 hover:bg-indigo-900 border border-indigo-700/60 text-indigo-300 transition cursor-pointer flex items-center gap-1 text-xs font-semibold"
+              onClick={onSignOut}
+              title={t.nav.signOut}
+              aria-label={t.nav.signOut}
+              className="p-1.5 rounded-xl bg-red-950/80 hover:bg-red-900 border border-red-800/60 text-red-300 transition cursor-pointer flex items-center gap-1 text-xs font-semibold"
             >
-              <Lock className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">{t.nav.lock}</span>
+              <LogOut className="w-3.5 h-3.5 text-red-400 shrink-0" />
+              <span className="hidden sm:inline">{t.nav.signOut}</span>
             </button>
           </div>
         </div>
 
-        {/* Bottom row: Main Page Tabs & Quick Actions */}
+        {/* Bottom row: Main Page Tabs & Contextual Quick Actions */}
         <div className="flex flex-wrap items-center justify-between gap-3">
-          {/* Main Navigation Tabs */}
+          {/* Re-organized Tab Order with Clean Routing */}
           <div className="flex items-center gap-1 bg-slate-950/60 p-1 rounded-xl border border-slate-800/80 overflow-x-auto">
+            {/* 1. Daily Log / Suivi Quotidien */}
             <button
               onClick={() => onSelectMainTab('dashboard')}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
@@ -136,30 +106,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               <span>{t.nav.dashboard}</span>
             </button>
 
-            <button
-              onClick={() => onSelectMainTab('puppies')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
-                activeMainTab === 'puppies'
-                  ? 'bg-indigo-600 text-white shadow'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              <Dog className="w-3.5 h-3.5" />
-              <span>{t.nav.dogs} ({puppies.length})</span>
-            </button>
-
-            <button
-              onClick={() => onSelectMainTab('household')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
-                activeMainTab === 'household'
-                  ? 'bg-indigo-600 text-white shadow'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              <Home className="w-3.5 h-3.5" />
-              <span>{t.nav.household} ({caretakers.length})</span>
-            </button>
-
+            {/* 2. Carnet de Santé */}
             <button
               onClick={() => onSelectMainTab('carnetdesante')}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
@@ -172,6 +119,33 @@ export const Navbar: React.FC<NavbarProps> = ({
               <span>{t.nav.carnetDeSante}</span>
             </button>
 
+            {/* 3. Paramètres & Foyer (Combined Dogs & Household) */}
+            <button
+              onClick={() => onSelectMainTab('settings')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                activeMainTab === 'settings'
+                  ? 'bg-indigo-600 text-white shadow'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <Settings className="w-3.5 h-3.5" />
+              <span>{t.nav.settings}</span>
+            </button>
+
+            {/* 4. Care Guide */}
+            <button
+              onClick={() => onSelectMainTab('careguide')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                activeMainTab === 'careguide'
+                  ? 'bg-indigo-600 text-white shadow'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <BookOpen className="w-3.5 h-3.5" />
+              <span>{t.nav.careGuide}</span>
+            </button>
+
+            {/* 5. Admin (Super Admin only) */}
             {isSuperAdmin && (
               <button
                 onClick={() => onSelectMainTab('admin')}
@@ -185,59 +159,55 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <span>{t.nav.admin}</span>
               </button>
             )}
-
-            <button
-              onClick={() => onSelectMainTab('careguide')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
-                activeMainTab === 'careguide'
-                  ? 'bg-indigo-600 text-white shadow'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              <BookOpen className="w-3.5 h-3.5" />
-              <span>{t.nav.careGuide}</span>
-            </button>
           </div>
 
           {/* Quick Log & Export Actions */}
           <div className="flex items-center gap-2 flex-wrap">
-            {/* Active Puppy Switcher dropdown in navbar */}
-            {puppies.length > 0 && activePuppy && (
+            {/* Show Active Dog Selector ONLY on Dog-Specific Views (Daily Log & Carnet de Sante) */}
+            {showDogSelector && puppies.length > 0 && activePuppy && (
               <div className="flex items-center bg-slate-800/80 border border-slate-700/80 rounded-xl px-2.5 py-1 text-xs">
                 <span className="text-slate-400 mr-1.5">{t.nav.dog}</span>
                 <select
                   value={activePuppy.id}
-                  onChange={(e) => onSelectPuppy(e.target.value)}
+                  onChange={(event) => onSelectPuppy(event.target.value)}
+                  aria-label="Select Dog"
                   className="bg-transparent font-bold text-amber-300 focus:outline-none cursor-pointer"
                 >
-                  {puppies.map((p) => (
-                    <option key={p.id} value={p.id} className="bg-slate-800 text-slate-200">
-                      {p.name}
+                  {puppies.map((puppy) => (
+                    <option key={puppy.id} value={puppy.id} className="bg-slate-800 text-slate-200">
+                      {puppy.name}
                     </option>
                   ))}
                 </select>
               </div>
             )}
 
-            <div
-              title={`${streakDays} days clean!`}
-              className="flex items-center gap-1 bg-amber-950/40 border border-amber-500/30 text-amber-300 px-2.5 py-1 rounded-xl text-xs font-semibold"
-            >
-              <Flame className="w-3.5 h-3.5 text-amber-400" />
-              <span>{streakDays}d {t.nav.cleanStreak}</span>
-            </div>
+            {/* Potty Clean Streak Badge */}
+            {showDogSelector && (
+              <div
+                title={`${streakDays} days clean!`}
+                className="flex items-center gap-1 bg-amber-950/40 border border-amber-500/30 text-amber-300 px-2.5 py-1 rounded-xl text-xs font-semibold"
+              >
+                <Flame className="w-3.5 h-3.5 text-amber-400" />
+                <span>{streakDays}d {t.nav.cleanStreak}</span>
+              </div>
+            )}
 
+            {/* Export Vet PDF Summary button */}
             <button
               onClick={onOpenVetReport}
               title="Export Vet Summary PDF"
+              aria-label="Export Vet Summary PDF"
               className="p-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 transition cursor-pointer"
             >
               <FileText className="w-4 h-4" />
             </button>
 
+            {/* Quick Log Event Button */}
             {puppies.length > 0 && (
               <button
                 onClick={onOpenQuickLog}
+                aria-label={t.nav.logEvent}
                 className="flex items-center gap-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white px-3.5 py-1.5 rounded-xl font-bold text-xs shadow-md transition active:scale-95 cursor-pointer"
               >
                 <Plus className="w-4 h-4 stroke-[3]" />

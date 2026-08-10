@@ -1,105 +1,113 @@
-import React, { useState } from 'react';
-import { Shield, Mail, Send, Users, AlertCircle, UserCheck, UserX, Trash2, Key } from 'lucide-react';
-
-interface UserAccountItem {
-  id: string;
-  email: string;
-  name: string;
-  role: string;
-  status: 'ACTIVE' | 'PENDING_APPROVAL';
-}
+import React, { useState, useEffect } from 'react';
+import { Shield, Mail, Send, Users, AlertCircle, UserCheck, UserX, Trash2 } from 'lucide-react';
+import {
+  fetchUsers,
+  createUser,
+  updateUser,
+  deleteUser,
+} from '../services/api';
+import type { RegisteredUserItem } from '../types';
+import { useI18n } from '../i18n';
 
 interface AdminViewProps {
-  token: string;
   currentUserEmail: string;
 }
 
 export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail }) => {
+  const { t } = useI18n();
   const isSuperAdmin = currentUserEmail.toLowerCase() === 'matthieu.jacquet@gmail.com';
 
-  const [users, setUsers] = useState<UserAccountItem[]>([
-    { id: '1', email: 'matthieu.jacquet@gmail.com', name: 'Matthieu', role: 'Husband', status: 'ACTIVE' },
-    { id: '2', email: 'sarah@family.com', name: 'Sarah', role: 'Wife', status: 'PENDING_APPROVAL' },
-    { id: '3', email: 'alex@dogwalkers.com', name: 'Alex', role: 'Dog Walker', status: 'PENDING_APPROVAL' },
-  ]);
+  const [users, setUsers] = useState<RegisteredUserItem[]>([]);
   const [newInviteEmail, setNewInviteEmail] = useState('');
   const [statusMessage, setStatusMessage] = useState('');
-  
-  const [googleClientId, setGoogleClientId] = useState<string>(() => {
-    return localStorage.getItem('puppace_google_client_id') || '';
-  });
-  const [clientIdInput, setClientIdInput] = useState(googleClientId);
+  const [userToDelete, setUserToDelete] = useState<RegisteredUserItem | null>(null);
+
+  useEffect(() => {
+    if (isSuperAdmin) {
+      loadUsers();
+    }
+  }, [isSuperAdmin]);
+
+  const loadUsers = async () => {
+    const remoteUsers = await fetchUsers();
+    if (remoteUsers) {
+      setUsers(remoteUsers);
+    }
+  };
+
+  const handleActivate = async (email: string) => {
+    const res = await updateUser({ email, status: 'ACTIVE' });
+    if (res) {
+      setUsers((previous) => previous.map((registeredUser) => (registeredUser.email === email ? { ...registeredUser, status: 'ACTIVE' as const } : registeredUser)));
+      setStatusMessage(t.admin.activatedAccount.replace('{email}', email));
+      setTimeout(() => setStatusMessage(''), 3500);
+    }
+  };
+
+  const handleDeactivate = async (email: string) => {
+    if (email.toLowerCase() === 'matthieu.jacquet@gmail.com') return;
+    const res = await updateUser({ email, status: 'PENDING_APPROVAL' });
+    if (res) {
+      setUsers((previous) => previous.map((registeredUser) => (registeredUser.email === email ? { ...registeredUser, status: 'PENDING_APPROVAL' as const } : registeredUser)));
+      setStatusMessage(t.admin.revokedAccess.replace('{email}', email));
+      setTimeout(() => setStatusMessage(''), 3500);
+    }
+  };
+
+  const confirmDeleteUser = async () => {
+    if (!userToDelete) return;
+    if (userToDelete.email.toLowerCase() === 'matthieu.jacquet@gmail.com') {
+      setUserToDelete(null);
+      return;
+    }
+
+    const success = await deleteUser(userToDelete.email);
+    if (success) {
+      setUsers((previous) => previous.filter((registeredUser) => registeredUser.email !== userToDelete.email));
+      setStatusMessage(t.admin.deletedAccount.replace('{email}', userToDelete.email));
+    }
+    setUserToDelete(null);
+    setTimeout(() => setStatusMessage(''), 3500);
+  };
+
+  const handlePreApproveInvite = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!newInviteEmail.trim()) return;
+
+    const email = newInviteEmail.trim().toLowerCase();
+    const res = await createUser({
+      email,
+      name: email.split('@')[0],
+      role: 'Member',
+      status: 'ACTIVE',
+    });
+
+    if (res) {
+      await loadUsers();
+      setNewInviteEmail('');
+      setStatusMessage(t.admin.preApprovedAccount.replace('{email}', email));
+      setTimeout(() => setStatusMessage(''), 3500);
+    }
+  };
+
+  const pendingUsers = users.filter((registeredUser) => registeredUser.status === 'PENDING_APPROVAL');
+  const activeUsers = users.filter((registeredUser) => registeredUser.status === 'ACTIVE');
 
   if (!isSuperAdmin) {
     return (
       <div className="bg-slate-900 border border-red-900/40 p-8 rounded-2xl text-center space-y-3">
         <AlertCircle className="w-12 h-12 text-red-400 mx-auto" />
-        <h2 className="text-lg font-bold text-white">Access Restricted</h2>
+        <h2 className="text-lg font-bold text-white">
+          {t.admin.accessRestricted}
+        </h2>
         <p className="text-xs text-slate-400">
-          Only Super Admin Owner (<strong className="text-white">matthieu.jacquet@gmail.com</strong>) can access the Admin Center.
+          {t.admin.onlySuperAdmin}
+          <strong className="text-white">matthieu.jacquet@gmail.com</strong>
+          {t.admin.canAccessCenter}
         </p>
       </div>
     );
   }
-
-  const handleSaveClientId = (e: React.FormEvent) => {
-    e.preventDefault();
-    const clean = clientIdInput.trim();
-    localStorage.setItem('puppace_google_client_id', clean);
-    setGoogleClientId(clean);
-    setStatusMessage('Updated Google OAuth Client ID successfully!');
-    setTimeout(() => setStatusMessage(''), 3500);
-  };
-
-  const handleActivate = (email: string) => {
-    setUsers((prev) =>
-      prev.map((u) => (u.email === email ? { ...u, status: 'ACTIVE' } : u))
-    );
-    setStatusMessage(`Activated account for ${email}! They can now log in.`);
-    setTimeout(() => setStatusMessage(''), 3500);
-  };
-
-  const handleDeactivate = (email: string) => {
-    if (email === 'matthieu.jacquet@gmail.com') return;
-    setUsers((prev) =>
-      prev.map((u) => (u.email === email ? { ...u, status: 'PENDING_APPROVAL' } : u))
-    );
-    setStatusMessage(`Revoked access for ${email}.`);
-    setTimeout(() => setStatusMessage(''), 3500);
-  };
-
-  const handleDeleteUser = (id: string, email: string) => {
-    if (email === 'matthieu.jacquet@gmail.com') return;
-    if (window.confirm(`Are you sure you want to permanently delete user account ${email}?`)) {
-      setUsers((prev) => prev.filter((u) => u.id !== id));
-      setStatusMessage(`Deleted user account ${email}.`);
-      setTimeout(() => setStatusMessage(''), 3500);
-    }
-  };
-
-  const handlePreApproveInvite = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newInviteEmail.trim()) return;
-
-    const email = newInviteEmail.trim().toLowerCase();
-    const existing = users.find((u) => u.email === email);
-    if (existing) {
-      existing.status = 'ACTIVE';
-      setUsers([...users]);
-    } else {
-      setUsers((prev) => [
-        ...prev,
-        { id: `usr-${Date.now()}`, email, name: email.split('@')[0], role: 'Partner', status: 'ACTIVE' },
-      ]);
-    }
-
-    setNewInviteEmail('');
-    setStatusMessage(`Pre-approved & activated account for ${email}!`);
-    setTimeout(() => setStatusMessage(''), 3500);
-  };
-
-  const pendingUsers = users.filter((u) => u.status === 'PENDING_APPROVAL');
-  const activeUsers = users.filter((u) => u.status === 'ACTIVE');
 
   return (
     <div className="space-y-6 animate-fadeIn max-w-4xl mx-auto">
@@ -110,8 +118,12 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail }) => {
             <Shield className="w-6 h-6 text-white" />
           </div>
           <div>
-            <h2 className="text-xl font-bold text-slate-100">Super Admin Center</h2>
-            <p className="text-xs text-slate-400">Strict backend-enforced user management and OAuth security configuration</p>
+            <h2 className="text-xl font-bold text-slate-100">
+              {t.admin.title}
+            </h2>
+            <p className="text-xs text-slate-400">
+              {t.admin.subtitle}
+            </p>
           </div>
         </div>
 
@@ -126,80 +138,77 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail }) => {
         </div>
       )}
 
-      {/* Google OAuth Settings Panel */}
-      <form onSubmit={handleSaveClientId} className="bg-slate-900 border border-slate-800 p-6 rounded-2xl space-y-3 shadow-xl">
-        <div className="flex items-center justify-between">
-          <h3 className="text-sm font-bold text-slate-100 flex items-center gap-2">
-            <Key className="w-4 h-4 text-indigo-400" />
-            <span>Google OAuth Client ID</span>
-          </h3>
-          {googleClientId ? (
-            <span className="text-[10px] bg-emerald-950 text-emerald-400 border border-emerald-800/50 px-2.5 py-0.5 rounded font-mono font-bold">
-              Configured
-            </span>
-          ) : (
-            <span className="text-[10px] bg-amber-950 text-amber-300 border border-amber-800/50 px-2.5 py-0.5 rounded font-mono font-bold">
-              Not Configured
-            </span>
-          )}
-        </div>
+      {/* Delete User Confirmation Modal */}
+      {userToDelete && (
+        <div className="bg-red-950/40 border border-red-800/80 p-4 rounded-2xl space-y-3 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <AlertCircle className="w-5 h-5 text-red-400 shrink-0" />
+            <div>
+              <div className="text-xs font-bold text-white">
+                {t.admin.deleteConfirmTitle} <span className="font-mono text-red-300">{userToDelete.email}</span> ?
+              </div>
+              <div className="text-[11px] text-slate-400">
+                {t.admin.deleteConfirmBody}
+              </div>
+            </div>
+          </div>
 
-        <div className="flex gap-2">
-          <input
-            type="text"
-            placeholder="Paste Client ID: 8924902082-xxxx.apps.googleusercontent.com"
-            value={clientIdInput}
-            onChange={(e) => setClientIdInput(e.target.value)}
-            className="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs font-mono text-slate-100 focus:outline-none focus:border-indigo-500"
-          />
-          <button
-            type="submit"
-            className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs px-4 py-2 rounded-xl transition cursor-pointer"
-          >
-            Save Key
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setUserToDelete(null)}
+              className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-semibold cursor-pointer"
+            >
+              {t.potty.cancel}
+            </button>
+            <button
+              onClick={confirmDeleteUser}
+              className="px-3 py-1.5 bg-red-600 hover:bg-red-500 text-white rounded-xl text-xs font-bold transition flex items-center gap-1 cursor-pointer"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>{t.admin.confirmDelete}</span>
+            </button>
+          </div>
         </div>
-      </form>
+      )}
 
       {/* Pending Activations List */}
       <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl space-y-4 shadow-xl">
         <h3 className="text-sm font-bold text-amber-300 flex items-center justify-between">
-          <span>Pending Account Activations ({pendingUsers.length})</span>
-          <span className="text-[10px] text-slate-500 font-mono">Requires Matthieu Approval</span>
+          <span>{t.admin.pendingActivations.replace('{count}', String(pendingUsers.length))}</span>
+          <span className="text-[10px] text-slate-500 font-mono">
+            {t.admin.requiresApproval}
+          </span>
         </h3>
 
         {pendingUsers.length === 0 ? (
           <p className="text-xs text-slate-500 bg-slate-950/40 p-4 rounded-xl border border-slate-800 text-center">
-            No pending activations. All user accounts are processed!
+            {t.admin.noPendingActivations}
           </p>
         ) : (
           <div className="space-y-2">
-            {pendingUsers.map((u) => (
+            {pendingUsers.map((userItem) => (
               <div
-                key={u.id}
+                key={userItem.id}
                 className="flex items-center justify-between p-3.5 bg-slate-950/40 rounded-xl border border-slate-800"
               >
                 <div>
-                  <div className="text-xs font-bold text-slate-100 flex items-center gap-2">
-                    <span>{u.name}</span>
-                    <span className="text-[10px] bg-amber-950 text-amber-300 border border-amber-800 px-2 py-0.2 rounded font-semibold">
-                      {u.role}
-                    </span>
+                  <div className="text-xs font-bold text-slate-100">
+                    {userItem.name}
                   </div>
-                  <div className="text-[11px] text-slate-400 font-mono mt-0.5">{u.email}</div>
+                  <div className="text-[11px] text-slate-400 font-mono mt-0.5">{userItem.email}</div>
                 </div>
 
                 <div className="flex items-center gap-2">
                   <button
-                    onClick={() => handleActivate(u.email)}
+                    onClick={() => handleActivate(userItem.email)}
                     className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition flex items-center gap-1 cursor-pointer shadow"
                   >
                     <UserCheck className="w-3.5 h-3.5" />
-                    <span>Activate</span>
+                    <span>{t.admin.activate}</span>
                   </button>
                   <button
-                    onClick={() => handleDeleteUser(u.id, u.email)}
-                    title="Delete User Account"
+                    onClick={() => setUserToDelete(userItem)}
+                    title={t.admin.deleteUserAccount}
                     className="p-1.5 text-slate-500 hover:text-red-400 hover:bg-red-950/40 rounded-lg transition cursor-pointer"
                   >
                     <Trash2 className="w-4 h-4" />
@@ -213,25 +222,27 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail }) => {
 
       {/* Pre-Approve Form */}
       <form onSubmit={handlePreApproveInvite} className="bg-slate-900 border border-slate-800 p-6 rounded-2xl space-y-3 shadow-xl">
-        <h3 className="text-sm font-bold text-slate-100">Pre-Approve & Invite User Email</h3>
+        <h3 className="text-sm font-bold text-slate-100">
+          {t.admin.preApproveTitle}
+        </h3>
         <div className="flex gap-2">
           <div className="relative flex-1">
             <Mail className="w-4 h-4 text-slate-500 absolute left-3 top-2.5" />
             <input
               type="email"
-              placeholder="e.g. wife@family.com"
+              placeholder="e.g. partner@family.com"
               value={newInviteEmail}
-              onChange={(e) => setNewInviteEmail(e.target.value)}
+              onChange={(event) => setNewInviteEmail(event.target.value)}
               className="w-full bg-slate-800 border border-slate-700 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-indigo-500"
               required
             />
           </div>
           <button
             type="submit"
-            className="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs px-4 py-2 rounded-xl transition flex items-center gap-1.5 cursor-pointer"
+            className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs px-4 py-2 rounded-xl transition flex items-center gap-1.5 cursor-pointer"
           >
             <Send className="w-3.5 h-3.5" />
-            <span>Pre-Approve</span>
+            <span>{t.admin.preApprove}</span>
           </button>
         </div>
       </form>
@@ -240,36 +251,36 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail }) => {
       <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl space-y-4 shadow-xl">
         <h3 className="text-sm font-bold text-slate-100 flex items-center gap-2">
           <Users className="w-4 h-4 text-indigo-400" />
-          <span>Active SaaS User Accounts ({activeUsers.length})</span>
+          <span>{t.admin.activeAccounts.replace('{count}', String(activeUsers.length))}</span>
         </h3>
 
         <div className="space-y-2">
-          {activeUsers.map((u) => (
+          {activeUsers.map((userItem) => (
             <div
-              key={u.id}
+              key={userItem.id}
               className="flex items-center justify-between p-3.5 bg-slate-950/40 rounded-xl border border-slate-800"
             >
               <div>
-                <div className="text-xs font-bold text-slate-200">{u.name}</div>
-                <div className="text-[11px] text-slate-400 font-mono">{u.email}</div>
+                <div className="text-xs font-bold text-slate-200">{userItem.name}</div>
+                <div className="text-[11px] text-slate-400 font-mono">{userItem.email}</div>
               </div>
 
-              {u.email === 'matthieu.jacquet@gmail.com' ? (
+              {userItem.email.toLowerCase() === 'matthieu.jacquet@gmail.com' ? (
                 <span className="text-[10px] bg-indigo-950 text-indigo-300 border border-indigo-700 px-2.5 py-0.5 rounded font-semibold">
                   Super Admin Owner
                 </span>
               ) : (
                 <div className="flex items-center gap-2">
                   <button
-                    onClick={() => handleDeactivate(u.email)}
+                    onClick={() => handleDeactivate(userItem.email)}
                     className="text-xs bg-slate-800 hover:bg-red-950 text-slate-300 hover:text-red-300 border border-slate-700 px-2.5 py-1 rounded-lg transition cursor-pointer flex items-center gap-1"
                   >
                     <UserX className="w-3.5 h-3.5" />
-                    <span>Revoke</span>
+                    <span>{t.admin.revoke}</span>
                   </button>
                   <button
-                    onClick={() => handleDeleteUser(u.id, u.email)}
-                    title="Delete User Account"
+                    onClick={() => setUserToDelete(userItem)}
+                    title={t.admin.deleteUserAccount}
                     className="p-1.5 text-slate-500 hover:text-red-400 hover:bg-red-950/40 rounded-lg transition cursor-pointer"
                   >
                     <Trash2 className="w-4 h-4" />

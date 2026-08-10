@@ -3,9 +3,15 @@
   "name": "PupPace: Smart Puppy Activity Tracker",
   "icons": [
     {
-      "src": "/cocker_spaniel_mascot.jpg",
-      "type": "image/jpeg",
-      "sizes": "512x512"
+      "src": "/icons/icon-192.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any maskable"
     }
   ],
   "start_url": "/",
