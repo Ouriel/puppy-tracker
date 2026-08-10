@@ -1,13 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import type { PuppyProfile } from '../types';
-import { Syringe, ShieldCheck, Plus, Pill, Trash2 } from 'lucide-react';
+import { Syringe, ShieldCheck, Plus, Pill, Trash2, Pencil, Check } from 'lucide-react';
 import { useI18n } from '../i18n';
 import { formatLocalDate } from '../utils/date';
+import { showToast } from '../utils/toast';
 import {
   fetchHealthRecords,
   createHealthRecord,
+  updateHealthRecord,
   deleteHealthRecord,
 } from '../services/api';
+import { calculateNextAntiparasiticDate, calculateNextVaccineBooster, getHealthProtocols } from '../utils/health';
+import { getPuppyAge } from '../utils/predictions';
 
 interface VaccinationEntry {
   id: string;
@@ -40,6 +44,72 @@ interface CarnetDeSanteViewProps {
 export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePuppy }) => {
   const { t } = useI18n();
 
+  const getVaccineStatus = (
+    vaccine: VaccinationEntry,
+    allVaccines: VaccinationEntry[]
+  ): { label: string; className: string } => {
+    if (!vaccine.boosterDate) {
+      return { label: `✅ ${t.health.statusUpToDate}`, className: 'bg-emerald-950 text-emerald-400 border-emerald-800/50 font-bold' };
+    }
+
+    const sorted = [...allVaccines].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    const isLatest = sorted.length > 0 && sorted[0].id === vaccine.id;
+    const hasSubsequent = allVaccines.some(
+      (other) => other.id !== vaccine.id && new Date(other.date).getTime() >= new Date(vaccine.date).getTime()
+    );
+
+    if (!isLatest || hasSubsequent) {
+      return {
+        label: `✅ ${t.health.statusFulfilled}`,
+        className: 'bg-slate-800/90 text-slate-300 border-slate-700/60 font-medium',
+      };
+    }
+
+    const due = new Date(vaccine.boosterDate);
+    const now = new Date();
+    const daysUntilDue = Math.floor((due.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+
+    if (daysUntilDue < 0) {
+      return { label: '⚠️ Overdue', className: 'bg-red-950 text-red-400 border-red-800/50 font-bold' };
+    } else if (daysUntilDue <= 14) {
+      return { label: '⏰ Due Soon', className: 'bg-amber-950 text-amber-400 border-amber-800/50 font-bold' };
+    }
+    return { label: `✅ ${t.health.statusUpToDate}`, className: 'bg-emerald-950 text-emerald-400 border-emerald-800/50 font-bold' };
+  };
+
+  const getDewormingStatus = (
+    deworming: DewormingEntry,
+    allDewormings: DewormingEntry[]
+  ): { label: string; className: string } => {
+    if (!deworming.boosterDate) {
+      return { label: `✅ ${t.health.statusUpToDate}`, className: 'bg-emerald-950 text-emerald-400 border-emerald-800/50 font-bold' };
+    }
+
+    const sorted = [...allDewormings].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    const isLatest = sorted.length > 0 && sorted[0].id === deworming.id;
+    const hasSubsequent = allDewormings.some(
+      (other) => other.id !== deworming.id && new Date(other.date).getTime() >= new Date(deworming.date).getTime()
+    );
+
+    if (!isLatest || hasSubsequent) {
+      return {
+        label: `✅ ${t.health.statusFulfilled}`,
+        className: 'bg-slate-800/90 text-slate-300 border-slate-700/60 font-medium',
+      };
+    }
+
+    const due = new Date(deworming.boosterDate);
+    const now = new Date();
+    const daysUntilDue = Math.floor((due.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+
+    if (daysUntilDue < 0) {
+      return { label: '⚠️ Overdue', className: 'bg-red-950 text-red-400 border-red-800/50 font-bold' };
+    } else if (daysUntilDue <= 14) {
+      return { label: '⏰ Due Soon', className: 'bg-amber-950 text-amber-400 border-amber-800/50 font-bold' };
+    }
+    return { label: `✅ ${t.health.statusUpToDate}`, className: 'bg-emerald-950 text-emerald-400 border-emerald-800/50 font-bold' };
+  };
+
   const [vaccinations, setVaccinations] = useState<VaccinationEntry[]>([]);
   const [dewormingLogs, setDewormingLogs] = useState<DewormingEntry[]>([]);
 
@@ -54,10 +124,101 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePupp
   const [vetClinic, setVetClinic] = useState('');
   const [batchNumber, setBatchNumber] = useState('');
 
+  // Auto-calculate next vaccine booster due date based on dataset rules
+  useEffect(() => {
+    if (!administeredDate) return;
+    const calculated = calculateNextVaccineBooster(administeredDate, vaccineType);
+    setNextDueDate(calculated);
+  }, [administeredDate, vaccineType]);
+
   // New Deworming Form
-  const [productName, setProductName] = useState('Milbemax Tab / Milprazon');
+  const [productName, setProductName] = useState('Credelio Plus');
   const [dewormAdminDate, setDewormAdminDate] = useState(() => formatLocalDate());
   const [dewormNextDate, setDewormNextDate] = useState('');
+
+  // Auto-calculate next deworming / antiparasitic booster date based on product SPC & ESCCAP
+  useEffect(() => {
+    if (!dewormAdminDate) return;
+    const ageMonths = activePuppy?.birthDate ? getPuppyAge(activePuppy.birthDate).months : 3;
+    const calculated = calculateNextAntiparasiticDate(dewormAdminDate, productName, ageMonths);
+    setDewormNextDate(calculated);
+  }, [dewormAdminDate, productName, activePuppy?.birthDate]);
+
+  // Edit Vaccine state
+  const [editingVaccineId, setEditingVaccineId] = useState<string | null>(null);
+  const [editVaccineName, setEditVaccineName] = useState('');
+  const [editVaccineDate, setEditVaccineDate] = useState('');
+  const [editVaccineBoosterDate, setEditVaccineBoosterDate] = useState('');
+  const [editVaccineVetClinic, setEditVaccineVetClinic] = useState('');
+  const [editVaccineBatchNumber, setEditVaccineBatchNumber] = useState('');
+
+  // Edit Deworming state
+  const [editingDewormingId, setEditingDewormingId] = useState<string | null>(null);
+  const [editDewormingName, setEditDewormingName] = useState('');
+  const [editDewormingDate, setEditDewormingDate] = useState('');
+  const [editDewormingBoosterDate, setEditDewormingBoosterDate] = useState('');
+  const [editDewormingWeight, setEditDewormingWeight] = useState('');
+
+  const startEditVaccine = (vaccine: VaccinationEntry) => {
+    setEditingVaccineId(vaccine.id);
+    setEditVaccineName(vaccine.name);
+    setEditVaccineDate(vaccine.date);
+    setEditVaccineBoosterDate(vaccine.boosterDate || '');
+    setEditVaccineVetClinic(vaccine.vetClinic || '');
+    setEditVaccineBatchNumber(vaccine.batchNumber || '');
+  };
+
+  const startEditDeworming = (deworming: DewormingEntry) => {
+    setEditingDewormingId(deworming.id);
+    setEditDewormingName(deworming.productName || deworming.name);
+    setEditDewormingDate(deworming.date);
+    setEditDewormingBoosterDate(deworming.boosterDate || '');
+    setEditDewormingWeight(deworming.weightAtTime ? String(deworming.weightAtTime) : '');
+  };
+
+  const handleUpdateVaccineSubmit = async (id: string) => {
+    if (!editVaccineDate || !activePuppy) return;
+    const updated = await updateHealthRecord({
+      id,
+      puppyId: activePuppy.id,
+      type: 'vaccination',
+      name: editVaccineName,
+      date: editVaccineDate,
+      boosterDate: editVaccineBoosterDate || undefined,
+      vetClinic: editVaccineVetClinic || undefined,
+      batchNumber: editVaccineBatchNumber || undefined,
+    });
+
+    if (updated) {
+      setVaccinations((prev) =>
+        sortByDateDesc(prev.map((v) => (v.id === id ? { ...v, ...updated } : v)))
+      );
+      setEditingVaccineId(null);
+      showToast('Vaccination entry updated.', 'success');
+    }
+  };
+
+  const handleUpdateDewormingSubmit = async (id: string) => {
+    if (!editDewormingDate || !activePuppy) return;
+    const updated = await updateHealthRecord({
+      id,
+      puppyId: activePuppy.id,
+      type: 'deworming',
+      name: editDewormingName,
+      productName: editDewormingName,
+      date: editDewormingDate,
+      boosterDate: editDewormingBoosterDate || undefined,
+      weightAtTime: editDewormingWeight ? Number(editDewormingWeight) : undefined,
+    });
+
+    if (updated) {
+      setDewormingLogs((prev) =>
+        sortByDateDesc(prev.map((d) => (d.id === id ? { ...d, ...updated } : d)))
+      );
+      setEditingDewormingId(null);
+      showToast('Deworming entry updated.', 'success');
+    }
+  };
 
   const sortByDateDesc = <T extends { date: string }>(arr: T[]): T[] => {
     return [...arr].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
@@ -89,7 +250,7 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePupp
 
     const newEntry = {
       puppyId: activePuppy.id,
-      type: 'vaccination',
+      type: 'vaccination' as const,
       name: vaccineType,
       date: administeredDate,
       boosterDate: nextDueDate,
@@ -121,7 +282,7 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePupp
 
     const newEntry = {
       puppyId: activePuppy.id,
-      type: 'deworming',
+      type: 'deworming' as const,
       name: productName.trim() || 'Credelio Plus',
       productName: productName.trim() || 'Credelio Plus',
       date: dewormAdminDate,
@@ -235,13 +396,11 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePupp
                   onChange={(event) => setVaccineType(event.target.value)}
                   className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-teal-500 cursor-pointer"
                 >
-                  <option value="CHPPi + L4">CHPPi + L4 (Carré, Hépatite, Parvo, Pi + Lepto 4)</option>
-                  <option value="CHPPi">CHPPi (Carré, Hépatite, Parvovirose, Para-influenza)</option>
-                  <option value="L4 (Leptospirose)">L4 (Leptospirose 4 souches)</option>
-                  <option value="Rage (R)">{t.health.rabiesOption}</option>
-                  <option value="Toux de Chenil (Bb/Kc)">{t.health.kennelCoughOption}</option>
-                  <option value="Piroplasmose">Piroplasmose (Tiques - France)</option>
-                  <option value="Leishmaniose">Leishmaniose (Singe / Sud de France)</option>
+                  {getHealthProtocols().vaccines.map((v) => (
+                    <option key={v.id} value={v.name}>
+                      {v.fullName}
+                    </option>
+                  ))}
                 </select>
               </div>
 
@@ -304,42 +463,128 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePupp
         )}
 
         <div className="space-y-2">
-          {vaccinations.map((vaccine) => (
-            <div key={vaccine.id} className="flex items-center justify-between p-3.5 bg-slate-950/40 rounded-xl border border-slate-800">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-teal-500/20 text-teal-400 rounded-lg">
-                  <Syringe className="w-4 h-4" />
-                </div>
-                <div>
-                  <div className="text-xs font-bold text-white flex items-center gap-2">
-                    <span>{vaccine.name}</span>
-                    {vaccine.batchNumber && (
-                      <span className="text-[10px] font-mono text-slate-400 bg-slate-800 px-2 py-0.2 rounded">
-                        Lot: {vaccine.batchNumber}
-                      </span>
-                    )}
-                  </div>
-                  <div className="text-[11px] text-slate-400">
-                    {t.health.injectedOn} {vaccine.date} &bull; {t.health.clinic}: {vaccine.vetClinic || t.health.veterinary}
-                  </div>
-                </div>
-              </div>
+          {vaccinations.map((vaccine) => {
+            const isEditing = editingVaccineId === vaccine.id;
 
-              <div className="flex items-center gap-3">
-                <div className="text-right">
-                  <div className="text-xs font-bold text-amber-300">{t.health.booster}: {vaccine.boosterDate}</div>
-                  <div className="text-[10px] text-slate-500">{t.health.statusConform}</div>
+            if (isEditing) {
+              return (
+                <div key={vaccine.id} className="p-3.5 bg-slate-950 border border-teal-500/60 rounded-xl space-y-3 shadow-md">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                    <div>
+                      <label className="block text-[10px] text-slate-400 font-semibold mb-1">Vaccine Name</label>
+                      <input
+                        type="text"
+                        value={editVaccineName}
+                        onChange={(e) => setEditVaccineName(e.target.value)}
+                        className="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1 text-xs text-white font-bold"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] text-slate-400 font-semibold mb-1">Injected Date</label>
+                      <input
+                        type="date"
+                        value={editVaccineDate}
+                        onChange={(e) => setEditVaccineDate(e.target.value)}
+                        className="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1 text-xs text-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] text-slate-400 font-semibold mb-1">Booster Due Date</label>
+                      <input
+                        type="date"
+                        value={editVaccineBoosterDate}
+                        onChange={(e) => setEditVaccineBoosterDate(e.target.value)}
+                        className="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1 text-xs text-white"
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-[10px] text-slate-400 font-semibold mb-1">Vet Clinic</label>
+                      <input
+                        type="text"
+                        value={editVaccineVetClinic}
+                        onChange={(e) => setEditVaccineVetClinic(e.target.value)}
+                        className="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1 text-xs text-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] text-slate-400 font-semibold mb-1">Batch / Lot N°</label>
+                      <input
+                        type="text"
+                        value={editVaccineBatchNumber}
+                        onChange={(e) => setEditVaccineBatchNumber(e.target.value)}
+                        className="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1 text-xs text-white font-mono"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex justify-end gap-2 pt-1">
+                    <button
+                      onClick={() => setEditingVaccineId(null)}
+                      className="px-3 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs rounded-lg transition cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={() => handleUpdateVaccineSubmit(vaccine.id)}
+                      className="flex items-center gap-1 px-3 py-1 bg-teal-600 hover:bg-teal-500 text-white font-bold text-xs rounded-lg transition cursor-pointer"
+                    >
+                      <Check className="w-3.5 h-3.5" />
+                      <span>Save</span>
+                    </button>
+                  </div>
                 </div>
-                <button
-                  onClick={() => handleDeleteVaccine(vaccine.id)}
-                  title={t.health.deleteVaccineConfirm}
-                  className="p-1.5 text-slate-500 hover:text-red-400 hover:bg-red-950/40 rounded-lg transition cursor-pointer"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
+              );
+            }
+
+            return (
+              <div key={vaccine.id} className="flex items-center justify-between p-3.5 bg-slate-950/40 rounded-xl border border-slate-800">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-teal-500/20 text-teal-400 rounded-lg">
+                    <Syringe className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <div className="text-xs font-bold text-white flex items-center gap-2">
+                      <span>{vaccine.name}</span>
+                      {vaccine.batchNumber && (
+                        <span className="text-[10px] font-mono text-slate-400 bg-slate-800 px-2 py-0.2 rounded">
+                          Lot: {vaccine.batchNumber}
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-[11px] text-slate-400">
+                      {t.health.injectedOn} {vaccine.date} &bull; {t.health.clinic}: {vaccine.vetClinic || t.health.veterinary}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <div className="text-right">
+                    <div className="text-xs font-bold text-amber-300">{t.health.booster}: {vaccine.boosterDate}</div>
+                    <div className={`text-[10px] px-2 py-0.5 rounded border inline-block ${getVaccineStatus(vaccine, vaccinations).className}`}>
+                      {getVaccineStatus(vaccine, vaccinations).label}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => startEditVaccine(vaccine)}
+                      title="Edit vaccine entry"
+                      className="p-1.5 text-slate-400 hover:text-teal-300 hover:bg-slate-800 rounded-lg transition cursor-pointer"
+                    >
+                      <Pencil className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={() => handleDeleteVaccine(vaccine.id)}
+                      title={t.health.deleteVaccineConfirm}
+                      className="p-1.5 text-slate-500 hover:text-red-400 hover:bg-red-950/40 rounded-lg transition cursor-pointer"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 
@@ -369,13 +614,11 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePupp
                   onChange={(event) => setProductName(event.target.value)}
                   className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-amber-500 cursor-pointer"
                 >
-                  <option value="Credelio Plus">Credelio Plus (Milbémycine + Lotilaner - Puces/Tiques/Vers)</option>
-                  <option value="Milbemax Tab / Milprazon">Milbemax Tab / Milprazon (N°1 France)</option>
-                  <option value="Nexgard Spectra">Nexgard Spectra (Vermifuge + Tiques/Puces)</option>
-                  <option value="Drontal Chien">Drontal Chien (Praziquantel / Fébantel)</option>
-                  <option value="Panacur (Fenbendazole)">Panacur (Chiots / Giardiose)</option>
-                  <option value="Dolpac / Procox">Dolpac / Procox</option>
-                  <option value="Autre vermifuge">Autre produit vermifuge</option>
+                  {getHealthProtocols().antiparasitics.map((p) => (
+                    <option key={p.id} value={p.name}>
+                      {p.label}
+                    </option>
+                  ))}
                 </select>
               </div>
 
@@ -414,42 +657,121 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePupp
         )}
 
         <div className="space-y-2">
-          {dewormingLogs.map((deworming) => (
-            <div key={deworming.id} className="flex items-center justify-between p-3.5 bg-slate-950/40 rounded-xl border border-slate-800">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-amber-500/20 text-amber-400 rounded-lg">
-                  <Pill className="w-4 h-4" />
-                </div>
-                <div>
-                  <div className="text-xs font-bold text-white flex items-center gap-2">
-                    <span>{deworming.productName || deworming.name}</span>
-                    {deworming.weightAtTime && (
-                      <span className="text-[10px] text-amber-300 bg-amber-950/60 border border-amber-800 px-2 py-0.2 rounded font-semibold">
-                        Poids: {deworming.weightAtTime} kg
-                      </span>
-                    )}
-                  </div>
-                  <div className="text-[11px] text-slate-400">
-                    {t.health.givenOn} {deworming.date}
-                  </div>
-                </div>
-              </div>
+          {dewormingLogs.map((deworming) => {
+            const isEditing = editingDewormingId === deworming.id;
 
-              <div className="flex items-center gap-3">
-                <div className="text-right">
-                  <div className="text-xs font-bold text-amber-300">{t.health.nextDeworming}: {deworming.boosterDate}</div>
-                  <div className="text-[10px] text-slate-500">{t.health.statusDewormed}</div>
+            if (isEditing) {
+              return (
+                <div key={deworming.id} className="p-3.5 bg-slate-950 border border-amber-500/60 rounded-xl space-y-3 shadow-md">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-[10px] text-slate-400 font-semibold mb-1">Product Name</label>
+                      <input
+                        type="text"
+                        value={editDewormingName}
+                        onChange={(e) => setEditDewormingName(e.target.value)}
+                        className="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1 text-xs text-white font-bold"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] text-slate-400 font-semibold mb-1">Weight at time (kg)</label>
+                      <input
+                        type="number"
+                        step="0.1"
+                        placeholder="e.g. 7.5"
+                        value={editDewormingWeight}
+                        onChange={(e) => setEditDewormingWeight(e.target.value)}
+                        className="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1 text-xs text-white"
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-[10px] text-slate-400 font-semibold mb-1">Given Date</label>
+                      <input
+                        type="date"
+                        value={editDewormingDate}
+                        onChange={(e) => setEditDewormingDate(e.target.value)}
+                        className="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1 text-xs text-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] text-slate-400 font-semibold mb-1">Next Due Date</label>
+                      <input
+                        type="date"
+                        value={editDewormingBoosterDate}
+                        onChange={(e) => setEditDewormingBoosterDate(e.target.value)}
+                        className="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1 text-xs text-white"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex justify-end gap-2 pt-1">
+                    <button
+                      onClick={() => setEditingDewormingId(null)}
+                      className="px-3 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs rounded-lg transition cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={() => handleUpdateDewormingSubmit(deworming.id)}
+                      className="flex items-center gap-1 px-3 py-1 bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs rounded-lg transition cursor-pointer"
+                    >
+                      <Check className="w-3.5 h-3.5" />
+                      <span>Save</span>
+                    </button>
+                  </div>
                 </div>
-                <button
-                  onClick={() => handleDeleteDeworming(deworming.id)}
-                  title={t.health.deleteDewormingConfirm}
-                  className="p-1.5 text-slate-500 hover:text-red-400 hover:bg-red-950/40 rounded-lg transition cursor-pointer"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
+              );
+            }
+
+            return (
+              <div key={deworming.id} className="flex items-center justify-between p-3.5 bg-slate-950/40 rounded-xl border border-slate-800">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-amber-500/20 text-amber-400 rounded-lg">
+                    <Pill className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <div className="text-xs font-bold text-white flex items-center gap-2">
+                      <span>{deworming.productName || deworming.name}</span>
+                      {deworming.weightAtTime && (
+                        <span className="text-[10px] text-amber-300 bg-amber-950/60 border border-amber-800 px-2 py-0.2 rounded font-semibold">
+                          Poids: {deworming.weightAtTime} kg
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-[11px] text-slate-400">
+                      {t.health.givenOn} {deworming.date}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <div className="text-right">
+                    <div className="text-xs font-bold text-amber-300">{t.health.nextDeworming}: {deworming.boosterDate}</div>
+                    <div className={`text-[10px] px-2 py-0.5 rounded border inline-block ${getDewormingStatus(deworming, dewormingLogs).className}`}>
+                      {getDewormingStatus(deworming, dewormingLogs).label}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => startEditDeworming(deworming)}
+                      title="Edit deworming entry"
+                      className="p-1.5 text-slate-400 hover:text-amber-300 hover:bg-slate-800 rounded-lg transition cursor-pointer"
+                    >
+                      <Pencil className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={() => handleDeleteDeworming(deworming.id)}
+                      title={t.health.deleteDewormingConfirm}
+                      className="p-1.5 text-slate-500 hover:text-red-400 hover:bg-red-950/40 rounded-lg transition cursor-pointer"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </div>

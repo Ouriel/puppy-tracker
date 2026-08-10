@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import type { Activity, Caretaker, PuppyProfile, UserAccount } from '../types';
+import type { Activity, Caretaker, PuppyProfile, UserAccount, HealthRecord } from '../types';
 
 export const ActivityTypeSchema = z.enum([
   'pee',
@@ -72,4 +72,19 @@ export const UserAccountSchema: z.ZodType<UserAccount> = z.object({
   role: FamilyRoleSchema,
   avatarColor: z.string(),
   familyPackId: z.string(),
+});
+
+export const HealthRecordSchema: z.ZodType<HealthRecord> = z.object({
+  id: z.string(),
+  householdId: z.string(),
+  puppyId: z.string(),
+  type: z.enum(['vaccination', 'deworming']),
+  name: z.string().min(1),
+  date: z.string(),
+  boosterDate: z.string().optional(),
+  batchNumber: z.string().optional(),
+  vetClinic: z.string().optional(),
+  productName: z.string().optional(),
+  weightAtTime: z.number().optional(),
+  notes: z.string().optional(),
 });

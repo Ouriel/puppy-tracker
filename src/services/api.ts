@@ -1,14 +1,9 @@
-import type { Activity, PuppyProfile, Caretaker } from '../types';
+import type { Activity, PuppyProfile, Caretaker, RegisteredUserItem, HealthRecord } from '../types';
 import { getAuthToken, clearAuthToken } from '../utils/auth';
 import { showToast } from '../utils/toast';
+import { saveToOfflineQueue } from '../utils/storage';
 
-export interface RegisteredUserItem {
-  id: string;
-  email: string;
-  name: string;
-  role: string;
-  status: 'ACTIVE' | 'PENDING_APPROVAL';
-}
+export type { RegisteredUserItem };
 
 const apiCache = new Map<string, { data: any; timestamp: number }>();
 const CACHE_TTL_MS = 60 * 1000; // 60 seconds SWR cache
@@ -116,8 +111,34 @@ export async function fetchActivities(puppyId?: string): Promise<Activity[] | nu
 }
 
 export async function createActivity(activity: Omit<Activity, 'id'> & { id?: string }): Promise<Activity | null> {
-  return request<Activity>('/api/activities', {
+  const prepared: Activity = {
+    ...activity,
+    id: activity.id || `act-${Date.now()}`,
+  };
+
+  if (typeof navigator !== 'undefined' && !navigator.onLine) {
+    saveToOfflineQueue(prepared);
+    showToast('Saved offline. Will sync when reconnected.', 'info');
+    return prepared;
+  }
+
+  const created = await request<Activity>('/api/activities', {
     method: 'POST',
+    body: JSON.stringify(prepared),
+  });
+
+  if (!created) {
+    saveToOfflineQueue(prepared);
+    showToast('Saved offline. Will sync when reconnected.', 'info');
+    return prepared;
+  }
+
+  return created;
+}
+
+export async function updateActivity(activity: Partial<Activity> & { id: string }): Promise<Activity | null> {
+  return request<Activity>('/api/activities', {
+    method: 'PUT',
     body: JSON.stringify(activity),
   });
 }
@@ -131,16 +152,23 @@ export async function deleteActivity(id: string): Promise<boolean> {
 
 // ── Health Records API ──
 
-export async function fetchHealthRecords(puppyId: string, type?: string): Promise<any[] | null> {
+export async function fetchHealthRecords(puppyId: string, type?: string): Promise<HealthRecord[] | null> {
   const url = type
     ? `/api/health-records?puppyId=${encodeURIComponent(puppyId)}&type=${encodeURIComponent(type)}`
     : `/api/health-records?puppyId=${encodeURIComponent(puppyId)}`;
-  return request<any[]>(url);
+  return request<HealthRecord[]>(url);
 }
 
-export async function createHealthRecord(record: any): Promise<any | null> {
-  return request<any>('/api/health-records', {
+export async function createHealthRecord(record: Omit<HealthRecord, 'id' | 'householdId'> & { id?: string }): Promise<HealthRecord | null> {
+  return request<HealthRecord>('/api/health-records', {
     method: 'POST',
+    body: JSON.stringify(record),
+  });
+}
+
+export async function updateHealthRecord(record: Partial<HealthRecord> & { id: string }): Promise<HealthRecord | null> {
+  return request<HealthRecord>('/api/health-records', {
+    method: 'PUT',
     body: JSON.stringify(record),
   });
 }
@@ -161,6 +189,13 @@ export async function fetchHousehold(): Promise<{ caretakers: Caretaker[] } | nu
 export async function createCaretaker(caretaker: Partial<Caretaker>): Promise<Caretaker | null> {
   return request<Caretaker>('/api/households', {
     method: 'POST',
+    body: JSON.stringify(caretaker),
+  });
+}
+
+export async function updateCaretaker(caretaker: Partial<Caretaker> & { id: string }): Promise<Caretaker | null> {
+  return request<Caretaker>('/api/households', {
+    method: 'PUT',
     body: JSON.stringify(caretaker),
   });
 }

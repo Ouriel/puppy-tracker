@@ -5,19 +5,24 @@ import {
   getStoredCaretakers,
   getActivePuppyId,
   setActivePuppyId,
+  getOfflineQueue,
+  clearOfflineQueue,
   clearAllData,
 } from './utils/storage';
 import { getAuthToken, setAuthToken, clearAuthToken } from './utils/auth';
+import { resolveCaretakerName } from './utils/caretakers';
 import {
   fetchDogs,
   createDog,
   deleteDog,
   fetchActivities,
   createActivity,
+  updateActivity,
   deleteActivity,
   fetchHousehold,
   fetchHealthRecords,
   createCaretaker,
+  updateCaretaker,
   deleteCaretaker,
   exchangeSessionToken,
 } from './services/api';
@@ -65,26 +70,23 @@ export function App() {
     return () => window.removeEventListener('puppace:unauthorized', onUnauthorized);
   }, []);
 
-  // Main Page Navigation Tabs with Clean English Technical URL Routing
-  const [activeMainTab, setActiveMainTab] = useState<MainTabType>('dashboard');
+  const getInitialTabFromLocation = (): MainTabType => {
+    const path = window.location.pathname;
+    if (path === '/health-passport' || path === '/carnet-de-sante') return 'carnetdesante';
+    if (path === '/settings') return 'settings';
+    if (path === '/care-guide') return 'careguide';
+    if (path === '/admin') return 'admin';
+    return 'dashboard';
+  };
 
-  // URL Path Synchronization
+  // Main Page Navigation Tabs with Clean English Technical URL Routing
+  const [activeMainTab, setActiveMainTab] = useState<MainTabType>(getInitialTabFromLocation);
+
+  // URL Path Synchronization for Browser Back/Forward & Refresh
   useEffect(() => {
     const syncRouteWithTab = () => {
-      const path = window.location.pathname;
-      if (path === '/health-passport' || path === '/carnet-de-sante') {
-        setActiveMainTab('carnetdesante');
-      } else if (path === '/settings') {
-        setActiveMainTab('settings');
-      } else if (path === '/care-guide') {
-        setActiveMainTab('careguide');
-      } else if (path === '/admin') {
-        setActiveMainTab('admin');
-      } else {
-        setActiveMainTab('dashboard');
-      }
+      setActiveMainTab(getInitialTabFromLocation());
     };
-    syncRouteWithTab();
     window.addEventListener('popstate', syncRouteWithTab);
     return () => window.removeEventListener('popstate', syncRouteWithTab);
   }, []);
@@ -98,8 +100,9 @@ export function App() {
       careguide: '/care-guide',
       admin: '/admin',
     };
-    if (window.location.pathname !== routeMap[tab]) {
-      window.history.pushState({}, '', routeMap[tab]);
+    const targetPath = routeMap[tab];
+    if (window.location.pathname !== targetPath) {
+      window.history.pushState({ tab }, '', targetPath);
     }
   };
 
@@ -113,8 +116,6 @@ export function App() {
   // Quick Action Modal
   const [isQuickLogOpen, setIsQuickLogOpen] = useState(false);
   const [quickLogType, setQuickLogType] = useState<ActivityType>('pee');
-
-
 
   // Synchronous Parallel Database Load via REST API
   useEffect(() => {
@@ -132,6 +133,13 @@ export function App() {
         ]);
 
         // Background session token upgrade to long-lived 90-day PupPace Session Token
+        let loadedCaretakers = caretakers;
+        if (hhRes?.caretakers && hhRes.caretakers.length > 0) {
+          setCaretakers(hhRes.caretakers);
+          loadedCaretakers = hhRes.caretakers;
+        }
+
+        // Background session token upgrade to long-lived 90-day PupPace Session Token
         exchangeSessionToken().then((res) => {
           if (res?.sessionToken) {
             setAuthToken(res.sessionToken);
@@ -142,6 +150,8 @@ export function App() {
                 name: res.user.name,
                 role: res.user.role as FamilyRole,
               }));
+              const cleanCaretakerName = resolveCaretakerName(res.user.name, loadedCaretakers);
+              setCurrentUser(cleanCaretakerName);
             }
           }
         }).catch(() => {});
@@ -164,16 +174,59 @@ export function App() {
         if (remoteActivities) {
           setActivities(remoteActivities);
         }
-
-        if (hhRes?.caretakers && hhRes.caretakers.length > 0) {
-          setCaretakers(hhRes.caretakers);
-        }
       } finally {
         setIsLoading(false);
       }
     }
     loadDatabaseState();
   }, [isAuthenticated, activePuppyId]);
+
+  // Silent Background Real-Time Synchronization & Offline Queue Flush (15s polling + Focus/Online events)
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    const syncRealtimeData = async () => {
+      if (document.visibilityState !== 'visible' || (typeof navigator !== 'undefined' && !navigator.onLine)) {
+        return;
+      }
+
+      // 1. Flush queued offline items if reconnected
+      const offlineQueue = getOfflineQueue();
+      if (offlineQueue.length > 0) {
+        clearOfflineQueue();
+        await Promise.all(offlineQueue.map((item) => createActivity(item)));
+        showToast('Synced offline activities!', 'success');
+      }
+
+      // 2. Quiet background revalidation of dogs & activities (0ms UI flicker)
+      const [remoteDogs, remoteActivities] = await Promise.all([
+        fetchDogs(),
+        fetchActivities(),
+      ]);
+
+      if (remoteDogs && remoteDogs.length > 0) {
+        setPuppies(remoteDogs);
+      }
+      if (remoteActivities) {
+        setActivities(remoteActivities);
+      }
+    };
+
+    const handleSyncEvent = () => {
+      syncRealtimeData();
+    };
+
+    window.addEventListener('focus', handleSyncEvent);
+    window.addEventListener('online', handleSyncEvent);
+
+    const timer = setInterval(syncRealtimeData, 15000); // 15s low-overhead polling
+
+    return () => {
+      window.removeEventListener('focus', handleSyncEvent);
+      window.removeEventListener('online', handleSyncEvent);
+      clearInterval(timer);
+    };
+  }, [isAuthenticated]);
 
   const activePuppy = puppies.find((puppy) => puppy.id === activePuppyId) || (puppies.length > 0 ? puppies[0] : null);
 
@@ -231,15 +284,27 @@ export function App() {
     }
   };
 
-  const handleSwitchUserAccount = (name: string, role: FamilyRole) => {
-    setCurrentUser(name);
-    setUser((previous) => ({ ...previous, name, role }));
+  const handleUpdateCaretaker = async (id: string, updatedFields: Partial<Caretaker>) => {
+    const updated = await updateCaretaker({ id, ...updatedFields });
+    if (updated) {
+      setCaretakers((previous) =>
+        previous.map((c) => (c.id === id ? { ...c, ...updated } : c))
+      );
+      const targetCaretaker = caretakers.find((c) => c.id === id);
+      if (targetCaretaker && targetCaretaker.name === currentUser && updated.name) {
+        setCurrentUser(updated.name);
+        setUser((prev) => ({ ...prev, name: updated.name! }));
+      }
+      showToast('Household member updated.', 'success');
+    }
   };
 
   const handleUnlockWithSSO = (email: string, name: string, token: string) => {
     setAuthToken(token);
     setIsAuthenticated(true);
+    const cleanCaretakerName = resolveCaretakerName(name, caretakers);
     setUser((previous) => ({ ...previous, email, name }));
+    setCurrentUser(cleanCaretakerName);
 
     // Exchange Google 1-hour ID Token for long-lived 90-day PupPace Session Token
     exchangeSessionToken(token).then((res) => {
@@ -252,6 +317,8 @@ export function App() {
             name: res.user.name,
             role: res.user.role as FamilyRole,
           }));
+          const cleanName = resolveCaretakerName(res.user.name, caretakers);
+          setCurrentUser(cleanName);
         }
       }
     }).catch(() => {});
@@ -315,6 +382,16 @@ export function App() {
     }
   };
 
+  const handleUpdateActivity = async (updatedFields: Partial<Activity> & { id: string }) => {
+    const updated = await updateActivity(updatedFields);
+    if (updated) {
+      setActivities((previous) =>
+        previous.map((act) => (act.id === updatedFields.id ? { ...act, ...updated } : act))
+      );
+      showToast('Activity log updated.', 'success');
+    }
+  };
+
   const handleDeleteActivity = async (id: string) => {
     const ok = await deleteActivity(id);
     if (ok) {
@@ -351,7 +428,7 @@ export function App() {
     const todayFood = activePuppyActivities.filter(
       (activity) => activity.type === 'food' && isSameLocalDate(activity.timestamp, now)
     );
-    const grams = todayFood.reduce((sum, activity) => sum + (activity.quantityGrams || 80), 0);
+    const grams = todayFood.reduce((sum, activity) => sum + (activity.quantityGrams ?? 80), 0);
     return { todayFoodLoggedGrams: grams, todayMealsCount: todayFood.length };
   }, [activePuppyActivities]);
 
@@ -446,8 +523,8 @@ export function App() {
             caretakers={caretakers}
             currentUser={currentUser}
             onAddCaretaker={handleAddCaretaker}
+            onUpdateCaretaker={handleUpdateCaretaker}
             onDeleteCaretaker={handleDeleteCaretaker}
-            onSwitchUserAccount={handleSwitchUserAccount}
           />
         )}
 
@@ -457,7 +534,6 @@ export function App() {
 
         {activeMainTab === 'admin' && (
           <AdminView
-            token="demo-token"
             currentUserEmail={user.email}
           />
         )}
@@ -517,6 +593,7 @@ export function App() {
                   activities={activePuppyActivities}
                   caretakers={caretakers}
                   onDeleteActivity={handleDeleteActivity}
+                  onUpdateActivity={handleUpdateActivity}
                 />
               </div>
             )}
@@ -545,12 +622,12 @@ export function App() {
       {/* Quick Event Logging Modal */}
       {activePuppy && (
         <QuickLogModal
+          key={isQuickLogOpen ? 'open' : 'closed'}
           isOpen={isQuickLogOpen}
           initialType={quickLogType}
           defaultMealPortionGrams={nextMealPortionGrams}
           onClose={() => setIsQuickLogOpen(false)}
           onSave={handleAddActivity}
-          caretakers={caretakers}
           currentUser={currentUser}
         />
       )}

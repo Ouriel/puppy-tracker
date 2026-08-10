@@ -7,7 +7,16 @@ import { usersTable } from '../src/db/schema.js';
 import type { VercelRequest } from '@vercel/node';
 
 const client = new OAuth2Client();
-const SESSION_SECRET = process.env.SESSION_SECRET || process.env.POSTGRES_URL || 'puppace-app-session-secret-2026';
+function getSessionSecret(): string {
+  const secret = process.env.SESSION_SECRET || process.env.POSTGRES_URL || process.env.DATABASE_URL;
+  if (!secret) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('CRITICAL SECURITY CONFIGURATION ERROR: SESSION_SECRET environment variable is required in production.');
+    }
+    return 'puppace-app-session-secret-dev-2026';
+  }
+  return secret;
+}
 
 export interface AuthContext {
   email: string;
@@ -28,7 +37,7 @@ export function signAppSessionToken(payload: AuthContext, expiresInDays = 90): s
   const encodedPayload = Buffer.from(JSON.stringify(fullPayload)).toString('base64url');
 
   const signature = crypto
-    .createHmac('sha256', SESSION_SECRET)
+    .createHmac('sha256', getSessionSecret())
     .update(`${encodedHeader}.${encodedPayload}`)
     .digest('base64url');
 
@@ -45,7 +54,7 @@ export function verifyAppSessionToken(token: string): AuthContext | null {
 
     const [encodedHeader, encodedPayload, signature] = parts;
     const expectedSignature = crypto
-      .createHmac('sha256', SESSION_SECRET)
+      .createHmac('sha256', getSessionSecret())
       .update(`${encodedHeader}.${encodedPayload}`)
       .digest('base64url');
 
@@ -134,7 +143,7 @@ export async function verifyAuth(req: VercelRequest): Promise<AuthContext> {
         email: userEmail,
         name: payload.name || userEmail.split('@')[0],
         role: isSuperAdmin ? 'SuperAdmin' : 'Member',
-        status: 'ACTIVE',
+        status: isSuperAdmin ? 'ACTIVE' : 'PENDING_APPROVAL',
       })
       .returning();
     user = created;

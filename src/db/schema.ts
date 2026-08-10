@@ -1,10 +1,10 @@
-import { pgTable, text, timestamp, doublePrecision, integer } from 'drizzle-orm/pg-core';
+import { pgTable, text, timestamp, date, doublePrecision, integer } from 'drizzle-orm/pg-core';
 
 export const householdsTable = pgTable('households', {
   id: text('id').primaryKey(),
   familyPackId: text('family_pack_id').notNull().unique(),
   name: text('name').notNull(),
-  createdAt: timestamp('created_at').defaultNow(),
+  createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).defaultNow(),
 });
 
 export const puppiesTable = pgTable('puppies', {
@@ -12,14 +12,14 @@ export const puppiesTable = pgTable('puppies', {
   householdId: text('household_id').notNull(),
   name: text('name').notNull(),
   breed: text('breed').notNull(),
-  birthDate: text('birth_date').notNull(),
-  weightKg: doublePrecision('weight_kg'),
+  birthDate: date('birth_date', { mode: 'string' }).notNull(),
+  weightKg: doublePrecision('weight_kg').notNull(),
   dailyFoodGramGoal: integer('daily_food_gram_goal').notNull().default(200),
   targetMealsPerDay: integer('target_meals_per_day').notNull().default(3),
   avatarUrl: text('avatar_url'),
   notes: text('notes'),
-  createdAt: timestamp('created_at').defaultNow(),
-  updatedAt: timestamp('updated_at').defaultNow(),
+  createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true, mode: 'date' }).defaultNow(),
 });
 
 export const activitiesTable = pgTable('activities', {
@@ -27,7 +27,7 @@ export const activitiesTable = pgTable('activities', {
   householdId: text('household_id').notNull(),
   puppyId: text('puppy_id').notNull(),
   type: text('type').notNull(),
-  timestamp: text('timestamp').notNull(),
+  timestamp: timestamp('timestamp', { withTimezone: true, mode: 'date' }).notNull(),
   loggedBy: text('logged_by').notNull(),
   pottyLocation: text('potty_location'),
   stoolConsistency: text('stool_consistency'),
@@ -38,7 +38,7 @@ export const activitiesTable = pgTable('activities', {
   weightKg: doublePrecision('weight_kg'),
   medicationName: text('medication_name'),
   notes: text('notes'),
-  createdAt: timestamp('created_at').defaultNow(),
+  createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).defaultNow(),
 });
 
 export const caretakersTable = pgTable('caretakers', {
@@ -48,7 +48,7 @@ export const caretakersTable = pgTable('caretakers', {
   role: text('role').notNull(),
   color: text('color').notNull(),
   email: text('email'),
-  createdAt: timestamp('created_at').defaultNow(),
+  createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).defaultNow(),
 });
 
 export const usersTable = pgTable('users', {
@@ -58,21 +58,21 @@ export const usersTable = pgTable('users', {
   name: text('name').notNull(),
   role: text('role').notNull(),
   status: text('status').notNull().default('ACTIVE'),
-  createdAt: timestamp('created_at').defaultNow(),
+  createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).defaultNow(),
 });
 
 export const healthRecordsTable = pgTable('health_records', {
   id: text('id').primaryKey(),
   householdId: text('household_id').notNull(),
   puppyId: text('puppy_id').notNull(),
-  type: text('type').notNull(), // 'vaccination' | 'deworming'
+  type: text('type').notNull(),
   name: text('name').notNull(),
-  date: text('date').notNull(),
-  boosterDate: text('booster_date'),
+  date: date('date', { mode: 'string' }).notNull(),
+  boosterDate: date('booster_date', { mode: 'string' }),
   batchNumber: text('batch_number'),
   vetClinic: text('vet_clinic'),
   productName: text('product_name'),
   weightAtTime: doublePrecision('weight_at_time'),
   notes: text('notes'),
-  createdAt: timestamp('created_at').defaultNow(),
+  createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).defaultNow(),
 });

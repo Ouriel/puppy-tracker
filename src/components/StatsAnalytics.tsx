@@ -134,12 +134,12 @@ export const StatsAnalytics: React.FC<StatsAnalyticsProps> = ({ activities, prof
             <div>
               <h3 className="text-sm font-bold text-slate-100">{t.dashboard.todaysNutrition}</h3>
               <p className="text-[11px] text-slate-400">
-                {todayGramTotal}{t.units.grams} / {profile.dailyFoodGramGoal}{t.units.grams}
+                {todayGramTotal}{t.units.grams} / {dailyGoal}{t.units.grams}
               </p>
             </div>
           </div>
           <span className="text-xl font-extrabold text-purple-400">
-            {todayFood.length} {t.potty.food}
+            {todayFood.length} {todayFood.length === 1 ? (t.brand === 'PupPace' ? 'repas' : 'meal') : (t.brand === 'PupPace' ? 'repas' : 'meals')}
           </span>
         </div>
 

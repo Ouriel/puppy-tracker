@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import type { PredictionResult, ActivityType, PuppyProfile } from '../types';
 import { Droplet, Utensils, AlertCircle, Clock, CheckCircle2, Sparkles, Footprints } from 'lucide-react';
 import { useI18n } from '../i18n';
+import { formatMinutesToXhXX } from '../utils/date';
 
 interface PredictorWidgetProps {
   predictions: PredictionResult;
@@ -45,20 +46,11 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = ({
 
     if (diffMins < 0) {
       const overdueMins = Math.abs(diffMins);
-      if (overdueMins < 60) {
-        return `${overdueMins}m ${t.dashboard.overdueText}!`;
-      }
-      const h = Math.floor(overdueMins / 60);
-      const m = overdueMins % 60;
-      return m > 0 ? `${h}h ${m}m ${t.dashboard.overdueText}` : `${h}h ${t.dashboard.overdueText}`;
+      return `${formatMinutesToXhXX(overdueMins)} ${t.dashboard.overdueText}`;
     } else if (diffMins === 0) {
       return t.dashboard.dueNow;
-    } else if (diffMins < 60) {
-      return `~${diffMins} min`;
     } else {
-      const h = Math.floor(diffMins / 60);
-      const m = diffMins % 60;
-      return m > 0 ? `~${h}h ${m}m` : `~${h}h`;
+      return `~${formatMinutesToXhXX(diffMins)}`;
     }
   };
 
@@ -70,18 +62,11 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = ({
 
     if (diffMins < 0) {
       const overdueMins = Math.abs(diffMins);
-      if (overdueMins < 60) return `${overdueMins}m ${t.dashboard.overdueText}`;
-      const h = Math.floor(overdueMins / 60);
-      const m = overdueMins % 60;
-      return m > 0 ? `${h}h ${m}m ${t.dashboard.overdueText}` : `${h}h ${t.dashboard.overdueText}`;
+      return `${formatMinutesToXhXX(overdueMins)} ${t.dashboard.overdueText}`;
     } else if (diffMins === 0) {
       return t.dashboard.dueNow;
-    } else if (diffMins < 60) {
-      return `${diffMins} min`;
     } else {
-      const h = Math.floor(diffMins / 60);
-      const m = diffMins % 60;
-      return m > 0 ? `${h}h ${m}m` : `${h}h`;
+      return formatMinutesToXhXX(diffMins);
     }
   };
 
@@ -148,10 +133,9 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = ({
                     <span className="text-lg font-bold text-slate-100">
                       {formatCountdown(predictions.nextPeeExpectedAt)}
                     </span>
-                    {/* Standard baseline label if post-meal active */}
-                    {predictions.standardPeeExpectedAt &&
-                      predictions.nextPeeExpectedAt &&
-                      Math.abs(predictions.nextPeeExpectedAt.getTime() - predictions.standardPeeExpectedAt.getTime()) > 5 * 60 * 1000 && (
+                    {/* Standard baseline label if post-meal active during daytime */}
+                    {predictions.peeMode === 'post_meal_override' &&
+                      predictions.standardPeeExpectedAt && (
                         <span className="text-xs font-bold text-sky-400 bg-sky-950/60 border border-sky-800/60 px-2 py-0.5 rounded-lg">
                           ({t.potty.withoutMeal} ~{formatTimeLeft(predictions.standardPeeExpectedAt)})
                         </span>
@@ -206,9 +190,8 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = ({
                     <span className="text-lg font-bold text-slate-100">
                       {formatCountdown(predictions.nextPoopExpectedAt)}
                     </span>
-                    {predictions.standardPoopExpectedAt &&
-                      predictions.nextPoopExpectedAt &&
-                      Math.abs(predictions.nextPoopExpectedAt.getTime() - predictions.standardPoopExpectedAt.getTime()) > 5 * 60 * 1000 && (
+                    {predictions.poopMode === 'post_meal_override' &&
+                      predictions.standardPoopExpectedAt && (
                         <span className="text-xs font-bold text-amber-400 bg-amber-950/60 border border-amber-800/60 px-2 py-0.5 rounded-lg">
                           ({t.potty.withoutMeal} ~{formatTimeLeft(predictions.standardPoopExpectedAt)})
                         </span>

@@ -43,11 +43,13 @@ export type FamilyRole = 'Husband' | 'Wife' | 'Partner' | 'Child' | 'Dog Walker'
 
 export interface UserAccount {
   id: string;
+  householdId?: string;
   name: string;
   email: string;
   role: FamilyRole;
-  avatarColor: string;
-  familyPackId: string;
+  avatarColor?: string;
+  familyPackId?: string;
+  status?: 'ACTIVE' | 'PENDING_APPROVAL';
 }
 
 export interface Caretaker {
@@ -58,18 +60,32 @@ export interface Caretaker {
   email?: string;
 }
 
+export interface RegisteredUserItem {
+  id: string;
+  email: string;
+  name: string;
+  role: string;
+  status: 'ACTIVE' | 'PENDING_APPROVAL';
+}
+
+export type ScheduleMode = 'daytime_baseline' | 'post_meal_override' | 'night_sleep';
+export type FoodScheduleMode = 'daytime_schedule' | 'goal_reached' | 'night_sleep';
+
 export interface PredictionResult {
   nextPeeExpectedAt: Date | null;
   standardPeeExpectedAt?: Date | null;
+  peeMode: ScheduleMode;
   peeUrgency: 'safe' | 'soon' | 'overdue';
   peeReason: string;
   
   nextPoopExpectedAt: Date | null;
   standardPoopExpectedAt?: Date | null;
+  poopMode: ScheduleMode;
   poopUrgency: 'safe' | 'soon' | 'overdue';
   poopReason: string;
 
   nextFoodExpectedAt: Date | null;
+  foodMode: FoodScheduleMode;
   foodUrgency: 'safe' | 'soon' | 'overdue';
   foodReason: string;
 }
@@ -81,4 +97,19 @@ export interface PottyStats {
   accidentCount: number;
   successRatePercentage: number;
   streakDays: number;
+}
+
+export interface HealthRecord {
+  id: string;
+  householdId: string;
+  puppyId: string;
+  type: 'vaccination' | 'deworming';
+  name: string;
+  date: string;
+  boosterDate?: string;
+  batchNumber?: string;
+  vetClinic?: string;
+  productName?: string;
+  weightAtTime?: number;
+  notes?: string;
 }

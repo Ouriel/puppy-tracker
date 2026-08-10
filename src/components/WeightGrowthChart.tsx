@@ -2,6 +2,41 @@ import React from 'react';
 import type { Activity, PuppyProfile } from '../types';
 import { Scale, TrendingUp, Plus, ShieldCheck } from 'lucide-react';
 import { useI18n } from '../i18n';
+import { parseIsoDate } from '../utils/date';
+
+export function getExpectedAdultWeight(breed: string): number {
+  const breedLower = breed.toLowerCase();
+  // Small breeds (3-9 kg adult)
+  if (breedLower.includes('chihuahua')) return 3;
+  if (breedLower.includes('jack russell')) return 7;
+  if (breedLower.includes('cavalier')) return 7.5;
+  if (breedLower.includes('dachshund') || breedLower.includes('teckel')) return 9;
+  // Medium breeds (10-18 kg adult)
+  if (breedLower.includes('cocker')) return 13;
+  if (breedLower.includes('beagle')) return 12;
+  if (breedLower.includes('poodle') || breedLower.includes('caniche')) return 14;
+  if (breedLower.includes('french bulldog') || breedLower.includes('bouledogue')) return 12;
+  if (breedLower.includes('border collie')) return 18;
+  // Large breeds (20-35 kg adult)
+  if (breedLower.includes('australian shepherd') || breedLower.includes('berger australien')) return 25;
+  if (breedLower.includes('german shepherd') || breedLower.includes('berger allemand')) return 32;
+  if (breedLower.includes('labrador')) return 30;
+  if (breedLower.includes('golden')) return 30;
+  if (breedLower.includes('husky')) return 23;
+  // Default medium
+  return 13;
+}
+
+export function scaleGrowthBenchmarks(adultWeightKg: number): Array<{ label: string; expectedKg: number; minKg: number; maxKg: number; weeks: number }> {
+  const scale = adultWeightKg / 13; // 13 kg is the Cocker reference
+  return [
+    { label: '8w', expectedKg: Math.round(2.5 * scale * 10) / 10, minKg: Math.round(2.0 * scale * 10) / 10, maxKg: Math.round(3.2 * scale * 10) / 10, weeks: 8 },
+    { label: '12w', expectedKg: Math.round(5.0 * scale * 10) / 10, minKg: Math.round(4.2 * scale * 10) / 10, maxKg: Math.round(6.0 * scale * 10) / 10, weeks: 12 },
+    { label: '16w', expectedKg: Math.round(7.2 * scale * 10) / 10, minKg: Math.round(6.0 * scale * 10) / 10, maxKg: Math.round(8.5 * scale * 10) / 10, weeks: 16 },
+    { label: '6m', expectedKg: Math.round(9.5 * scale * 10) / 10, minKg: Math.round(8.0 * scale * 10) / 10, maxKg: Math.round(11.0 * scale * 10) / 10, weeks: 26 },
+    { label: '12m', expectedKg: Math.round(adultWeightKg * 10) / 10, minKg: Math.round(adultWeightKg * 0.88 * 10) / 10, maxKg: Math.round(adultWeightKg * 1.15 * 10) / 10, weeks: 52 },
+  ];
+}
 
 interface WeightGrowthChartProps {
   activities: Activity[];
@@ -36,14 +71,9 @@ export const WeightGrowthChart: React.FC<WeightGrowthChartProps> = ({
     return Math.max(1, Math.floor(diffDays / 7));
   }, [profile.birthDate]);
 
-  // Standard Expected Weight Curve for Cocker Spaniel & Medium Breeds (in kg)
-  const growthBenchmarks = [
-    { label: '8w', expectedKg: 2.5, minKg: 2.0, maxKg: 3.2 },
-    { label: '12w', expectedKg: 5.0, minKg: 4.2, maxKg: 6.0 },
-    { label: '16w', expectedKg: 7.2, minKg: 6.0, maxKg: 8.5 },
-    { label: '6m', expectedKg: 9.5, minKg: 8.0, maxKg: 11.0 },
-    { label: '12m', expectedKg: 13.0, minKg: 11.5, maxKg: 15.0 },
-  ];
+  // Standard Expected Weight Curve scaled by breed
+  const adultTargetKg = getExpectedAdultWeight(profile.breed);
+  const growthBenchmarks = scaleGrowthBenchmarks(adultTargetKg);
 
   return (
     <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl space-y-4 shadow-xl">
@@ -80,7 +110,7 @@ export const WeightGrowthChart: React.FC<WeightGrowthChartProps> = ({
       <div className="space-y-2">
         <div className="flex items-center justify-between text-xs text-slate-400 px-1 font-mono">
           <span>{t.weightChart.breedStandard}</span>
-          <span>{latestWeight} {t.units.kg} / 13.0 {t.units.kg} (Target)</span>
+          <span>{latestWeight} {t.units.kg} / {adultTargetKg} {t.units.kg} (Target)</span>
         </div>
 
         {/* Growth Bar Progress */}
@@ -88,14 +118,14 @@ export const WeightGrowthChart: React.FC<WeightGrowthChartProps> = ({
           {/* Target Zone Gradient */}
           <div
             className="h-full bg-gradient-to-r from-indigo-600 via-purple-500 to-pink-500 rounded-full transition-all duration-700"
-            style={{ width: `${Math.min(100, Math.max(0, Math.round(((isNaN(latestWeight) ? 0 : latestWeight) / 14) * 100)))}%` }}
+            style={{ width: `${Math.min(100, Math.max(0, Math.round(((isNaN(latestWeight) ? 0 : latestWeight) / (adultTargetKg * 1.08)) * 100)))}%` }}
           />
         </div>
 
         {/* Benchmarks Grid */}
         <div className="grid grid-cols-5 gap-2 pt-2">
           {growthBenchmarks.map((bench) => {
-            const isPassed = ageWeeks >= parseInt(bench.label);
+            const isPassed = ageWeeks >= bench.weeks;
             return (
               <div
                 key={bench.label}
@@ -131,7 +161,7 @@ export const WeightGrowthChart: React.FC<WeightGrowthChartProps> = ({
               >
                 <span className="font-bold text-pink-300">{log.weightKg} {t.units.kg}</span>
                 <span className="text-[10px] text-slate-500 font-mono">
-                  {new Date(log.timestamp).toLocaleDateString(t.brand === 'PupPace' ? 'fr-FR' : 'en-US', {
+                  {parseIsoDate(log.timestamp).toLocaleDateString(t.brand === 'PupPace' ? 'fr-FR' : 'en-US', {
                     month: 'short',
                     day: 'numeric',
                   })}

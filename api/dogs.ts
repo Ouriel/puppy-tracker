@@ -116,12 +116,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // PUT /api/dogs
     if (req.method === 'PUT') {
-      const { id, ...updates } = req.body || {};
+      const parsed = DogSchema.partial().safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: 'Invalid dog payload', details: parsed.error.issues });
+      }
+      const body = parsed.data;
+      const id = body.id;
       if (!id) return res.status(400).json({ error: 'id is required' });
 
       const [updated] = await db
         .update(puppiesTable)
-        .set({ ...updates, updatedAt: new Date() })
+        .set({
+          name: body.name,
+          breed: body.breed,
+          ...(body.birthDate ? { birthDate: body.birthDate } : {}),
+          ...(body.weightKg !== undefined ? { weightKg: Number(body.weightKg) } : {}),
+          ...(body.dailyFoodGramGoal !== undefined ? { dailyFoodGramGoal: Number(body.dailyFoodGramGoal) } : {}),
+          ...(body.targetMealsPerDay !== undefined ? { targetMealsPerDay: Number(body.targetMealsPerDay) } : {}),
+          ...(body.notes !== undefined ? { notes: body.notes } : {}),
+          ...(body.avatarUrl !== undefined ? { avatarUrl: body.avatarUrl } : {}),
+          updatedAt: new Date(),
+        })
         .where(and(eq(puppiesTable.id, id), eq(puppiesTable.householdId, householdId)))
         .returning();
 
