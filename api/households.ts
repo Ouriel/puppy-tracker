@@ -43,6 +43,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     // GET /api/households — Fetch household details & members
     if (req.method === 'GET') {
+      res.setHeader('Cache-Control', 'private, max-age=10, stale-while-revalidate=60');
       const [household] = await db
         .select()
         .from(householdsTable)
