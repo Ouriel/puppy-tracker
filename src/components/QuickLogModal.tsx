@@ -160,7 +160,7 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
                         : 'bg-slate-800 border-slate-700 text-slate-400 hover:text-slate-200'
                     }`}
                   >
-                    {t.potty.outsideLabel}
+                    🌳 {t.potty.outside}
                   </button>
                   <button
                     type="button"
@@ -171,7 +171,7 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
                         : 'bg-slate-800 border-slate-700 text-slate-400 hover:text-slate-200'
                     }`}
                   >
-                    {t.potty.accidentLabel}
+                    🚨 {t.potty.accident}
                   </button>
                 </div>
               </div>
@@ -186,10 +186,10 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
                     onChange={(event) => setStoolConsistency(event.target.value as StoolConsistency)}
                     className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-xs text-slate-100 focus:outline-none focus:border-indigo-500 cursor-pointer font-medium"
                   >
-                    <option value="normal">{t.potty.normalStool}</option>
+                    <option value="normal">{t.potty.normal}</option>
                     <option value="firm">{t.potty.firm}</option>
-                    <option value="soft">{t.potty.softStool}</option>
-                    <option value="runny">{t.potty.runnyStool}</option>
+                    <option value="soft">{t.potty.soft}</option>
+                    <option value="runny">{t.potty.runny}</option>
                   </select>
                 </div>
               )}
@@ -224,8 +224,8 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
                     className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-xs text-slate-100 focus:outline-none focus:border-indigo-500 cursor-pointer font-medium"
                   >
                     <option value="kibble">{t.potty.kibble}</option>
-                    <option value="wet">{t.potty.wetFood}</option>
-                    <option value="raw">{t.potty.rawFood}</option>
+                    <option value="wet">{t.potty.wet}</option>
+                    <option value="raw">{t.potty.raw}</option>
                     <option value="treats">{t.potty.treats}</option>
                   </select>
                 </div>
