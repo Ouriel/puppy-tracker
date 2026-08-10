@@ -70,26 +70,23 @@ export function App() {
     return () => window.removeEventListener('puppace:unauthorized', onUnauthorized);
   }, []);
 
-  // Main Page Navigation Tabs with Clean English Technical URL Routing
-  const [activeMainTab, setActiveMainTab] = useState<MainTabType>('dashboard');
+  const getInitialTabFromLocation = (): MainTabType => {
+    const path = window.location.pathname;
+    if (path === '/health-passport' || path === '/carnet-de-sante') return 'carnetdesante';
+    if (path === '/settings') return 'settings';
+    if (path === '/care-guide') return 'careguide';
+    if (path === '/admin') return 'admin';
+    return 'dashboard';
+  };
 
-  // URL Path Synchronization
+  // Main Page Navigation Tabs with Clean English Technical URL Routing
+  const [activeMainTab, setActiveMainTab] = useState<MainTabType>(getInitialTabFromLocation);
+
+  // URL Path Synchronization for Browser Back/Forward & Refresh
   useEffect(() => {
     const syncRouteWithTab = () => {
-      const path = window.location.pathname;
-      if (path === '/health-passport' || path === '/carnet-de-sante') {
-        setActiveMainTab('carnetdesante');
-      } else if (path === '/settings') {
-        setActiveMainTab('settings');
-      } else if (path === '/care-guide') {
-        setActiveMainTab('careguide');
-      } else if (path === '/admin') {
-        setActiveMainTab('admin');
-      } else {
-        setActiveMainTab('dashboard');
-      }
+      setActiveMainTab(getInitialTabFromLocation());
     };
-    syncRouteWithTab();
     window.addEventListener('popstate', syncRouteWithTab);
     return () => window.removeEventListener('popstate', syncRouteWithTab);
   }, []);
@@ -103,8 +100,9 @@ export function App() {
       careguide: '/care-guide',
       admin: '/admin',
     };
-    if (window.location.pathname !== routeMap[tab]) {
-      window.history.pushState({}, '', routeMap[tab]);
+    const targetPath = routeMap[tab];
+    if (window.location.pathname !== targetPath) {
+      window.history.pushState({ tab }, '', targetPath);
     }
   };
 

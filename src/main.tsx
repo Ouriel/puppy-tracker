@@ -8,22 +8,7 @@ import App from './App.tsx';
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <App />
-    <SpeedInsights
-      beforeSend={(data) => {
-        const path = window.location.pathname || '/';
-        return {
-          ...data,
-          route: data.route && data.route !== '(unknown)' ? data.route : path,
-        };
-      }}
-    />
-    <Analytics
-      beforeSend={(event) => {
-        return {
-          ...event,
-          url: event.url || window.location.href,
-        };
-      }}
-    />
+    <SpeedInsights />
+    <Analytics />
   </StrictMode>,
 );
