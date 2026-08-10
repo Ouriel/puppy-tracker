@@ -116,7 +116,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // PUT /api/dogs
     if (req.method === 'PUT') {
-      const parsed = DogSchema.safeParse(req.body);
+      const parsed = DogSchema.partial().safeParse(req.body);
       if (!parsed.success) {
         return res.status(400).json({ error: 'Invalid dog payload', details: parsed.error.issues });
       }

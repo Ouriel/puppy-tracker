@@ -99,7 +99,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // PUT /api/health-records
     if (req.method === 'PUT') {
-      const parsed = HealthRecordSchema.safeParse(req.body);
+      const parsed = HealthRecordSchema.partial().safeParse(req.body);
       if (!parsed.success) {
         return res.status(400).json({ error: 'Invalid health record payload', details: parsed.error.issues });
       }

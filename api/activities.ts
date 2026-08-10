@@ -113,7 +113,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // PUT /api/activities
     if (req.method === 'PUT') {
-      const parsed = ActivitySchema.safeParse(req.body);
+      const parsed = ActivitySchema.partial().safeParse(req.body);
       if (!parsed.success) {
         return res.status(400).json({ error: 'Invalid activity payload', details: parsed.error.issues });
       }
