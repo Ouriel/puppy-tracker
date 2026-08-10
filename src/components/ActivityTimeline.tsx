@@ -4,6 +4,7 @@ import { Droplet, Footprints, Utensils, Scale, Pill, Trash2, Pencil } from 'luci
 import { useI18n } from '../i18n';
 import { formatRelativeTime, parseIsoDate } from '../utils/date';
 import { EditActivityModal } from './EditActivityModal';
+import { resolveCaretakerName } from '../utils/caretakers';
 
 interface ActivityTimelineProps {
   activities: Activity[];
@@ -38,7 +39,8 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
   };
 
   const getCaretakerColor = (name: string) => {
-    const caretaker = caretakers.find((item) => item.name.toLowerCase() === name.toLowerCase());
+    const resolved = resolveCaretakerName(name, caretakers);
+    const caretaker = caretakers.find((item) => item.name.toLowerCase() === resolved.toLowerCase());
     return caretaker ? caretaker.color : '#6366F1';
   };
 
@@ -193,7 +195,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
                       <span>{formatTime(item.timestamp)}</span>
                       <span>•</span>
                       <span className="font-semibold" style={{ color }}>
-                        {item.loggedBy}
+                        {resolveCaretakerName(item.loggedBy, caretakers)}
                       </span>
                     </div>
                   </div>
