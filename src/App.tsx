@@ -1,6 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { SpeedInsights } from '@vercel/speed-insights/react';
-import { Analytics } from '@vercel/analytics/react';
 import type { Activity, Caretaker, FamilyRole, PuppyProfile, UserAccount, ActivityType, PottyLocation } from './types';
 import {
   getStoredUser,
@@ -635,9 +633,6 @@ export function App() {
           currentUser={currentUser}
         />
       )}
-      {/* Vercel Speed Insights & Real-User Analytics */}
-      <SpeedInsights />
-      <Analytics />
     </div>
   );
 }
