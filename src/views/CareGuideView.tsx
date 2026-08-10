@@ -1,164 +1,184 @@
-import React, { useState } from 'react';
-import { BookOpen, Search, ExternalLink, Heart, ShieldAlert, Award } from 'lucide-react';
+import React from 'react';
+import { BookOpen, ExternalLink, ShieldCheck, Heart, ArrowLeft, GraduationCap } from 'lucide-react';
+import { useI18n } from '../i18n';
 
-export const CareGuideView: React.FC = () => {
-  const [searchTerm, setSearchTerm] = useState('');
+interface CareGuideViewProps {
+  onBackToDashboard?: () => void;
+}
 
-  const breeds = [
-    {
-      name: 'Cocker Spaniel',
-      group: 'Sporting Group',
-      pottyTip: 'High energy puppy requiring potty breaks every 1.5 - 2 hours daytime. Reward heavily with praise.',
-      earCare: 'Long floppy ears require daily inspection and cleaning after walks to prevent moisture buildup.',
-      exerciseMin: '45-60 mins/day',
-      akcLink: 'https://www.akc.org/dog-breeds/cocker-spaniel/',
-    },
-    {
-      name: 'French Bulldog',
-      group: 'Non-Sporting Group',
-      pottyTip: 'Sensitive to heat. Take out frequently for short potty trips; avoid strenuous outdoor activity in direct sun.',
-      earCare: 'Clean facial wrinkles and ears regularly with gentle pet wipes.',
-      exerciseMin: '20-30 mins/day',
-      akcLink: 'https://www.akc.org/dog-breeds/french-bulldog/',
-    },
-    {
-      name: 'Golden Retriever',
-      group: 'Sporting Group',
-      pottyTip: 'Fast learners. Establish a consistent potty spot in the yard immediately after naps and meals.',
-      earCare: 'Inspect ears after swimming or rainy outdoor play.',
-      exerciseMin: '60+ mins/day',
-      akcLink: 'https://www.akc.org/dog-breeds/golden-retriever/',
-    },
-    {
-      name: 'German Shepherd',
-      group: 'Herding Group',
-      pottyTip: 'Thrives on routine and clear commands. Highly intelligent and responds well to clicker training.',
-      earCare: 'Ears stand erect naturally; check for dirt weekly.',
-      exerciseMin: '60-90 mins/day',
-      akcLink: 'https://www.akc.org/dog-breeds/german-shepherd-dog/',
-    },
-    {
-      name: 'Labrador Retriever',
-      group: 'Sporting Group',
-      pottyTip: 'Food motivated. Use tiny kibble pieces as immediate reward when peeing outside.',
-      earCare: 'Check ears for moisture after water activity.',
-      exerciseMin: '60+ mins/day',
-      akcLink: 'https://www.akc.org/dog-breeds/labrador-retriever/',
-    },
-  ];
-
-  const filteredBreeds = breeds.filter((b) =>
-    b.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    b.group.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+export const CareGuideView: React.FC<CareGuideViewProps> = ({ onBackToDashboard }) => {
+  const { t } = useI18n();
 
   return (
     <div className="space-y-6 animate-fadeIn max-w-4xl mx-auto">
-      {/* Header */}
+      {/* Header with Back to Dashboard exit button */}
       <div className="flex flex-wrap items-center justify-between gap-4 bg-slate-900 border border-slate-800 p-6 rounded-2xl">
         <div className="flex items-center gap-3">
-          <div className="p-3 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-xl shadow-md">
+          <div className="p-3 bg-gradient-to-br from-indigo-500 to-teal-600 rounded-xl shadow-md">
             <BookOpen className="w-6 h-6 text-white" />
           </div>
           <div>
-            <h2 className="text-xl font-bold text-slate-100">All-Breed Care & Potty Guide</h2>
-            <p className="text-xs text-slate-400">Breed-specific potty training tips, ear care, and official AKC resources</p>
+            <h2 className="text-xl font-bold text-slate-100">{t.careGuide.title}</h2>
+            <p className="text-xs text-slate-400">{t.careGuide.subtitle}</p>
           </div>
         </div>
 
-        <div className="relative w-full sm:w-64">
-          <Search className="w-4 h-4 text-slate-500 absolute left-3 top-2.5" />
-          <input
-            type="text"
-            placeholder="Search breed..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full bg-slate-800 border border-slate-700 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-indigo-500"
-          />
-        </div>
+        {onBackToDashboard && (
+          <button
+            onClick={onBackToDashboard}
+            className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-indigo-300 font-bold text-xs px-4 py-2.5 rounded-xl border border-slate-700 transition cursor-pointer"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            <span>{t.careGuide.backToDashboard}</span>
+          </button>
+        )}
       </div>
 
-      {/* External Verified Resource Directory */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <a
-          href="https://www.akc.org/dog-owners/training/how-to-potty-train-a-puppy/"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="bg-slate-900 border border-slate-800 hover:border-indigo-500/50 p-4 rounded-xl space-y-1 group transition shadow cursor-pointer"
-        >
-          <div className="flex items-center justify-between text-xs font-bold text-slate-200 group-hover:text-indigo-300">
-            <span className="flex items-center gap-1.5">
-              <Award className="w-4 h-4 text-amber-400" />
-              <span>AKC Potty Guide</span>
-            </span>
-            <ExternalLink className="w-3.5 h-3.5 text-slate-500" />
+      {/* Esprit Dog Recommended Method Card */}
+      <div className="bg-gradient-to-r from-amber-950/40 via-indigo-950/40 to-slate-900 border border-amber-500/30 p-6 rounded-2xl space-y-3 shadow-xl">
+        <div className="flex items-center gap-2">
+          <div className="p-2 bg-amber-500/20 text-amber-400 rounded-xl">
+            <GraduationCap className="w-5 h-5" />
           </div>
-          <p className="text-[11px] text-slate-400">Official American Kennel Club potty training steps.</p>
-        </a>
-
-        <a
-          href="https://pupford.com/puppy-potty-training-guide/"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="bg-slate-900 border border-slate-800 hover:border-indigo-500/50 p-4 rounded-xl space-y-1 group transition shadow cursor-pointer"
-        >
-          <div className="flex items-center justify-between text-xs font-bold text-slate-200 group-hover:text-indigo-300">
-            <span className="flex items-center gap-1.5">
-              <Heart className="w-4 h-4 text-pink-400" />
-              <span>Pupford Schedule</span>
-            </span>
-            <ExternalLink className="w-3.5 h-3.5 text-slate-500" />
-          </div>
-          <p className="text-[11px] text-slate-400">Hour-by-hour puppy schedule & positive reinforcement.</p>
-        </a>
-
-        <a
-          href="https://www.avma.org/resources-tools/pet-owners/petcare/puppy-socialization"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="bg-slate-900 border border-slate-800 hover:border-indigo-500/50 p-4 rounded-xl space-y-1 group transition shadow cursor-pointer"
-        >
-          <div className="flex items-center justify-between text-xs font-bold text-slate-200 group-hover:text-indigo-300">
-            <span className="flex items-center gap-1.5">
-              <ShieldAlert className="w-4 h-4 text-emerald-400" />
-              <span>AVMA Health Guidelines</span>
-            </span>
-            <ExternalLink className="w-3.5 h-3.5 text-slate-500" />
-          </div>
-          <p className="text-[11px] text-slate-400">American Veterinary Medical Association guidelines.</p>
-        </a>
-      </div>
-
-      {/* Breeds List */}
-      <div className="space-y-3">
-        {filteredBreeds.map((breed) => (
-          <div key={breed.name} className="bg-slate-900 border border-slate-800 p-5 rounded-2xl space-y-2 shadow-xl">
-            <div className="flex items-center justify-between">
-              <h3 className="text-base font-bold text-white flex items-center gap-2">
-                <span>{breed.name}</span>
-                <span className="text-[10px] bg-indigo-950 text-indigo-300 border border-indigo-700/50 px-2 py-0.5 rounded font-semibold">
-                  {breed.group}
-                </span>
-              </h3>
-              <a
-                href={breed.akcLink}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1 font-semibold"
-              >
-                <span>AKC Profile</span>
-                <ExternalLink className="w-3.5 h-3.5" />
-              </a>
-            </div>
-
-            <p className="text-xs text-slate-300">
-              <strong className="text-amber-400">Potty Tip:</strong> {breed.pottyTip}
-            </p>
+          <div>
+            <h3 className="text-sm font-bold text-amber-300">
+              {t.careGuide.espritDogTitle}
+            </h3>
             <p className="text-xs text-slate-400">
-              <strong className="text-indigo-300">Ear & Grooming Care:</strong> {breed.earCare}
+              {t.careGuide.espritDogSubtitle}
             </p>
           </div>
-        ))}
+        </div>
+        <p className="text-xs text-slate-300 leading-relaxed">
+          {t.careGuide.espritDogDesc}
+        </p>
+        <a
+          href="https://www.espritdog.com/esprit-dog-chiot/"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-400 hover:text-amber-300 transition"
+        >
+          <span>{t.careGuide.espritDogLink}</span>
+          <ExternalLink className="w-3.5 h-3.5" />
+        </a>
+      </div>
+
+      {/* Potty Housebreaking Best Practices */}
+      <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl space-y-4 shadow-xl">
+        <h3 className="text-sm font-bold text-teal-400 uppercase tracking-wider flex items-center gap-2">
+          <ShieldCheck className="w-4 h-4" />
+          <span>{t.careGuide.generalTips}</span>
+        </h3>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs text-slate-300 leading-relaxed">
+          <div className="bg-slate-950/60 p-4 rounded-xl border border-slate-800 space-y-2">
+            <h4 className="font-bold text-amber-300">
+              {t.careGuide.tip1Title}
+            </h4>
+            <p>
+              {t.careGuide.tip1Desc}
+            </p>
+          </div>
+
+          <div className="bg-slate-950/60 p-4 rounded-xl border border-slate-800 space-y-2">
+            <h4 className="font-bold text-red-300">
+              {t.careGuide.tip2Title}
+            </h4>
+            <p>
+              {t.careGuide.tip2Desc}
+            </p>
+          </div>
+
+          <div className="bg-slate-950/60 p-4 rounded-xl border border-slate-800 space-y-2">
+            <h4 className="font-bold text-emerald-300">
+              {t.careGuide.tip3Title}
+            </h4>
+            <p>
+              {t.careGuide.tip3Desc}
+            </p>
+          </div>
+
+          <div className="bg-slate-950/60 p-4 rounded-xl border border-slate-800 space-y-2">
+            <h4 className="font-bold text-indigo-300">
+              {t.careGuide.tip4Title}
+            </h4>
+            <p>
+              {t.careGuide.tip4Desc}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Breed Directory & Official French/International Resources */}
+      <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl space-y-4 shadow-xl">
+        <h3 className="text-sm font-bold text-indigo-400 uppercase tracking-wider flex items-center gap-2">
+          <Heart className="w-4 h-4" />
+          <span>{t.careGuide.breedGuides} & {t.careGuide.officialReferences}</span>
+        </h3>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {/* Esprit Dog & French Resources */}
+          <a
+            href="https://www.espritdog.com/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="p-3.5 bg-slate-950/40 border border-slate-800 hover:border-amber-500 rounded-xl transition flex items-center justify-between text-xs text-slate-200"
+          >
+            <span>🇫🇷 Esprit Dog — Fiches Races & Méthodes d’Éducation</span>
+            <ExternalLink className="w-4 h-4 text-amber-400" />
+          </a>
+
+          <a
+            href="https://www.centrale-canine.fr/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="p-3.5 bg-slate-950/40 border border-slate-800 hover:border-indigo-500 rounded-xl transition flex items-center justify-between text-xs text-slate-200"
+          >
+            <span>🇫🇷 Société Centrale Canine (SCC) — Encyclopédie des Races</span>
+            <ExternalLink className="w-4 h-4 text-slate-500" />
+          </a>
+
+          <a
+            href="https://www.santevet.com/articles/apprendre-la-proprete-a-son-chiot"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="p-3.5 bg-slate-950/40 border border-slate-800 hover:border-indigo-500 rounded-xl transition flex items-center justify-between text-xs text-slate-200"
+          >
+            <span>🇫🇷 SantéVet — Guide Vétérinaire Propreté du Chiot</span>
+            <ExternalLink className="w-4 h-4 text-slate-500" />
+          </a>
+
+          {/* International Resources */}
+          <a
+            href="https://www.akc.org/dog-breeds/english-cocker-spaniel/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="p-3.5 bg-slate-950/40 border border-slate-800 hover:border-indigo-500 rounded-xl transition flex items-center justify-between text-xs text-slate-200"
+          >
+            <span>🇬🇧 AKC — English Cocker Spaniel Care Guide</span>
+            <ExternalLink className="w-4 h-4 text-slate-500" />
+          </a>
+
+          <a
+            href="https://www.akc.org/dog-breeds/french-bulldog/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="p-3.5 bg-slate-950/40 border border-slate-800 hover:border-indigo-500 rounded-xl transition flex items-center justify-between text-xs text-slate-200"
+          >
+            <span>🇬🇧 AKC — French Bulldog Care & Health Guide</span>
+            <ExternalLink className="w-4 h-4 text-slate-500" />
+          </a>
+
+          <a
+            href="https://www.akc.org/dog-breeds/golden-retriever/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="p-3.5 bg-slate-950/40 border border-slate-800 hover:border-indigo-500 rounded-xl transition flex items-center justify-between text-xs text-slate-200"
+          >
+            <span>🇬🇧 AKC — Golden Retriever Growth & Training</span>
+            <ExternalLink className="w-4 h-4 text-slate-500" />
+          </a>
+        </div>
       </div>
     </div>
   );

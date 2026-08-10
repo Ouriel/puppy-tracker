@@ -1,19 +1,27 @@
 import React, { useState } from 'react';
 import type { Activity, ActivityType, Caretaker } from '../types';
-import { Droplet, Footprints, Utensils, GlassWater, Moon, Activity as WalkIcon, Scale, Pill, Trash2 } from 'lucide-react';
+import { Droplet, Footprints, Utensils, Scale, Pill, Trash2, Pencil } from 'lucide-react';
+import { useI18n } from '../i18n';
+import { formatRelativeTime, parseIsoDate } from '../utils/date';
+import { EditActivityModal } from './EditActivityModal';
+import { resolveCaretakerName } from '../utils/caretakers';
 
 interface ActivityTimelineProps {
   activities: Activity[];
   caretakers: Caretaker[];
   onDeleteActivity: (id: string) => void;
+  onUpdateActivity?: (updated: Partial<Activity> & { id: string }) => void;
 }
 
 export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
   activities,
   caretakers,
   onDeleteActivity,
+  onUpdateActivity,
 }) => {
-  const [filter, setFilter] = useState<'all' | 'potty' | 'food' | 'nap_walk'>('all');
+  const { t } = useI18n();
+  const [filter, setFilter] = useState<'all' | 'potty' | 'food'>('all');
+  const [editingActivity, setEditingActivity] = useState<Activity | null>(null);
 
   const getIcon = (type: ActivityType) => {
     switch (type) {
@@ -23,12 +31,6 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
         return <Footprints className="w-4 h-4 text-amber-400" />;
       case 'food':
         return <Utensils className="w-4 h-4 text-purple-400" />;
-      case 'water':
-        return <GlassWater className="w-4 h-4 text-cyan-400" />;
-      case 'nap':
-        return <Moon className="w-4 h-4 text-indigo-400" />;
-      case 'walk':
-        return <WalkIcon className="w-4 h-4 text-emerald-400" />;
       case 'weight':
         return <Scale className="w-4 h-4 text-pink-400" />;
       case 'medication':
@@ -37,35 +39,28 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
   };
 
   const getCaretakerColor = (name: string) => {
-    const caretaker = caretakers.find((c) => c.name.toLowerCase() === name.toLowerCase());
+    const resolved = resolveCaretakerName(name, caretakers);
+    const caretaker = caretakers.find((item) => item.name.toLowerCase() === resolved.toLowerCase());
     return caretaker ? caretaker.color : '#6366F1';
   };
 
-  const filtered = activities.filter((a) => {
-    if (filter === 'potty') return a.type === 'pee' || a.type === 'poop';
-    if (filter === 'food') return a.type === 'food' || a.type === 'water';
-    if (filter === 'nap_walk') return a.type === 'nap' || a.type === 'walk';
+  const filtered = activities.filter((activity) => {
+    if (filter === 'potty') return activity.type === 'pee' || activity.type === 'poop';
+    if (filter === 'food') return activity.type === 'food';
     return true;
   });
 
   const sorted = [...filtered].sort(
-    (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+    (activityA, activityB) => parseIsoDate(activityB.timestamp).getTime() - parseIsoDate(activityA.timestamp).getTime()
   );
 
+  const { lang } = useI18n();
+
   const formatTime = (isoString: string) => {
-    const date = new Date(isoString);
-    const now = new Date();
-    const diffHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60);
-
-    const timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
-    if (diffHours < 24 && date.getDate() === now.getDate()) {
-      return `Today at ${timeStr}`;
-    } else if (diffHours < 48 && date.getDate() === now.getDate() - 1) {
-      return `Yesterday at ${timeStr}`;
-    } else {
-      return `${date.toLocaleDateString([], { month: 'short', day: 'numeric' })} at ${timeStr}`;
-    }
+    return formatRelativeTime(isoString, lang as 'en' | 'fr', {
+      today: t.dashboard.today,
+      yesterday: t.dashboard.yesterday,
+    });
   };
 
   return (
@@ -74,12 +69,12 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
       <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
         <div>
           <h2 className="text-base font-bold text-slate-100 flex items-center gap-2">
-            <span>Activity Feed</span>
+            <span>{t.dashboard.activityFeed}</span>
             <span className="text-xs bg-slate-700 text-slate-300 px-2 py-0.5 rounded-full font-semibold">
               {sorted.length}
             </span>
           </h2>
-          <p className="text-xs text-slate-400">Chronological history logged by all pack members</p>
+          <p className="text-xs text-slate-400">{t.dashboard.chronologicalHistory}</p>
         </div>
 
         {/* Filter Pills */}
@@ -92,7 +87,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
                 : 'text-slate-400 hover:text-slate-200'
             }`}
           >
-            All
+            {t.dashboard.all}
           </button>
           <button
             onClick={() => setFilter('potty')}
@@ -102,7 +97,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
                 : 'text-slate-400 hover:text-slate-200'
             }`}
           >
-            Potty 💧
+            {t.dashboard.pottyFilter}
           </button>
           <button
             onClick={() => setFilter('food')}
@@ -112,17 +107,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
                 : 'text-slate-400 hover:text-slate-200'
             }`}
           >
-            Meals 🍖
-          </button>
-          <button
-            onClick={() => setFilter('nap_walk')}
-            className={`px-3 py-1 text-xs font-semibold rounded-lg transition cursor-pointer ${
-              filter === 'nap_walk'
-                ? 'bg-indigo-600 text-white shadow'
-                : 'text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            Activity 🐾
+            {t.dashboard.mealsFilter}
           </button>
         </div>
       </div>
@@ -130,8 +115,8 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
       {/* Timeline list */}
       {sorted.length === 0 ? (
         <div className="text-center py-10 text-slate-400 bg-slate-900/40 rounded-xl border border-dashed border-slate-700">
-          <p className="text-sm">No activity logs recorded yet.</p>
-          <p className="text-xs text-slate-500 mt-1">Tap "+ Log Event" above to record an event!</p>
+          <p className="text-sm">{t.dashboard.noActivityLogs}</p>
+          <p className="text-xs text-slate-500 mt-1">{t.dashboard.tapLogEvent}</p>
         </div>
       ) : (
         <div className="relative pl-6 space-y-4 before:absolute before:left-2.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-700/60">
@@ -156,58 +141,46 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
                   <div>
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-xs font-bold text-slate-100 capitalize">
-                        {item.type}
+                        {t.potty[item.type as keyof typeof t.potty] || item.type}
                       </span>
 
                       {/* Potty location pill */}
                       {item.pottyLocation === 'outside' && (
                         <span className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px] font-bold px-2 py-0.5 rounded-full">
-                          🌳 Outside Success
-                        </span>
-                      )}
-                      {item.pottyLocation === 'indoor_pad' && (
-                        <span className="bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[10px] font-bold px-2 py-0.5 rounded-full">
-                          🟨 Pee Pad
+                          🌳 {t.potty.outside}
                         </span>
                       )}
                       {item.pottyLocation === 'indoor_accident' && (
                         <span className="bg-red-500/20 text-red-300 border border-red-500/30 text-[10px] font-bold px-2 py-0.5 rounded-full">
-                          🚨 Accident
+                          🚨 {t.potty.accident}
                         </span>
                       )}
 
                       {/* Stool consistency */}
                       {item.stoolConsistency && (
                         <span className="bg-slate-800 text-slate-300 text-[10px] px-2 py-0.5 rounded-full border border-slate-700">
-                          Stool: {item.stoolConsistency}
+                          Stool: {t.potty[item.stoolConsistency as keyof typeof t.potty] || item.stoolConsistency}
                         </span>
                       )}
 
                       {/* Food Grams */}
                       {item.quantityGrams && (
                         <span className="bg-purple-500/20 text-purple-300 border border-purple-500/30 text-[10px] font-bold px-2 py-0.5 rounded-full">
-                          {item.quantityGrams}g ({item.quantityCups || 0.75} cups) - {item.foodType}
+                          {item.quantityGrams}{t.units.grams} ({item.quantityCups || 0.75} {t.units.cups}) - {item.foodType}
                         </span>
                       )}
 
                       {/* Duration */}
                       {item.durationMinutes && (
                         <span className="bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-[10px] font-bold px-2 py-0.5 rounded-full">
-                          {item.durationMinutes} mins
-                        </span>
-                      )}
-
-                      {/* Water ml */}
-                      {item.waterAmountMl && (
-                        <span className="bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 text-[10px] font-bold px-2 py-0.5 rounded-full">
-                          {item.waterAmountMl} ml
+                          {item.durationMinutes} {t.units.minutes}
                         </span>
                       )}
 
                       {/* Weight */}
                       {item.weightKg && (
                         <span className="bg-pink-500/20 text-pink-300 border border-pink-500/30 text-[10px] font-bold px-2 py-0.5 rounded-full">
-                          {item.weightKg} kg
+                          {item.weightKg} {t.units.kg}
                         </span>
                       )}
                     </div>
@@ -222,23 +195,53 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
                       <span>{formatTime(item.timestamp)}</span>
                       <span>•</span>
                       <span className="font-semibold" style={{ color }}>
-                        {item.loggedBy}
+                        {resolveCaretakerName(item.loggedBy, caretakers)}
                       </span>
                     </div>
                   </div>
                 </div>
 
-                <button
-                  onClick={() => onDeleteActivity(item.id)}
-                  title="Delete log"
-                  className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-slate-500 hover:text-red-400 hover:bg-slate-800 transition cursor-pointer"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
+                <div className="flex items-center gap-1 shrink-0 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition">
+                  {onUpdateActivity && (
+                    <button
+                      onClick={() => setEditingActivity(item)}
+                      title="Edit activity log"
+                      aria-label="Edit activity log"
+                      className="p-2 rounded-xl text-slate-400 hover:text-indigo-400 bg-slate-800/80 sm:bg-transparent hover:bg-slate-800 transition cursor-pointer border border-slate-700/60 sm:border-transparent"
+                    >
+                      <Pencil className="w-4 h-4" />
+                    </button>
+                  )}
+
+                  <button
+                    onClick={() => {
+                      const confirmMsg = 'Are you sure you want to delete this activity log?';
+                      if (window.confirm(confirmMsg)) {
+                        onDeleteActivity(item.id);
+                      }
+                    }}
+                    title="Delete log"
+                    aria-label="Delete log"
+                    className="p-2 rounded-xl text-slate-400 hover:text-red-400 bg-slate-800/80 sm:bg-transparent hover:bg-slate-800 transition cursor-pointer border border-slate-700/60 sm:border-transparent"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
             );
           })}
         </div>
+      )}
+
+      {editingActivity && onUpdateActivity && (
+        <EditActivityModal
+          activity={editingActivity}
+          onSave={(updated) => {
+            onUpdateActivity(updated);
+            setEditingActivity(null);
+          }}
+          onClose={() => setEditingActivity(null)}
+        />
       )}
     </div>
   );

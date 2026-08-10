@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Lock, Mail, ShieldCheck, ArrowRight, Eye, EyeOff, UserPlus, LogIn, CheckCircle2, FileText, Shield, Sparkles, ChevronDown, ChevronUp } from 'lucide-react';
+import { Lock, ShieldCheck, CheckCircle2, FileText, Shield, Sparkles, ChevronDown, ChevronUp } from 'lucide-react';
 import { PrivacyPolicyModal } from './PrivacyPolicyModal';
 import { TermsOfServiceModal } from './TermsOfServiceModal';
+import { useI18n } from '../i18n';
 
 interface AuthLockScreenProps {
   onUnlockWithSSO: (email: string, name: string, token: string) => { success: boolean; message?: string };
@@ -11,17 +12,10 @@ interface AuthLockScreenProps {
 
 export const AuthLockScreen: React.FC<AuthLockScreenProps> = ({
   onUnlockWithSSO,
-  onUnlockWithPassword,
-  onRegisterAccount,
 }) => {
-  const [activeTab, setActiveTab] = useState<'signin' | 'create'>('signin');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [name, setName] = useState('');
-  const [role, setRole] = useState('Wife');
-  const [showPassword, setShowPassword] = useState(false);
+  const { t } = useI18n();
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
+  const [success] = useState('');
   const [showAboutDetails, setShowAboutDetails] = useState(false);
 
   const [isPrivacyOpen, setIsPrivacyOpen] = useState(false);
@@ -29,15 +23,11 @@ export const AuthLockScreen: React.FC<AuthLockScreenProps> = ({
   
   const googleBtnRef = useRef<HTMLDivElement>(null);
 
-  // Production Client ID fallback
-  const defaultProductionClientId = '8924902082-52mf1l272khij6ac2racnh4p34h7fh08.apps.googleusercontent.com';
-  const googleClientId =
-    (import.meta.env.VITE_GOOGLE_CLIENT_ID as string) ||
-    localStorage.getItem('puppace_google_client_id') ||
-    defaultProductionClientId;
+  // Google OAuth Client ID — fixed setting from environment variable (configured in Vercel)
+  const googleClientId = (import.meta.env.VITE_GOOGLE_CLIENT_ID as string) || '';
 
   useEffect(() => {
-    if (activeTab === 'signin' && googleClientId && window.google) {
+    if (googleClientId && window.google) {
       try {
         window.google.accounts.id.initialize({
           client_id: googleClientId,
@@ -57,10 +47,10 @@ export const AuthLockScreen: React.FC<AuthLockScreenProps> = ({
               
               const res = onUnlockWithSSO(decoded.email, decoded.name, credential);
               if (!res.success) {
-                setError(res.message || 'Account pending activation by Super Admin Matthieu.');
+                setError(res.message || t.auth.pendingActivation);
               }
-            } catch (e) {
-              setError('Failed to process Google SSO authentication.');
+            } catch {
+              setError(t.auth.ssoFailed);
             }
           },
         });
@@ -74,40 +64,7 @@ export const AuthLockScreen: React.FC<AuthLockScreenProps> = ({
         console.error('Google accounts ID initialization error', err);
       }
     }
-  }, [activeTab, onUnlockWithSSO, googleClientId]);
-
-  const handlePasswordLogin = (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setSuccess('');
-    const res = onUnlockWithPassword(email.trim().toLowerCase(), password);
-    if (!res.success) {
-      setError(res.message || 'Invalid email or password.');
-    }
-  };
-
-  const handleCreateAccount = (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setSuccess('');
-    if (!email.trim() || !password || !name.trim()) return;
-
-    const res = onRegisterAccount(
-      email.trim().toLowerCase(),
-      password,
-      name.trim(),
-      role
-    );
-
-    if (res.isPending || !res.success) {
-      setSuccess('Account Created! Your account is awaiting activation by Super Admin Matthieu (matthieu.jacquet@gmail.com). You can sign in as soon as he activates it.');
-      setEmail('');
-      setPassword('');
-      setName('');
-    } else {
-      setSuccess('Account activated! Logging you in...');
-    }
-  };
+  }, [onUnlockWithSSO, googleClientId, t]);
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center p-4 selection:bg-indigo-500 selection:text-white flex-col py-8">
@@ -121,7 +78,7 @@ export const AuthLockScreen: React.FC<AuthLockScreenProps> = ({
         <div className="text-center space-y-2 relative z-10">
           <div className="relative inline-block">
             <img
-              src="/cocker_spaniel_mascot.jpg"
+              src="/flat_cocker_spaniel_logo.jpg"
               alt="PupPace Logo"
               className="w-20 h-20 rounded-full object-cover mx-auto ring-4 ring-indigo-500/50 shadow-xl"
             />
@@ -134,30 +91,8 @@ export const AuthLockScreen: React.FC<AuthLockScreenProps> = ({
             PupPace
           </h1>
           <p className="text-xs text-slate-400 max-w-xs mx-auto">
-            Smart Family Puppy Activity Tracker & Potty Predictor
+            {t.auth.subtitle}
           </p>
-        </div>
-
-        {/* Clean 2-Tab Switcher */}
-        <div className="grid grid-cols-2 gap-1 bg-slate-950/60 p-1 rounded-xl border border-slate-800">
-          <button
-            onClick={() => { setActiveTab('signin'); setError(''); setSuccess(''); }}
-            className={`py-2 rounded-lg text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1.5 ${
-              activeTab === 'signin' ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            <LogIn className="w-3.5 h-3.5" />
-            <span>Sign In</span>
-          </button>
-          <button
-            onClick={() => { setActiveTab('create'); setError(''); setSuccess(''); }}
-            className={`py-2 rounded-lg text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1.5 ${
-              activeTab === 'create' ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            <UserPlus className="w-3.5 h-3.5" />
-            <span>Create Account</span>
-          </button>
         </div>
 
         {error && (
@@ -173,163 +108,20 @@ export const AuthLockScreen: React.FC<AuthLockScreenProps> = ({
           </div>
         )}
 
-        {/* Tab 1: Sign In */}
-        {activeTab === 'signin' && (
-          <div className="space-y-5 relative z-10">
-            {/* Google SSO Container */}
-            <div>
-              <label className="block text-[11px] font-semibold text-slate-400 mb-2">
-                Sign in with Google OAuth
-              </label>
-              <div ref={googleBtnRef} className="w-full flex justify-center min-h-[44px]" />
-            </div>
-
-            <div className="relative flex py-1 items-center">
-              <div className="flex-grow border-t border-slate-800"></div>
-              <span className="flex-shrink mx-3 text-[10px] text-slate-500 uppercase font-semibold">Or with password</span>
-              <div className="flex-grow border-t border-slate-800"></div>
-            </div>
-
-            <form onSubmit={handlePasswordLogin} className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-400 mb-1">
-                  Email Address
-                </label>
-                <div className="relative">
-                  <Mail className="w-4 h-4 text-slate-500 absolute left-3.5 top-3" />
-                  <input
-                    type="email"
-                    placeholder="Enter your email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="w-full bg-slate-800 border border-slate-700 rounded-xl pl-10 pr-3 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-indigo-500"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-400 mb-1">
-                  Password
-                </label>
-                <div className="relative">
-                  <Lock className="w-4 h-4 text-slate-500 absolute left-3.5 top-3" />
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    placeholder="••••••••"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="w-full bg-slate-800 border border-slate-700 rounded-xl pl-10 pr-10 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-indigo-500"
-                    required
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-3 text-slate-400 hover:text-slate-200 cursor-pointer"
-                  >
-                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                </div>
-              </div>
-
-              <button
-                type="submit"
-                className="w-full flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-sm py-2.5 px-4 rounded-xl shadow-lg transition active:scale-98 cursor-pointer"
-              >
-                <span>Sign In to Vault</span>
-                <ArrowRight className="w-4 h-4" />
-              </button>
-            </form>
+        <div className="space-y-5 relative z-10">
+          {/* Google SSO Container */}
+          <div>
+            <label className="block text-[11px] font-semibold text-slate-400 mb-2 text-center">
+              {t.auth.signInWithGoogle}
+            </label>
+            <div ref={googleBtnRef} className="w-full flex justify-center min-h-[44px]" />
           </div>
-        )}
-
-        {/* Tab 2: Create Account */}
-        {activeTab === 'create' && (
-          <form onSubmit={handleCreateAccount} className="space-y-4 relative z-10">
-            <div>
-              <label className="block text-xs font-semibold text-slate-400 mb-1">
-                Full Name
-              </label>
-              <div className="relative">
-                <UserPlus className="w-4 h-4 text-slate-500 absolute left-3.5 top-3" />
-                <input
-                  type="text"
-                  placeholder="e.g. Sarah"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="w-full bg-slate-800 border border-slate-700 rounded-xl pl-10 pr-3 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-indigo-500"
-                  required
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-400 mb-1">
-                Email Address
-              </label>
-              <div className="relative">
-                <Mail className="w-4 h-4 text-slate-500 absolute left-3.5 top-3" />
-                <input
-                  type="email"
-                  placeholder="e.g. wife@family.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full bg-slate-800 border border-slate-700 rounded-xl pl-10 pr-3 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-indigo-500"
-                  required
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-semibold text-slate-400 mb-1">
-                  Family Role
-                </label>
-                <select
-                  value={role}
-                  onChange={(e) => setRole(e.target.value)}
-                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-xs text-slate-100 focus:outline-none focus:border-indigo-500 cursor-pointer"
-                >
-                  <option value="Wife">Wife</option>
-                  <option value="Husband">Husband</option>
-                  <option value="Partner">Partner</option>
-                  <option value="Child">Child</option>
-                  <option value="Dog Walker">Dog Walker</option>
-                  <option value="Sitter">Sitter</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-400 mb-1">
-                  Password
-                </label>
-                <div className="relative">
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    placeholder="Password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-indigo-500"
-                    required
-                  />
-                </div>
-              </div>
-            </div>
-
-            <button
-              type="submit"
-              className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold text-sm py-3 px-4 rounded-xl shadow-lg transition active:scale-98 cursor-pointer"
-            >
-              <span>Create Account</span>
-              <ArrowRight className="w-4 h-4" />
-            </button>
-          </form>
-        )}
+        </div>
 
         {/* Security Footer Note */}
         <div className="pt-2 border-t border-slate-800/80 text-center text-[10px] text-slate-500 flex items-center justify-center gap-1">
           <ShieldCheck className="w-3.5 h-3.5 text-indigo-400" />
-          <span>Accounts require activation by Super Admin Matthieu</span>
+          <span>{t.auth.requireActivationNote}</span>
         </div>
       </div>
 
@@ -344,7 +136,7 @@ export const AuthLockScreen: React.FC<AuthLockScreenProps> = ({
           >
             <span className="flex items-center gap-1.5">
               <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-              <span>About PupPace Application</span>
+              <span>{t.auth.aboutPupPace}</span>
             </span>
             {showAboutDetails ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
           </button>
@@ -352,7 +144,7 @@ export const AuthLockScreen: React.FC<AuthLockScreenProps> = ({
           {/* Rendered in HTML for Google OAuth Verification Crawlers */}
           <div className={`${showAboutDetails ? 'block' : 'hidden'} px-4 pb-4 space-y-2 text-[11px] text-slate-400 leading-relaxed border-t border-slate-800/60 pt-2.5`}>
             <p>
-              <strong>PupPace</strong> is a smart puppy activity & potty tracking application designed for dog owners and family caretakers. It records potty times, meals, naps, and health metrics, computing adaptive predictive schedules for your puppy.
+              <strong>PupPace</strong> is a smart puppy activity & potty tracking application designed for dog owners and family caretakers. It records potty times, meals, walks, and health metrics, computing adaptive predictive schedules for your puppy.
             </p>
             <p>
               <strong>Google SSO Disclosure:</strong> Google Sign-In is used strictly to authenticate household members and sync puppy activity logs seamlessly across family caretakers.
@@ -364,20 +156,20 @@ export const AuthLockScreen: React.FC<AuthLockScreenProps> = ({
         <div className="flex items-center justify-center gap-4 text-xs text-slate-400 font-medium">
           <a
             href="/privacy"
-            onClick={(e) => { e.preventDefault(); setIsPrivacyOpen(true); }}
+            onClick={(event) => { event.preventDefault(); setIsPrivacyOpen(true); }}
             className="hover:text-indigo-300 transition flex items-center gap-1 cursor-pointer"
           >
             <Shield className="w-3.5 h-3.5 text-slate-400" />
-            <span>Privacy Policy</span>
+            <span>{t.auth.privacyPolicy}</span>
           </a>
           <span>•</span>
           <a
             href="/terms"
-            onClick={(e) => { e.preventDefault(); setIsTermsOpen(true); }}
+            onClick={(event) => { event.preventDefault(); setIsTermsOpen(true); }}
             className="hover:text-indigo-300 transition flex items-center gap-1 cursor-pointer"
           >
             <FileText className="w-3.5 h-3.5 text-slate-400" />
-            <span>Terms of Service</span>
+            <span>{t.auth.termsOfService}</span>
           </a>
         </div>
       </div>
