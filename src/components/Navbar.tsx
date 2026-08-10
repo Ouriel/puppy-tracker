@@ -44,35 +44,35 @@ export const Navbar: React.FC<NavbarProps> = ({
     <header className="sticky top-0 z-30 bg-slate-900/95 backdrop-blur-md border-b border-slate-800 text-slate-100 shadow-xl">
       <div className="max-w-6xl mx-auto px-4 py-3 space-y-3">
         {/* Top row: Flat Vector Brand Logo, Language Dropdown & Sign Out */}
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800/60 pb-2.5">
+        <div className="flex items-center justify-between gap-2 border-b border-slate-800/60 pb-2.5 shrink-0">
           {/* Brand Logo */}
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2 min-w-0">
             <img
               src="/flat_cocker_spaniel_logo.jpg"
               alt="PupPace Logo"
-              className="w-9 h-9 rounded-xl object-cover ring-2 ring-amber-500/50 shadow-md"
+              className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl object-cover ring-2 ring-amber-500/50 shadow-md shrink-0"
             />
-            <div>
-              <span className="text-base font-extrabold tracking-tight bg-gradient-to-r from-amber-300 via-indigo-300 to-pink-300 bg-clip-text text-transparent">
+            <div className="min-w-0">
+              <span className="text-sm sm:text-base font-extrabold tracking-tight bg-gradient-to-r from-amber-300 via-indigo-300 to-pink-300 bg-clip-text text-transparent block truncate">
                 {t.brand}
               </span>
-              <p className="text-[11px] text-slate-400">{t.headerSubtitle}</p>
+              <p className="text-[11px] text-slate-400 hidden sm:block truncate">{t.headerSubtitle}</p>
             </div>
           </div>
 
           {/* Controls: Scalable Language Select Dropdown & Sign Out */}
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-1.5 shrink-0">
             {/* Scalable Language Switcher Dropdown */}
-            <div className="flex items-center bg-slate-950/80 border border-slate-700/80 rounded-xl px-2.5 py-1 text-xs font-semibold">
-              <Globe className="w-3.5 h-3.5 text-slate-400 mr-1.5" />
+            <div className="flex items-center bg-slate-950/80 border border-slate-700/80 rounded-xl px-2 py-1 text-xs font-semibold">
+              <Globe className="w-3.5 h-3.5 text-slate-400 mr-1 shrink-0" />
               <select
                 value={lang}
                 onChange={(event) => onLanguageChange(event.target.value as Language)}
                 aria-label="Select Language"
-                className="bg-transparent text-slate-200 focus:outline-none cursor-pointer font-bold"
+                className="bg-transparent text-slate-200 focus:outline-none cursor-pointer font-bold text-xs"
               >
-                <option value="en" className="bg-slate-800 text-slate-200">🇬🇧 English</option>
-                <option value="fr" className="bg-slate-800 text-slate-200">🇫🇷 Français</option>
+                <option value="en" className="bg-slate-800 text-slate-200">🇬🇧 EN</option>
+                <option value="fr" className="bg-slate-800 text-slate-200">🇫🇷 FR</option>
               </select>
             </div>
 
@@ -83,7 +83,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               aria-label={t.nav.signOut}
               className="p-1.5 rounded-xl bg-red-950/80 hover:bg-red-900 border border-red-800/60 text-red-300 transition cursor-pointer flex items-center gap-1 text-xs font-semibold"
             >
-              <LogOut className="w-3.5 h-3.5 text-red-400" />
+              <LogOut className="w-3.5 h-3.5 text-red-400 shrink-0" />
               <span className="hidden sm:inline">{t.nav.signOut}</span>
             </button>
           </div>
