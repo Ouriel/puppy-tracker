@@ -5,6 +5,15 @@ import { useI18n } from '../i18n';
 import { formatRelativeTime, parseIsoDate } from '../utils/date';
 import { EditActivityModal } from './EditActivityModal';
 import { resolveCaretakerName } from '../utils/caretakers';
+import {
+  CardRoot,
+  CardHeader,
+  CardContent,
+  CardTitle,
+  ChipRoot,
+  ChipLabel,
+  Button,
+} from '@heroui/react';
 
 interface ActivityTimelineProps {
   activities: Activity[];
@@ -64,23 +73,24 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
   };
 
   return (
-    <div className="bg-slate-800/80 border border-slate-700/80 rounded-2xl p-5 shadow-xl backdrop-blur-md">
+    <CardRoot className="bg-slate-800/80 border border-slate-700/80 rounded-2xl p-5 shadow-xl backdrop-blur-md text-slate-100">
       {/* Header & Filter Chips */}
-      <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
+      <CardHeader className="flex flex-wrap items-center justify-between gap-3 mb-5 p-0">
         <div>
-          <h2 className="text-base font-bold text-slate-100 flex items-center gap-2">
-            <span>{t.dashboard.activityFeed}</span>
-            <span className="text-xs bg-slate-700 text-slate-300 px-2 py-0.5 rounded-full font-semibold">
-              {sorted.length}
-            </span>
-          </h2>
-          <p className="text-xs text-slate-400">{t.dashboard.chronologicalHistory}</p>
+          <CardTitle className="text-base font-bold text-slate-100 flex items-center gap-2">
+            <span>{t.dashboard.recentActivity}</span>
+            <ChipRoot color="accent" variant="soft" className="text-xs bg-slate-700 text-slate-300 px-2 py-0.5 rounded-full font-semibold">
+              <ChipLabel>{sorted.length}</ChipLabel>
+            </ChipRoot>
+          </CardTitle>
+          <p className="text-xs text-slate-400">{t.dashboard.recentActivity}</p>
         </div>
 
         {/* Filter Pills */}
         <div className="flex items-center gap-1.5 bg-slate-900/60 border border-slate-700/60 p-1 rounded-xl">
-          <button
+          <Button
             onClick={() => setFilter('all')}
+            variant={filter === 'all' ? 'primary' : 'tertiary'}
             className={`px-3 py-1 text-xs font-semibold rounded-lg transition cursor-pointer ${
               filter === 'all'
                 ? 'bg-indigo-600 text-white shadow'
@@ -88,9 +98,10 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
             }`}
           >
             {t.dashboard.all}
-          </button>
-          <button
+          </Button>
+          <Button
             onClick={() => setFilter('potty')}
+            variant={filter === 'potty' ? 'primary' : 'tertiary'}
             className={`px-3 py-1 text-xs font-semibold rounded-lg transition cursor-pointer ${
               filter === 'potty'
                 ? 'bg-indigo-600 text-white shadow'
@@ -98,9 +109,10 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
             }`}
           >
             {t.dashboard.pottyFilter}
-          </button>
-          <button
+          </Button>
+          <Button
             onClick={() => setFilter('food')}
+            variant={filter === 'food' ? 'primary' : 'tertiary'}
             className={`px-3 py-1 text-xs font-semibold rounded-lg transition cursor-pointer ${
               filter === 'food'
                 ? 'bg-indigo-600 text-white shadow'
@@ -108,141 +120,143 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
             }`}
           >
             {t.dashboard.mealsFilter}
-          </button>
+          </Button>
         </div>
-      </div>
+      </CardHeader>
 
-      {/* Timeline list */}
-      {sorted.length === 0 ? (
-        <div className="text-center py-10 text-slate-400 bg-slate-900/40 rounded-xl border border-dashed border-slate-700">
-          <p className="text-sm">{t.dashboard.noActivityLogs}</p>
-          <p className="text-xs text-slate-500 mt-1">{t.dashboard.tapLogEvent}</p>
-        </div>
-      ) : (
-        <div className="relative pl-6 space-y-4 before:absolute before:left-2.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-700/60">
-          {sorted.map((item) => {
-            const color = getCaretakerColor(item.loggedBy);
-            return (
-              <div
-                key={item.id}
-                className="relative group bg-slate-900/70 hover:bg-slate-900 border border-slate-700/70 hover:border-slate-600 rounded-xl p-3.5 transition-all shadow-sm flex items-start justify-between gap-3"
-              >
-                {/* Timeline dot */}
-                <div
-                  className="absolute -left-[23px] top-4 w-3.5 h-3.5 rounded-full ring-4 ring-slate-800 flex items-center justify-center"
-                  style={{ backgroundColor: color }}
-                />
+      <CardContent className="p-0">
+        {/* Timeline List */}
+        {sorted.length === 0 ? (
+          <div className="text-center py-12 bg-slate-900/40 rounded-xl border border-slate-800">
+            <p className="text-sm font-medium text-slate-400">{t.dashboard.noLogYet}</p>
+          </div>
+        ) : (
+          <div className="relative pl-6 space-y-4 before:absolute before:left-2.5 before:top-3 before:bottom-3 before:w-0.5 before:bg-slate-700/60">
+            {sorted.map((item) => {
+              const friendlyLoggedBy = resolveCaretakerName(item.loggedBy, caretakers);
+              const caretakerBgColor = getCaretakerColor(friendlyLoggedBy);
 
-                <div className="flex items-start gap-3">
-                  <div className="p-2.5 bg-slate-800 rounded-xl border border-slate-700/60 mt-0.5">
-                    {getIcon(item.type)}
+              return (
+                <div key={item.id} className="relative group">
+                  {/* Bullet */}
+                  <div className="absolute -left-6 top-3 w-5 h-5 rounded-full bg-slate-900 border-2 border-slate-700 flex items-center justify-center group-hover:border-indigo-500 transition">
+                    <div className="w-2 h-2 rounded-full bg-indigo-400" />
                   </div>
 
-                  <div>
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-xs font-bold text-slate-100 capitalize">
-                        {t.potty[item.type as keyof typeof t.potty] || item.type}
-                      </span>
+                  {/* Log Card */}
+                  <div className="bg-slate-900/80 border border-slate-700/60 hover:border-slate-600 rounded-xl p-4 transition-all shadow-md">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2.5 bg-slate-800 rounded-xl border border-slate-700 shrink-0">
+                          {getIcon(item.type)}
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-bold text-slate-200 capitalize">
+                              {item.type === 'pee' && t.potty.pee}
+                              {item.type === 'poop' && t.potty.poop}
+                              {item.type === 'food' && t.potty.food}
+                              {item.type === 'weight' && t.potty.weight}
+                              {item.type === 'medication' && t.potty.medication}
+                            </span>
 
-                      {/* Potty location pill */}
-                      {item.pottyLocation === 'outside' && (
-                        <span className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px] font-bold px-2 py-0.5 rounded-full">
-                          🌳 {t.potty.outside}
-                        </span>
-                      )}
-                      {item.pottyLocation === 'indoor_accident' && (
-                        <span className="bg-red-500/20 text-red-300 border border-red-500/30 text-[10px] font-bold px-2 py-0.5 rounded-full">
-                          🚨 {t.potty.accident}
-                        </span>
-                      )}
+                            {item.pottyLocation === 'indoor_accident' && (
+                              <ChipRoot color="danger" variant="soft" className="bg-red-500/20 text-red-300 border border-red-500/30 text-[10px] font-bold px-1.5 py-0.5 rounded">
+                                <ChipLabel>🚨 {t.potty.accident}</ChipLabel>
+                              </ChipRoot>
+                            )}
 
-                      {/* Stool consistency */}
-                      {item.stoolConsistency && (
-                        <span className="bg-slate-800 text-slate-300 text-[10px] px-2 py-0.5 rounded-full border border-slate-700">
-                          Stool: {t.potty[item.stoolConsistency as keyof typeof t.potty] || item.stoolConsistency}
-                        </span>
-                      )}
+                            {item.pottyLocation === 'outside' && (
+                              <ChipRoot color="success" variant="soft" className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px] font-semibold px-1.5 py-0.5 rounded">
+                                <ChipLabel>🌳 {t.potty.outside}</ChipLabel>
+                              </ChipRoot>
+                            )}
+                          </div>
 
-                      {/* Food Grams */}
-                      {item.quantityGrams && (
-                        <span className="bg-purple-500/20 text-purple-300 border border-purple-500/30 text-[10px] font-bold px-2 py-0.5 rounded-full">
-                          {item.quantityGrams}{t.units.grams} ({item.quantityCups || 0.75} {t.units.cups}) - {item.foodType}
-                        </span>
-                      )}
+                          <div className="text-xs text-slate-400 mt-1 space-x-2">
+                            {item.type === 'food' && item.quantityGrams && (
+                              <span className="font-semibold text-slate-300">
+                                🥣 {item.quantityGrams}g ({item.quantityCups ?? (item.quantityGrams / 110).toFixed(2)} {t.units.cups}) - {item.foodType || t.potty.kibble}
+                              </span>
+                            )}
+                            {item.type === 'weight' && item.weightKg && (
+                              <span className="font-semibold text-slate-300">
+                                ⚖️ {item.weightKg} {t.units.kg}
+                              </span>
+                            )}
+                            {item.type === 'medication' && item.medicationName && (
+                              <span className="font-semibold text-slate-300">
+                                💊 {item.medicationName}
+                              </span>
+                            )}
+                            {item.stoolConsistency && (
+                              <span className="text-amber-300/80 font-medium">
+                                ({t.potty.stoolConsistency}: {item.stoolConsistency})
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
 
-                      {/* Duration */}
-                      {item.durationMinutes && (
-                        <span className="bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-[10px] font-bold px-2 py-0.5 rounded-full">
-                          {item.durationMinutes} {t.units.minutes}
-                        </span>
-                      )}
+                      {/* Right Action Buttons & Caretaker Info */}
+                      <div className="flex items-center gap-2 shrink-0">
+                        <div className="text-right">
+                          <span className="text-[11px] text-slate-400 font-mono block">
+                            {formatTime(item.timestamp)}
+                          </span>
+                          <span
+                            className="inline-block text-[10px] font-bold px-2 py-0.5 rounded-full text-white mt-0.5 shadow-sm"
+                            style={{ backgroundColor: caretakerBgColor }}
+                          >
+                            {friendlyLoggedBy}
+                          </span>
+                        </div>
 
-                      {/* Weight */}
-                      {item.weightKg && (
-                        <span className="bg-pink-500/20 text-pink-300 border border-pink-500/30 text-[10px] font-bold px-2 py-0.5 rounded-full">
-                          {item.weightKg} {t.units.kg}
-                        </span>
-                      )}
+                        <div className="flex items-center gap-1 opacity-80 group-hover:opacity-100 transition">
+                          {onUpdateActivity && (
+                            <Button
+                              onClick={() => setEditingActivity(item)}
+                              variant="tertiary"
+                              className="p-1.5 text-slate-400 hover:text-indigo-300 hover:bg-indigo-500/20 rounded-lg transition cursor-pointer"
+                            >
+                              <Pencil className="w-3.5 h-3.5" />
+                            </Button>
+                          )}
+                          <Button
+                            onClick={() => onDeleteActivity(item.id)}
+                            variant="tertiary"
+                            className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-red-500/20 rounded-lg transition cursor-pointer"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </Button>
+                        </div>
+                      </div>
                     </div>
 
                     {item.notes && (
-                      <p className="text-xs text-slate-300 mt-1 italic font-mono bg-slate-950/40 px-2 py-1 rounded border border-slate-800">
+                      <div className="mt-2.5 pt-2 border-t border-slate-800 text-xs text-slate-300 italic bg-slate-950/40 p-2 rounded-lg">
                         "{item.notes}"
-                      </p>
+                      </div>
                     )}
-
-                    <div className="flex items-center gap-2 mt-1.5 text-[11px] text-slate-400">
-                      <span>{formatTime(item.timestamp)}</span>
-                      <span>•</span>
-                      <span className="font-semibold" style={{ color }}>
-                        {resolveCaretakerName(item.loggedBy, caretakers)}
-                      </span>
-                    </div>
                   </div>
                 </div>
+              );
+            })}
+          </div>
+        )}
+      </CardContent>
 
-                <div className="flex items-center gap-1 shrink-0 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition">
-                  {onUpdateActivity && (
-                    <button
-                      onClick={() => setEditingActivity(item)}
-                      title="Edit activity log"
-                      aria-label="Edit activity log"
-                      className="p-2 rounded-xl text-slate-400 hover:text-indigo-400 bg-slate-800/80 sm:bg-transparent hover:bg-slate-800 transition cursor-pointer border border-slate-700/60 sm:border-transparent"
-                    >
-                      <Pencil className="w-4 h-4" />
-                    </button>
-                  )}
-
-                  <button
-                    onClick={() => {
-                      const confirmMsg = 'Are you sure you want to delete this activity log?';
-                      if (window.confirm(confirmMsg)) {
-                        onDeleteActivity(item.id);
-                      }
-                    }}
-                    title="Delete log"
-                    aria-label="Delete log"
-                    className="p-2 rounded-xl text-slate-400 hover:text-red-400 bg-slate-800/80 sm:bg-transparent hover:bg-slate-800 transition cursor-pointer border border-slate-700/60 sm:border-transparent"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-
+      {/* Edit Activity Modal */}
       {editingActivity && onUpdateActivity && (
         <EditActivityModal
           activity={editingActivity}
+          onClose={() => setEditingActivity(null)}
           onSave={(updated) => {
             onUpdateActivity(updated);
             setEditingActivity(null);
           }}
-          onClose={() => setEditingActivity(null)}
         />
       )}
-    </div>
+    </CardRoot>
   );
 };

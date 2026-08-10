@@ -3,6 +3,18 @@ import type { PredictionResult, ActivityType, PuppyProfile } from '../types';
 import { Droplet, Utensils, AlertCircle, Clock, CheckCircle2, Sparkles, Footprints } from 'lucide-react';
 import { useI18n } from '../i18n';
 import { formatMinutesToXhXX } from '../utils/date';
+import {
+  CardRoot,
+  CardHeader,
+  CardContent,
+  CardTitle,
+  ChipRoot,
+  ChipLabel,
+  ProgressBarRoot,
+  ProgressBarTrack,
+  ProgressBarFill,
+  Button,
+} from '@heroui/react';
 
 interface PredictorWidgetProps {
   predictions: PredictionResult;
@@ -54,230 +66,162 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = ({
     }
   };
 
-  const formatTimeLeft = (targetDate: Date | null) => {
-    if (!targetDate) return '';
-    const now = new Date();
-    const diffMs = targetDate.getTime() - now.getTime();
-    const diffMins = Math.round(diffMs / (1000 * 60));
-
-    if (diffMins < 0) {
-      const overdueMins = Math.abs(diffMins);
-      return `${formatMinutesToXhXX(overdueMins)} ${t.dashboard.overdueText}`;
-    } else if (diffMins === 0) {
-      return t.dashboard.dueNow;
-    } else {
-      return formatMinutesToXhXX(diffMins);
-    }
-  };
-
   const getUrgencyBadge = (urgency: 'safe' | 'soon' | 'overdue') => {
     if (urgency === 'overdue') {
       return (
-        <span className="bg-red-500/20 text-red-300 border border-red-500/40 text-[11px] font-bold px-2 py-0.5 rounded-md flex items-center gap-1 animate-pulse shrink-0">
-          <AlertCircle className="w-3.5 h-3.5" /> {t.potty.overdue}
-        </span>
+        <ChipRoot color="danger" variant="soft" className="bg-red-500/20 text-red-300 border border-red-500/40 text-[11px] font-bold px-2 py-0.5 rounded-md flex items-center gap-1 animate-pulse shrink-0">
+          <AlertCircle className="w-3.5 h-3.5" />
+          <ChipLabel>{t.potty.overdue}</ChipLabel>
+        </ChipRoot>
       );
     }
     if (urgency === 'soon') {
       return (
-        <span className="bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[11px] font-bold px-2 py-0.5 rounded-md flex items-center gap-1 shrink-0">
-          <Clock className="w-3.5 h-3.5" /> {t.potty.dueSoon}
-        </span>
+        <ChipRoot color="warning" variant="soft" className="bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[11px] font-bold px-2 py-0.5 rounded-md flex items-center gap-1 shrink-0">
+          <Clock className="w-3.5 h-3.5" />
+          <ChipLabel>{t.potty.dueSoon}</ChipLabel>
+        </ChipRoot>
       );
     }
     return (
-      <span className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[11px] font-medium px-2 py-0.5 rounded-md flex items-center gap-1 shrink-0">
-        <CheckCircle2 className="w-3.5 h-3.5" /> {t.potty.allGood}
-      </span>
+      <ChipRoot color="success" variant="soft" className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[11px] font-medium px-2 py-0.5 rounded-md flex items-center gap-1 shrink-0">
+        <CheckCircle2 className="w-3.5 h-3.5" />
+        <ChipLabel>{t.potty.allGood}</ChipLabel>
+      </ChipRoot>
     );
   };
 
+  const foodPercentage = Math.min(100, Math.round((todayFoodLoggedGrams / dailyGoal) * 100));
+
   return (
-    <div className="bg-slate-800/80 border border-slate-700/80 rounded-2xl p-5 shadow-xl backdrop-blur-md">
-      <div className="flex items-center justify-between mb-4">
+    <CardRoot className="bg-slate-800/80 border border-slate-700/80 rounded-2xl p-5 shadow-xl backdrop-blur-md text-slate-100">
+      <CardHeader className="flex items-center justify-between mb-4 p-0">
         <div className="flex items-center gap-2">
           <div className="p-2 bg-indigo-500/20 text-indigo-400 rounded-xl">
             <Sparkles className="w-5 h-5" />
           </div>
           <div>
-            <h2 className="text-base font-bold text-slate-100 flex items-center gap-2">
+            <CardTitle className="text-base font-bold text-slate-100">
               {t.dashboard.predictorTitle}
-            </h2>
+            </CardTitle>
             <p className="text-xs text-slate-400">
-              {t.dashboard.predictorSubtitle}
+              {profile.name}
             </p>
           </div>
         </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {/* Next Pee Card */}
-        <div
-          className={`relative rounded-xl p-4 border transition-all flex flex-col justify-between ${
-            predictions.peeUrgency === 'overdue'
-              ? 'bg-red-950/30 border-red-700/60 shadow-lg shadow-red-950/50'
-              : predictions.peeUrgency === 'soon'
-              ? 'bg-amber-950/20 border-amber-600/50'
-              : 'bg-slate-900/60 border-slate-700/60'
-          }`}
+        <Button
+          onClick={() => onOpenQuickLogModal()}
+          variant="primary"
+          className="text-xs font-bold px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white shadow-md cursor-pointer transition"
         >
-          <div>
-            <div className="flex items-start justify-between mb-2 gap-2">
-              <div className="flex items-start gap-2.5">
-                <div className="p-2 bg-sky-500/20 text-sky-400 rounded-lg shrink-0 mt-0.5">
-                  <Droplet className="w-5 h-5" />
+          + {t.potty.logActivity}
+        </Button>
+      </CardHeader>
+
+      <CardContent className="p-0 space-y-4">
+        {/* Potty & Poop Prediction Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {/* Pee Card */}
+          <div className="bg-slate-900/70 border border-slate-700/60 rounded-xl p-4 flex flex-col justify-between space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="p-2 bg-sky-500/20 text-sky-400 rounded-lg">
+                  <Droplet className="w-4 h-4" />
                 </div>
-                <div>
-                  <div className="text-xs font-semibold text-slate-400">{t.potty.nextPee}</div>
-                  <div className="flex items-baseline gap-1.5 flex-wrap">
-                    <span className="text-lg font-bold text-slate-100">
-                      {formatCountdown(predictions.nextPeeExpectedAt)}
-                    </span>
-                    {/* Standard baseline label if post-meal active during daytime */}
-                    {predictions.peeMode === 'post_meal_override' &&
-                      predictions.standardPeeExpectedAt && (
-                        <span className="text-xs font-bold text-sky-400 bg-sky-950/60 border border-sky-800/60 px-2 py-0.5 rounded-lg">
-                          ({t.potty.withoutMeal} ~{formatTimeLeft(predictions.standardPeeExpectedAt)})
-                        </span>
-                    )}
-                  </div>
-                </div>
+                <span className="text-xs font-bold text-slate-200">{t.potty.nextPee}</span>
               </div>
               {getUrgencyBadge(predictions.peeUrgency)}
             </div>
 
-            <p className="text-xs text-slate-300 my-2.5 bg-slate-950/40 p-2.5 rounded-lg border border-slate-800/60 leading-relaxed">
-              {predictions.peeReason}
-            </p>
-          </div>
-
-          <div className="grid grid-cols-2 gap-2 mt-2">
-            <button
-              onClick={() => onQuickAction('pee', 'outside')}
-              className="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs py-2 px-2 rounded-lg flex items-center justify-center gap-1 shadow transition active:scale-95 cursor-pointer"
-            >
-              <CheckCircle2 className="w-3.5 h-3.5" />
-              <span>{t.potty.peedOutside}</span>
-            </button>
-            <button
-              onClick={() => onQuickAction('pee', 'indoor_accident')}
-              className="bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs py-2 px-2 rounded-lg border border-slate-700 flex items-center justify-center gap-1 transition cursor-pointer"
-            >
-              <span>{t.potty.accident}</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Next Poop Card */}
-        <div
-          className={`relative rounded-xl p-4 border transition-all flex flex-col justify-between ${
-            predictions.poopUrgency === 'overdue'
-              ? 'bg-red-950/30 border-red-700/60 shadow-lg shadow-red-950/50'
-              : predictions.poopUrgency === 'soon'
-              ? 'bg-amber-950/20 border-amber-600/50'
-              : 'bg-slate-900/60 border-slate-700/60'
-          }`}
-        >
-          <div>
-            <div className="flex items-start justify-between mb-2 gap-2">
-              <div className="flex items-start gap-2.5">
-                <div className="p-2 bg-amber-600/20 text-amber-400 rounded-lg shrink-0 mt-0.5">
-                  <Footprints className="w-5 h-5" />
+            <div className="flex items-baseline justify-between pt-1">
+              <div>
+                <div className="text-xl font-black text-slate-100">
+                  {formatCountdown(predictions.nextPeeExpectedAt)}
                 </div>
-                <div>
-                  <div className="text-xs font-semibold text-slate-400">{t.potty.nextPoop}</div>
-                  <div className="flex items-baseline gap-1.5 flex-wrap">
-                    <span className="text-lg font-bold text-slate-100">
-                      {formatCountdown(predictions.nextPoopExpectedAt)}
-                    </span>
-                    {predictions.poopMode === 'post_meal_override' &&
-                      predictions.standardPoopExpectedAt && (
-                        <span className="text-xs font-bold text-amber-400 bg-amber-950/60 border border-amber-800/60 px-2 py-0.5 rounded-lg">
-                          ({t.potty.withoutMeal} ~{formatTimeLeft(predictions.standardPoopExpectedAt)})
-                        </span>
-                    )}
+                {predictions.nextPeeExpectedAt && (
+                  <div className="text-[11px] text-slate-400 font-mono mt-0.5">
+                    {predictions.nextPeeExpectedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </div>
+                )}
+              </div>
+
+              <Button
+                onClick={() => onQuickAction('pee', 'outside')}
+                variant="tertiary"
+                className="px-3 py-1.5 text-xs font-bold bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 rounded-lg border border-sky-500/30 transition cursor-pointer"
+              >
+                💧 {t.potty.peedOutside}
+              </Button>
+            </div>
+          </div>
+
+          {/* Poop Card */}
+          <div className="bg-slate-900/70 border border-slate-700/60 rounded-xl p-4 flex flex-col justify-between space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="p-2 bg-amber-500/20 text-amber-400 rounded-lg">
+                  <Footprints className="w-4 h-4" />
                 </div>
+                <span className="text-xs font-bold text-slate-200">{t.potty.nextPoop}</span>
               </div>
               {getUrgencyBadge(predictions.poopUrgency)}
             </div>
 
-            <p className="text-xs text-slate-300 my-2.5 bg-slate-950/40 p-2.5 rounded-lg border border-slate-800/60 leading-relaxed">
-              {predictions.poopReason}
-            </p>
-          </div>
-
-          <div className="grid grid-cols-2 gap-2 mt-2">
-            <button
-              onClick={() => onQuickAction('poop', 'outside')}
-              className="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs py-2 px-2 rounded-lg flex items-center justify-center gap-1 shadow transition active:scale-95 cursor-pointer"
-            >
-              <CheckCircle2 className="w-3.5 h-3.5" />
-              <span>{t.potty.poopedOutside}</span>
-            </button>
-            <button
-              onClick={() => onQuickAction('poop', 'indoor_accident')}
-              className="bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs py-2 px-2 rounded-lg border border-slate-700 flex items-center justify-center gap-1 transition cursor-pointer"
-            >
-              <span>{t.potty.accident}</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Next Food Card with Remaining Food Grams */}
-        <div
-          className={`relative rounded-xl p-4 border transition-all flex flex-col justify-between ${
-            predictions.foodUrgency === 'overdue'
-              ? 'bg-amber-950/30 border-amber-700/60'
-              : predictions.foodUrgency === 'soon'
-              ? 'bg-indigo-950/30 border-indigo-600/50'
-              : 'bg-slate-900/60 border-slate-700/60'
-          }`}
-        >
-          <div>
-            <div className="flex items-start justify-between mb-2 gap-2">
-              <div className="flex items-start gap-2.5">
-                <div className="p-2 bg-purple-500/20 text-purple-400 rounded-lg shrink-0 mt-0.5">
-                  <Utensils className="w-5 h-5" />
+            <div className="flex items-baseline justify-between pt-1">
+              <div>
+                <div className="text-xl font-black text-slate-100">
+                  {formatCountdown(predictions.nextPoopExpectedAt)}
                 </div>
-                <div>
-                  <div className="text-xs font-semibold text-slate-400">{t.potty.nextMeal}</div>
-                  <div className="text-lg font-bold text-slate-100">
-                    {formatCountdown(predictions.nextFoodExpectedAt)}
+                {predictions.nextPoopExpectedAt && (
+                  <div className="text-[11px] text-slate-400 font-mono mt-0.5">
+                    {predictions.nextPoopExpectedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </div>
-                </div>
+                )}
               </div>
-              {getUrgencyBadge(predictions.foodUrgency)}
-            </div>
 
-            <p className="text-xs text-slate-300 my-2.5 bg-slate-950/40 p-2.5 rounded-lg border border-slate-800/60 leading-relaxed">
-              {predictions.foodReason}
-            </p>
-
-            {/* Display Remaining Food Grams vs Daily Goal */}
-            <div className="mb-3">
-              <div className="flex justify-between text-[11px] font-semibold mb-1">
-                <span className="text-slate-400">{t.dashboard.remainingFoodToday}</span>
-                <span className="text-purple-300 font-bold">{remainingFoodGrams}g {t.dashboard.leftOf} {dailyGoal}g</span>
-              </div>
-              <div className="w-full bg-slate-950 rounded-full h-1.5 overflow-hidden border border-slate-800">
-                <div
-                  className="bg-gradient-to-r from-purple-500 to-indigo-500 h-1.5 rounded-full transition-all"
-                  style={{ width: `${Math.min(100, Math.round((todayFoodLoggedGrams / dailyGoal) * 100))}%` }}
-                />
-              </div>
+              <Button
+                onClick={() => onQuickAction('poop', 'outside')}
+                variant="tertiary"
+                className="px-3 py-1.5 text-xs font-bold bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 rounded-lg border border-amber-500/30 transition cursor-pointer"
+              >
+                💩 {t.potty.poopedOutside}
+              </Button>
             </div>
           </div>
-
-          <button
-            onClick={() => onOpenQuickLogModal('food')}
-            className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs py-2 px-3 rounded-lg flex items-center justify-center gap-1.5 shadow transition active:scale-95 cursor-pointer mt-2"
-          >
-            <Utensils className="w-3.5 h-3.5" />
-            <span>{t.dashboard.feedMealNow} ({portionLeftForNextMeal}g)</span>
-          </button>
         </div>
-      </div>
-    </div>
+
+        {/* Daily Food Portion Goal Progress Card */}
+        <div className="bg-slate-900/70 border border-slate-700/60 rounded-xl p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="p-2 bg-purple-500/20 text-purple-400 rounded-lg">
+                <Utensils className="w-4 h-4" />
+              </div>
+              <div>
+                <span className="text-xs font-bold text-slate-200">{t.potty.nextMeal}</span>
+                <p className="text-[11px] text-slate-400">
+                  {todayFoodLoggedGrams}g / {dailyGoal}g ({todayMealsCount}/{targetMeals})
+                </p>
+              </div>
+            </div>
+
+            <Button
+              onClick={() => onOpenQuickLogModal('food')}
+              variant="tertiary"
+              className="px-3 py-1.5 text-xs font-bold bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 rounded-lg border border-purple-500/30 transition cursor-pointer"
+            >
+              🥣 {portionLeftForNextMeal}g
+            </Button>
+          </div>
+
+          {/* HeroUI ProgressBar */}
+          <ProgressBarRoot className="w-full space-y-1">
+            <ProgressBarTrack className="w-full bg-slate-800 rounded-full h-2 overflow-hidden border border-slate-700">
+              <ProgressBarFill className="bg-gradient-to-r from-indigo-500 to-purple-500 h-full transition-all duration-500" style={{ width: `${foodPercentage}%` }} />
+            </ProgressBarTrack>
+          </ProgressBarRoot>
+        </div>
+      </CardContent>
+    </CardRoot>
   );
 };
