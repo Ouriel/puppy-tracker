@@ -2,7 +2,26 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { neon } from '@neondatabase/serverless';
 import { drizzle } from 'drizzle-orm/neon-http';
 import { eq, and, desc } from 'drizzle-orm';
-import { activitiesTable } from '../src/db/schema';
+import { activitiesTable } from '../src/db/schema.js';
+import { verifyAuth } from './_auth.js';
+import { z } from 'zod';
+
+const ActivitySchema = z.object({
+  id: z.string().optional(),
+  puppyId: z.string().min(1, 'puppyId is required'),
+  type: z.enum(['pee', 'poop', 'food', 'walk', 'weight', 'medication']),
+  timestamp: z.string().optional(),
+  loggedBy: z.string().optional(),
+  pottyLocation: z.string().nullable().optional(),
+  stoolConsistency: z.string().nullable().optional(),
+  foodType: z.string().nullable().optional(),
+  quantityGrams: z.number().or(z.string()).nullable().optional(),
+  quantityCups: z.number().or(z.string()).nullable().optional(),
+  durationMinutes: z.number().or(z.string()).nullable().optional(),
+  weightKg: z.number().or(z.string()).nullable().optional(),
+  medicationName: z.string().nullable().optional(),
+  notes: z.string().nullable().optional(),
+});
 
 function getDb() {
   const sql = neon(process.env.POSTGRES_URL || process.env.DATABASE_URL || '');
@@ -10,18 +29,29 @@ function getDb() {
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Household-ID');
+  const allowedOrigin = process.env.NODE_ENV === 'development'
+    ? 'http://localhost:5173'
+    : 'https://puppace.vercel.app';
+  res.setHeader('Access-Control-Allow-Origin', allowedOrigin);
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
   if (req.method === 'OPTIONS') return res.status(200).end();
 
-  const householdId = (req.headers['x-household-id'] as string) || 'FAMILY-COCKER-2026';
+  let auth;
+  try {
+    auth = await verifyAuth(req);
+  } catch (err: any) {
+    return res.status(err.status || 401).json({ error: err.message || 'Unauthorized' });
+  }
+
+  const householdId = auth.householdId;
   const db = getDb();
 
   try {
-    // GET /api/activities — List activities for household, optionally filtered by puppyId
+    // GET /api/activities
     if (req.method === 'GET') {
+      res.setHeader('Cache-Control', 'private, max-age=10, stale-while-revalidate=60');
       const puppyId = req.query.puppyId as string;
       const conditions = puppyId
         ? and(eq(activitiesTable.householdId, householdId), eq(activitiesTable.puppyId, puppyId))
@@ -32,23 +62,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         .from(activitiesTable)
         .where(conditions)
         .orderBy(desc(activitiesTable.timestamp));
-      return res.status(200).json(activities);
+      const formatted = activities.map((act) => ({
+        ...act,
+        timestamp: act.timestamp instanceof Date ? act.timestamp.toISOString() : new Date(act.timestamp).toISOString(),
+      }));
+      return res.status(200).json(formatted);
     }
 
-    // POST /api/activities — Log a new activity
+    // POST /api/activities
     if (req.method === 'POST') {
-      const body = req.body || {};
-      if (!body.puppyId || !body.type) {
-        return res.status(400).json({ error: 'puppyId and type are required' });
+      const parsed = ActivitySchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: 'Invalid activity payload', details: parsed.error.issues });
       }
 
+      const body = parsed.data;
       const id = body.id || `act-${Date.now()}`;
 
-      // Upsert: skip if this exact activity id already exists
       const [existing] = await db
         .select()
         .from(activitiesTable)
-        .where(eq(activitiesTable.id, id));
+        .where(and(eq(activitiesTable.id, id), eq(activitiesTable.householdId, householdId)));
 
       if (existing) {
         return res.status(200).json(existing);
@@ -61,7 +95,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           householdId,
           puppyId: body.puppyId,
           type: body.type,
-          timestamp: body.timestamp || new Date().toISOString(),
+          timestamp: body.timestamp ? new Date(body.timestamp) : new Date(),
           loggedBy: body.loggedBy || 'Caretaker',
           pottyLocation: body.pottyLocation || null,
           stoolConsistency: body.stoolConsistency || null,
@@ -77,7 +111,45 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(201).json(created);
     }
 
-    // DELETE /api/activities?id=xxx — Delete an activity log
+    // PUT /api/activities
+    if (req.method === 'PUT') {
+      const parsed = ActivitySchema.partial().safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: 'Invalid activity payload', details: parsed.error.issues });
+      }
+
+      const body = parsed.data;
+      if (!body.id) return res.status(400).json({ error: 'id is required' });
+
+      const [updated] = await db
+        .update(activitiesTable)
+        .set({
+          type: body.type,
+          ...(body.timestamp ? { timestamp: new Date(body.timestamp) } : {}),
+          ...(body.loggedBy ? { loggedBy: body.loggedBy } : {}),
+          pottyLocation: body.pottyLocation || null,
+          stoolConsistency: body.stoolConsistency || null,
+          foodType: body.foodType || null,
+          quantityGrams: body.quantityGrams ? Number(body.quantityGrams) : null,
+          quantityCups: body.quantityCups ? Number(body.quantityCups) : null,
+          durationMinutes: body.durationMinutes ? Number(body.durationMinutes) : null,
+          weightKg: body.weightKg ? Number(body.weightKg) : null,
+          medicationName: body.medicationName || null,
+          notes: body.notes || null,
+        })
+        .where(and(eq(activitiesTable.id, body.id), eq(activitiesTable.householdId, householdId)))
+        .returning();
+
+      if (!updated) return res.status(404).json({ error: 'Activity not found' });
+
+      const formatted = {
+        ...updated,
+        timestamp: updated.timestamp instanceof Date ? updated.timestamp.toISOString() : new Date(updated.timestamp).toISOString(),
+      };
+      return res.status(200).json(formatted);
+    }
+
+    // DELETE /api/activities
     if (req.method === 'DELETE') {
       const actId = (req.query.id as string) || req.body?.id;
       if (!actId) return res.status(400).json({ error: 'id is required' });

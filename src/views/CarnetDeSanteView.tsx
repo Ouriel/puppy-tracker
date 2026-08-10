@@ -1,24 +1,39 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import type { PuppyProfile } from '../types';
-import { Syringe, ShieldCheck, Plus, Pill, Trash2 } from 'lucide-react';
+import { Syringe, ShieldCheck, Plus, Pill, Trash2, Pencil, Check } from 'lucide-react';
 import { useI18n } from '../i18n';
+import { formatLocalDate } from '../utils/date';
+import { showToast } from '../utils/toast';
+import {
+  fetchHealthRecords,
+  createHealthRecord,
+  updateHealthRecord,
+  deleteHealthRecord,
+} from '../services/api';
+import { calculateNextAntiparasiticDate, calculateNextVaccineBooster, getHealthProtocols } from '../utils/health';
+import { getPuppyAge } from '../utils/predictions';
 
 interface VaccinationEntry {
   id: string;
-  vaccineType: 'Rage' | 'DHPP' | 'Leptospirose' | 'Toux_de_Chenil';
-  administeredDate: string;
-  nextDueDate: string;
-  vetClinicName?: string;
+  puppyId?: string;
+  type?: string;
+  name: string;
+  date: string;
+  boosterDate?: string;
+  vetClinic?: string;
   batchNumber?: string;
   notes?: string;
 }
 
 interface DewormingEntry {
   id: string;
-  productName: string;
-  administeredDate: string;
-  nextDueDate: string;
-  weightAtTimeKg?: number;
+  puppyId?: string;
+  type?: string;
+  name: string;
+  date: string;
+  boosterDate?: string;
+  productName?: string;
+  weightAtTime?: number;
   notes?: string;
 }
 
@@ -27,114 +42,279 @@ interface CarnetDeSanteViewProps {
 }
 
 export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePuppy }) => {
-  const { lang, t } = useI18n();
+  const { t } = useI18n();
 
-  const [vaccinations, setVaccinations] = useState<VaccinationEntry[]>([
-    {
-      id: 'v1',
-      vaccineType: 'DHPP',
-      administeredDate: '2026-06-15',
-      nextDueDate: '2026-07-15',
-      vetClinicName: 'Clinique Vétérinaire Paris 15',
-      batchNumber: 'FR-99812',
-      notes: 'Primo-vaccination 8 semaines',
-    },
-    {
-      id: 'v2',
-      vaccineType: 'Leptospirose',
-      administeredDate: '2026-06-15',
-      nextDueDate: '2026-07-15',
-      vetClinicName: 'Clinique Vétérinaire Paris 15',
-      batchNumber: 'LEP-3341',
-      notes: 'L4 injection 1',
-    },
-  ]);
+  const getVaccineStatus = (
+    vaccine: VaccinationEntry,
+    allVaccines: VaccinationEntry[]
+  ): { label: string; className: string } => {
+    if (!vaccine.boosterDate) {
+      return { label: `✅ ${t.health.statusUpToDate}`, className: 'bg-emerald-950 text-emerald-400 border-emerald-800/50 font-bold' };
+    }
 
-  const [dewormingLogs, setDewormingLogs] = useState<DewormingEntry[]>([
-    {
-      id: 'd1',
-      productName: 'Milbemax Tab',
-      administeredDate: '2026-06-01',
-      nextDueDate: '2026-07-01',
-      weightAtTimeKg: 4.8,
-      notes: 'Vermifuge mensuel chiot',
-    },
-  ]);
+    const sorted = [...allVaccines].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    const isLatest = sorted.length > 0 && sorted[0].id === vaccine.id;
+    const hasSubsequent = allVaccines.some(
+      (other) => other.id !== vaccine.id && new Date(other.date).getTime() >= new Date(vaccine.date).getTime()
+    );
+
+    if (!isLatest || hasSubsequent) {
+      return {
+        label: `✅ ${t.health.statusFulfilled}`,
+        className: 'bg-slate-800/90 text-slate-300 border-slate-700/60 font-medium',
+      };
+    }
+
+    const due = new Date(vaccine.boosterDate);
+    const now = new Date();
+    const daysUntilDue = Math.floor((due.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+
+    if (daysUntilDue < 0) {
+      return { label: '⚠️ Overdue', className: 'bg-red-950 text-red-400 border-red-800/50 font-bold' };
+    } else if (daysUntilDue <= 14) {
+      return { label: '⏰ Due Soon', className: 'bg-amber-950 text-amber-400 border-amber-800/50 font-bold' };
+    }
+    return { label: `✅ ${t.health.statusUpToDate}`, className: 'bg-emerald-950 text-emerald-400 border-emerald-800/50 font-bold' };
+  };
+
+  const getDewormingStatus = (
+    deworming: DewormingEntry,
+    allDewormings: DewormingEntry[]
+  ): { label: string; className: string } => {
+    if (!deworming.boosterDate) {
+      return { label: `✅ ${t.health.statusUpToDate}`, className: 'bg-emerald-950 text-emerald-400 border-emerald-800/50 font-bold' };
+    }
+
+    const sorted = [...allDewormings].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    const isLatest = sorted.length > 0 && sorted[0].id === deworming.id;
+    const hasSubsequent = allDewormings.some(
+      (other) => other.id !== deworming.id && new Date(other.date).getTime() >= new Date(deworming.date).getTime()
+    );
+
+    if (!isLatest || hasSubsequent) {
+      return {
+        label: `✅ ${t.health.statusFulfilled}`,
+        className: 'bg-slate-800/90 text-slate-300 border-slate-700/60 font-medium',
+      };
+    }
+
+    const due = new Date(deworming.boosterDate);
+    const now = new Date();
+    const daysUntilDue = Math.floor((due.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+
+    if (daysUntilDue < 0) {
+      return { label: '⚠️ Overdue', className: 'bg-red-950 text-red-400 border-red-800/50 font-bold' };
+    } else if (daysUntilDue <= 14) {
+      return { label: '⏰ Due Soon', className: 'bg-amber-950 text-amber-400 border-amber-800/50 font-bold' };
+    }
+    return { label: `✅ ${t.health.statusUpToDate}`, className: 'bg-emerald-950 text-emerald-400 border-emerald-800/50 font-bold' };
+  };
+
+  const [vaccinations, setVaccinations] = useState<VaccinationEntry[]>([]);
+  const [dewormingLogs, setDewormingLogs] = useState<DewormingEntry[]>([]);
 
   // Form toggles
   const [isAddingVaccine, setIsAddingVaccine] = useState(false);
   const [isAddingDeworming, setIsAddingDeworming] = useState(false);
 
   // New Vaccine Form
-  const [vaccineType, setVaccineType] = useState<'Rage' | 'DHPP' | 'Leptospirose' | 'Toux_de_Chenil'>('DHPP');
-  const [administeredDate, setAdministeredDate] = useState(new Date().toISOString().slice(0, 10));
+  const [vaccineType, setVaccineType] = useState<string>('CHPPi + L4');
+  const [administeredDate, setAdministeredDate] = useState(() => formatLocalDate());
   const [nextDueDate, setNextDueDate] = useState('');
+  const [vetClinic, setVetClinic] = useState('');
+  const [batchNumber, setBatchNumber] = useState('');
+
+  // Auto-calculate next vaccine booster due date based on dataset rules
+  useEffect(() => {
+    if (!administeredDate) return;
+    const calculated = calculateNextVaccineBooster(administeredDate, vaccineType);
+    setNextDueDate(calculated);
+  }, [administeredDate, vaccineType]);
 
   // New Deworming Form
-  const [productName, setProductName] = useState('Milbemax Tab');
-  const [dewormAdminDate, setDewormAdminDate] = useState(new Date().toISOString().slice(0, 10));
+  const [productName, setProductName] = useState('Credelio Plus');
+  const [dewormAdminDate, setDewormAdminDate] = useState(() => formatLocalDate());
   const [dewormNextDate, setDewormNextDate] = useState('');
 
-  const handleAddVaccineSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!administeredDate || !nextDueDate) return;
+  // Auto-calculate next deworming / antiparasitic booster date based on product SPC & ESCCAP
+  useEffect(() => {
+    if (!dewormAdminDate) return;
+    const ageMonths = activePuppy?.birthDate ? getPuppyAge(activePuppy.birthDate).months : 3;
+    const calculated = calculateNextAntiparasiticDate(dewormAdminDate, productName, ageMonths);
+    setDewormNextDate(calculated);
+  }, [dewormAdminDate, productName, activePuppy?.birthDate]);
 
-    const newEntry: VaccinationEntry = {
-      id: `v-${Date.now()}`,
-      vaccineType,
-      administeredDate,
-      nextDueDate,
-    };
+  // Edit Vaccine state
+  const [editingVaccineId, setEditingVaccineId] = useState<string | null>(null);
+  const [editVaccineName, setEditVaccineName] = useState('');
+  const [editVaccineDate, setEditVaccineDate] = useState('');
+  const [editVaccineBoosterDate, setEditVaccineBoosterDate] = useState('');
+  const [editVaccineVetClinic, setEditVaccineVetClinic] = useState('');
+  const [editVaccineBatchNumber, setEditVaccineBatchNumber] = useState('');
 
-    setVaccinations((prev) => [newEntry, ...prev]);
-    setIsAddingVaccine(false);
+  // Edit Deworming state
+  const [editingDewormingId, setEditingDewormingId] = useState<string | null>(null);
+  const [editDewormingName, setEditDewormingName] = useState('');
+  const [editDewormingDate, setEditDewormingDate] = useState('');
+  const [editDewormingBoosterDate, setEditDewormingBoosterDate] = useState('');
+  const [editDewormingWeight, setEditDewormingWeight] = useState('');
+
+  const startEditVaccine = (vaccine: VaccinationEntry) => {
+    setEditingVaccineId(vaccine.id);
+    setEditVaccineName(vaccine.name);
+    setEditVaccineDate(vaccine.date);
+    setEditVaccineBoosterDate(vaccine.boosterDate || '');
+    setEditVaccineVetClinic(vaccine.vetClinic || '');
+    setEditVaccineBatchNumber(vaccine.batchNumber || '');
   };
 
-  const handleDeleteVaccine = (id: string) => {
-    const confirmMsg = lang === 'fr' 
-      ? 'Êtes-vous sûr de vouloir supprimer cette ligne de vaccin ?' 
-      : 'Are you sure you want to delete this vaccine record?';
-    if (window.confirm(confirmMsg)) {
-      setVaccinations((prev) => prev.filter((v) => v.id !== id));
+  const startEditDeworming = (deworming: DewormingEntry) => {
+    setEditingDewormingId(deworming.id);
+    setEditDewormingName(deworming.productName || deworming.name);
+    setEditDewormingDate(deworming.date);
+    setEditDewormingBoosterDate(deworming.boosterDate || '');
+    setEditDewormingWeight(deworming.weightAtTime ? String(deworming.weightAtTime) : '');
+  };
+
+  const handleUpdateVaccineSubmit = async (id: string) => {
+    if (!editVaccineDate || !activePuppy) return;
+    const updated = await updateHealthRecord({
+      id,
+      puppyId: activePuppy.id,
+      type: 'vaccination',
+      name: editVaccineName,
+      date: editVaccineDate,
+      boosterDate: editVaccineBoosterDate || undefined,
+      vetClinic: editVaccineVetClinic || undefined,
+      batchNumber: editVaccineBatchNumber || undefined,
+    });
+
+    if (updated) {
+      setVaccinations((prev) =>
+        sortByDateDesc(prev.map((v) => (v.id === id ? { ...v, ...updated } : v)))
+      );
+      setEditingVaccineId(null);
+      showToast('Vaccination entry updated.', 'success');
     }
   };
 
-  const handleAddDewormingSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!dewormAdminDate || !dewormNextDate) return;
+  const handleUpdateDewormingSubmit = async (id: string) => {
+    if (!editDewormingDate || !activePuppy) return;
+    const updated = await updateHealthRecord({
+      id,
+      puppyId: activePuppy.id,
+      type: 'deworming',
+      name: editDewormingName,
+      productName: editDewormingName,
+      date: editDewormingDate,
+      boosterDate: editDewormingBoosterDate || undefined,
+      weightAtTime: editDewormingWeight ? Number(editDewormingWeight) : undefined,
+    });
 
-    const newEntry: DewormingEntry = {
-      id: `d-${Date.now()}`,
-      productName: productName.trim() || 'Milbemax Tab',
-      administeredDate: dewormAdminDate,
-      nextDueDate: dewormNextDate,
-      weightAtTimeKg: activePuppy?.weightKg,
-    };
-
-    setDewormingLogs((prev) => [newEntry, ...prev]);
-    setIsAddingDeworming(false);
+    if (updated) {
+      setDewormingLogs((prev) =>
+        sortByDateDesc(prev.map((d) => (d.id === id ? { ...d, ...updated } : d)))
+      );
+      setEditingDewormingId(null);
+      showToast('Deworming entry updated.', 'success');
+    }
   };
 
-  const handleDeleteDeworming = (id: string) => {
-    const confirmMsg = lang === 'fr' 
-      ? 'Êtes-vous sûr de vouloir supprimer cette entrée de vermifuge ?' 
-      : 'Are you sure you want to delete this deworming entry?';
-    if (window.confirm(confirmMsg)) {
-      setDewormingLogs((prev) => prev.filter((d) => d.id !== id));
+  const sortByDateDesc = <T extends { date: string }>(arr: T[]): T[] => {
+    return [...arr].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  };
+
+  const loadHealthRecords = React.useCallback(async () => {
+    if (!activePuppy?.id) return;
+    const [vRes, dRes] = await Promise.all([
+      fetchHealthRecords(activePuppy.id, 'vaccination'),
+      fetchHealthRecords(activePuppy.id, 'deworming'),
+    ]);
+    if (vRes) {
+      setVaccinations(sortByDateDesc(vRes));
+    }
+    if (dRes) {
+      setDewormingLogs(sortByDateDesc(dRes));
+    }
+  }, [activePuppy?.id]);
+
+  useEffect(() => {
+    if (activePuppy?.id) {
+      loadHealthRecords();
+    }
+  }, [activePuppy?.id, loadHealthRecords]);
+
+  const handleAddVaccineSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!administeredDate || !nextDueDate || !activePuppy) return;
+
+    const newEntry = {
+      puppyId: activePuppy.id,
+      type: 'vaccination' as const,
+      name: vaccineType,
+      date: administeredDate,
+      boosterDate: nextDueDate,
+      vetClinic: vetClinic.trim() || undefined,
+      batchNumber: batchNumber.trim() || undefined,
+    };
+
+    const created = await createHealthRecord(newEntry);
+    if (created) {
+      setVaccinations((previous) => sortByDateDesc([created, ...previous]));
+      setIsAddingVaccine(false);
+      setVetClinic('');
+      setBatchNumber('');
+    }
+  };
+
+  const handleDeleteVaccine = async (id: string) => {
+    if (window.confirm(t.health.deleteVaccineConfirm)) {
+      const ok = await deleteHealthRecord(id);
+      if (ok) {
+        setVaccinations((previous) => previous.filter((vaccine) => vaccine.id !== id));
+      }
+    }
+  };
+
+  const handleAddDewormingSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!dewormAdminDate || !dewormNextDate || !activePuppy) return;
+
+    const newEntry = {
+      puppyId: activePuppy.id,
+      type: 'deworming' as const,
+      name: productName.trim() || 'Credelio Plus',
+      productName: productName.trim() || 'Credelio Plus',
+      date: dewormAdminDate,
+      boosterDate: dewormNextDate,
+      weightAtTime: activePuppy.weightKg,
+    };
+
+    const created = await createHealthRecord(newEntry);
+    if (created) {
+      setDewormingLogs((previous) => sortByDateDesc([created, ...previous]));
+      setIsAddingDeworming(false);
+    }
+  };
+
+  const handleDeleteDeworming = async (id: string) => {
+    if (window.confirm(t.health.deleteDewormingConfirm)) {
+      const ok = await deleteHealthRecord(id);
+      if (ok) {
+        setDewormingLogs((previous) => previous.filter((deworming) => deworming.id !== id));
+      }
     }
   };
 
   if (!activePuppy) {
     return (
-      <div className="bg-slate-900 border border-slate-800 p-8 rounded-2xl text-center text-slate-400 space-y-2">
-        <Syringe className="w-10 h-10 text-indigo-400 mx-auto" />
-        <h3 className="text-base font-bold text-white">
-          {lang === 'fr' ? 'Aucun profil de chien sélectionné' : 'No Active Dog Profile Selected'}
-        </h3>
-        <p className="text-xs">
-          {lang === 'fr' 
-            ? 'Enregistrez un chiot dans "Paramètres & Foyer" pour gérer son carnet de santé !' 
-            : 'Register a puppy in "Settings & Household" to manage their Health Passport!'}
+      <div className="bg-slate-900 border border-slate-800 p-8 rounded-2xl text-center space-y-3 max-w-xl mx-auto">
+        <Syringe className="w-12 h-12 text-slate-600 mx-auto" />
+        <h2 className="text-lg font-bold text-slate-200">
+          {t.health.noPuppySelected}
+        </h2>
+        <p className="text-xs text-slate-400">
+          {t.health.selectPuppyToViewHealth}
         </p>
       </div>
     );
@@ -145,45 +325,47 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePupp
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-4 bg-slate-900 border border-slate-800 p-6 rounded-2xl">
         <div className="flex items-center gap-3">
-          <div className="p-3 bg-gradient-to-br from-teal-500 to-indigo-600 rounded-xl shadow-md">
+          <div className="p-3 bg-gradient-to-br from-teal-500 to-emerald-600 rounded-xl shadow-md">
             <Syringe className="w-6 h-6 text-white" />
           </div>
           <div>
             <h2 className="text-xl font-bold text-slate-100 flex items-center gap-2">
-              <span>{t.health.carnetTitle} — {activePuppy.name}</span>
-              <span className="text-xs bg-indigo-950 text-indigo-300 border border-indigo-700/50 px-2.5 py-0.5 rounded-full font-semibold">
-                {lang === 'fr' ? 'Protocole Vétérinaire Français' : 'French Veterinary Protocol'}
-              </span>
+              <span>{t.health.healthPassportFor.replace('{name}', activePuppy.name)}</span>
             </h2>
-            <p className="text-xs text-slate-400">{t.health.subtitle}</p>
+            <p className="text-xs text-slate-400">
+              {t.health.subtitle} &bull; {activePuppy.name} ({activePuppy.breed})
+            </p>
           </div>
         </div>
       </div>
 
-      {/* Protocol Reference Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      {/* Guidelines Info Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* French Vaccine Schedule Card */}
         <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl space-y-2">
           <h3 className="text-xs font-bold text-teal-400 flex items-center gap-1.5 uppercase tracking-wider">
             <ShieldCheck className="w-4 h-4" />
-            <span>{lang === 'fr' ? 'Calendrier Vaccinal Chiot' : 'Puppy Vaccination Schedule'}</span>
+            <span>{t.health.frenchVaccineGuidelines}</span>
           </h3>
           <ul className="text-[11px] text-slate-300 space-y-1 list-disc list-inside">
-            <li><strong>{lang === 'fr' ? '8 Semaines (Primo)' : '8 Weeks (Initial)'}</strong>: DHPP + Leptospirose (L4)</li>
-            <li><strong>{lang === 'fr' ? '12 Semaines (Rappel 1)' : '12 Weeks (Booster 1)'}</strong>: DHPP + L4 + {lang === 'fr' ? 'Rage (Obligatoire voyages)' : 'Rabies (Mandatory for travel)'}</li>
-            <li><strong>{lang === 'fr' ? '16 Semaines (Rappel 2)' : '16 Weeks (Booster 2)'}</strong>: DHPP final booster</li>
-            <li><strong>{lang === 'fr' ? 'Annuel / 3 Ans' : 'Annual Booster'}</strong>: {lang === 'fr' ? 'Rappel annuel vétérinaire' : 'Annual vet checkup booster'}</li>
+            <li>{t.health.week8Initial}</li>
+            <li>{t.health.week12Booster1}</li>
+            <li>{t.health.week16Booster2}</li>
+            <li>{t.health.year1Booster}</li>
           </ul>
         </div>
 
+        {/* French ESCCAP Deworming Protocol Card */}
         <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl space-y-2">
           <h3 className="text-xs font-bold text-amber-400 flex items-center gap-1.5 uppercase tracking-wider">
             <Pill className="w-4 h-4" />
-            <span>{lang === 'fr' ? 'Protocole Vermifuge' : 'Deworming Protocol'}</span>
+            <span>{t.health.esccapDewormingProtocol}</span>
           </h3>
           <ul className="text-[11px] text-slate-300 space-y-1 list-disc list-inside">
-            <li><strong>{lang === 'fr' ? 'De 2 à 6 mois' : '2 to 6 months old'}</strong>: {lang === 'fr' ? '1 fois par mois (Milbemax / Drontal)' : 'Once per month (Milbemax / Drontal)'}</li>
-            <li><strong>{lang === 'fr' ? 'Après 6 mois' : 'After 6 months old'}</strong>: {lang === 'fr' ? '4 fois par an (changement de saison)' : '4 times per year (quarterly)'}</li>
-            <li><strong>{lang === 'fr' ? 'Pesée obligatoire' : 'Weight dosing'}</strong>: {lang === 'fr' ? `Adapter la dose exacte selon le poids (${activePuppy.weightKg}kg)` : `Dose precisely according to weight (${activePuppy.weightKg}kg)`}</li>
+            <li>{t.health.dewormSchedule1}</li>
+            <li>{t.health.dewormSchedule2}</li>
+            <li>{t.health.dewormSchedule3}</li>
+            <li>{t.health.dewormSchedule4}</li>
           </ul>
         </div>
       </div>
@@ -200,7 +382,7 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePupp
             className="flex items-center gap-1 bg-teal-600 hover:bg-teal-500 text-white font-bold text-xs px-3.5 py-2 rounded-xl transition cursor-pointer"
           >
             <Plus className="w-4 h-4" />
-            <span>{isAddingVaccine ? (lang === 'fr' ? 'Annuler' : 'Cancel') : t.health.addVaccine}</span>
+            <span>{isAddingVaccine ? t.potty.cancel : t.health.addVaccine}</span>
           </button>
         </div>
 
@@ -211,13 +393,14 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePupp
                 <label className="block text-xs font-semibold text-slate-400 mb-1">{t.health.vaccineType}</label>
                 <select
                   value={vaccineType}
-                  onChange={(e) => setVaccineType(e.target.value as any)}
+                  onChange={(event) => setVaccineType(event.target.value)}
                   className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-teal-500 cursor-pointer"
                 >
-                  <option value="DHPP">DHPP (Parvo, Distemper, Hepatitis)</option>
-                  <option value="Rage">{lang === 'fr' ? 'Rage' : 'Rabies'}</option>
-                  <option value="Leptospirose">Leptospirose (L4)</option>
-                  <option value="Toux_de_Chenil">{lang === 'fr' ? 'Toux de Chenil (Bordetella)' : 'Kennel Cough (Bordetella)'}</option>
+                  {getHealthProtocols().vaccines.map((v) => (
+                    <option key={v.id} value={v.name}>
+                      {v.fullName}
+                    </option>
+                  ))}
                 </select>
               </div>
 
@@ -226,7 +409,7 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePupp
                 <input
                   type="date"
                   value={administeredDate}
-                  onChange={(e) => setAdministeredDate(e.target.value)}
+                  onChange={(event) => setAdministeredDate(event.target.value)}
                   className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-teal-500"
                   required
                 />
@@ -237,9 +420,33 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePupp
                 <input
                   type="date"
                   value={nextDueDate}
-                  onChange={(e) => setNextDueDate(e.target.value)}
+                  onChange={(event) => setNextDueDate(event.target.value)}
                   className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-teal-500"
                   required
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-semibold text-slate-400 mb-1">{t.health.vetClinic}</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Clinique Vétérinaire Saint-Roch"
+                  value={vetClinic}
+                  onChange={(event) => setVetClinic(event.target.value)}
+                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-teal-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-400 mb-1">{t.health.batchNumber}</label>
+                <input
+                  type="text"
+                  placeholder="e.g. BATCH-2026-X99"
+                  value={batchNumber}
+                  onChange={(event) => setBatchNumber(event.target.value)}
+                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-teal-500 font-mono"
                 />
               </div>
             </div>
@@ -249,49 +456,135 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePupp
                 type="submit"
                 className="bg-teal-600 hover:bg-teal-500 text-white font-bold text-xs px-4 py-2 rounded-xl transition cursor-pointer"
               >
-                {lang === 'fr' ? 'Enregistrer Vaccin' : 'Save Vaccine Record'}
+                {t.health.saveVaccine}
               </button>
             </div>
           </form>
         )}
 
         <div className="space-y-2">
-          {vaccinations.map((v) => (
-            <div key={v.id} className="flex items-center justify-between p-3.5 bg-slate-950/40 rounded-xl border border-slate-800">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-teal-500/20 text-teal-400 rounded-lg">
-                  <Syringe className="w-4 h-4" />
-                </div>
-                <div>
-                  <div className="text-xs font-bold text-white flex items-center gap-2">
-                    <span>{v.vaccineType}</span>
-                    {v.batchNumber && (
-                      <span className="text-[10px] font-mono text-slate-400 bg-slate-800 px-2 py-0.2 rounded">
-                        Lot: {v.batchNumber}
-                      </span>
-                    )}
-                  </div>
-                  <div className="text-[11px] text-slate-400">
-                    {lang === 'fr' ? 'Injecté le' : 'Administered'} {v.administeredDate} &bull; {lang === 'fr' ? 'Clinique:' : 'Clinic:'} {v.vetClinicName || (lang === 'fr' ? 'Vétérinaire' : 'Veterinary')}
-                  </div>
-                </div>
-              </div>
+          {vaccinations.map((vaccine) => {
+            const isEditing = editingVaccineId === vaccine.id;
 
-              <div className="flex items-center gap-3">
-                <div className="text-right">
-                  <div className="text-xs font-bold text-amber-300">{lang === 'fr' ? 'Rappel:' : 'Booster:'} {v.nextDueDate}</div>
-                  <div className="text-[10px] text-slate-500">{lang === 'fr' ? 'Statut: Conforme' : 'Status: Compliant'}</div>
+            if (isEditing) {
+              return (
+                <div key={vaccine.id} className="p-3.5 bg-slate-950 border border-teal-500/60 rounded-xl space-y-3 shadow-md">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                    <div>
+                      <label className="block text-[10px] text-slate-400 font-semibold mb-1">Vaccine Name</label>
+                      <input
+                        type="text"
+                        value={editVaccineName}
+                        onChange={(e) => setEditVaccineName(e.target.value)}
+                        className="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1 text-xs text-white font-bold"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] text-slate-400 font-semibold mb-1">Injected Date</label>
+                      <input
+                        type="date"
+                        value={editVaccineDate}
+                        onChange={(e) => setEditVaccineDate(e.target.value)}
+                        className="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1 text-xs text-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] text-slate-400 font-semibold mb-1">Booster Due Date</label>
+                      <input
+                        type="date"
+                        value={editVaccineBoosterDate}
+                        onChange={(e) => setEditVaccineBoosterDate(e.target.value)}
+                        className="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1 text-xs text-white"
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-[10px] text-slate-400 font-semibold mb-1">Vet Clinic</label>
+                      <input
+                        type="text"
+                        value={editVaccineVetClinic}
+                        onChange={(e) => setEditVaccineVetClinic(e.target.value)}
+                        className="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1 text-xs text-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] text-slate-400 font-semibold mb-1">Batch / Lot N°</label>
+                      <input
+                        type="text"
+                        value={editVaccineBatchNumber}
+                        onChange={(e) => setEditVaccineBatchNumber(e.target.value)}
+                        className="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1 text-xs text-white font-mono"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex justify-end gap-2 pt-1">
+                    <button
+                      onClick={() => setEditingVaccineId(null)}
+                      className="px-3 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs rounded-lg transition cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={() => handleUpdateVaccineSubmit(vaccine.id)}
+                      className="flex items-center gap-1 px-3 py-1 bg-teal-600 hover:bg-teal-500 text-white font-bold text-xs rounded-lg transition cursor-pointer"
+                    >
+                      <Check className="w-3.5 h-3.5" />
+                      <span>Save</span>
+                    </button>
+                  </div>
                 </div>
-                <button
-                  onClick={() => handleDeleteVaccine(v.id)}
-                  title={lang === 'fr' ? 'Supprimer la ligne de vaccin' : 'Delete vaccine record'}
-                  className="p-1.5 text-slate-500 hover:text-red-400 hover:bg-red-950/40 rounded-lg transition cursor-pointer"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
+              );
+            }
+
+            return (
+              <div key={vaccine.id} className="flex items-center justify-between p-3.5 bg-slate-950/40 rounded-xl border border-slate-800">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-teal-500/20 text-teal-400 rounded-lg">
+                    <Syringe className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <div className="text-xs font-bold text-white flex items-center gap-2">
+                      <span>{vaccine.name}</span>
+                      {vaccine.batchNumber && (
+                        <span className="text-[10px] font-mono text-slate-400 bg-slate-800 px-2 py-0.2 rounded">
+                          Lot: {vaccine.batchNumber}
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-[11px] text-slate-400">
+                      {t.health.injectedOn} {vaccine.date} &bull; {t.health.clinic}: {vaccine.vetClinic || t.health.veterinary}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <div className="text-right">
+                    <div className="text-xs font-bold text-amber-300">{t.health.booster}: {vaccine.boosterDate}</div>
+                    <div className={`text-[10px] px-2 py-0.5 rounded border inline-block ${getVaccineStatus(vaccine, vaccinations).className}`}>
+                      {getVaccineStatus(vaccine, vaccinations).label}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => startEditVaccine(vaccine)}
+                      title="Edit vaccine entry"
+                      className="p-1.5 text-slate-400 hover:text-teal-300 hover:bg-slate-800 rounded-lg transition cursor-pointer"
+                    >
+                      <Pencil className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={() => handleDeleteVaccine(vaccine.id)}
+                      title={t.health.deleteVaccineConfirm}
+                      className="p-1.5 text-slate-500 hover:text-red-400 hover:bg-red-950/40 rounded-lg transition cursor-pointer"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 
@@ -307,7 +600,7 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePupp
             className="flex items-center gap-1 bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs px-3.5 py-2 rounded-xl transition cursor-pointer"
           >
             <Plus className="w-4 h-4" />
-            <span>{isAddingDeworming ? (lang === 'fr' ? 'Annuler' : 'Cancel') : t.health.addDeworming}</span>
+            <span>{isAddingDeworming ? t.potty.cancel : t.health.addDeworming}</span>
           </button>
         </div>
 
@@ -316,13 +609,17 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePupp
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
                 <label className="block text-xs font-semibold text-slate-400 mb-1">{t.health.productName}</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Milbemax / Drontal"
+                <select
                   value={productName}
-                  onChange={(e) => setProductName(e.target.value)}
-                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-amber-500"
-                />
+                  onChange={(event) => setProductName(event.target.value)}
+                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-amber-500 cursor-pointer"
+                >
+                  {getHealthProtocols().antiparasitics.map((p) => (
+                    <option key={p.id} value={p.name}>
+                      {p.label}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div>
@@ -330,7 +627,7 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePupp
                 <input
                   type="date"
                   value={dewormAdminDate}
-                  onChange={(e) => setDewormAdminDate(e.target.value)}
+                  onChange={(event) => setDewormAdminDate(event.target.value)}
                   className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-amber-500"
                   required
                 />
@@ -341,7 +638,7 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePupp
                 <input
                   type="date"
                   value={dewormNextDate}
-                  onChange={(e) => setDewormNextDate(e.target.value)}
+                  onChange={(event) => setDewormNextDate(event.target.value)}
                   className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-amber-500"
                   required
                 />
@@ -353,42 +650,128 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePupp
                 type="submit"
                 className="bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs px-4 py-2 rounded-xl transition cursor-pointer"
               >
-                {lang === 'fr' ? 'Enregistrer Vermifuge' : 'Save Deworming Entry'}
+                {t.health.saveDeworming}
               </button>
             </div>
           </form>
         )}
 
         <div className="space-y-2">
-          {dewormingLogs.map((d) => (
-            <div key={d.id} className="flex items-center justify-between p-3.5 bg-slate-950/40 rounded-xl border border-slate-800">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-amber-500/20 text-amber-400 rounded-lg">
-                  <Pill className="w-4 h-4" />
+          {dewormingLogs.map((deworming) => {
+            const isEditing = editingDewormingId === deworming.id;
+
+            if (isEditing) {
+              return (
+                <div key={deworming.id} className="p-3.5 bg-slate-950 border border-amber-500/60 rounded-xl space-y-3 shadow-md">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-[10px] text-slate-400 font-semibold mb-1">Product Name</label>
+                      <input
+                        type="text"
+                        value={editDewormingName}
+                        onChange={(e) => setEditDewormingName(e.target.value)}
+                        className="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1 text-xs text-white font-bold"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] text-slate-400 font-semibold mb-1">Weight at time (kg)</label>
+                      <input
+                        type="number"
+                        step="0.1"
+                        placeholder="e.g. 7.5"
+                        value={editDewormingWeight}
+                        onChange={(e) => setEditDewormingWeight(e.target.value)}
+                        className="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1 text-xs text-white"
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-[10px] text-slate-400 font-semibold mb-1">Given Date</label>
+                      <input
+                        type="date"
+                        value={editDewormingDate}
+                        onChange={(e) => setEditDewormingDate(e.target.value)}
+                        className="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1 text-xs text-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] text-slate-400 font-semibold mb-1">Next Due Date</label>
+                      <input
+                        type="date"
+                        value={editDewormingBoosterDate}
+                        onChange={(e) => setEditDewormingBoosterDate(e.target.value)}
+                        className="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1 text-xs text-white"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex justify-end gap-2 pt-1">
+                    <button
+                      onClick={() => setEditingDewormingId(null)}
+                      className="px-3 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs rounded-lg transition cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={() => handleUpdateDewormingSubmit(deworming.id)}
+                      className="flex items-center gap-1 px-3 py-1 bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs rounded-lg transition cursor-pointer"
+                    >
+                      <Check className="w-3.5 h-3.5" />
+                      <span>Save</span>
+                    </button>
+                  </div>
                 </div>
-                <div>
-                  <div className="text-xs font-bold text-white">{d.productName}</div>
-                  <div className="text-[11px] text-slate-400">
-                    {lang === 'fr' ? 'Pris le' : 'Administered'} {d.administeredDate} &bull; {lang === 'fr' ? 'Poids:' : 'Weight:'} {d.weightAtTimeKg || activePuppy.weightKg} kg
+              );
+            }
+
+            return (
+              <div key={deworming.id} className="flex items-center justify-between p-3.5 bg-slate-950/40 rounded-xl border border-slate-800">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-amber-500/20 text-amber-400 rounded-lg">
+                    <Pill className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <div className="text-xs font-bold text-white flex items-center gap-2">
+                      <span>{deworming.productName || deworming.name}</span>
+                      {deworming.weightAtTime && (
+                        <span className="text-[10px] text-amber-300 bg-amber-950/60 border border-amber-800 px-2 py-0.2 rounded font-semibold">
+                          Poids: {deworming.weightAtTime} kg
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-[11px] text-slate-400">
+                      {t.health.givenOn} {deworming.date}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <div className="text-right">
+                    <div className="text-xs font-bold text-amber-300">{t.health.nextDeworming}: {deworming.boosterDate}</div>
+                    <div className={`text-[10px] px-2 py-0.5 rounded border inline-block ${getDewormingStatus(deworming, dewormingLogs).className}`}>
+                      {getDewormingStatus(deworming, dewormingLogs).label}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => startEditDeworming(deworming)}
+                      title="Edit deworming entry"
+                      className="p-1.5 text-slate-400 hover:text-amber-300 hover:bg-slate-800 rounded-lg transition cursor-pointer"
+                    >
+                      <Pencil className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={() => handleDeleteDeworming(deworming.id)}
+                      title={t.health.deleteDewormingConfirm}
+                      className="p-1.5 text-slate-500 hover:text-red-400 hover:bg-red-950/40 rounded-lg transition cursor-pointer"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
                   </div>
                 </div>
               </div>
-
-              <div className="flex items-center gap-3">
-                <div className="text-right">
-                  <div className="text-xs font-bold text-indigo-300">{lang === 'fr' ? 'Prochain:' : 'Next:'} {d.nextDueDate}</div>
-                  <div className="text-[10px] text-slate-500">{lang === 'fr' ? 'Statut: À jour' : 'Status: Up to date'}</div>
-                </div>
-                <button
-                  onClick={() => handleDeleteDeworming(d.id)}
-                  title={lang === 'fr' ? 'Supprimer la ligne de vermifuge' : 'Delete deworming entry'}
-                  className="p-1.5 text-slate-500 hover:text-red-400 hover:bg-red-950/40 rounded-lg transition cursor-pointer"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </div>

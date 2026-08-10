@@ -1,26 +1,33 @@
 import React, { useState, useEffect } from 'react';
 import type { Activity, Caretaker, FamilyRole, PuppyProfile, UserAccount, ActivityType, PottyLocation } from './types';
 import {
-  getInitialActivities,
-  saveActivities,
-  getStoredPuppies,
-  savePuppies,
+  getStoredUser,
+  getStoredCaretakers,
   getActivePuppyId,
   setActivePuppyId,
-  getStoredUser,
-  saveUser,
-  getStoredCaretakers,
-  saveCaretakers,
+  getOfflineQueue,
+  clearOfflineQueue,
   clearAllData,
-  apiFetchDogs,
-  apiPostDog,
-  apiDeleteDog,
-  apiFetchActivities,
-  apiPostActivity,
-  apiDeleteActivity,
-  markActivitiesAsKnown,
 } from './utils/storage';
+import { getAuthToken, setAuthToken, clearAuthToken } from './utils/auth';
+import { resolveCaretakerName } from './utils/caretakers';
+import {
+  fetchDogs,
+  createDog,
+  deleteDog,
+  fetchActivities,
+  createActivity,
+  updateActivity,
+  deleteActivity,
+  fetchHousehold,
+  fetchHealthRecords,
+  createCaretaker,
+  updateCaretaker,
+  deleteCaretaker,
+  exchangeSessionToken,
+} from './services/api';
 import { calculatePredictions } from './utils/predictions';
+import { formatLocalDate, isSameLocalDate } from './utils/date';
 import { Navbar, type MainTabType } from './components/Navbar';
 import { QuickLogModal } from './components/QuickLogModal';
 import { PredictorWidget } from './components/PredictorWidget';
@@ -28,19 +35,23 @@ import { ActivityTimeline } from './components/ActivityTimeline';
 import { StatsAnalytics } from './components/StatsAnalytics';
 import { WeightGrowthChart } from './components/WeightGrowthChart';
 import { AuthLockScreen } from './components/AuthLockScreen';
+import { ToastContainer } from './components/Toast';
 import { HouseholdSettingsView } from './views/HouseholdSettingsView';
 import { AdminView } from './views/AdminView';
 import { CareGuideView } from './views/CareGuideView';
 import { CarnetDeSanteView } from './views/CarnetDeSanteView';
 import { useI18n } from './i18n';
+import { showToast } from './utils/toast';
 import { Dog, Plus } from 'lucide-react';
 
 export function App() {
   const { lang, changeLanguage, t } = useI18n();
 
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+
   // Authentication & Lock Screen
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
-    return localStorage.getItem('puppace_unlocked_v4') === 'true';
+    return !!getAuthToken();
   });
   const [user, setUser] = useState<UserAccount>(getStoredUser);
   const [caretakers, setCaretakers] = useState<Caretaker[]>(getStoredCaretakers);
@@ -49,33 +60,39 @@ export function App() {
     return initialUser.name;
   });
 
-  // Main Page Navigation Tabs with Clean English Technical URL Routing
-  const [activeMainTab, setActiveMainTab] = useState<MainTabType>('dashboard');
+  // Listen for 401/403 unauthorized events to lock vault & prompt re-auth
+  useEffect(() => {
+    const onUnauthorized = () => {
+      handleSignOut();
+      showToast('Session expired. Please sign in with Google.', 'error');
+    };
+    window.addEventListener('puppace:unauthorized', onUnauthorized);
+    return () => window.removeEventListener('puppace:unauthorized', onUnauthorized);
+  }, []);
 
-  // URL Path Synchronization (Technical URLs are strictly English)
+  const getInitialTabFromLocation = (): MainTabType => {
+    const path = window.location.pathname;
+    if (path === '/health-passport' || path === '/carnet-de-sante') return 'carnetdesante';
+    if (path === '/settings') return 'settings';
+    if (path === '/care-guide') return 'careguide';
+    if (path === '/admin') return 'admin';
+    return 'dashboard';
+  };
+
+  // Main Page Navigation Tabs with Clean English Technical URL Routing
+  const [activeMainTab, setActiveMainTab] = useState<MainTabType>(getInitialTabFromLocation);
+
+  // URL Path Synchronization for Browser Back/Forward & Refresh
   useEffect(() => {
     const syncRouteWithTab = () => {
-      const path = window.location.pathname;
-      if (path === '/health-passport' || path === '/carnet-de-sante') {
-        setActiveMainTab('carnetdesante');
-      } else if (path === '/settings') {
-        setActiveMainTab('settings');
-      } else if (path === '/care-guide') {
-        setActiveMainTab('careguide');
-      } else if (path === '/admin') {
-        setActiveMainTab('admin');
-      } else {
-        setActiveMainTab('dashboard');
-      }
+      setActiveMainTab(getInitialTabFromLocation());
     };
-    syncRouteWithTab();
     window.addEventListener('popstate', syncRouteWithTab);
     return () => window.removeEventListener('popstate', syncRouteWithTab);
   }, []);
 
   const handleSelectMainTab = (tab: MainTabType) => {
     setActiveMainTab(tab);
-    // Strict English Technical URLs
     const routeMap: Record<MainTabType, string> = {
       dashboard: '/',
       carnetdesante: '/health-passport',
@@ -83,175 +100,308 @@ export function App() {
       careguide: '/care-guide',
       admin: '/admin',
     };
-    if (window.location.pathname !== routeMap[tab]) {
-      window.history.pushState({}, '', routeMap[tab]);
+    const targetPath = routeMap[tab];
+    if (window.location.pathname !== targetPath) {
+      window.history.pushState({ tab }, '', targetPath);
     }
   };
 
   // Multi-Puppy State
-  const [puppies, setPuppies] = useState<PuppyProfile[]>(getStoredPuppies);
+  const [puppies, setPuppies] = useState<PuppyProfile[]>([]);
   const [activePuppyId, setActivePuppyIdState] = useState<string>(getActivePuppyId);
 
   // Activities State
-  const [activities, setActivities] = useState<Activity[]>(getInitialActivities);
+  const [activities, setActivities] = useState<Activity[]>([]);
 
-  // Quick Action Modal with selectable initial activity type
+  // Quick Action Modal
   const [isQuickLogOpen, setIsQuickLogOpen] = useState(false);
   const [quickLogType, setQuickLogType] = useState<ActivityType>('pee');
 
-  // Save changes to localStorage
+  // Synchronous Parallel Database Load via REST API
   useEffect(() => {
-    savePuppies(puppies);
-  }, [puppies]);
-
-  useEffect(() => {
-    saveActivities(activities);
-  }, [activities]);
-
-  useEffect(() => {
-    saveUser(user);
-  }, [user]);
-
-  useEffect(() => {
-    saveCaretakers(caretakers);
-  }, [caretakers]);
-
-  // Initial Startup REST API Synchronization (Pulls dogs & activities from /api/dogs & /api/activities)
-  useEffect(() => {
-    async function initRestApiSync() {
-      // Fetch dogs from DB
-      const remoteDogs = await apiFetchDogs();
-      if (remoteDogs && remoteDogs.length > 0) {
-        setPuppies(remoteDogs);
-        if (!activePuppyId) setActivePuppyIdState(remoteDogs[0].id);
-      } else if (puppies.length > 0) {
-        // First time: push local dogs to DB
-        puppies.forEach((d) => apiPostDog(d));
+    async function loadDatabaseState() {
+      if (!getAuthToken()) {
+        setIsLoading(false);
+        return;
       }
+      setIsLoading(true);
+      try {
+        const [remoteDogs, remoteActivities, hhRes] = await Promise.all([
+          fetchDogs(),
+          fetchActivities(),
+          fetchHousehold(),
+        ]);
 
-      // Fetch activities from DB
-      const remoteActivities = await apiFetchActivities();
-      if (remoteActivities && remoteActivities.length > 0) {
-        markActivitiesAsKnown(remoteActivities);
-        setActivities(remoteActivities);
-      } else if (activities.length > 0) {
-        // First time: push local activities to DB
-        activities.forEach((a) => apiPostActivity(a));
-        markActivitiesAsKnown(activities);
+        // Background session token upgrade to long-lived 90-day PupPace Session Token
+        let loadedCaretakers = caretakers;
+        if (hhRes?.caretakers && hhRes.caretakers.length > 0) {
+          setCaretakers(hhRes.caretakers);
+          loadedCaretakers = hhRes.caretakers;
+        }
+
+        // Background session token upgrade to long-lived 90-day PupPace Session Token
+        exchangeSessionToken().then((res) => {
+          if (res?.sessionToken) {
+            setAuthToken(res.sessionToken);
+            if (res.user) {
+              setUser((previous) => ({
+                ...previous,
+                email: res.user.email,
+                name: res.user.name,
+                role: res.user.role as FamilyRole,
+              }));
+              const cleanCaretakerName = resolveCaretakerName(res.user.name, loadedCaretakers);
+              setCurrentUser(cleanCaretakerName);
+            }
+          }
+        }).catch(() => {});
+
+        if (remoteDogs) {
+          setPuppies(remoteDogs);
+          const targetId = activePuppyId || (remoteDogs.length > 0 ? remoteDogs[0].id : null);
+          if (remoteDogs.length > 0 && !activePuppyId) {
+            setActivePuppyIdState(remoteDogs[0].id);
+          }
+          if (targetId) {
+            // Warm up SWR cache for instant Carnet de Santé tab switching
+            Promise.all([
+              fetchHealthRecords(targetId, 'vaccination'),
+              fetchHealthRecords(targetId, 'deworming'),
+            ]).catch(() => {});
+          }
+        }
+
+        if (remoteActivities) {
+          setActivities(remoteActivities);
+        }
+      } finally {
+        setIsLoading(false);
       }
     }
-    initRestApiSync();
-  }, []);
+    loadDatabaseState();
+  }, [isAuthenticated, activePuppyId]);
 
-  const activePuppy = puppies.find((p) => p.id === activePuppyId) || (puppies.length > 0 ? puppies[0] : null);
+  // Silent Background Real-Time Synchronization & Offline Queue Flush (15s polling + Focus/Online events)
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    const syncRealtimeData = async () => {
+      if (document.visibilityState !== 'visible' || (typeof navigator !== 'undefined' && !navigator.onLine)) {
+        return;
+      }
+
+      // 1. Flush queued offline items if reconnected
+      const offlineQueue = getOfflineQueue();
+      if (offlineQueue.length > 0) {
+        clearOfflineQueue();
+        await Promise.all(offlineQueue.map((item) => createActivity(item)));
+        showToast('Synced offline activities!', 'success');
+      }
+
+      // 2. Quiet background revalidation of dogs & activities (0ms UI flicker)
+      const [remoteDogs, remoteActivities] = await Promise.all([
+        fetchDogs(),
+        fetchActivities(),
+      ]);
+
+      if (remoteDogs && remoteDogs.length > 0) {
+        setPuppies(remoteDogs);
+      }
+      if (remoteActivities) {
+        setActivities(remoteActivities);
+      }
+    };
+
+    const handleSyncEvent = () => {
+      syncRealtimeData();
+    };
+
+    window.addEventListener('focus', handleSyncEvent);
+    window.addEventListener('online', handleSyncEvent);
+
+    const timer = setInterval(syncRealtimeData, 15000); // 15s low-overhead polling
+
+    return () => {
+      window.removeEventListener('focus', handleSyncEvent);
+      window.removeEventListener('online', handleSyncEvent);
+      clearInterval(timer);
+    };
+  }, [isAuthenticated]);
+
+  const activePuppy = puppies.find((puppy) => puppy.id === activePuppyId) || (puppies.length > 0 ? puppies[0] : null);
 
   const handleSelectPuppy = (id: string) => {
     setActivePuppyIdState(id);
     setActivePuppyId(id);
   };
 
-  const handleAddPuppy = (newPuppy: PuppyProfile) => {
-    const updated = [...puppies, newPuppy];
-    setPuppies(updated);
-    handleSelectPuppy(newPuppy.id);
+  const handleAddPuppy = async (newPuppy: PuppyProfile) => {
+    const created = await createDog(newPuppy);
+    if (created) {
+      setPuppies((previous) => [...previous, created]);
+      handleSelectPuppy(created.id);
+      showToast(`${created.name} registered!`, 'success');
+    }
   };
 
   const handleUpdatePuppy = (updatedPuppy: PuppyProfile) => {
-    setPuppies((prev) => prev.map((p) => (p.id === updatedPuppy.id ? updatedPuppy : p)));
+    createDog(updatedPuppy).then((updated) => {
+      if (updated) {
+        setPuppies((previous) => previous.map((puppy) => (puppy.id === updated.id ? updated : puppy)));
+        showToast('Dog profile updated.', 'success');
+      }
+    });
   };
 
-  const handleDeletePuppy = (id: string) => {
+  const handleDeletePuppy = async (id: string) => {
     if (window.confirm('Are you sure you want to delete this puppy profile and its associated logs?')) {
-      const updated = puppies.filter((p) => p.id !== id);
-      setPuppies(updated);
-      setActivities((prev) => prev.filter((a) => a.puppyId !== id));
-      apiDeleteDog(id);
-      if (activePuppyId === id && updated.length > 0) {
-        handleSelectPuppy(updated[0].id);
+      const ok = await deleteDog(id);
+      if (ok) {
+        const updated = puppies.filter((puppy) => puppy.id !== id);
+        setPuppies(updated);
+        setActivities((previous) => previous.filter((activity) => activity.puppyId !== id));
+        if (activePuppyId === id && updated.length > 0) {
+          handleSelectPuppy(updated[0].id);
+        }
+        showToast('Dog profile deleted.', 'success');
       }
     }
   };
 
-  const handleAddCaretaker = (newCaretaker: Caretaker) => {
-    setCaretakers((prev) => [...prev, newCaretaker]);
-  };
-
-  const handleDeleteCaretaker = (id: string) => {
-    setCaretakers((prev) => prev.filter((c) => c.id !== id));
-  };
-
-  const handleSwitchUserAccount = (name: string, role: FamilyRole) => {
-    setCurrentUser(name);
-    setUser((prev) => ({ ...prev, name, role }));
-  };
-
-  const handleUnlockWithSSO = (email: string, name: string) => {
-    localStorage.setItem('puppace_unlocked_v4', 'true');
-    setIsAuthenticated(true);
-    setUser((prev) => ({ ...prev, email, name }));
-    return { success: true };
-  };
-
-  const handleUnlockWithPassword = (email: string) => {
-    localStorage.setItem('puppace_unlocked_v4', 'true');
-    setIsAuthenticated(true);
-    setUser((prev) => ({ ...prev, email }));
-    return { success: true };
-  };
-
-  const handleRegisterAccount = (email: string, _pass: string, name: string, role: string) => {
-    const isSuperAdmin = email.toLowerCase() === 'matthieu.jacquet@gmail.com';
-    if (isSuperAdmin) {
-      localStorage.setItem('puppace_unlocked_v4', 'true');
-      setIsAuthenticated(true);
-      setUser((prev) => ({ ...prev, email, name, role: role as FamilyRole }));
-      return { success: true };
+  const handleAddCaretaker = async (newCaretaker: Caretaker) => {
+    const created = await createCaretaker(newCaretaker);
+    if (created) {
+      setCaretakers((previous) => [...previous, created]);
+      showToast('Caretaker added.', 'success');
     }
-    return { success: false, isPending: true };
   };
 
-  const handleLockVault = () => {
-    localStorage.removeItem('puppace_unlocked_v4');
+  const handleDeleteCaretaker = async (id: string) => {
+    const ok = await deleteCaretaker(id);
+    if (ok) {
+      setCaretakers((previous) => previous.filter((caretaker) => caretaker.id !== id));
+      showToast('Caretaker removed.', 'success');
+    }
+  };
+
+  const handleUpdateCaretaker = async (id: string, updatedFields: Partial<Caretaker>) => {
+    const updated = await updateCaretaker({ id, ...updatedFields });
+    if (updated) {
+      setCaretakers((previous) =>
+        previous.map((c) => (c.id === id ? { ...c, ...updated } : c))
+      );
+      const targetCaretaker = caretakers.find((c) => c.id === id);
+      if (targetCaretaker && targetCaretaker.name === currentUser && updated.name) {
+        setCurrentUser(updated.name);
+        setUser((prev) => ({ ...prev, name: updated.name! }));
+      }
+      showToast('Household member updated.', 'success');
+    }
+  };
+
+  const handleUnlockWithSSO = (email: string, name: string, token: string) => {
+    setAuthToken(token);
+    setIsAuthenticated(true);
+    const cleanCaretakerName = resolveCaretakerName(name, caretakers);
+    setUser((previous) => ({ ...previous, email, name }));
+    setCurrentUser(cleanCaretakerName);
+
+    // Exchange Google 1-hour ID Token for long-lived 90-day PupPace Session Token
+    exchangeSessionToken(token).then((res) => {
+      if (res?.sessionToken) {
+        setAuthToken(res.sessionToken);
+        if (res.user) {
+          setUser((previous) => ({
+            ...previous,
+            email: res.user.email,
+            name: res.user.name,
+            role: res.user.role as FamilyRole,
+          }));
+          const cleanName = resolveCaretakerName(res.user.name, caretakers);
+          setCurrentUser(cleanName);
+        }
+      }
+    }).catch(() => {});
+
+    return { success: true };
+  };
+
+  const handleSignOut = () => {
+    clearAuthToken();
     setIsAuthenticated(false);
   };
 
-  const handleAddActivity = (newActivity: Omit<Activity, 'id' | 'puppyId'>) => {
-    if (!activePuppy) return;
-    const fullActivity: Activity = {
-      ...newActivity,
-      id: `act-${Date.now()}`,
-      puppyId: activePuppy.id,
-    };
-    setActivities((prev) => [fullActivity, ...prev]);
-  };
-
-  const handleOpenQuickLogModal = (type: ActivityType = 'pee') => {
-    setQuickLogType(type);
-    setIsQuickLogOpen(true);
-  };
-
-  const handleQuickAction = (type: ActivityType, defaultLocation?: PottyLocation) => {
-    if (type === 'food') {
-      handleOpenQuickLogModal('food');
+  const handleQuickAction = async (
+    type: ActivityType,
+    defaultLocation?: PottyLocation
+  ) => {
+    if (!activePuppy) {
+      showToast(t.toasts.selectPuppyFirst, 'error');
       return;
     }
-    if (!activePuppy) return;
-    const newAct: Omit<Activity, 'id' | 'puppyId'> = {
+
+    const targetMeals = Math.max(1, activePuppy.targetMealsPerDay || 3);
+    const dailyGoal = activePuppy.dailyFoodGramGoal || 240;
+    const remainingFoodGrams = Math.max(0, dailyGoal - todayFoodLoggedGrams);
+    const remainingMealsToday = Math.max(1, targetMeals - todayMealsCount);
+    const portionGrams = remainingFoodGrams > 0
+      ? Math.max(10, Math.round(remainingFoodGrams / remainingMealsToday))
+      : Math.round(dailyGoal / targetMeals);
+
+    const newActivity: Omit<Activity, 'id'> = {
+      puppyId: activePuppy.id,
       type,
       timestamp: new Date().toISOString(),
       loggedBy: currentUser,
-      pottyLocation: defaultLocation || (type === 'pee' || type === 'poop' ? 'outside' : undefined),
+      ...(defaultLocation ? { pottyLocation: defaultLocation } : {}),
+      ...(type === 'food' ? { foodType: 'kibble', quantityGrams: portionGrams } : {}),
     };
-    handleAddActivity(newAct);
+
+    const created = await createActivity(newActivity);
+    if (created) {
+      setActivities((previous) => [created, ...previous]);
+      showToast(t.toasts.activityLogged, 'success');
+    }
   };
 
-  const handleDeleteActivity = (id: string) => {
-    setActivities((prev) => prev.filter((a) => a.id !== id));
-    apiDeleteActivity(id);
+  const handleOpenQuickLogModal = (type?: ActivityType) => {
+    if (type) setQuickLogType(type);
+    setIsQuickLogOpen(true);
+  };
+
+  const handleAddActivity = async (activityData: Omit<Activity, 'id' | 'puppyId'>) => {
+    if (!activePuppy) return;
+    const fullActivity: Omit<Activity, 'id'> = {
+      ...activityData,
+      puppyId: activePuppy.id,
+    };
+    const created = await createActivity(fullActivity);
+    if (created) {
+      setActivities((previous) => [created, ...previous]);
+      showToast(t.toasts.activityLogged, 'success');
+    }
+  };
+
+  const handleUpdateActivity = async (updatedFields: Partial<Activity> & { id: string }) => {
+    const updated = await updateActivity(updatedFields);
+    if (updated) {
+      setActivities((previous) =>
+        previous.map((act) => (act.id === updatedFields.id ? { ...act, ...updated } : act))
+      );
+      showToast('Activity log updated.', 'success');
+    }
+  };
+
+  const handleDeleteActivity = async (id: string) => {
+    const ok = await deleteActivity(id);
+    if (ok) {
+      setActivities((previous) => previous.filter((activity) => activity.id !== id));
+      showToast(t.toasts.activityDeleted, 'success');
+    }
   };
 
   const handleClearSampleData = () => {
-    if (window.confirm('Clear all activity logs?')) {
+    if (window.confirm('Clear all local state?')) {
       clearAllData();
       setActivities([]);
     }
@@ -262,50 +412,84 @@ export function App() {
   };
 
   // Filter activities for active puppy
-  const activePuppyActivities = activePuppy
-    ? activities.filter((a) => !a.puppyId || a.puppyId === activePuppy.id)
-    : [];
+  const activePuppyActivities = React.useMemo(() => {
+    if (!activePuppy) return [];
+    return activities.filter((activity) => !activity.puppyId || activity.puppyId === activePuppy.id);
+  }, [activities, activePuppy]);
 
   const predictions = React.useMemo(() => {
     if (!activePuppy) return null;
     return calculatePredictions(activePuppyActivities, activePuppy);
   }, [activePuppyActivities, activePuppy]);
 
-  // Calculate today's logged food grams
-  const todayFoodLoggedGrams = React.useMemo(() => {
-    const todayStr = new Date().toISOString().slice(0, 10);
-    return activePuppyActivities
-      .filter((a) => a.type === 'food' && a.timestamp.slice(0, 10) === todayStr)
-      .reduce((sum, a) => sum + (a.quantityGrams || 80), 0);
+  // Calculate today's logged food count & grams
+  const { todayFoodLoggedGrams, todayMealsCount } = React.useMemo(() => {
+    const now = new Date();
+    const todayFood = activePuppyActivities.filter(
+      (activity) => activity.type === 'food' && isSameLocalDate(activity.timestamp, now)
+    );
+    const grams = todayFood.reduce((sum, activity) => sum + (activity.quantityGrams ?? 80), 0);
+    return { todayFoodLoggedGrams: grams, todayMealsCount: todayFood.length };
   }, [activePuppyActivities]);
 
-  // Potty clean streak calculation fix: 0 days if no activities!
-  const streakDays = React.useMemo(() => {
-    if (activePuppyActivities.length === 0) return 0;
-    const accidents = activePuppyActivities.filter((a) => a.pottyLocation === 'indoor_accident');
-    if (accidents.length === 0) {
-      const oldestTimestamp = Math.min(...activePuppyActivities.map((a) => new Date(a.timestamp).getTime()));
-      const diffHours = (Date.now() - oldestTimestamp) / (1000 * 60 * 60);
-      return Math.max(1, Math.floor(diffHours / 24) + 1);
+  const nextMealPortionGrams = React.useMemo(() => {
+    if (!activePuppy) return 80;
+    const targetMeals = Math.max(1, activePuppy.targetMealsPerDay || 3);
+    const dailyGoal = activePuppy.dailyFoodGramGoal || 240;
+    const remainingFoodGrams = Math.max(0, dailyGoal - todayFoodLoggedGrams);
+    const remainingMealsToday = Math.max(1, targetMeals - todayMealsCount);
+
+    if (remainingFoodGrams <= 0) {
+      return Math.round(dailyGoal / targetMeals);
     }
-    const latestAccident = Math.max(...accidents.map((a) => new Date(a.timestamp).getTime()));
-    const diffHours = (Date.now() - latestAccident) / (1000 * 60 * 60);
-    return Math.floor(diffHours / 24);
+    return Math.max(10, Math.round(remainingFoodGrams / remainingMealsToday));
+  }, [activePuppy, todayFoodLoggedGrams, todayMealsCount]);
+
+  // Potty clean streak calculation: count unique calendar days with potty logs without accidents
+  const streakDays = React.useMemo(() => {
+    const pottyLogs = activePuppyActivities.filter((activity) => activity.type === 'pee' || activity.type === 'poop');
+    if (pottyLogs.length === 0) return 0;
+
+    const accidents = pottyLogs.filter((activity) => activity.pottyLocation === 'indoor_accident');
+    if (accidents.length > 0) {
+      const latestAccidentMs = Math.max(...accidents.map((activity) => new Date(activity.timestamp).getTime()));
+      const diffMs = Date.now() - latestAccidentMs;
+      if (diffMs < 0) return 0;
+      return Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    }
+
+    const uniqueDays = new Set(
+      pottyLogs.map((activity) => formatLocalDate(new Date(activity.timestamp)))
+    );
+    return uniqueDays.size;
   }, [activePuppyActivities]);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center space-y-4">
+        <div className="animate-spin w-10 h-10 border-4 border-indigo-500 border-t-transparent rounded-full" />
+        <p className="text-xs font-semibold text-slate-400">Loading PupPace...</p>
+      </div>
+    );
+  }
 
   // If locked, render Lock Screen
   if (!isAuthenticated) {
     return (
-      <AuthLockScreen
-        onUnlockWithSSO={handleUnlockWithSSO}
-        onUnlockWithPassword={handleUnlockWithPassword}
-        onRegisterAccount={handleRegisterAccount}
-      />
+      <>
+        <ToastContainer />
+        <AuthLockScreen
+          onUnlockWithSSO={handleUnlockWithSSO}
+          onUnlockWithPassword={() => ({ success: false })}
+          onRegisterAccount={() => ({ success: false })}
+        />
+      </>
     );
   }
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans">
+      <ToastContainer />
       {/* Top Navbar */}
       <Navbar
         activeMainTab={activeMainTab}
@@ -317,7 +501,7 @@ export function App() {
         onOpenQuickLog={() => handleOpenQuickLogModal('pee')}
         onOpenVetReport={handleExportVetSummary}
         onClearSampleData={handleClearSampleData}
-        onLockVault={handleLockVault}
+        onSignOut={handleSignOut}
         streakDays={streakDays}
         lang={lang}
         onLanguageChange={changeLanguage}
@@ -339,8 +523,8 @@ export function App() {
             caretakers={caretakers}
             currentUser={currentUser}
             onAddCaretaker={handleAddCaretaker}
+            onUpdateCaretaker={handleUpdateCaretaker}
             onDeleteCaretaker={handleDeleteCaretaker}
-            onSwitchUserAccount={handleSwitchUserAccount}
           />
         )}
 
@@ -350,7 +534,6 @@ export function App() {
 
         {activeMainTab === 'admin' && (
           <AdminView
-            token="demo-token"
             currentUserEmail={user.email}
           />
         )}
@@ -387,6 +570,7 @@ export function App() {
                     predictions={predictions}
                     profile={activePuppy}
                     todayFoodLoggedGrams={todayFoodLoggedGrams}
+                    todayMealsCount={todayMealsCount}
                     onQuickAction={handleQuickAction}
                     onOpenQuickLogModal={handleOpenQuickLogModal}
                   />
@@ -409,6 +593,7 @@ export function App() {
                   activities={activePuppyActivities}
                   caretakers={caretakers}
                   onDeleteActivity={handleDeleteActivity}
+                  onUpdateActivity={handleUpdateActivity}
                 />
               </div>
             )}
@@ -422,10 +607,10 @@ export function App() {
           <span>PupPace &bull; Household Puppy Sync Platform</span>
           <div className="flex items-center gap-3">
             <button onClick={() => handleSelectMainTab('carnetdesante')} className="hover:text-slate-400 transition cursor-pointer">
-              {lang === 'fr' ? 'Carnet de Santé' : 'Health Passport'}
+              {t.nav.carnetDeSante}
             </button>
             <span>&bull;</span>
-            <button onClick={() => handleSelectMainTab('careguide')} className="hover:text-slate-400 transition cursor-pointer">Care Guide</button>
+            <button onClick={() => handleSelectMainTab('careguide')} className="hover:text-slate-400 transition cursor-pointer">{t.nav.careGuide}</button>
             <span>&bull;</span>
             <a href="/privacy" className="hover:text-slate-400 transition">Privacy</a>
             <span>&bull;</span>
@@ -437,11 +622,12 @@ export function App() {
       {/* Quick Event Logging Modal */}
       {activePuppy && (
         <QuickLogModal
+          key={isQuickLogOpen ? 'open' : 'closed'}
           isOpen={isQuickLogOpen}
           initialType={quickLogType}
+          defaultMealPortionGrams={nextMealPortionGrams}
           onClose={() => setIsQuickLogOpen(false)}
           onSave={handleAddActivity}
-          caretakers={caretakers}
           currentUser={currentUser}
         />
       )}

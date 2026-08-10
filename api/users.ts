@@ -1,8 +1,17 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { neon } from '@neondatabase/serverless';
 import { drizzle } from 'drizzle-orm/neon-http';
-import { eq } from 'drizzle-orm';
-import { usersTable } from '../src/db/schema';
+import { eq, and } from 'drizzle-orm';
+import { usersTable } from '../src/db/schema.js';
+import { verifyAuth } from './_auth.js';
+import { z } from 'zod';
+
+const UserInputSchema = z.object({
+  email: z.string().email('Valid email is required'),
+  name: z.string().optional(),
+  role: z.string().optional(),
+  status: z.enum(['ACTIVE', 'PENDING_APPROVAL']).optional(),
+});
 
 function getDb() {
   const sql = neon(process.env.POSTGRES_URL || process.env.DATABASE_URL || '');
@@ -10,24 +19,35 @@ function getDb() {
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Household-ID');
+  const allowedOrigin = process.env.NODE_ENV === 'development'
+    ? 'http://localhost:5173'
+    : 'https://puppace.vercel.app';
+  res.setHeader('Access-Control-Allow-Origin', allowedOrigin);
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
   if (req.method === 'OPTIONS') return res.status(200).end();
 
-  const householdId = (req.headers['x-household-id'] as string) || 'FAMILY-COCKER-2026';
+  let auth;
+  try {
+    auth = await verifyAuth(req);
+  } catch (err: any) {
+    return res.status(err.status || 401).json({ error: err.message || 'Unauthorized' });
+  }
+
+  const householdId = auth.householdId;
   const db = getDb();
 
   try {
-    // GET /api/users — List users, or look up by email
+    // GET /api/users — List users for household, or look up by email
     if (req.method === 'GET') {
+      res.setHeader('Cache-Control', 'private, max-age=10, stale-while-revalidate=60');
       const email = req.query.email as string;
       if (email) {
         const [user] = await db
           .select()
           .from(usersTable)
-          .where(eq(usersTable.email, email.toLowerCase()));
+          .where(and(eq(usersTable.email, email.toLowerCase()), eq(usersTable.householdId, householdId)));
         if (!user) return res.status(404).json({ error: 'User not found' });
         return res.status(200).json(user);
       }
@@ -38,17 +58,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(200).json(users);
     }
 
-    // POST /api/users — Register or upsert a user
+    // Admin role check for mutation operations
+    if (auth.role !== 'Admin' && auth.role !== 'SuperAdmin') {
+      return res.status(403).json({ error: 'Only admins can perform user management actions' });
+    }
+
+    // POST /api/users — Pre-approve or register a user
     if (req.method === 'POST') {
-      const body = req.body || {};
-      if (!body.email) return res.status(400).json({ error: 'email is required' });
+      const parsed = UserInputSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: 'Invalid user payload', details: parsed.error.issues });
+      }
+      const body = parsed.data;
 
       const email = body.email.toLowerCase();
 
       const [existing] = await db
         .select()
         .from(usersTable)
-        .where(eq(usersTable.email, email));
+        .where(and(eq(usersTable.email, email), eq(usersTable.householdId, householdId)));
 
       if (existing) {
         const [updated] = await db
@@ -75,6 +103,46 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         })
         .returning();
       return res.status(201).json(created);
+    }
+
+    // PUT /api/users — Update user role or status
+    if (req.method === 'PUT') {
+      const parsed = UserInputSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: 'Invalid user payload', details: parsed.error.issues });
+      }
+      const body = parsed.data;
+
+      const email = body.email.toLowerCase();
+      const [updated] = await db
+        .update(usersTable)
+        .set({
+          ...(body.role ? { role: body.role } : {}),
+          ...(body.status ? { status: body.status } : {}),
+          ...(body.name ? { name: body.name } : {}),
+        })
+        .where(and(eq(usersTable.email, email), eq(usersTable.householdId, householdId)))
+        .returning();
+
+      if (!updated) return res.status(404).json({ error: 'User not found in household' });
+      return res.status(200).json(updated);
+    }
+
+
+
+    // DELETE /api/users?email=xxx — Remove a user from household
+    if (req.method === 'DELETE') {
+      const email = (req.query.email as string) || req.body?.email;
+      if (!email) return res.status(400).json({ error: 'email is required' });
+
+      if (email.toLowerCase() === auth.email.toLowerCase()) {
+        return res.status(400).json({ error: 'Cannot delete your own account' });
+      }
+
+      await db
+        .delete(usersTable)
+        .where(and(eq(usersTable.email, email.toLowerCase()), eq(usersTable.householdId, householdId)));
+      return res.status(200).json({ success: true, deletedEmail: email });
     }
 
     return res.status(405).json({ error: 'Method not allowed' });

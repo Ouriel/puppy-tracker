@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import type { PuppyProfile, Caretaker, UserAccount, FamilyRole } from '../types';
+import type { PuppyProfile, Caretaker, UserAccount } from '../types';
 import { PuppiesView } from './PuppiesView';
 import { HouseholdView } from './HouseholdView';
 import { Dog, Home, Settings } from 'lucide-react';
@@ -16,8 +16,8 @@ interface HouseholdSettingsViewProps {
   caretakers: Caretaker[];
   currentUser: string;
   onAddCaretaker: (caretaker: Caretaker) => void;
+  onUpdateCaretaker: (id: string, updatedFields: Partial<Caretaker>) => void;
   onDeleteCaretaker: (id: string) => void;
-  onSwitchUserAccount: (name: string, role: FamilyRole) => void;
 }
 
 export const HouseholdSettingsView: React.FC<HouseholdSettingsViewProps> = ({
@@ -31,10 +31,10 @@ export const HouseholdSettingsView: React.FC<HouseholdSettingsViewProps> = ({
   caretakers,
   currentUser,
   onAddCaretaker,
+  onUpdateCaretaker,
   onDeleteCaretaker,
-  onSwitchUserAccount,
 }) => {
-  const { lang } = useI18n();
+  const { t } = useI18n();
   const [subTab, setSubTab] = useState<'puppies' | 'members'>('puppies');
 
   return (
@@ -47,12 +47,10 @@ export const HouseholdSettingsView: React.FC<HouseholdSettingsViewProps> = ({
           </div>
           <div>
             <h2 className="text-xl font-bold text-slate-100 flex items-center gap-2">
-              <span>{lang === 'fr' ? 'Configuration & Foyer' : 'Household & Settings'}</span>
+              <span>{t.nav.settings}</span>
             </h2>
             <p className="text-xs text-slate-400">
-              {lang === 'fr'
-                ? 'Gérez vos chiens, objectifs de nourriture et invitations des membres de la famille'
-                : 'Manage dog profiles, nutrition goals, and family member invites'}
+              {t.household.manageSettingsSubtitle}
             </p>
           </div>
         </div>
@@ -68,7 +66,7 @@ export const HouseholdSettingsView: React.FC<HouseholdSettingsViewProps> = ({
             }`}
           >
             <Dog className="w-4 h-4" />
-            <span>{lang === 'fr' ? `Mes Chiens (${puppies.length})` : `Dog Profiles (${puppies.length})`}</span>
+            <span>{t.puppies.title} ({puppies.length})</span>
           </button>
 
           <button
@@ -80,7 +78,7 @@ export const HouseholdSettingsView: React.FC<HouseholdSettingsViewProps> = ({
             }`}
           >
             <Home className="w-4 h-4" />
-            <span>{lang === 'fr' ? `Membres du Foyer (${caretakers.length})` : `Household Members (${caretakers.length})`}</span>
+            <span>{t.household.title} ({caretakers.length})</span>
           </button>
         </div>
       </div>
@@ -101,8 +99,8 @@ export const HouseholdSettingsView: React.FC<HouseholdSettingsViewProps> = ({
           caretakers={caretakers}
           currentUser={currentUser}
           onAddCaretaker={onAddCaretaker}
+          onUpdateCaretaker={onUpdateCaretaker}
           onDeleteCaretaker={onDeleteCaretaker}
-          onSwitchUserAccount={onSwitchUserAccount}
         />
       )}
     </div>

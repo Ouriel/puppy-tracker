@@ -2,7 +2,21 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { neon } from '@neondatabase/serverless';
 import { drizzle } from 'drizzle-orm/neon-http';
 import { eq, and } from 'drizzle-orm';
-import { puppiesTable } from '../src/db/schema';
+import { puppiesTable } from '../src/db/schema.js';
+import { verifyAuth } from './_auth.js';
+import { z } from 'zod';
+
+const DogSchema = z.object({
+  id: z.string().optional(),
+  name: z.string().min(1, 'Name is required'),
+  breed: z.string().min(1, 'Breed is required'),
+  birthDate: z.string().optional(),
+  weightKg: z.number().or(z.string()).optional(),
+  dailyFoodGramGoal: z.number().or(z.string()).optional(),
+  targetMealsPerDay: z.number().or(z.string()).optional(),
+  notes: z.string().nullable().optional(),
+  avatarUrl: z.string().nullable().optional(),
+});
 
 function getDb() {
   const sql = neon(process.env.POSTGRES_URL || process.env.DATABASE_URL || '');
@@ -10,18 +24,29 @@ function getDb() {
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
+  const allowedOrigin = process.env.NODE_ENV === 'development'
+    ? 'http://localhost:5173'
+    : 'https://puppace.vercel.app';
+  res.setHeader('Access-Control-Allow-Origin', allowedOrigin);
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Household-ID');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
   if (req.method === 'OPTIONS') return res.status(200).end();
 
-  const householdId = (req.headers['x-household-id'] as string) || 'FAMILY-COCKER-2026';
+  let auth;
+  try {
+    auth = await verifyAuth(req);
+  } catch (err: any) {
+    return res.status(err.status || 401).json({ error: err.message || 'Unauthorized' });
+  }
+
+  const householdId = auth.householdId;
   const db = getDb();
 
   try {
-    // GET /api/dogs — List all dogs for household, or fetch one by id
+    // GET /api/dogs
     if (req.method === 'GET') {
+      res.setHeader('Cache-Control', 'private, max-age=10, stale-while-revalidate=60');
       const dogId = req.query.id as string;
       if (dogId) {
         const [dog] = await db
@@ -38,20 +63,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(200).json(dogs);
     }
 
-    // POST /api/dogs — Create or upsert a dog profile
+    // POST /api/dogs
     if (req.method === 'POST') {
-      const body = req.body || {};
-      if (!body.name || !body.breed) {
-        return res.status(400).json({ error: 'name and breed are required' });
+      const parsed = DogSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: 'Invalid dog payload', details: parsed.error.issues });
       }
-
+      const body = parsed.data;
       const id = body.id || `dog-${Date.now()}`;
 
-      // Check if already exists (upsert)
       const [existing] = await db
         .select()
         .from(puppiesTable)
-        .where(eq(puppiesTable.id, id));
+        .where(and(eq(puppiesTable.id, id), eq(puppiesTable.householdId, householdId)));
 
       if (existing) {
         const [updated] = await db
@@ -67,7 +91,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             avatarUrl: body.avatarUrl ?? existing.avatarUrl,
             updatedAt: new Date(),
           })
-          .where(eq(puppiesTable.id, id))
+          .where(and(eq(puppiesTable.id, id), eq(puppiesTable.householdId, householdId)))
           .returning();
         return res.status(200).json(updated);
       }
@@ -90,14 +114,29 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(201).json(created);
     }
 
-    // PUT /api/dogs — Update a dog profile
+    // PUT /api/dogs
     if (req.method === 'PUT') {
-      const { id, ...updates } = req.body || {};
+      const parsed = DogSchema.partial().safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: 'Invalid dog payload', details: parsed.error.issues });
+      }
+      const body = parsed.data;
+      const id = body.id;
       if (!id) return res.status(400).json({ error: 'id is required' });
 
       const [updated] = await db
         .update(puppiesTable)
-        .set({ ...updates, updatedAt: new Date() })
+        .set({
+          name: body.name,
+          breed: body.breed,
+          ...(body.birthDate ? { birthDate: body.birthDate } : {}),
+          ...(body.weightKg !== undefined ? { weightKg: Number(body.weightKg) } : {}),
+          ...(body.dailyFoodGramGoal !== undefined ? { dailyFoodGramGoal: Number(body.dailyFoodGramGoal) } : {}),
+          ...(body.targetMealsPerDay !== undefined ? { targetMealsPerDay: Number(body.targetMealsPerDay) } : {}),
+          ...(body.notes !== undefined ? { notes: body.notes } : {}),
+          ...(body.avatarUrl !== undefined ? { avatarUrl: body.avatarUrl } : {}),
+          updatedAt: new Date(),
+        })
         .where(and(eq(puppiesTable.id, id), eq(puppiesTable.householdId, householdId)))
         .returning();
 
@@ -105,8 +144,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(200).json(updated);
     }
 
-    // DELETE /api/dogs?id=xxx — Delete a dog profile
+    // DELETE /api/dogs
     if (req.method === 'DELETE') {
+      if (auth.role !== 'Admin' && auth.role !== 'SuperAdmin') {
+        return res.status(403).json({ error: 'Only admins can delete dogs' });
+      }
+
       const dogId = (req.query.id as string) || req.body?.id;
       if (!dogId) return res.status(400).json({ error: 'id is required' });
 

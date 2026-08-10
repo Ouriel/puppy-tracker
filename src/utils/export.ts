@@ -1,27 +1,28 @@
 import type { Activity, PuppyProfile } from '../types';
+import { formatLocalDate } from './date';
 
 export function exportActivitiesToCSV(activities: Activity[], profile: PuppyProfile) {
   const headers = ['Timestamp', 'Type', 'Logged By', 'Location / Consistency', 'Quantity / Duration', 'Notes'];
   
-  const rows = activities.map((a) => {
+  const rows = activities.map((activity) => {
     let details = '';
-    if (a.pottyLocation) details += `Location: ${a.pottyLocation}; `;
-    if (a.stoolConsistency) details += `Stool: ${a.stoolConsistency}; `;
-    if (a.foodType) details += `Food: ${a.foodType}; `;
+    if (activity.pottyLocation) details += `Location: ${activity.pottyLocation}; `;
+    if (activity.stoolConsistency) details += `Stool: ${activity.stoolConsistency}; `;
+    if (activity.foodType) details += `Food: ${activity.foodType}; `;
 
     let qty = '';
-    if (a.quantityGrams) qty += `${a.quantityGrams}g `;
-    if (a.quantityCups) qty += `(${a.quantityCups} cups) `;
-    if (a.durationMinutes) qty += `${a.durationMinutes} mins `;
-    if (a.weightKg) qty += `${a.weightKg} kg `;
+    if (activity.quantityGrams) qty += `${activity.quantityGrams}g `;
+    if (activity.quantityCups) qty += `(${activity.quantityCups} cups) `;
+    if (activity.durationMinutes) qty += `${activity.durationMinutes} mins `;
+    if (activity.weightKg) qty += `${activity.weightKg} kg `;
 
     return [
-      new Date(a.timestamp).toLocaleString(),
-      a.type.toUpperCase(),
-      `"${a.loggedBy}"`,
+      new Date(activity.timestamp).toLocaleString(),
+      activity.type.toUpperCase(),
+      `"${activity.loggedBy}"`,
       `"${details.trim()}"`,
       `"${qty.trim()}"`,
-      `"${(a.notes || '').replace(/"/g, '""')}"`,
+      `"${(activity.notes || '').replace(/"/g, '""')}"`,
     ].join(',');
   });
 
@@ -30,7 +31,7 @@ export function exportActivitiesToCSV(activities: Activity[], profile: PuppyProf
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.setAttribute('href', url);
-  link.setAttribute('download', `${profile.name}_activity_log_${new Date().toISOString().slice(0, 10)}.csv`);
+  link.setAttribute('download', `${profile.name}_activity_log_${formatLocalDate()}.csv`);
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
@@ -41,11 +42,11 @@ export function printVetReport(activities: Activity[], profile: PuppyProfile) {
   if (!windowPrint) return;
 
   const today = new Date().toLocaleDateString();
-  const sorted = [...activities].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+  const sorted = [...activities].sort((activityA, activityB) => new Date(activityB.timestamp).getTime() - new Date(activityA.timestamp).getTime());
 
-  const totalMeals = activities.filter(a => a.type === 'food').length;
-  const totalAccidents = activities.filter(a => a.pottyLocation === 'indoor_accident').length;
-  const totalOutside = activities.filter(a => a.pottyLocation === 'outside').length;
+  const totalMeals = activities.filter((activity) => activity.type === 'food').length;
+  const totalAccidents = activities.filter((activity) => activity.pottyLocation === 'indoor_accident').length;
+  const totalOutside = activities.filter((activity) => activity.pottyLocation === 'outside').length;
 
   const html = `
     <!DOCTYPE html>
@@ -72,7 +73,7 @@ export function printVetReport(activities: Activity[], profile: PuppyProfile) {
           <h1>🐾 ${profile.name} - Veterinary & Health Summary</h1>
           <div class="meta">
             <div><strong>Breed:</strong> ${profile.breed}</div>
-            <div><strong>Weight:</strong> ${profile.weightKg} kg</div>
+            <div><strong>Daily Food Goal:</strong> ${profile.dailyFoodGramGoal}g / day (${profile.targetMealsPerDay || 3} meals)</div>
             <div><strong>Generated:</strong> ${today}</div>
           </div>
         </div>
@@ -96,18 +97,18 @@ export function printVetReport(activities: Activity[], profile: PuppyProfile) {
             </tr>
           </thead>
           <tbody>
-            ${sorted.map(a => `
+            ${sorted.map((activity) => `
               <tr>
-                <td>${new Date(a.timestamp).toLocaleString()}</td>
-                <td><strong>${a.type.toUpperCase()}</strong></td>
+                <td>${new Date(activity.timestamp).toLocaleString()}</td>
+                <td><strong>${activity.type.toUpperCase()}</strong></td>
                 <td>
-                  ${a.pottyLocation ? `Location: ${a.pottyLocation}<br/>` : ''}
-                  ${a.stoolConsistency ? `Consistency: ${a.stoolConsistency}<br/>` : ''}
-                  ${a.quantityGrams ? `Amount: ${a.quantityGrams}g` : ''}
-                  ${a.durationMinutes ? `Duration: ${a.durationMinutes}m` : ''}
+                  ${activity.pottyLocation ? `Location: ${activity.pottyLocation}<br/>` : ''}
+                  ${activity.stoolConsistency ? `Consistency: ${activity.stoolConsistency}<br/>` : ''}
+                  ${activity.quantityGrams ? `Amount: ${activity.quantityGrams}g` : ''}
+                  ${activity.durationMinutes ? `Duration: ${activity.durationMinutes}m` : ''}
                 </td>
-                <td>${a.loggedBy}</td>
-                <td>${a.notes || '-'}</td>
+                <td>${activity.loggedBy}</td>
+                <td>${activity.notes || '-'}</td>
               </tr>
             `).join('')}
           </tbody>

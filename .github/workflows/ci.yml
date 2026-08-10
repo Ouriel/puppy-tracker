@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, "feature/**"]
   pull_request:
     branches: [main]
 
@@ -12,9 +12,7 @@ jobs:
     permissions:
       contents: write # allow Dependabot lockfile-sync step to push back
     steps:
-      - uses: actions/checkout@v7
-        with:
-          ref: ${{ github.head_ref }}
+      - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4
         with:
