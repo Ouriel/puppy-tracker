@@ -12,7 +12,6 @@ import {
   CardTitle,
   ChipRoot,
   ChipLabel,
-  Button,
 } from '@heroui/react';
 
 interface ActivityTimelineProps {
@@ -88,9 +87,9 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
 
         {/* Filter Pills */}
         <div className="flex items-center gap-1.5 bg-slate-900/60 border border-slate-700/60 p-1 rounded-xl">
-          <Button
+          <button
+            type="button"
             onClick={() => setFilter('all')}
-            variant={filter === 'all' ? 'primary' : 'tertiary'}
             className={`px-3 py-1 text-xs font-semibold rounded-lg transition cursor-pointer ${
               filter === 'all'
                 ? 'bg-indigo-600 text-white shadow'
@@ -98,10 +97,10 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
             }`}
           >
             {t.dashboard.all}
-          </Button>
-          <Button
+          </button>
+          <button
+            type="button"
             onClick={() => setFilter('potty')}
-            variant={filter === 'potty' ? 'primary' : 'tertiary'}
             className={`px-3 py-1 text-xs font-semibold rounded-lg transition cursor-pointer ${
               filter === 'potty'
                 ? 'bg-indigo-600 text-white shadow'
@@ -109,10 +108,10 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
             }`}
           >
             {t.dashboard.pottyFilter}
-          </Button>
-          <Button
+          </button>
+          <button
+            type="button"
             onClick={() => setFilter('food')}
-            variant={filter === 'food' ? 'primary' : 'tertiary'}
             className={`px-3 py-1 text-xs font-semibold rounded-lg transition cursor-pointer ${
               filter === 'food'
                 ? 'bg-indigo-600 text-white shadow'
@@ -120,7 +119,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
             }`}
           >
             {t.dashboard.mealsFilter}
-          </Button>
+          </button>
         </div>
       </CardHeader>
 
@@ -214,21 +213,21 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
 
                         <div className="flex items-center gap-1 opacity-80 group-hover:opacity-100 transition">
                           {onUpdateActivity && (
-                            <Button
+                            <button
+                              type="button"
                               onClick={() => setEditingActivity(item)}
-                              variant="tertiary"
                               className="p-1.5 text-slate-400 hover:text-indigo-300 hover:bg-indigo-500/20 rounded-lg transition cursor-pointer"
                             >
                               <Pencil className="w-3.5 h-3.5" />
-                            </Button>
+                            </button>
                           )}
-                          <Button
+                          <button
+                            type="button"
                             onClick={() => onDeleteActivity(item.id)}
-                            variant="tertiary"
                             className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-red-500/20 rounded-lg transition cursor-pointer"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
-                          </Button>
+                          </button>
                         </div>
                       </div>
                     </div>

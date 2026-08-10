@@ -13,7 +13,6 @@ import {
   ProgressBarRoot,
   ProgressBarTrack,
   ProgressBarFill,
-  Button,
 } from '@heroui/react';
 
 interface PredictorWidgetProps {
@@ -109,13 +108,13 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = ({
             </p>
           </div>
         </div>
-        <Button
+        <button
+          type="button"
           onClick={() => onOpenQuickLogModal()}
-          variant="primary"
           className="text-xs font-bold px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white shadow-md cursor-pointer transition"
         >
           + {t.potty.logActivity}
-        </Button>
+        </button>
       </CardHeader>
 
       <CardContent className="p-0 space-y-4">
@@ -145,13 +144,13 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = ({
                 )}
               </div>
 
-              <Button
+              <button
+                type="button"
                 onClick={() => onQuickAction('pee', 'outside')}
-                variant="tertiary"
                 className="px-3 py-1.5 text-xs font-bold bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 rounded-lg border border-sky-500/30 transition cursor-pointer"
               >
                 💧 {t.potty.peedOutside}
-              </Button>
+              </button>
             </div>
           </div>
 
@@ -179,13 +178,13 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = ({
                 )}
               </div>
 
-              <Button
+              <button
+                type="button"
                 onClick={() => onQuickAction('poop', 'outside')}
-                variant="tertiary"
                 className="px-3 py-1.5 text-xs font-bold bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 rounded-lg border border-amber-500/30 transition cursor-pointer"
               >
                 💩 {t.potty.poopedOutside}
-              </Button>
+              </button>
             </div>
           </div>
         </div>
@@ -205,13 +204,13 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = ({
               </div>
             </div>
 
-            <Button
+            <button
+              type="button"
               onClick={() => onOpenQuickLogModal('food')}
-              variant="tertiary"
               className="px-3 py-1.5 text-xs font-bold bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 rounded-lg border border-purple-500/30 transition cursor-pointer"
             >
               🥣 {portionLeftForNextMeal}g
-            </Button>
+            </button>
           </div>
 
           {/* HeroUI ProgressBar */}
