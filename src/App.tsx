@@ -529,7 +529,6 @@ export function App() {
 
         {activeMainTab === 'admin' && (
           <AdminView
-            token="demo-token"
             currentUserEmail={user.email}
           />
         )}

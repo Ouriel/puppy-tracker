@@ -132,7 +132,6 @@ export const en = {
     copiedSuccess: 'PupPace link copied to clipboard!',
     addMemberBadge: 'Add Member Badge',
     badgeColor: 'Badge Color',
-    switchActive: 'Switch Active',
     activeMember: 'Active',
   },
   health: {

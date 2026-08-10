@@ -132,7 +132,6 @@ export const fr = {
     copiedSuccess: 'Lien PupPace copié dans le presse-papier !',
     addMemberBadge: 'Ajouter un Badge Membre',
     badgeColor: 'Couleur du Badge',
-    switchActive: 'Activer ce Profil',
     activeMember: 'Actif',
   },
   health: {

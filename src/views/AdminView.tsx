@@ -10,7 +10,6 @@ import type { RegisteredUserItem } from '../types';
 import { useI18n } from '../i18n';
 
 interface AdminViewProps {
-  token: string;
   currentUserEmail: string;
 }
 
