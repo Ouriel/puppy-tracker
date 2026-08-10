@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import type { PuppyProfile, Caretaker, UserAccount, FamilyRole } from '../types';
+import type { PuppyProfile, Caretaker, UserAccount } from '../types';
 import { PuppiesView } from './PuppiesView';
 import { HouseholdView } from './HouseholdView';
 import { Dog, Home, Settings } from 'lucide-react';
@@ -18,7 +18,6 @@ interface HouseholdSettingsViewProps {
   onAddCaretaker: (caretaker: Caretaker) => void;
   onUpdateCaretaker: (id: string, updatedFields: Partial<Caretaker>) => void;
   onDeleteCaretaker: (id: string) => void;
-  onSwitchUserAccount: (name: string, role: FamilyRole) => void;
 }
 
 export const HouseholdSettingsView: React.FC<HouseholdSettingsViewProps> = ({
@@ -34,7 +33,6 @@ export const HouseholdSettingsView: React.FC<HouseholdSettingsViewProps> = ({
   onAddCaretaker,
   onUpdateCaretaker,
   onDeleteCaretaker,
-  onSwitchUserAccount,
 }) => {
   const { t } = useI18n();
   const [subTab, setSubTab] = useState<'puppies' | 'members'>('puppies');
@@ -103,7 +101,6 @@ export const HouseholdSettingsView: React.FC<HouseholdSettingsViewProps> = ({
           onAddCaretaker={onAddCaretaker}
           onUpdateCaretaker={onUpdateCaretaker}
           onDeleteCaretaker={onDeleteCaretaker}
-          onSwitchUserAccount={onSwitchUserAccount}
         />
       )}
     </div>

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import type { Caretaker, UserAccount, FamilyRole } from '../types';
+import type { Caretaker, UserAccount } from '../types';
 import { Home, Users, UserPlus, Trash2, Mail, Send, CheckCircle2, UserCheck, Copy, Pencil, X, Check } from 'lucide-react';
 import { createUser } from '../services/api';
 import { showToast } from '../utils/toast';
@@ -12,7 +12,6 @@ interface HouseholdViewProps {
   onAddCaretaker: (caretaker: Caretaker) => void;
   onUpdateCaretaker: (id: string, updatedFields: Partial<Caretaker>) => void;
   onDeleteCaretaker: (id: string) => void;
-  onSwitchUserAccount: (name: string, role: FamilyRole) => void;
 }
 
 export const HouseholdView: React.FC<HouseholdViewProps> = ({
@@ -21,7 +20,6 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
   onAddCaretaker,
   onUpdateCaretaker,
   onDeleteCaretaker,
-  onSwitchUserAccount,
 }) => {
   const { t } = useI18n();
   const [isAdding, setIsAdding] = useState(false);
@@ -297,14 +295,7 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
                     <Pencil className="w-4 h-4" />
                   </button>
 
-                  {!isSelected ? (
-                    <button
-                      onClick={() => onSwitchUserAccount(caretaker.name, caretaker.role)}
-                      className="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 px-3 py-1 rounded-lg transition cursor-pointer"
-                    >
-                      {t.household.switchActive}
-                    </button>
-                  ) : (
+                  {isSelected && (
                     <span className="text-xs bg-emerald-950 text-emerald-400 border border-emerald-800 px-2.5 py-1 rounded-lg font-bold flex items-center gap-1">
                       <UserCheck className="w-3.5 h-3.5" />
                       <span>{t.household.activeMember}</span>

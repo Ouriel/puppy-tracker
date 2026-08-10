@@ -296,11 +296,6 @@ export function App() {
     }
   };
 
-  const handleSwitchUserAccount = (name: string, role: FamilyRole) => {
-    setCurrentUser(name);
-    setUser((previous) => ({ ...previous, name, role }));
-  };
-
   const handleUnlockWithSSO = (email: string, name: string, token: string) => {
     setAuthToken(token);
     setIsAuthenticated(true);
@@ -525,7 +520,6 @@ export function App() {
             onAddCaretaker={handleAddCaretaker}
             onUpdateCaretaker={handleUpdateCaretaker}
             onDeleteCaretaker={handleDeleteCaretaker}
-            onSwitchUserAccount={handleSwitchUserAccount}
           />
         )}
 
