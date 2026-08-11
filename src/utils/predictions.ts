@@ -61,6 +61,10 @@ export function calculateVetFoodGramGoal(weightKg: number, ageMonths: number): n
 /**
  * Learns puppy's exact night sleep schedule (bedtime & morning wakeup) with minute precision from activity logs
  */
+/**
+ * Learns puppy's exact night sleep schedule (bedtime & morning wakeup) with minute precision from activity logs
+ * using Exponential Time-Decay Weighted Medians and circular midnight wrap handling.
+ */
 export function detectSleepSchedule(
   activities: Activity[],
   timeZone?: string
@@ -83,8 +87,9 @@ export function detectSleepSchedule(
     byDate[dateStr].push(d);
   });
 
-  const morningMins: number[] = [];
-  const eveningMins: number[] = [];
+  const nowTime = Date.now();
+  const morningData: { mins: number; weight: number }[] = [];
+  const eveningData: { mins: number; weight: number }[] = [];
 
   Object.values(byDate).forEach((logs) => {
     if (logs.length >= 2) {
@@ -93,23 +98,44 @@ export function detectSleepSchedule(
       const last = sortedLogs[sortedLogs.length - 1];
 
       const firstM = getLocalHour(first, tz) * 60 + first.getMinutes();
-      const lastM = getLocalHour(last, tz) * 60 + last.getMinutes();
+      let lastM = getLocalHour(last, tz) * 60 + last.getMinutes();
 
-      if (firstM >= 4 * 60 && firstM <= 10 * 60) morningMins.push(firstM);
-      if (lastM >= 19 * 60 || lastM <= 3 * 60) eveningMins.push(lastM >= 19 * 60 ? lastM : lastM + 24 * 60);
+      // Wrap late night bedtime (00:00 to 03:59) into 24h+ minutes for continuous circular math
+      if (lastM < 4 * 60) lastM += 24 * 60;
+
+      // Exponential time decay (7-day half-life so recent days adapt as puppy grows)
+      const daysAgo = Math.max(0, (nowTime - last.getTime()) / (1000 * 60 * 60 * 24));
+      const weight = Math.exp(-daysAgo / 7);
+
+      if (firstM >= 4 * 60 && firstM <= 11 * 60) morningData.push({ mins: firstM, weight });
+      if (lastM >= 19 * 60) eveningData.push({ mins: lastM, weight });
     }
   });
 
-  const avgWakeMins = morningMins.length ? Math.round(morningMins.reduce((a, b) => a + b, 0) / morningMins.length) : 7 * 60;
-  const avgBedMins = eveningMins.length ? Math.round(eveningMins.reduce((a, b) => a + b, 0) / eveningMins.length) % (24 * 60) : 22 * 60;
+  const getWeightedMedian = (data: { mins: number; weight: number }[], fallbackMins: number): number => {
+    if (data.length === 0) return fallbackMins;
+    const sorted = [...data].sort((a, b) => a.mins - b.mins);
+    const totalWeight = sorted.reduce((sum, item) => sum + item.weight, 0);
+    const target = totalWeight * 0.5;
+    let acc = 0;
+    for (const item of sorted) {
+      acc += item.weight;
+      if (acc >= target) return item.mins;
+    }
+    return sorted[sorted.length - 1].mins;
+  };
+
+  const avgWakeMins = getWeightedMedian(morningData, 7 * 60);
+  const rawBedMins = getWeightedMedian(eveningData, 22 * 60);
+  const avgBedMins = rawBedMins % (24 * 60);
 
   const wakeupHour = avgWakeMins / 60;
   const bedtimeHour = avgBedMins / 60;
 
   const wH = Math.floor(avgWakeMins / 60);
-  const wM = avgWakeMins % 60;
+  const wM = Math.round(avgWakeMins % 60);
   const bH = Math.floor(avgBedMins / 60);
-  const bM = avgBedMins % 60;
+  const bM = Math.round(avgBedMins % 60);
 
   const wakeupStr = `${String(wH).padStart(2, '0')}:${String(wM).padStart(2, '0')}`;
   const bedtimeStr = `${String(bH).padStart(2, '0')}:${String(bM).padStart(2, '0')}`;
