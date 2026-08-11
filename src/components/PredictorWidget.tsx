@@ -1,7 +1,7 @@
 import React from 'react';
 import type { Activity, ActivityType, PottyLocation, PuppyProfile, PredictionResult } from '../types';
 import { Droplet, Footprints, Utensils, CheckCircle2, Clock, AlertTriangle } from 'lucide-react';
-import { Card, Chip, ProgressBar } from '@heroui/react';
+import { Card, Chip } from '@heroui/react';
 import { useI18n } from '../i18n';
 import { formatMinutesToXhXX, isSameLocalDate, parseIsoDate } from '../utils/date';
 
@@ -302,23 +302,16 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = React.memo(({
               {getUrgencyBadge(predictions.foodUrgency)}
             </div>
 
-            {/* FIRST: Food Progress Summary (Records of the day) */}
-            <div className="bg-slate-950/60 p-2.5 rounded-xl border border-slate-800/80 space-y-1.5">
-              <div className="flex justify-between text-[11px] font-semibold">
-                <span className="text-slate-400">Ration intake:</span>
-                <span className="text-purple-300 font-bold">{todayFoodLoggedGrams}g / {dailyGoal}g</span>
+            {/* FIRST: Food Stats Summary (Records of the day) */}
+            <div className="bg-slate-950/60 p-2.5 rounded-xl border border-slate-800/80 text-[11px] space-y-1 text-slate-400">
+              <div className="flex justify-between font-medium">
+                <span>Ration intake today:</span>
+                <span className="font-bold text-purple-300">{todayFoodLoggedGrams}g / {dailyGoal}g (Meal {todayMealsCount}/{targetMeals})</span>
               </div>
-              <ProgressBar value={Math.min(100, Math.round((todayFoodLoggedGrams / dailyGoal) * 100))} color="accent" size="sm">
-                <ProgressBar.Track className="bg-slate-900 border border-slate-800">
-                  <ProgressBar.Fill />
-                </ProgressBar.Track>
-              </ProgressBar>
-              <div className="flex items-center justify-between text-[10px] pt-0.5 font-bold">
-                <span className="text-slate-400 font-medium">
-                  Last meal: <span className="text-slate-200 font-bold">{lastFoodMinsAgo !== null ? `${formatMinutesToXhXX(lastFoodMinsAgo)} ago` : 'None logged'}</span>
-                </span>
-                <span className="text-purple-400">
-                  Meal {todayMealsCount}/{targetMeals} ({portionLeftForNextMeal}g next)
+              <div className="flex justify-between font-medium">
+                <span>Last meal:</span>
+                <span className="font-bold text-slate-300">
+                  {lastFoodMinsAgo !== null ? `${formatMinutesToXhXX(lastFoodMinsAgo)} ago` : 'None logged today'}
                 </span>
               </div>
             </div>
