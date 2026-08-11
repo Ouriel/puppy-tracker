@@ -88,7 +88,7 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = React.memo(({
   const formatCountdown = (dateObj: Date | null) => {
     if (!dateObj) return 'N/A';
     const mins = Math.round((dateObj.getTime() - Date.now()) / 60000);
-    if (mins <= 0) return 'Right now!';
+    if (mins <= 0) return '~0m';
     if (mins < 60) return `~${mins}m`;
     const hours = Math.floor(mins / 60);
     const remMins = mins % 60;
