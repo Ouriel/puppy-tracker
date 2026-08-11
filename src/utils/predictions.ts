@@ -411,6 +411,13 @@ export function calculatePredictions(
     // Constipation mode ONLY applies if the MOST RECENT poop was hard or noted huge/constipated
     const isLastPoopConstipated = lastPoop.stoolConsistency === 'hard' ||
       (lastPoop.notes || '').toLowerCase().match(/huge|gros|big|grand|constipat/) !== null;
+
+    // Diarrhea / Loose stool mode
+    const isLastPoopDiarrhea = lastPoop.stoolConsistency === 'diarrhea' ||
+      lastPoop.stoolConsistency === 'soft' ||
+      lastPoop.stoolConsistency === 'runny' ||
+      (lastPoop.notes || '').toLowerCase().match(/liquid|liquide|diarrhea|diarrhee|loose/) !== null;
+
     const hoursSinceLastPoop = (now.getTime() - lastPoopTime) / (1000 * 60 * 60);
 
     if (isNightTime) {
@@ -424,6 +431,10 @@ export function calculatePredictions(
       targetMorningPoop.setHours(wakeH, wakeM, 0, 0);
       nextPoopExpectedAt = targetMorningPoop;
       poopReason = `Night mode: Sleeping overnight. Expected post-breakfast (~${String(wakeH).padStart(2,'0')}:${String(wakeM).padStart(2,'0')})`;
+    } else if (isLastPoopDiarrhea && hoursSinceLastPoop < 12) {
+      poopMode = 'daytime_baseline';
+      nextPoopExpectedAt = new Date(lastPoopTime + 60 * 60 * 1000);
+      poopReason = 'GI Upset Alert: Liquid/diarrhea stool recorded. Frequent potty checks recommended (60m window).';
     } else if (isLastPoopConstipated && hoursSinceLastPoop < 16) {
       poopMode = 'daytime_baseline';
       const refractoryMinutes = Math.max(learnedPoop.intervalMins * 1.4, 480);
