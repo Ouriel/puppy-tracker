@@ -84,7 +84,7 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
       {/* Header */}
-      <Card>
+      <Card className="bg-slate-900 border-slate-800 text-slate-100">
         <Card.Content className="flex flex-wrap items-center justify-between gap-4 p-6">
           <div className="flex items-center gap-3">
             <div className="p-3 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl shadow-md">
@@ -109,7 +109,7 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
 
       {/* Email Registration Box */}
       {isInvitingEmail && (
-        <Card className="border-indigo-800/60">
+        <Card className="bg-slate-900 border border-indigo-800/60 text-slate-100">
           <form onSubmit={handlePreApproveMember}>
             <Card.Content className="p-6 space-y-4">
               <h3 className="text-sm font-bold text-slate-100 flex items-center gap-2">
@@ -144,6 +144,7 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
                   <Input
                     type="email"
                     placeholder={t.household.emailPlaceholder}
+                    className="bg-slate-950 border-slate-800 text-slate-100"
                     value={inviteEmail}
                     onChange={(event) => setInviteEmail(event.target.value)}
                     required
@@ -163,7 +164,7 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
       )}
 
       {/* Household Caretakers Badges */}
-      <Card>
+      <Card className="bg-slate-900 border-slate-800 text-slate-100">
         <Card.Content className="p-6 space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-bold text-slate-100 flex items-center gap-2">

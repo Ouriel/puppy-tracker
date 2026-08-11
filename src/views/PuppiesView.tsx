@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import type { PuppyProfile } from '../types';
 import { Dog, Plus, Trash2, Edit3, Utensils, Calendar } from 'lucide-react';
 import { useI18n } from '../i18n';
+import { formatBreedName } from '../utils/breeds';
 import { Card, Button, Input, Select, ListBox, ListBoxItem, Modal, Chip } from '@heroui/react';
 import { DOG_BREEDS } from '../constants/breeds';
 
@@ -22,7 +23,7 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
   onUpdatePuppy,
   onDeletePuppy,
 }) => {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const [isAdding, setIsAdding] = useState(false);
   const [editingPuppy, setEditingPuppy] = useState<PuppyProfile | null>(null);
 
@@ -48,17 +49,16 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
     event.preventDefault();
     if (!name.trim()) return;
 
-    const finalBreed = breed === 'Other' ? (customBreed.trim() || 'Mixed Breed') : breed;
+    const finalBreed = breed === 'Other' ? customBreed.trim() || 'Custom Breed' : breed;
 
     const newPup: PuppyProfile = {
       id: `pup-${Date.now()}`,
       name: name.trim(),
       breed: finalBreed,
       birthDate,
-      dailyFoodGramGoal: Math.max(10, dailyFoodGramGoal),
-      targetMealsPerDay: Math.max(1, Math.min(6, targetMealsPerDay)),
-      avatarUrl: '/cocker_spaniel_mascot.jpg',
-      notes,
+      dailyFoodGramGoal,
+      targetMealsPerDay,
+      notes: notes.trim() || undefined,
     };
 
     onAddPuppy(newPup);
@@ -87,16 +87,16 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
     event.preventDefault();
     if (!editingPuppy || !editName.trim()) return;
 
-    const finalBreed = editBreed === 'Other' ? (editCustomBreed.trim() || 'Mixed Breed') : editBreed;
+    const finalBreed = editBreed === 'Other' ? editCustomBreed.trim() || 'Custom Breed' : editBreed;
 
     const updatedPup: PuppyProfile = {
       ...editingPuppy,
       name: editName.trim(),
       breed: finalBreed,
       birthDate: editBirthDate,
-      dailyFoodGramGoal: Math.max(10, editFoodGramGoal),
-      targetMealsPerDay: Math.max(1, Math.min(6, editMealsPerDay)),
-      notes: editNotes,
+      dailyFoodGramGoal: editFoodGramGoal,
+      targetMealsPerDay: editMealsPerDay,
+      notes: editNotes.trim() || undefined,
     };
 
     onUpdatePuppy(updatedPup);
@@ -106,7 +106,7 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
       {/* Header */}
-      <Card>
+      <Card className="bg-slate-900 border-slate-800 text-slate-100">
         <Card.Content className="flex flex-wrap items-center justify-between gap-4 p-6">
           <div className="flex items-center gap-3">
             <div className="p-3 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl shadow-md">
@@ -130,10 +130,10 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
 
       {/* Add Dog Form */}
       {isAdding && (
-        <Card>
+        <Card className="bg-slate-900 border-slate-800 text-slate-100">
           <form onSubmit={handleCreateSubmit}>
             <Card.Header>
-              <Card.Title>{t.puppies.registerNewDog}</Card.Title>
+              <Card.Title className="text-white font-bold">{t.puppies.registerNewDog}</Card.Title>
             </Card.Header>
             <Card.Content className="p-6 space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -144,6 +144,7 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
                   <Input
                     type="text"
                     placeholder="e.g. Cookie"
+                    className="bg-slate-950 border-slate-800 text-slate-100"
                     value={name}
                     onChange={(event) => setName(event.target.value)}
                     required
@@ -153,15 +154,15 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
                 <div>
                   <label className="block text-xs font-semibold text-slate-400 mb-1">{t.puppies.breed}</label>
                   <Select value={breed} onChange={(val) => setBreed(val as string)}>
-                    <Select.Trigger>
+                    <Select.Trigger className="bg-slate-950 border-slate-800 text-slate-100">
                       <Select.Value />
                       <Select.Indicator />
                     </Select.Trigger>
-                    <Select.Popover>
+                    <Select.Popover className="bg-slate-900 border-slate-800 text-slate-100">
                       <ListBox>
                         {DOG_BREEDS.map((breedOption) => (
-                          <ListBoxItem key={breedOption} id={breedOption} textValue={breedOption}>
-                            {breedOption}
+                          <ListBoxItem key={breedOption} id={breedOption} textValue={formatBreedName(breedOption, lang)}>
+                            {formatBreedName(breedOption, lang)}
                           </ListBoxItem>
                         ))}
                       </ListBox>
@@ -174,43 +175,40 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
                       placeholder={t.puppies.specifyCustomBreed}
                       value={customBreed}
                       onChange={(event) => setCustomBreed(event.target.value)}
-                      className="mt-2"
+                      className="mt-2 bg-slate-950 border-slate-800 text-slate-100"
                     />
                   )}
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-400 mb-1">
-                    {t.puppies.foodGramGoal}
-                  </label>
-                  <Input
-                    type="number"
-                    value={dailyFoodGramGoal}
-                    onChange={(event) => setDailyFoodGramGoal(Number(event.target.value))}
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-400 mb-1">
-                    {t.puppies.mealsPerDay}
-                  </label>
-                  <Input
-                    type="number"
-                    min="1"
-                    max="6"
-                    value={targetMealsPerDay}
-                    onChange={(event) => setTargetMealsPerDay(Number(event.target.value))}
-                    required
-                  />
                 </div>
 
                 <div>
                   <label className="block text-xs font-semibold text-slate-400 mb-1">{t.puppies.birthDate}</label>
                   <Input
                     type="date"
+                    className="bg-slate-950 border-slate-800 text-slate-100"
                     value={birthDate}
                     onChange={(event) => setBirthDate(event.target.value)}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-400 mb-1">{t.puppies.foodGramGoal}</label>
+                  <Input
+                    type="number"
+                    className="bg-slate-950 border-slate-800 text-slate-100"
+                    value={String(dailyFoodGramGoal)}
+                    onChange={(event) => setDailyFoodGramGoal(Number(event.target.value))}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-400 mb-1">{t.dashboard.targetMealsPerDay}</label>
+                  <Input
+                    type="number"
+                    min="1"
+                    max="6"
+                    className="bg-slate-950 border-slate-800 text-slate-100"
+                    value={String(targetMealsPerDay)}
+                    onChange={(event) => setTargetMealsPerDay(Number(event.target.value))}
                   />
                 </div>
 
@@ -218,16 +216,16 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
                   <label className="block text-xs font-semibold text-slate-400 mb-1">{t.potty.notes}</label>
                   <Input
                     type="text"
-                    placeholder={t.puppies.careInstructionsPlaceholder}
+                    placeholder="e.g. Microchip #9810981"
+                    className="bg-slate-950 border-slate-800 text-slate-100"
                     value={notes}
                     onChange={(event) => setNotes(event.target.value)}
                   />
                 </div>
               </div>
 
-              <div className="flex justify-end gap-2 pt-2 border-t border-slate-800">
+              <div className="flex justify-end gap-2 pt-2">
                 <Button
-                  type="button"
                   variant="tertiary"
                   onPress={() => setIsAdding(false)}
                 >
@@ -246,26 +244,24 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
       )}
 
       {/* Edit Dog Modal */}
-      <Modal isOpen={!!editingPuppy} onOpenChange={(open) => !open && setEditingPuppy(null)}>
+      <Modal isOpen={!!editingPuppy} onOpenChange={(open) => { if (!open) setEditingPuppy(null); }}>
         <Modal.Backdrop>
           <Modal.Container size="lg" scroll="inside">
-            <Modal.Dialog>
+            <Modal.Dialog className="bg-slate-900 border border-slate-800 text-slate-100 shadow-2xl">
               <Modal.CloseTrigger />
               <Modal.Header>
-                <Modal.Heading className="flex items-center gap-2">
-                  <Edit3 className="w-4 h-4 text-indigo-400" />
-                  <span>{t.puppies.editProfileTitle.replace('{name}', editingPuppy?.name || '')}</span>
-                </Modal.Heading>
+                <Modal.Heading className="text-white font-bold">{t.puppies.editProfileTitle}</Modal.Heading>
               </Modal.Header>
-              <Modal.Body>
-                <form onSubmit={handleEditSubmit} id="edit-puppy-form" className="space-y-4">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Modal.Body className="p-4">
+                <form id="edit-puppy-form" onSubmit={handleEditSubmit} className="space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-xs font-semibold text-slate-400 mb-1">
                         {t.puppies.dogName}
                       </label>
                       <Input
                         type="text"
+                        className="bg-slate-950 border-slate-800 text-slate-100"
                         value={editName}
                         onChange={(event) => setEditName(event.target.value)}
                         required
@@ -275,15 +271,15 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
                     <div>
                       <label className="block text-xs font-semibold text-slate-400 mb-1">{t.puppies.breed}</label>
                       <Select value={editBreed} onChange={(val) => setEditBreed(val as string)}>
-                        <Select.Trigger>
+                        <Select.Trigger className="bg-slate-950 border-slate-800 text-slate-100">
                           <Select.Value />
                           <Select.Indicator />
                         </Select.Trigger>
-                        <Select.Popover>
+                        <Select.Popover className="bg-slate-900 border-slate-800 text-slate-100">
                           <ListBox>
                             {DOG_BREEDS.map((breedOption) => (
-                              <ListBoxItem key={breedOption} id={breedOption} textValue={breedOption}>
-                                {breedOption}
+                              <ListBoxItem key={breedOption} id={breedOption} textValue={formatBreedName(breedOption, lang)}>
+                                {formatBreedName(breedOption, lang)}
                               </ListBoxItem>
                             ))}
                           </ListBox>
@@ -294,45 +290,42 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
                         <Input
                           type="text"
                           placeholder={t.puppies.specifyCustomBreed}
+                          className="bg-slate-950 border-slate-800 text-slate-100 mt-2"
                           value={editCustomBreed}
                           onChange={(event) => setEditCustomBreed(event.target.value)}
-                          className="mt-2"
                         />
                       )}
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-semibold text-slate-400 mb-1">
-                        {t.puppies.foodGramGoal}
-                      </label>
-                      <Input
-                        type="number"
-                        value={editFoodGramGoal}
-                        onChange={(event) => setEditFoodGramGoal(Number(event.target.value))}
-                        required
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-semibold text-slate-400 mb-1">
-                        {t.puppies.mealsPerDay}
-                      </label>
-                      <Input
-                        type="number"
-                        min="1"
-                        max="6"
-                        value={editMealsPerDay}
-                        onChange={(event) => setEditMealsPerDay(Number(event.target.value))}
-                        required
-                      />
                     </div>
 
                     <div>
                       <label className="block text-xs font-semibold text-slate-400 mb-1">{t.puppies.birthDate}</label>
                       <Input
                         type="date"
+                        className="bg-slate-950 border-slate-800 text-slate-100"
                         value={editBirthDate}
                         onChange={(event) => setEditBirthDate(event.target.value)}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-400 mb-1">{t.puppies.foodGramGoal}</label>
+                      <Input
+                        type="number"
+                        className="bg-slate-950 border-slate-800 text-slate-100"
+                        value={String(editFoodGramGoal)}
+                        onChange={(event) => setEditFoodGramGoal(Number(event.target.value))}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-400 mb-1">{t.dashboard.targetMealsPerDay}</label>
+                      <Input
+                        type="number"
+                        min="1"
+                        max="6"
+                        className="bg-slate-950 border-slate-800 text-slate-100"
+                        value={String(editMealsPerDay)}
+                        onChange={(event) => setEditMealsPerDay(Number(event.target.value))}
                       />
                     </div>
 
@@ -340,6 +333,7 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
                       <label className="block text-xs font-semibold text-slate-400 mb-1">{t.potty.notes}</label>
                       <Input
                         type="text"
+                        className="bg-slate-950 border-slate-800 text-slate-100"
                         value={editNotes}
                         onChange={(event) => setEditNotes(event.target.value)}
                       />
@@ -349,8 +343,8 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
               </Modal.Body>
               <Modal.Footer>
                 <Button
-                  variant="tertiary"
                   onPress={() => setEditingPuppy(null)}
+                  className="bg-slate-950 border border-slate-800 text-slate-300 font-bold"
                 >
                   {t.potty.cancel}
                 </Button>
@@ -369,7 +363,7 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
 
       {/* Puppies Grid */}
       {puppies.length === 0 ? (
-        <Card className="border-dashed p-10 text-center">
+        <Card className="bg-slate-900 border-slate-800 border-dashed p-10 text-center text-slate-100">
           <Card.Content className="space-y-3">
             <Dog className="w-12 h-12 text-slate-600 mx-auto" />
             <h3 className="text-base font-bold text-slate-200">
@@ -388,7 +382,9 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
             return (
               <Card
                 key={pup.id}
-                className={isActive ? 'border-indigo-500/80 ring-2 ring-indigo-500/20' : ''}
+                className={`bg-slate-900 border-slate-800 text-slate-100 ${
+                  isActive ? 'border-indigo-500/80 ring-2 ring-indigo-500/20' : ''
+                }`}
               >
                 <Card.Content className="p-5 space-y-4">
                   <div className="flex items-start justify-between gap-3">
@@ -407,7 +403,7 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
                             </Chip>
                           )}
                         </div>
-                        <p className="text-xs text-slate-400">{pup.breed}</p>
+                        <p className="text-xs text-slate-400">{formatBreedName(pup.breed, lang)}</p>
                       </div>
                     </div>
 
@@ -421,41 +417,53 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
                           {t.puppies.select}
                         </Button>
                       )}
+
                       <Button
-                        variant="tertiary"
                         size="sm"
+                        variant="tertiary"
                         isIconOnly
                         onPress={() => handleStartEdit(pup)}
-                        aria-label="Edit Dog Profile"
+                        aria-label={t.puppies.editProfileTitle}
                       >
-                        <Edit3 className="w-4 h-4" />
+                        <Edit3 className="w-4 h-4 text-slate-400 hover:text-white" />
                       </Button>
+
                       <Button
-                        variant="danger-soft"
                         size="sm"
+                        variant="danger-soft"
                         isIconOnly
-                        onPress={() => onDeletePuppy(pup.id)}
-                        aria-label="Delete Puppy Profile"
+                        onPress={() => {
+                          if (window.confirm(`Delete profile for ${pup.name}?`)) {
+                            onDeletePuppy(pup.id);
+                          }
+                        }}
+                        aria-label="Delete Dog"
                       >
-                        <Trash2 className="w-4 h-4" />
+                        <Trash2 className="w-4 h-4 text-red-400" />
                       </Button>
                     </div>
                   </div>
 
-                  {/* Details Grid */}
-                  <div className="grid grid-cols-2 gap-2 bg-slate-950/40 p-3 rounded-xl border border-slate-800/80 text-xs">
-                    <div className="flex items-center gap-1.5 text-slate-300">
-                      <Utensils className="w-3.5 h-3.5 text-purple-400 shrink-0" />
-                      <span>{pup.dailyFoodGramGoal}g / jour ({pup.targetMealsPerDay || 3} repas)</span>
+                  <div className="grid grid-cols-2 gap-2 text-xs bg-slate-950/60 p-3 rounded-xl border border-slate-800">
+                    <div className="flex items-center gap-2">
+                      <Utensils className="w-4 h-4 text-purple-400 shrink-0" />
+                      <div>
+                        <div className="text-[10px] text-slate-500 font-semibold">{t.puppies.foodGramGoal}</div>
+                        <div className="font-bold text-slate-200">{pup.dailyFoodGramGoal || 200}{t.units.grams} ({pup.targetMealsPerDay || 3} meals)</div>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-1.5 text-slate-300">
-                      <Calendar className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                      <span>Né le {pup.birthDate}</span>
+
+                    <div className="flex items-center gap-2">
+                      <Calendar className="w-4 h-4 text-indigo-400 shrink-0" />
+                      <div>
+                        <div className="text-[10px] text-slate-500 font-semibold">{t.puppies.birthDate}</div>
+                        <div className="font-bold text-slate-200">{pup.birthDate || 'Unknown'}</div>
+                      </div>
                     </div>
                   </div>
 
                   {pup.notes && (
-                    <p className="text-xs text-slate-400 italic bg-slate-950/20 p-2 rounded-lg border border-slate-800/50">
+                    <p className="text-xs text-slate-400 bg-slate-950/40 p-2.5 rounded-lg border border-slate-800/80 italic font-mono">
                       "{pup.notes}"
                     </p>
                   )}

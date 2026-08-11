@@ -115,7 +115,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail }) => {
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
       {/* Header */}
-      <Card>
+      <Card className="bg-slate-900 border-slate-800 text-slate-100">
         <Card.Content className="flex flex-wrap items-center justify-between gap-4 p-6">
           <div className="flex items-center gap-3">
             <div className="p-3 bg-gradient-to-br from-red-500 to-indigo-600 rounded-xl shadow-md">
@@ -173,7 +173,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail }) => {
       </Modal>
 
       {/* Pending Activations List */}
-      <Card>
+      <Card className="bg-slate-900 border-slate-800 text-slate-100">
         <Card.Header>
           <Card.Title className="flex items-center justify-between text-amber-300">
             <span>{t.admin.pendingActivations.replace('{count}', String(pendingUsers.length))}</span>
@@ -228,7 +228,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail }) => {
       </Card>
 
       {/* Pre-Approve Form */}
-      <Card>
+      <Card className="bg-slate-900 border-slate-800 text-slate-100">
         <form onSubmit={handlePreApproveInvite}>
           <Card.Header>
             <Card.Title>{t.admin.preApproveTitle}</Card.Title>
@@ -239,6 +239,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail }) => {
                 <Input
                   type="email"
                   placeholder="e.g. partner@family.com"
+                  className="bg-slate-950 border-slate-800 text-slate-100"
                   value={newInviteEmail}
                   onChange={(event) => setNewInviteEmail(event.target.value)}
                   required
@@ -257,7 +258,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail }) => {
       </Card>
 
       {/* Active Accounts */}
-      <Card>
+      <Card className="bg-slate-900 border-slate-800 text-slate-100">
         <Card.Header>
           <Card.Title className="flex items-center gap-2">
             <Users className="w-4 h-4 text-indigo-400" />

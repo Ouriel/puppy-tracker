@@ -105,32 +105,33 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
     <Modal isOpen={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
       <Modal.Backdrop>
         <Modal.Container size="lg" scroll="inside">
-          <Modal.Dialog className="bg-slate-900 border border-slate-800 text-slate-100 shadow-2xl">
+          <Modal.Dialog className="bg-slate-900 border border-slate-800 text-slate-100 shadow-2xl rounded-2xl max-w-md w-full">
             <Modal.CloseTrigger />
-            <Modal.Header>
+            <Modal.Header className="border-b border-slate-800/80 pb-3">
               <Modal.Heading className="text-base font-extrabold text-white">
                 <span>{isEditMode ? t.potty.editActivity : t.potty.logActivity}</span>
               </Modal.Heading>
             </Modal.Header>
             <Modal.Body className="p-4">
-              <form id="quicklog-form" onSubmit={handleSubmit} className="space-y-5">
+              <form id="quicklog-form" onSubmit={handleSubmit} className="space-y-4">
                 {/* Activity Type Selector Grid */}
                 <div>
                   <label className="block text-xs font-semibold text-slate-400 mb-2">
                     {t.potty.activityType}
                   </label>
-                  <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+                  <div className="grid grid-cols-5 gap-1.5">
                     {activityTypes.map((item) => (
                       <Button
                         key={item.type}
-                        variant={type === item.type ? 'primary' : 'tertiary'}
                         onPress={() => setType(item.type)}
-                        className={`h-auto flex flex-col items-center justify-center py-3 ${
-                          type === item.type ? 'bg-indigo-600 font-bold text-white' : 'bg-slate-950/80 border border-slate-800 text-slate-300'
+                        className={`h-16 flex flex-col items-center justify-center p-1 rounded-xl transition-all ${
+                          type === item.type
+                            ? 'bg-indigo-600 text-white font-bold ring-2 ring-indigo-400 shadow-md'
+                            : 'bg-slate-950 border border-slate-800 text-slate-400 hover:text-white hover:bg-slate-800'
                         }`}
                       >
                         {item.icon}
-                        <span className="mt-1.5 text-xs">{item.label}</span>
+                        <span className="mt-1 text-[11px] truncate w-full text-center">{item.label}</span>
                       </Button>
                     ))}
                   </div>
@@ -138,23 +139,31 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
 
                 {/* Conditional Input Fields */}
                 {(type === 'pee' || type === 'poop') && (
-                  <div className="space-y-4">
+                  <div className="space-y-3">
                     <div>
-                      <label className="block text-xs font-semibold text-slate-400 mb-2">
+                      <label className="block text-xs font-semibold text-slate-400 mb-1.5">
                         {t.potty.location}
                       </label>
                       <div className="grid grid-cols-2 gap-2">
                         <Button
                           size="sm"
                           onPress={() => setPottyLocation('outside')}
-                          className={pottyLocation === 'outside' ? 'bg-emerald-600 text-white font-bold' : 'bg-slate-950/80 border border-slate-800 text-slate-300'}
+                          className={`h-10 text-xs font-bold ${
+                            pottyLocation === 'outside'
+                              ? 'bg-emerald-600 text-white shadow-md'
+                              : 'bg-slate-950 border border-slate-800 text-slate-300 hover:bg-slate-800'
+                          }`}
                         >
                           🌳 {t.potty.outside}
                         </Button>
                         <Button
                           size="sm"
                           onPress={() => setPottyLocation('indoor_accident')}
-                          className={pottyLocation === 'indoor_accident' ? 'bg-rose-950/80 border border-rose-700 text-rose-300 font-bold' : 'bg-slate-950/80 border border-slate-800 text-slate-300'}
+                          className={`h-10 text-xs font-bold ${
+                            pottyLocation === 'indoor_accident'
+                              ? 'bg-rose-950 border border-rose-700 text-rose-300 shadow-md'
+                              : 'bg-slate-950 border border-slate-800 text-slate-300 hover:bg-slate-800'
+                          }`}
                         >
                           🚨 {t.potty.accident}
                         </Button>
@@ -164,8 +173,8 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
                     {type === 'poop' && (
                       <div>
                         <Select value={stoolConsistency} onChange={(val) => setStoolConsistency(val as StoolConsistency)}>
-                          <Label className="text-xs font-semibold text-slate-400">{t.potty.stoolConsistency}</Label>
-                          <Select.Trigger className="bg-slate-950 border-slate-800 text-slate-100">
+                          <Label className="text-xs font-semibold text-slate-400 mb-1 block">{t.potty.stoolConsistency}</Label>
+                          <Select.Trigger className="bg-slate-950 border-slate-800 text-slate-100 h-10 w-full">
                             <Select.Value />
                             <Select.Indicator />
                           </Select.Trigger>
@@ -186,10 +195,10 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
                 {type === 'food' && (
                   <div className="grid grid-cols-2 gap-3">
                     <TextField>
-                      <Label className="text-xs font-semibold text-slate-400">{t.potty.quantity} (g)</Label>
+                      <Label className="text-xs font-semibold text-slate-400 mb-1 block">{t.potty.quantity} (g)</Label>
                       <Input
                         type="number"
-                        className="bg-slate-950 border-slate-800 text-slate-100"
+                        className="bg-slate-950 border-slate-800 text-slate-100 h-10 w-full"
                         value={String(quantityGrams)}
                         onChange={(event) => {
                           const grams = Number(event.target.value);
@@ -199,8 +208,8 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
                       />
                     </TextField>
                     <Select value={foodType} onChange={(val) => setFoodType(val as FoodType)}>
-                      <Label className="text-xs font-semibold text-slate-400">{t.potty.foodTypeLabel}</Label>
-                      <Select.Trigger className="bg-slate-950 border-slate-800 text-slate-100">
+                      <Label className="text-xs font-semibold text-slate-400 mb-1 block">{t.potty.foodTypeLabel}</Label>
+                      <Select.Trigger className="bg-slate-950 border-slate-800 text-slate-100 h-10 w-full">
                         <Select.Value />
                         <Select.Indicator />
                       </Select.Trigger>
@@ -218,11 +227,11 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
 
                 {type === 'weight' && (
                   <TextField>
-                    <Label className="text-xs font-semibold text-slate-400">{t.potty.weight} ({t.units.kg})</Label>
+                    <Label className="text-xs font-semibold text-slate-400 mb-1 block">{t.potty.weight} ({t.units.kg})</Label>
                     <Input
                       type="number"
                       step="0.1"
-                      className="bg-slate-950 border-slate-800 text-slate-100"
+                      className="bg-slate-950 border-slate-800 text-slate-100 h-10 w-full"
                       value={String(weightKg)}
                       onChange={(event) => setWeightKg(Number(event.target.value))}
                     />
@@ -231,10 +240,10 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
 
                 {type === 'medication' && (
                   <TextField>
-                    <Label className="text-xs font-semibold text-slate-400">{t.potty.medication}</Label>
+                    <Label className="text-xs font-semibold text-slate-400 mb-1 block">{t.potty.medication}</Label>
                     <Input
                       type="text"
-                      className="bg-slate-950 border-slate-800 text-slate-100"
+                      className="bg-slate-950 border-slate-800 text-slate-100 h-10 w-full"
                       value={medicationName}
                       onChange={(event) => setMedicationName(event.target.value)}
                     />
@@ -243,10 +252,10 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
 
                 {/* Date & Time Input */}
                 <TextField>
-                  <Label className="text-xs font-semibold text-slate-400">{t.potty.dateAndTime}</Label>
+                  <Label className="text-xs font-semibold text-slate-400 mb-1 block">{t.potty.dateAndTime}</Label>
                   <Input
                     type="datetime-local"
-                    className="bg-slate-950 border-slate-800 text-slate-100"
+                    className="bg-slate-950 border-slate-800 text-slate-100 h-10 w-full"
                     value={timestamp}
                     onChange={(event) => setTimestamp(event.target.value)}
                   />
@@ -254,10 +263,10 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
 
                 {/* Notes Input */}
                 <TextField>
-                  <Label className="text-xs font-semibold text-slate-400">{t.potty.notes}</Label>
+                  <Label className="text-xs font-semibold text-slate-400 mb-1 block">{t.potty.notes}</Label>
                   <Input
                     type="text"
-                    className="bg-slate-950 border-slate-800 text-slate-100"
+                    className="bg-slate-950 border-slate-800 text-slate-100 h-10 w-full"
                     placeholder="e.g., Peed on grass after 15m walk"
                     value={notes}
                     onChange={(event) => setNotes(event.target.value)}
@@ -266,10 +275,10 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
 
                 {/* Logged by Input */}
                 <TextField>
-                  <Label className="text-xs font-semibold text-slate-400">Logged By</Label>
+                  <Label className="text-xs font-semibold text-slate-400 mb-1 block">Logged By</Label>
                   <Input
                     type="text"
-                    className="bg-slate-950 border-slate-800 text-slate-100"
+                    className="bg-slate-950 border-slate-800 text-slate-100 h-10 w-full"
                     value={loggedBy}
                     onChange={(event) => setLoggedBy(event.target.value)}
                   />
@@ -277,11 +286,15 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
               </form>
             </Modal.Body>
 
-            <Modal.Footer>
-              <Button variant="tertiary" onPress={onClose} size="sm">
+            <Modal.Footer className="border-t border-slate-800/80 pt-3">
+              <Button
+                onPress={onClose}
+                size="sm"
+                className="bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-300 font-bold"
+              >
                 {t.potty.cancel}
               </Button>
-              <Button form="quicklog-form" type="submit" variant="primary" size="sm" className="font-bold bg-indigo-600 hover:bg-indigo-500 text-white">
+              <Button form="quicklog-form" type="submit" size="sm" className="font-bold bg-indigo-600 hover:bg-indigo-500 text-white shadow-md">
                 {isEditMode ? 'Save Changes' : t.potty.saveLog}
               </Button>
             </Modal.Footer>
