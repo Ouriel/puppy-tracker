@@ -44,7 +44,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           {/* Simple Active Dog Dropdown */}
           {puppies.length > 0 && activePuppy && (
-            <div className="w-28 sm:w-44 shrink-0">
+            <div className="w-32 sm:w-48 shrink-0">
               <Select
                 value={activePuppy.id}
                 onChange={(val) => onSelectPuppy(val as string)}
@@ -56,11 +56,26 @@ export const Navbar: React.FC<NavbarProps> = ({
                 </Select.Trigger>
                 <Select.Popover className="bg-slate-900 border-slate-800 text-slate-100">
                   <ListBox>
-                    {puppies.map((puppy) => (
-                      <ListBoxItem key={puppy.id} id={puppy.id} textValue={puppy.name}>
-                        {puppy.name}
-                      </ListBoxItem>
-                    ))}
+                    {puppies.map((puppy) => {
+                      let ageLabel = '';
+                      if (puppy.birthDate) {
+                        const diffDays = (Date.now() - new Date(puppy.birthDate).getTime()) / (1000 * 60 * 60 * 24);
+                        const weeks = Math.max(1, Math.floor(diffDays / 7));
+                        if (weeks < 16) {
+                          ageLabel = `${weeks}w`;
+                        } else {
+                          const months = Math.floor(weeks / 4.34);
+                          ageLabel = months < 12 ? `${months}m` : `${Math.floor(months / 12)}y`;
+                        }
+                      }
+                      const displayName = ageLabel ? `${puppy.name} (${ageLabel})` : puppy.name;
+
+                      return (
+                        <ListBoxItem key={puppy.id} id={puppy.id} textValue={displayName}>
+                          {displayName}
+                        </ListBoxItem>
+                      );
+                    })}
                   </ListBox>
                 </Select.Popover>
               </Select>

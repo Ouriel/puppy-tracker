@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import type { PuppyProfile, Activity, HealthRecord } from '../types';
-import { Syringe, Pill, Dog, Calendar, Scale, ExternalLink } from 'lucide-react';
+import { Syringe, Pill, Dog, Scale, ExternalLink } from 'lucide-react';
 import { Card, Button, Chip } from '@heroui/react';
 import type { Language } from '../i18n';
 import { formatBreedName } from '../utils/breeds';
@@ -61,6 +61,14 @@ export const DogHealthSummary: React.FC<DogHealthSummaryProps> = ({
     const lastWeightKg = lastLog ? lastLog.weightKg! : profile.weightKg || 4.2;
     const lastLogDateStr = lastLog ? new Date(lastLog.timestamp).toLocaleDateString(lang === 'fr' ? 'fr-FR' : 'en-US', { month: 'short', day: 'numeric' }) : null;
 
+    let lastLogAgeWeeks: number | null = null;
+    if (lastLog && profile.birthDate) {
+      const birth = new Date(profile.birthDate).getTime();
+      const logTime = new Date(lastLog.timestamp).getTime();
+      const diffDays = (logTime - birth) / (1000 * 60 * 60 * 24);
+      lastLogAgeWeeks = Math.max(1, Math.floor(diffDays / 7));
+    }
+
     const projectedWeight = calculateProjectedAdultWeightRange(profile.breed, weightLogs, ageInfo.weeks, profile.weightKg);
 
     let assumedCurrentKg = lastWeightKg;
@@ -76,11 +84,12 @@ export const DogHealthSummary: React.FC<DogHealthSummaryProps> = ({
     return {
       lastWeightKg,
       lastLogDateStr,
+      lastLogAgeWeeks,
       assumedCurrentKg,
       adultTargetKg: projectedWeight.projectedAdultKg,
       adultRangeStr: `${projectedWeight.minAdultKg}–${projectedWeight.maxAdultKg} kg`,
     };
-  }, [activities, profile.weightKg, profile.breed, ageInfo.weeks, lang]);
+  }, [activities, profile.weightKg, profile.birthDate, profile.breed, ageInfo.weeks, lang]);
 
   const localizedBreed = formatBreedName(profile.breed, lang as Language);
 
@@ -103,44 +112,42 @@ export const DogHealthSummary: React.FC<DogHealthSummaryProps> = ({
           </h2>
         </div>
 
-        {/* Dog Profile Info Card */}
+        {/* Dog Profile & Weight Card */}
         <div className="bg-slate-950/60 p-4 rounded-xl border border-slate-800 space-y-3">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-white text-base">{profile.name}</span>
+            <span className="text-xs font-bold text-white">{profile.name}</span>
             <Chip size="sm" variant="soft" color="accent" className="font-bold">
               {localizedBreed}
             </Chip>
           </div>
 
-          <div className="grid grid-cols-2 gap-2 text-xs pt-1">
-            <div className="flex items-center gap-2 bg-slate-900/80 p-2.5 rounded-lg border border-slate-800">
-              <Calendar className="w-4 h-4 text-amber-400 shrink-0" />
-              <div>
-                <div className="text-[10px] text-slate-400 font-semibold">Age</div>
-                <div className="font-bold text-slate-200">{ageInfo.weeks} weeks</div>
+          <div className="bg-slate-900/80 p-3 rounded-xl border border-slate-800 space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Scale className="w-4 h-4 text-pink-400 shrink-0" />
+                <span className="text-xs font-bold text-slate-200">Weight Summary</span>
               </div>
-            </div>
-
-            <div className="flex items-center gap-2 bg-slate-900/80 p-2.5 rounded-lg border border-slate-800">
-              <Scale className="w-4 h-4 text-pink-400 shrink-0" />
-              <div>
-                <div className="text-[10px] text-slate-400 font-semibold">Assumed Current</div>
-                <div className="font-bold text-pink-300">~{weightData.assumedCurrentKg} kg</div>
-              </div>
-            </div>
-          </div>
-
-          {/* Weight Details Row: Last Logged & Probable Adult Range */}
-          <div className="grid grid-cols-2 gap-2 text-[11px] bg-slate-900/40 p-2.5 rounded-lg border border-slate-800/80">
-            <div>
-              <span className="text-slate-400 block text-[10px] font-semibold">Last Weight Logged</span>
-              <span className="font-bold text-slate-200">
-                {weightData.lastWeightKg} kg {weightData.lastLogDateStr && <span className="text-slate-400 font-normal">({weightData.lastLogDateStr})</span>}
+              <span className="text-[10px] font-bold text-indigo-300 bg-indigo-950/60 border border-indigo-800/60 px-2 py-0.5 rounded-md">
+                Est. Adult: {weightData.adultRangeStr}
               </span>
             </div>
-            <div>
-              <span className="text-slate-400 block text-[10px] font-semibold">Adult Weight Range</span>
-              <span className="font-bold text-indigo-300">{weightData.adultRangeStr}</span>
+
+            <div className="grid grid-cols-2 gap-2 text-xs pt-1">
+              <div className="bg-slate-950/60 p-2.5 rounded-lg border border-slate-800/80">
+                <div className="text-[10px] text-slate-400 font-semibold">Last Logged</div>
+                <div className="font-extrabold text-slate-100">{weightData.lastWeightKg} kg</div>
+                <div className="text-[10px] text-slate-400 mt-0.5 truncate">
+                  {weightData.lastLogDateStr ? `${weightData.lastLogDateStr} ${weightData.lastLogAgeWeeks ? `(${weightData.lastLogAgeWeeks}w)` : ''}` : 'No logs yet'}
+                </div>
+              </div>
+
+              <div className="bg-slate-950/60 p-2.5 rounded-lg border border-slate-800/80">
+                <div className="text-[10px] text-slate-400 font-semibold">Assumed Current</div>
+                <div className="font-extrabold text-pink-400">~{weightData.assumedCurrentKg} kg</div>
+                <div className="text-[10px] text-slate-400 mt-0.5 truncate">
+                  Growth velocity
+                </div>
+              </div>
             </div>
           </div>
         </div>

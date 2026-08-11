@@ -158,7 +158,7 @@ export const WeightGrowthChart: React.FC<WeightGrowthChartProps> = ({
         </div>
 
         {/* Growth Statistics Row */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
           <div className="bg-slate-950/60 p-3 rounded-xl border border-slate-800">
             <div className="text-[10px] text-slate-400 uppercase font-semibold">Last Logged</div>
             <div className="text-base font-extrabold text-slate-200">{latestWeight} kg</div>
@@ -170,10 +170,6 @@ export const WeightGrowthChart: React.FC<WeightGrowthChartProps> = ({
           <div className="bg-slate-950/60 p-3 rounded-xl border border-slate-800">
             <div className="text-[10px] text-slate-400 uppercase font-semibold">Adult Range (Est.)</div>
             <div className="text-base font-extrabold text-indigo-300">{projectedWeight.minAdultKg}–{projectedWeight.maxAdultKg} kg</div>
-          </div>
-          <div className="bg-slate-950/60 p-3 rounded-xl border border-slate-800">
-            <div className="text-[10px] text-slate-400 uppercase font-semibold">Current Age</div>
-            <div className="text-base font-extrabold text-amber-300">{ageWeeks} weeks</div>
           </div>
         </div>
 
@@ -194,6 +190,10 @@ export const WeightGrowthChart: React.FC<WeightGrowthChartProps> = ({
                 minute: '2-digit',
               });
 
+              const logAgeWeeks = profile.birthDate
+                ? Math.max(1, Math.floor((logDate.getTime() - new Date(profile.birthDate).getTime()) / (1000 * 60 * 60 * 24 * 7)))
+                : null;
+
               return (
                 <div key={log.id} className="flex items-center justify-between p-3.5 bg-slate-950/40 rounded-xl border border-slate-800">
                   <div className="flex items-center gap-3">
@@ -203,6 +203,11 @@ export const WeightGrowthChart: React.FC<WeightGrowthChartProps> = ({
                     <div>
                       <div className="text-xs font-bold text-white flex items-center gap-2">
                         <span>{log.weightKg} kg</span>
+                        {logAgeWeeks && (
+                          <span className="text-[10px] text-pink-300 bg-pink-950/60 border border-pink-800/60 px-1.5 py-0.2 rounded-md font-semibold">
+                            {logAgeWeeks}w old
+                          </span>
+                        )}
                       </div>
                       <div className="text-[11px] text-slate-400">
                         {formattedDate} {log.notes ? `• ${log.notes}` : ''}
