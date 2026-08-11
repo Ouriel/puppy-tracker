@@ -105,6 +105,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(201).json(created);
     }
 
+    const SUPER_ADMIN_EMAIL = 'matthieu.jacquet@gmail.com';
+
     // PUT /api/users — Update user role or status
     if (req.method === 'PUT') {
       const parsed = UserInputSchema.safeParse(req.body);
@@ -112,8 +114,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(400).json({ error: 'Invalid user payload', details: parsed.error.issues });
       }
       const body = parsed.data;
+      const targetEmail = body.email.toLowerCase();
 
-      const email = body.email.toLowerCase();
+      if (targetEmail === SUPER_ADMIN_EMAIL && auth.email.toLowerCase() !== SUPER_ADMIN_EMAIL) {
+        return res.status(403).json({ error: 'SuperAdmin account can only be managed by SuperAdmin.' });
+      }
+
+      if (body.role === 'SuperAdmin' && targetEmail !== SUPER_ADMIN_EMAIL) {
+        return res.status(403).json({ error: 'SuperAdmin role assignment is restricted.' });
+      }
+
       const [updated] = await db
         .update(usersTable)
         .set({
@@ -121,28 +131,31 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           ...(body.status ? { status: body.status } : {}),
           ...(body.name ? { name: body.name } : {}),
         })
-        .where(and(eq(usersTable.email, email), eq(usersTable.householdId, householdId)))
+        .where(and(eq(usersTable.email, targetEmail), eq(usersTable.householdId, householdId)))
         .returning();
 
       if (!updated) return res.status(404).json({ error: 'User not found in household' });
       return res.status(200).json(updated);
     }
 
-
-
     // DELETE /api/users?email=xxx — Remove a user from household
     if (req.method === 'DELETE') {
-      const email = (req.query.email as string) || req.body?.email;
-      if (!email) return res.status(400).json({ error: 'email is required' });
+      const rawEmail = (req.query.email as string) || req.body?.email;
+      if (!rawEmail) return res.status(400).json({ error: 'email is required' });
+      const targetEmail = rawEmail.toLowerCase();
 
-      if (email.toLowerCase() === auth.email.toLowerCase()) {
+      if (targetEmail === SUPER_ADMIN_EMAIL) {
+        return res.status(403).json({ error: 'SuperAdmin account cannot be deleted.' });
+      }
+
+      if (targetEmail === auth.email.toLowerCase()) {
         return res.status(400).json({ error: 'Cannot delete your own account' });
       }
 
       await db
         .delete(usersTable)
-        .where(and(eq(usersTable.email, email.toLowerCase()), eq(usersTable.householdId, householdId)));
-      return res.status(200).json({ success: true, deletedEmail: email });
+        .where(and(eq(usersTable.email, targetEmail), eq(usersTable.householdId, householdId)));
+      return res.status(200).json({ success: true, deletedEmail: targetEmail });
     }
 
     return res.status(405).json({ error: 'Method not allowed' });
