@@ -27,30 +27,30 @@ export const Navbar: React.FC<NavbarProps> = ({
   t,
 }) => {
   return (
-    <header className="sticky top-0 z-30 bg-slate-900/95 backdrop-blur-md border-b border-slate-800 text-slate-100 shadow-xl">
-      <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
+    <header className="sticky top-0 z-30 bg-slate-900/95 backdrop-blur-md border-b border-slate-800 text-slate-100 shadow-xl w-full">
+      <div className="max-w-6xl mx-auto px-3 sm:px-4 py-2.5 flex items-center justify-between gap-1.5 sm:gap-3">
         {/* Brand Logo & Clean Dog Selector */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
           <div className="flex items-center gap-2">
             <img
               src="/flat_cocker_spaniel_logo.jpg"
               alt="PupPace Logo"
-              className="w-9 h-9 rounded-xl object-cover ring-2 ring-amber-500/50 shadow-md shrink-0"
+              className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl object-cover ring-2 ring-amber-500/50 shadow-md shrink-0"
             />
-            <span className="text-base font-extrabold tracking-tight bg-gradient-to-r from-amber-300 via-indigo-300 to-pink-300 bg-clip-text text-transparent hidden sm:inline">
+            <span className="text-base font-extrabold tracking-tight bg-gradient-to-r from-amber-300 via-indigo-300 to-pink-300 bg-clip-text text-transparent hidden md:inline">
               {t.brand}
             </span>
           </div>
 
           {/* Simple Active Dog Dropdown */}
           {puppies.length > 0 && activePuppy && (
-            <div className="w-36 sm:w-44">
+            <div className="w-28 sm:w-44 shrink-0">
               <Select
                 value={activePuppy.id}
                 onChange={(val) => onSelectPuppy(val as string)}
                 aria-label="Select Active Dog"
               >
-                <Select.Trigger className="bg-slate-950/80 border-slate-700/80 min-h-0 h-9 font-bold text-xs text-slate-100">
+                <Select.Trigger className="bg-slate-950/80 border-slate-700/80 min-h-0 h-9 font-bold text-xs text-slate-100 px-2 sm:px-3">
                   <Select.Value />
                   <Select.Indicator />
                 </Select.Trigger>
@@ -69,17 +69,19 @@ export const Navbar: React.FC<NavbarProps> = ({
         </div>
 
         {/* Right Controls: Language Selector, Settings Gear ⚙️, Quick Log Button */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
           {/* Language Switcher Dropdown */}
-          <div className="w-20 sm:w-24">
+          <div className="w-16 sm:w-20 shrink-0">
             <Select
               value={lang}
               onChange={(val) => onLanguageChange(val as Language)}
               aria-label="Select Language"
             >
-              <Select.Trigger className="bg-slate-950/80 border-slate-700/80 min-h-0 h-9 text-xs">
-                <Globe className="w-3.5 h-3.5 text-slate-400 shrink-0 mr-1 hidden sm:inline" />
-                <Select.Value />
+              <Select.Trigger className="bg-slate-950/80 border-slate-700/80 min-h-0 h-9 text-xs px-1.5 sm:px-2 flex items-center justify-center">
+                <div className="flex items-center justify-center gap-1">
+                  <Globe className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+                  <Select.Value />
+                </div>
                 <Select.Indicator />
               </Select.Trigger>
               <Select.Popover className="bg-slate-900 border-slate-800 text-slate-100">
@@ -96,7 +98,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             type="button"
             onClick={onOpenSettings}
             aria-label="Settings & Administration"
-            className="h-9 w-9 flex items-center justify-center rounded-xl bg-slate-950/80 border border-slate-800 text-slate-300 hover:text-white hover:bg-slate-800 transition-colors"
+            className="h-9 w-9 flex items-center justify-center rounded-xl bg-slate-950/80 border border-slate-800 text-slate-300 hover:text-white hover:bg-slate-800 transition-colors shrink-0"
           >
             <Settings className="w-4 h-4" />
           </button>
@@ -108,10 +110,10 @@ export const Navbar: React.FC<NavbarProps> = ({
               size="sm"
               onPress={onOpenQuickLog}
               aria-label={t.nav.logEvent}
-              className="font-bold text-xs h-9 px-3.5 shadow-md"
+              className="font-bold text-xs h-9 px-2.5 sm:px-3.5 shadow-md shrink-0"
             >
-              <Plus className="w-4 h-4 stroke-[3] mr-1 inline" />
-              <span>{t.nav.logEvent}</span>
+              <Plus className="w-4 h-4 stroke-[3] sm:mr-1 inline" />
+              <span className="hidden sm:inline">{t.nav.logEvent}</span>
             </Button>
           )}
         </div>
