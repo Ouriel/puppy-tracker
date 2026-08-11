@@ -2,7 +2,7 @@ export type ActivityType = 'pee' | 'poop' | 'food' | 'weight' | 'medication';
 
 export type PottyLocation = 'outside' | 'indoor_accident';
 
-export type StoolConsistency = 'hard' | 'normal' | 'soft' | 'runny';
+export type StoolConsistency = 'hard' | 'normal' | 'diarrhea' | 'soft' | 'runny';
 
 export type FoodType = 'kibble' | 'wet' | 'raw' | 'treats' | 'topper';
 
@@ -39,7 +39,7 @@ export interface PuppyProfile {
   notes?: string;
 }
 
-export type FamilyRole = 'Husband' | 'Wife' | 'Partner' | 'Child' | 'Dog Walker' | 'Sitter' | 'Relative' | 'Member';
+export type FamilyRole = 'Husband' | 'Wife' | 'Partner' | 'Child' | 'Dog Walker' | 'Sitter' | 'Relative' | 'Member' | 'SuperAdmin';
 
 export interface UserAccount {
   id: string;
@@ -74,17 +74,20 @@ export type FoodScheduleMode = 'daytime_schedule' | 'goal_reached' | 'night_slee
 export interface PredictionResult {
   nextPeeExpectedAt: Date | null;
   standardPeeExpectedAt?: Date | null;
+  peeDeltaMins?: number;
   peeMode: ScheduleMode;
   peeUrgency: 'safe' | 'soon' | 'overdue';
   peeReason: string;
   
   nextPoopExpectedAt: Date | null;
   standardPoopExpectedAt?: Date | null;
+  poopDeltaMins?: number;
   poopMode: ScheduleMode;
   poopUrgency: 'safe' | 'soon' | 'overdue';
   poopReason: string;
 
   nextFoodExpectedAt: Date | null;
+  foodDeltaMins?: number;
   foodMode: FoodScheduleMode;
   foodUrgency: 'safe' | 'soon' | 'overdue';
   foodReason: string;

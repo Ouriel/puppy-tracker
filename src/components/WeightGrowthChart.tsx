@@ -1,8 +1,8 @@
 import React from 'react';
+import { Card, Button } from '@heroui/react';
 import type { Activity, PuppyProfile } from '../types';
-import { Scale, TrendingUp, Plus, ShieldCheck } from 'lucide-react';
+import { Scale, Plus, Trash2 } from 'lucide-react';
 import { useI18n } from '../i18n';
-import { parseIsoDate } from '../utils/date';
 
 export function getExpectedAdultWeight(breed: string): number {
   const breedLower = breed.toLowerCase();
@@ -27,6 +27,56 @@ export function getExpectedAdultWeight(breed: string): number {
   return 13;
 }
 
+export function calculateProjectedAdultWeightRange(
+  breed: string,
+  weightLogs: Activity[],
+  ageWeeks: number,
+  fallbackProfileWeight?: number
+): { projectedAdultKg: number; minAdultKg: number; maxAdultKg: number; isTrajectoryBased: boolean } {
+  const breedBaselineKg = getExpectedAdultWeight(breed);
+
+  const lastLog = weightLogs.length > 0 ? weightLogs[weightLogs.length - 1] : null;
+  const lastWeightKg = lastLog?.weightKg || fallbackProfileWeight;
+
+  if (!lastWeightKg || weightLogs.length === 0) {
+    const minAdultKg = Math.round(breedBaselineKg * 0.88 * 10) / 10;
+    const maxAdultKg = Math.round(breedBaselineKg * 1.15 * 10) / 10;
+    return { projectedAdultKg: breedBaselineKg, minAdultKg, maxAdultKg, isTrajectoryBased: false };
+  }
+
+  // Logistic growth model expected completion percentage by week
+  let expectedFraction = 0.20;
+  if (ageWeeks <= 8) {
+    expectedFraction = Math.max(0.15, 0.20 * (ageWeeks / 8));
+  } else if (ageWeeks <= 12) {
+    expectedFraction = 0.20 + (0.18 * ((ageWeeks - 8) / 4));
+  } else if (ageWeeks <= 16) {
+    expectedFraction = 0.38 + (0.17 * ((ageWeeks - 12) / 4));
+  } else if (ageWeeks <= 26) {
+    expectedFraction = 0.55 + (0.20 * ((ageWeeks - 16) / 10));
+  } else if (ageWeeks <= 36) {
+    expectedFraction = 0.75 + (0.15 * ((ageWeeks - 26) / 10));
+  } else if (ageWeeks <= 52) {
+    expectedFraction = 0.90 + (0.10 * ((ageWeeks - 36) / 16));
+  } else {
+    expectedFraction = 1.0;
+  }
+
+  const empiricalAdultKg = Math.max(lastWeightKg, lastWeightKg / expectedFraction);
+  // Blend breed baseline (30%) + empirical trajectory (70%)
+  const blendedAdultKg = Math.round(((breedBaselineKg * 0.3) + (empiricalAdultKg * 0.7)) * 10) / 10;
+
+  const minAdultKg = Math.round(blendedAdultKg * 0.90 * 10) / 10;
+  const maxAdultKg = Math.round(blendedAdultKg * 1.12 * 10) / 10;
+
+  return {
+    projectedAdultKg: blendedAdultKg,
+    minAdultKg,
+    maxAdultKg,
+    isTrajectoryBased: true,
+  };
+}
+
 export function scaleGrowthBenchmarks(adultWeightKg: number): Array<{ label: string; expectedKg: number; minKg: number; maxKg: number; weeks: number }> {
   const scale = adultWeightKg / 13; // 13 kg is the Cocker reference
   return [
@@ -42,25 +92,26 @@ interface WeightGrowthChartProps {
   activities: Activity[];
   profile: PuppyProfile;
   onOpenQuickLogModal: (type: 'weight') => void;
+  onDeleteActivity?: (id: string) => void;
 }
 
 export const WeightGrowthChart: React.FC<WeightGrowthChartProps> = ({
   activities,
   profile,
   onOpenQuickLogModal,
+  onDeleteActivity,
 }) => {
   const { t } = useI18n();
 
-  // Extract and sort weight entries chronologically
+  // Extract and sort weight entries (newest first for listing)
   const weightLogs = React.useMemo(() => {
     return activities
       .filter((activity) => activity.type === 'weight' && activity.weightKg && activity.weightKg > 0)
-      .sort((activityA, activityB) => new Date(activityA.timestamp).getTime() - new Date(activityB.timestamp).getTime());
+      .sort((activityA, activityB) => new Date(activityB.timestamp).getTime() - new Date(activityA.timestamp).getTime());
   }, [activities]);
 
-  const latestWeight = weightLogs.length > 0
-    ? weightLogs[weightLogs.length - 1].weightKg!
-    : (profile.weightKg || 0);
+  const lastLog = weightLogs.length > 0 ? weightLogs[0] : null;
+  const latestWeight = lastLog ? lastLog.weightKg! : (profile.weightKg || 4.2);
 
   // Calculate puppy age in weeks
   const ageWeeks = React.useMemo(() => {
@@ -71,106 +122,115 @@ export const WeightGrowthChart: React.FC<WeightGrowthChartProps> = ({
     return Math.max(1, Math.floor(diffDays / 7));
   }, [profile.birthDate]);
 
-  // Standard Expected Weight Curve scaled by breed
-  const adultTargetKg = getExpectedAdultWeight(profile.breed);
-  const growthBenchmarks = scaleGrowthBenchmarks(adultTargetKg);
+  // Standard & Trajectory-based Expected Adult Weight
+  const projectedWeight = React.useMemo(() => {
+    const chronologicalLogs = [...weightLogs].reverse();
+    return calculateProjectedAdultWeightRange(profile.breed, chronologicalLogs, ageWeeks, profile.weightKg);
+  }, [profile.breed, weightLogs, ageWeeks, profile.weightKg]);
+
+  let assumedCurrentKg = latestWeight;
+  if (lastLog) {
+    const daysDiff = Math.max(0, (Date.now() - new Date(lastLog.timestamp).getTime()) / (1000 * 60 * 60 * 24));
+    if (daysDiff >= 2) {
+      const weeklyGainKg = projectedWeight.projectedAdultKg * 0.035;
+      const estimatedGainKg = (daysDiff / 7) * weeklyGainKg;
+      assumedCurrentKg = Math.round((latestWeight + estimatedGainKg) * 10) / 10;
+    }
+  }
 
   return (
-    <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl space-y-4 shadow-xl">
-      {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-3">
-        <div className="flex items-center gap-3">
-          <div className="p-2.5 bg-pink-500/20 text-pink-400 rounded-xl border border-pink-500/30">
-            <Scale className="w-5 h-5" />
+    <Card className="bg-slate-900 border border-slate-800 text-slate-100">
+      <Card.Content className="p-6 space-y-4">
+        {/* Header: Title + Right Action Button */}
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-bold text-slate-100 flex items-center gap-2">
+            <Scale className="w-4 h-4 text-pink-400" />
+            <span>Weight Entries ({weightLogs.length})</span>
+          </h3>
+          <Button
+            variant="primary"
+            size="sm"
+            onPress={() => onOpenQuickLogModal('weight')}
+          >
+            <Plus className="w-4 h-4 mr-1 inline" />
+            {t.weightChart.logWeight}
+          </Button>
+        </div>
+
+        {/* Growth Statistics Row */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+          <div className="bg-slate-950/60 p-3 rounded-xl border border-slate-800">
+            <div className="text-[10px] text-slate-400 uppercase font-semibold">Last Logged</div>
+            <div className="text-base font-extrabold text-slate-200">{latestWeight} kg</div>
           </div>
-          <div>
-            <h3 className="text-sm font-bold text-slate-100 flex items-center gap-2">
-              <span>{t.weightChart.title}</span>
-              <span className="text-[10px] bg-emerald-950 text-emerald-400 border border-emerald-800/50 px-2 py-0.5 rounded-full font-bold flex items-center gap-1">
-                <ShieldCheck className="w-3 h-3" />
-                <span>{t.weightChart.healthyPace}</span>
-              </span>
-            </h3>
-            <p className="text-xs text-slate-400">
-              {t.weightChart.puppyAgeInfo.replace('{weeks}', String(ageWeeks)).replace('{weight}', String(latestWeight))}
-            </p>
+          <div className="bg-slate-950/60 p-3 rounded-xl border border-slate-800">
+            <div className="text-[10px] text-slate-400 uppercase font-semibold">Current (Assumed)</div>
+            <div className="text-base font-extrabold text-pink-400">~{assumedCurrentKg} kg</div>
+          </div>
+          <div className="bg-slate-950/60 p-3 rounded-xl border border-slate-800">
+            <div className="text-[10px] text-slate-400 uppercase font-semibold">Adult Range (Est.)</div>
+            <div className="text-base font-extrabold text-indigo-300">{projectedWeight.minAdultKg}–{projectedWeight.maxAdultKg} kg</div>
           </div>
         </div>
 
-        <button
-          onClick={() => onOpenQuickLogModal('weight')}
-          className="flex items-center gap-1.5 bg-pink-600 hover:bg-pink-500 text-white font-bold text-xs px-3.5 py-2 rounded-xl shadow transition active:scale-95 cursor-pointer"
-        >
-          <Plus className="w-4 h-4" />
-          <span>{t.weightChart.logWeight}</span>
-        </button>
-      </div>
+        {/* Logged Weight Entries List */}
+        {weightLogs.length === 0 ? (
+          <div className="p-4 text-center bg-slate-950/40 rounded-xl border border-slate-800 text-xs text-slate-400">
+            No weight entries logged yet. Click "+ Log Weight" to record your puppy's first weight.
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {weightLogs.map((log) => {
+              const logDate = new Date(log.timestamp);
+              const formattedDate = logDate.toLocaleDateString(undefined, {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+              });
 
-      {/* Visual Weight Curve Chart */}
-      <div className="space-y-2">
-        <div className="flex items-center justify-between text-xs text-slate-400 px-1 font-mono">
-          <span>{t.weightChart.breedStandard}</span>
-          <span>{latestWeight} {t.units.kg} / {adultTargetKg} {t.units.kg} (Target)</span>
-        </div>
+              const logAgeWeeks = profile.birthDate
+                ? Math.max(1, Math.floor((logDate.getTime() - new Date(profile.birthDate).getTime()) / (1000 * 60 * 60 * 24 * 7)))
+                : null;
 
-        {/* Growth Bar Progress */}
-        <div className="w-full bg-slate-950 h-4 rounded-full p-0.5 border border-slate-800 overflow-hidden relative">
-          {/* Target Zone Gradient */}
-          <div
-            className="h-full bg-gradient-to-r from-indigo-600 via-purple-500 to-pink-500 rounded-full transition-all duration-700"
-            style={{ width: `${Math.min(100, Math.max(0, Math.round(((isNaN(latestWeight) ? 0 : latestWeight) / (adultTargetKg * 1.08)) * 100)))}%` }}
-          />
-        </div>
+              return (
+                <div key={log.id} className="flex items-center justify-between p-3.5 bg-slate-950/40 rounded-xl border border-slate-800">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-pink-500/20 text-pink-400 rounded-lg">
+                      <Scale className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <div className="text-xs font-bold text-white flex items-center gap-2">
+                        <span>{log.weightKg} kg</span>
+                        {logAgeWeeks && (
+                          <span className="text-[10px] text-pink-300 bg-pink-950/60 border border-pink-800/60 px-1.5 py-0.2 rounded-md font-semibold">
+                            {logAgeWeeks}w old
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-[11px] text-slate-400">
+                        {formattedDate} {log.notes ? `• ${log.notes}` : ''}
+                      </div>
+                    </div>
+                  </div>
 
-        {/* Benchmarks Grid */}
-        <div className="grid grid-cols-5 gap-2 pt-2">
-          {growthBenchmarks.map((bench) => {
-            const isPassed = ageWeeks >= bench.weeks;
-            return (
-              <div
-                key={bench.label}
-                className={`p-2.5 rounded-xl border text-center transition ${
-                  isPassed
-                    ? 'bg-slate-850 border-indigo-500/40 text-slate-200'
-                    : 'bg-slate-950/40 border-slate-800 text-slate-500'
-                }`}
-              >
-                <div className="text-[10px] font-mono text-indigo-400 font-bold uppercase">{bench.label}</div>
-                <div className="text-xs font-extrabold text-white mt-0.5">{bench.expectedKg} {t.units.kg}</div>
-                <div className="text-[9px] text-slate-500 font-mono mt-0.5">
-                  {bench.minKg}-{bench.maxKg}{t.units.kg}
+                  {onDeleteActivity && (
+                    <button
+                      type="button"
+                      onClick={() => onDeleteActivity(log.id)}
+                      aria-label="Delete weight entry"
+                      className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-slate-800 rounded-lg border border-slate-800 bg-slate-950 transition-colors"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  )}
                 </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Weight History Timeline List */}
-      {weightLogs.length > 0 && (
-        <div className="pt-2 border-t border-slate-800 space-y-1.5">
-          <div className="text-xs font-bold text-slate-400 flex items-center gap-1.5">
-            <TrendingUp className="w-3.5 h-3.5 text-pink-400" />
-            <span>{t.weightChart.recentHistory}</span>
+              );
+            })}
           </div>
-          <div className="flex gap-2 overflow-x-auto pb-1">
-            {weightLogs.slice(-5).map((log) => (
-              <div
-                key={log.id}
-                className="bg-slate-950/60 border border-slate-800 px-3 py-1.5 rounded-xl text-xs flex items-center gap-2 shrink-0"
-              >
-                <span className="font-bold text-pink-300">{log.weightKg} {t.units.kg}</span>
-                <span className="text-[10px] text-slate-500 font-mono">
-                  {parseIsoDate(log.timestamp).toLocaleDateString(t.brand === 'PupPace' ? 'fr-FR' : 'en-US', {
-                    month: 'short',
-                    day: 'numeric',
-                  })}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
+        )}
+      </Card.Content>
+    </Card>
   );
 };

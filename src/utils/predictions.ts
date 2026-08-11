@@ -61,19 +61,25 @@ export function calculateVetFoodGramGoal(weightKg: number, ageMonths: number): n
 /**
  * Learns puppy's exact night sleep schedule (bedtime & morning wakeup) with minute precision from activity logs
  */
+/**
+ * Learns puppy's exact night sleep schedule (bedtime & morning wakeup) with minute precision from activity logs
+ * using Exponential Time-Decay Weighted Medians and circular midnight wrap handling.
+ */
 export function detectSleepSchedule(
   activities: Activity[],
   timeZone?: string
 ): { bedtimeHour: number; wakeupHour: number; bedtimeStr: string; wakeupStr: string } {
   const defaultSchedule = { bedtimeHour: 22, wakeupHour: 7, bedtimeStr: '22:00', wakeupStr: '07:00' };
 
-  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  const tz = timeZone || getUserTimezone();
+  const maxLogTime = activities.reduce((max, act) => Math.max(max, parseIsoDate(act.timestamp).getTime()), 0);
+  const nowTime = maxLogTime > 0 ? maxLogTime : Date.now();
+  const thirtyDaysAgo = new Date(nowTime - 30 * 24 * 60 * 60 * 1000);
   const recentActivities = activities.filter((activity) => parseIsoDate(activity.timestamp) >= thirtyDaysAgo);
   const targetLogs = recentActivities.length >= 5 ? recentActivities : activities;
 
   if (targetLogs.length < 5) return defaultSchedule;
 
-  const tz = timeZone || getUserTimezone();
   const byDate: Record<string, Date[]> = {};
 
   targetLogs.forEach((activity) => {
@@ -83,33 +89,53 @@ export function detectSleepSchedule(
     byDate[dateStr].push(d);
   });
 
-  const morningMins: number[] = [];
-  const eveningMins: number[] = [];
+  const morningData: { mins: number; weight: number }[] = [];
+  const eveningData: { mins: number; weight: number }[] = [];
 
   Object.values(byDate).forEach((logs) => {
     if (logs.length >= 2) {
       const sortedLogs = [...logs].sort((a, b) => a.getTime() - b.getTime());
       const first = sortedLogs[0];
       const last = sortedLogs[sortedLogs.length - 1];
-
       const firstM = getLocalHour(first, tz) * 60 + first.getMinutes();
-      const lastM = getLocalHour(last, tz) * 60 + last.getMinutes();
+      let lastM = getLocalHour(last, tz) * 60 + last.getMinutes();
 
-      if (firstM >= 4 * 60 && firstM <= 10 * 60) morningMins.push(firstM);
-      if (lastM >= 19 * 60 || lastM <= 3 * 60) eveningMins.push(lastM >= 19 * 60 ? lastM : lastM + 24 * 60);
+      // Exponential time decay (7-day half-life so recent days adapt as puppy grows)
+      const daysAgo = Math.max(0, (nowTime - last.getTime()) / (1000 * 60 * 60 * 24));
+      const weight = Math.exp(-daysAgo / 7);
+
+      if (firstM >= 4 * 60 && firstM <= 11 * 60) morningData.push({ mins: firstM, weight });
+      if (lastM >= 18 * 60 || lastM <= 4 * 60) {
+        if (lastM < 4 * 60) lastM += 24 * 60;
+        eveningData.push({ mins: lastM, weight });
+      }
     }
   });
 
-  const avgWakeMins = morningMins.length ? Math.round(morningMins.reduce((a, b) => a + b, 0) / morningMins.length) : 7 * 60;
-  const avgBedMins = eveningMins.length ? Math.round(eveningMins.reduce((a, b) => a + b, 0) / eveningMins.length) % (24 * 60) : 22 * 60;
+  const getWeightedMedian = (data: { mins: number; weight: number }[], fallbackMins: number): number => {
+    if (data.length === 0) return fallbackMins;
+    const sorted = [...data].sort((a, b) => a.mins - b.mins);
+    const totalWeight = sorted.reduce((sum, item) => sum + item.weight, 0);
+    const target = totalWeight * 0.5;
+    let acc = 0;
+    for (const item of sorted) {
+      acc += item.weight;
+      if (acc >= target) return item.mins;
+    }
+    return sorted[sorted.length - 1].mins;
+  };
+
+  const avgWakeMins = getWeightedMedian(morningData, 7 * 60);
+  const rawBedMins = getWeightedMedian(eveningData, 22 * 60);
+  const avgBedMins = rawBedMins % (24 * 60);
 
   const wakeupHour = avgWakeMins / 60;
   const bedtimeHour = avgBedMins / 60;
 
   const wH = Math.floor(avgWakeMins / 60);
-  const wM = avgWakeMins % 60;
+  const wM = Math.round(avgWakeMins % 60);
   const bH = Math.floor(avgBedMins / 60);
-  const bM = avgBedMins % 60;
+  const bM = Math.round(avgBedMins % 60);
 
   const wakeupStr = `${String(wH).padStart(2, '0')}:${String(wM).padStart(2, '0')}`;
   const bedtimeStr = `${String(bH).padStart(2, '0')}:${String(bM).padStart(2, '0')}`;
@@ -154,7 +180,8 @@ export function detectMealSchedule(
 }
 
 /**
- * Calculates adaptive average daytime interval between activities based on history
+ * Calculates adaptive average daytime interval between activities using exponential time decay
+ * (prioritizing recent days as puppy grows) and computes dynamic ± delta tolerances via semi-IQR.
  */
 export function calculateLearnedIntervalMinutes(
   activities: Activity[],
@@ -162,8 +189,10 @@ export function calculateLearnedIntervalMinutes(
   fallbackMinutes: number,
   sleepSchedule = { bedtimeHour: 22, wakeupHour: 7 },
   timeZone?: string
-): { intervalMins: number; sampleCount: number; isLearned: boolean } {
-  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+): { intervalMins: number; deltaMins: number; sampleCount: number; isLearned: boolean } {
+  const maxLogTime = activities.reduce((max, act) => Math.max(max, parseIsoDate(act.timestamp).getTime()), 0);
+  const nowTime = maxLogTime > 0 ? maxLogTime : Date.now();
+  const thirtyDaysAgo = new Date(nowTime - 30 * 24 * 60 * 60 * 1000);
   const recentActivities = activities.filter((activity) => parseIsoDate(activity.timestamp) >= thirtyDaysAgo);
   const targetActivities = recentActivities.length >= 5 ? recentActivities : activities;
 
@@ -171,20 +200,22 @@ export function calculateLearnedIntervalMinutes(
     .filter((activity) => activity.type === type)
     .sort((activityA, activityB) => parseIsoDate(activityA.timestamp).getTime() - parseIsoDate(activityB.timestamp).getTime());
 
+  const defaultDelta = type === 'pee' ? 20 : type === 'poop' ? 25 : 30;
+
   if (sortedLogs.length < 2) {
-    return { intervalMins: fallbackMinutes, sampleCount: sortedLogs.length, isLearned: false };
+    return { intervalMins: fallbackMinutes, deltaMins: defaultDelta, sampleCount: sortedLogs.length, isLearned: false };
   }
 
   // Filter daytime gaps occurring between morning wakeup and bedtime
-  const minThresholdMins = type === 'pee' ? 45 : 15; // Exclude short double-void walk pees (<45m)
-  const intervals: number[] = [];
+  const minThresholdMins = type === 'pee' ? 45 : 90; // Exclude short double-void walk pees (<45m) and same-walk poops (<90m)
+  const intervals: { diffMinutes: number; weight: number }[] = [];
+
   for (let i = 1; i < sortedLogs.length; i++) {
     const prevTime = parseIsoDate(sortedLogs[i - 1].timestamp);
     const currTime = parseIsoDate(sortedLogs[i].timestamp);
-
     const diffMinutes = (currTime.getTime() - prevTime.getTime()) / (1000 * 60);
 
-    if (diffMinutes >= minThresholdMins && diffMinutes <= 12 * 60) {
+    if (diffMinutes >= minThresholdMins && diffMinutes <= 14 * 60) {
       const prevHour = getLocalHour(prevTime, timeZone);
       const currHour = getLocalHour(currTime, timeZone);
 
@@ -192,23 +223,49 @@ export function calculateLearnedIntervalMinutes(
       const isCurrDay = isDaytimeHour(currHour, sleepSchedule.wakeupHour, sleepSchedule.bedtimeHour);
 
       if (isPrevDay && isCurrDay) {
-        intervals.push(diffMinutes);
+        // Exponential time decay: 7-day half-life so recent days count significantly more as puppy grows
+        const daysAgo = Math.max(0, (nowTime - currTime.getTime()) / (1000 * 60 * 60 * 24));
+        const weight = Math.exp(-daysAgo / 7);
+        intervals.push({ diffMinutes, weight });
       }
     }
   }
 
   if (intervals.length === 0) {
-    return { intervalMins: fallbackMinutes, sampleCount: 0, isLearned: false };
+    return { intervalMins: fallbackMinutes, deltaMins: defaultDelta, sampleCount: 0, isLearned: false };
   }
 
-  const sortedIntervals = [...intervals].sort((intervalA, intervalB) => intervalA - intervalB);
-  const midIndex = Math.floor(sortedIntervals.length / 2);
-  const medianMinutes = sortedIntervals.length % 2 !== 0
-    ? sortedIntervals[midIndex]
-    : Math.round((sortedIntervals[midIndex - 1] + sortedIntervals[midIndex]) / 2);
+  // Sort by interval duration for percentile calculation
+  const sorted = [...intervals].sort((a, b) => a.diffMinutes - b.diffMinutes);
+  const totalWeight = sorted.reduce((sum, item) => sum + item.weight, 0);
+
+  // Compute weighted percentiles (P25, P50/Median, P75)
+  const getWeightedPercentile = (p: number): number => {
+    const target = totalWeight * p;
+    let acc = 0;
+    for (let i = 0; i < sorted.length; i++) {
+      acc += sorted[i].weight;
+      if (acc >= target) return sorted[i].diffMinutes;
+    }
+    return sorted[sorted.length - 1].diffMinutes;
+  };
+
+  const p25 = getWeightedPercentile(0.25);
+  const medianMinutes = Math.round(getWeightedPercentile(0.50));
+  const p75 = getWeightedPercentile(0.75);
+
+  // Semi-IQR for dynamic ± delta margin
+  const rawDelta = Math.round((p75 - p25) / 2);
+  const minDelta = type === 'pee' ? 15 : 30;
+  const maxDelta = type === 'pee' ? 45 : 90;
+  const deltaMins = Math.max(minDelta, Math.min(rawDelta, maxDelta));
+
+  const minInterval = type === 'pee' ? 30 : 180;
+  const maxInterval = type === 'pee' ? 360 : 720;
 
   return {
-    intervalMins: Math.max(30, Math.min(medianMinutes, 360)),
+    intervalMins: Math.max(minInterval, Math.min(medianMinutes, maxInterval)),
+    deltaMins,
     sampleCount: intervals.length,
     isLearned: true,
   };
@@ -221,7 +278,8 @@ export function calculatePredictions(
   activities: Activity[],
   profile: PuppyProfile,
   referenceTime?: Date,
-  timeZone?: string
+  timeZone?: string,
+  customSleepSchedule?: { bedtimeHour: number; wakeupHour: number; bedtimeStr: string; wakeupStr: string }
 ): PredictionResult {
   const tz = timeZone || getUserTimezone();
   const now = referenceTime || new Date();
@@ -229,7 +287,7 @@ export function calculatePredictions(
 
   const pastActivities = activities.filter((activity) => parseIsoDate(activity.timestamp).getTime() <= now.getTime());
 
-  const sleepSchedule = detectSleepSchedule(pastActivities, tz);
+  const sleepSchedule = customSleepSchedule || detectSleepSchedule(pastActivities, tz);
   const mealSchedule = detectMealSchedule(pastActivities, tz);
   const isCurrentlyNight = isNighttimeHour(currentHour, sleepSchedule.wakeupHour, sleepSchedule.bedtimeHour);
 
@@ -246,7 +304,7 @@ export function calculatePredictions(
   const fallbackPeeIntervalMins = baseBladderHours * 60;
 
   const learnedPee = calculateLearnedIntervalMinutes(pastActivities, 'pee', fallbackPeeIntervalMins, sleepSchedule, tz);
-  const learnedPoop = calculateLearnedIntervalMinutes(pastActivities, 'poop', 300, sleepSchedule, tz);
+  const learnedPoop = calculateLearnedIntervalMinutes(pastActivities, 'poop', 360, sleepSchedule, tz);
 
   // 1. Pee Prediction
   let nextPeeExpectedAt: Date | null = null;
@@ -291,15 +349,17 @@ export function calculatePredictions(
       const foodTime = parseIsoDate(lastFood.timestamp).getTime();
       const minsSinceMeal = Math.round((now.getTime() - foodTime) / (1000 * 60));
 
-      if (minsSinceMeal <= 60) {
+      const postMealPeeDelay = months < 3 ? 15 : months < 6 ? 20 : 30;
+
+      if (minsSinceMeal <= postMealPeeDelay + 40) {
         peeMode = 'post_meal_override';
-        const postFoodPee = new Date(foodTime + 20 * 60 * 1000);
+        const postFoodPee = new Date(foodTime + postMealPeeDelay * 60 * 1000);
         nextPeeExpectedAt = postFoodPee;
 
-        if (minsSinceMeal > 25) {
+        if (minsSinceMeal > postMealPeeDelay + 5) {
           peeReason = `Pup fed ${formatMinutesToXhXX(minsSinceMeal)} ago — post-meal potty break is overdue!`;
         } else {
-          peeReason = `Pup fed recently (${formatMinutesToXhXX(minsSinceMeal)} ago). Pees ~15-20m post-meal.`;
+          peeReason = `Pup fed recently (${formatMinutesToXhXX(minsSinceMeal)} ago). Age ${months.toFixed(1)}mo pees ~${postMealPeeDelay}m post-meal.`;
         }
       } else {
         peeMode = 'daytime_baseline';
@@ -351,6 +411,13 @@ export function calculatePredictions(
     // Constipation mode ONLY applies if the MOST RECENT poop was hard or noted huge/constipated
     const isLastPoopConstipated = lastPoop.stoolConsistency === 'hard' ||
       (lastPoop.notes || '').toLowerCase().match(/huge|gros|big|grand|constipat/) !== null;
+
+    // Diarrhea / Loose stool mode
+    const isLastPoopDiarrhea = lastPoop.stoolConsistency === 'diarrhea' ||
+      lastPoop.stoolConsistency === 'soft' ||
+      lastPoop.stoolConsistency === 'runny' ||
+      (lastPoop.notes || '').toLowerCase().match(/liquid|liquide|diarrhea|diarrhee|loose/) !== null;
+
     const hoursSinceLastPoop = (now.getTime() - lastPoopTime) / (1000 * 60 * 60);
 
     if (isNightTime) {
@@ -364,6 +431,10 @@ export function calculatePredictions(
       targetMorningPoop.setHours(wakeH, wakeM, 0, 0);
       nextPoopExpectedAt = targetMorningPoop;
       poopReason = `Night mode: Sleeping overnight. Expected post-breakfast (~${String(wakeH).padStart(2,'0')}:${String(wakeM).padStart(2,'0')})`;
+    } else if (isLastPoopDiarrhea && hoursSinceLastPoop < 12) {
+      poopMode = 'daytime_baseline';
+      nextPoopExpectedAt = new Date(lastPoopTime + 60 * 60 * 1000);
+      poopReason = 'GI Upset Alert: Liquid/diarrhea stool recorded. Frequent potty checks recommended (60m window).';
     } else if (isLastPoopConstipated && hoursSinceLastPoop < 16) {
       poopMode = 'daytime_baseline';
       const refractoryMinutes = Math.max(learnedPoop.intervalMins * 1.4, 480);
@@ -374,15 +445,17 @@ export function calculatePredictions(
       const foodTime = parseIsoDate(lastFood.timestamp).getTime();
       const minsSinceMeal = Math.round((now.getTime() - foodTime) / (1000 * 60));
 
-      if (minsSinceMeal <= 90) {
+      const postMealPoopDelay = months < 3 ? 20 : months < 6 ? 35 : 50;
+
+      if (minsSinceMeal <= postMealPoopDelay + 45) {
         poopMode = 'post_meal_override';
-        const postFoodPoopTime = foodTime + 35 * 60 * 1000;
+        const postFoodPoopTime = foodTime + postMealPoopDelay * 60 * 1000;
         nextPoopExpectedAt = new Date(postFoodPoopTime);
 
-        if (minsSinceMeal > 45) {
+        if (minsSinceMeal > postMealPoopDelay + 10) {
           poopReason = `Pup fed ${formatMinutesToXhXX(minsSinceMeal)} ago — post-meal poop break (gastrocolic reflex) is overdue!`;
         } else {
-          poopReason = `Pup fed recently (${formatMinutesToXhXX(minsSinceMeal)} ago). Gastrocolic reflex triggers poop ~30-45m post-meal.`;
+          poopReason = `Pup fed recently (${formatMinutesToXhXX(minsSinceMeal)} ago). Gastrocolic reflex triggers poop ~${postMealPoopDelay}m post-meal (age ${months.toFixed(1)}mo).`;
         }
       } else {
         const todayDateStr = formatLocalDate(now, tz);
@@ -397,7 +470,7 @@ export function calculatePredictions(
         if (todayMealsSorted.length > 0 && todayPoops.length === 0) {
           poopMode = 'daytime_baseline';
           const latestMealTime = parseIsoDate(todayMealsSorted[todayMealsSorted.length - 1].timestamp).getTime();
-          const digestiveTransitMins = months < 6 ? 120 : 180;
+          const digestiveTransitMins = Math.max(240, learnedPoop.intervalMins);
           nextPoopExpectedAt = new Date(latestMealTime + digestiveTransitMins * 60 * 1000);
           poopReason = `Fed ${todayMealsSorted.length}× today, no poop yet. Expected ~${formatMinutesToXhXX(digestiveTransitMins)} after last meal.`;
         } else {
@@ -405,7 +478,7 @@ export function calculatePredictions(
           nextPoopExpectedAt = standardPoopExpectedAt;
           poopReason = learnedPoop.isLearned
             ? `Learned average: ~${formatMinutesToXhXX(learnedPoop.intervalMins)} digestive interval (30-day history)`
-            : 'Standard digestive interval (~5h)';
+            : 'Standard digestive interval (~6h)';
         }
       }
     } else {
@@ -421,7 +494,7 @@ export function calculatePredictions(
       if (todayMealsSorted.length > 0 && todayPoops.length === 0 && months < 10) {
         poopMode = 'daytime_baseline';
         const latestMealTime = parseIsoDate(todayMealsSorted[todayMealsSorted.length - 1].timestamp).getTime();
-        const digestiveTransitMins = months < 6 ? 120 : 180;
+        const digestiveTransitMins = Math.max(240, learnedPoop.intervalMins);
         nextPoopExpectedAt = new Date(latestMealTime + digestiveTransitMins * 60 * 1000);
         poopReason = `Fed ${todayMealsSorted.length}× today, no poop yet. Expected ~${formatMinutesToXhXX(digestiveTransitMins)} after last meal.`;
       } else {
@@ -429,7 +502,7 @@ export function calculatePredictions(
         nextPoopExpectedAt = standardPoopExpectedAt;
         poopReason = learnedPoop.isLearned
           ? `Learned average: ~${formatMinutesToXhXX(learnedPoop.intervalMins)} digestive interval (30-day history)`
-          : 'Standard digestive interval (~5h)';
+          : 'Standard digestive interval (~6h)';
       }
     }
 
@@ -534,18 +607,28 @@ export function calculatePredictions(
     }
   }
 
+  const postMealPeeDelta = months < 3 ? 8 : months < 6 ? 10 : 15;
+  const postMealPoopDelta = months < 3 ? 10 : months < 6 ? 15 : 20;
+
+  const peeDeltaMins = peeMode === 'post_meal_override' ? postMealPeeDelta : learnedPee.deltaMins;
+  const poopDeltaMins = poopMode === 'post_meal_override' ? postMealPoopDelta : learnedPoop.deltaMins;
+  const foodDeltaMins = 30;
+
   return {
     nextPeeExpectedAt,
     standardPeeExpectedAt,
+    peeDeltaMins,
     peeMode,
     peeUrgency,
     peeReason,
     nextPoopExpectedAt,
     standardPoopExpectedAt,
+    poopDeltaMins,
     poopMode,
     poopUrgency,
     poopReason,
     nextFoodExpectedAt,
+    foodDeltaMins,
     foodMode,
     foodUrgency,
     foodReason,

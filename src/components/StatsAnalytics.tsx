@@ -1,6 +1,7 @@
 import React from 'react';
 import type { Activity, PuppyProfile } from '../types';
 import { TrendingUp, ShieldCheck, Utensils } from 'lucide-react';
+import { Card, ProgressBar } from '@heroui/react';
 import { useI18n } from '../i18n';
 import { isSameLocalDate } from '../utils/date';
 
@@ -35,7 +36,8 @@ export const StatsAnalytics: React.FC<StatsAnalyticsProps> = ({ activities, prof
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-      <div className="bg-slate-800/80 border border-slate-700/80 rounded-2xl p-4 shadow-xl backdrop-blur-md">
+      <Card className="bg-slate-800/80 border-slate-700/80 shadow-xl backdrop-blur-md">
+        <Card.Content className="p-4">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <div className="p-2 bg-emerald-500/20 text-emerald-400 rounded-lg">
@@ -49,18 +51,11 @@ export const StatsAnalytics: React.FC<StatsAnalyticsProps> = ({ activities, prof
           <span className="text-xl font-extrabold text-emerald-400">{successRate}%</span>
         </div>
 
-        <div className="w-full bg-slate-900 h-3 rounded-full overflow-hidden flex mb-3 border border-slate-700">
-          <div
-            className="bg-emerald-500 transition-all duration-500"
-            style={{ width: `${totalPotty ? (outsideCount / totalPotty) * 100 : 100}%` }}
-            title={`${t.potty.outside}: ${outsideCount}`}
-          />
-          <div
-            className="bg-red-500 transition-all duration-500"
-            style={{ width: `${totalPotty ? (accidentCount / totalPotty) * 100 : 0}%` }}
-            title={`${t.potty.accident}: ${accidentCount}`}
-          />
-        </div>
+        <ProgressBar value={totalPotty ? (outsideCount / totalPotty) * 100 : 100} color="success" size="sm" className="mb-3">
+          <ProgressBar.Track className="bg-slate-900 border border-slate-700">
+            <ProgressBar.Fill />
+          </ProgressBar.Track>
+        </ProgressBar>
 
         <div className="grid grid-cols-2 text-center text-xs gap-2">
           <div className="bg-emerald-950/30 border border-emerald-800/40 p-2 rounded-lg">
@@ -72,10 +67,12 @@ export const StatsAnalytics: React.FC<StatsAnalyticsProps> = ({ activities, prof
             <div className="text-[10px] text-slate-400">{t.potty.accident}</div>
           </div>
         </div>
-      </div>
+        </Card.Content>
+      </Card>
 
       {/* Card 2: Potty Peak Hours Graph (Aligned under Potty Cards) */}
-      <div className="bg-slate-800/80 border border-slate-700/80 rounded-2xl p-4 shadow-xl backdrop-blur-md">
+      <Card className="bg-slate-800/80 border-slate-700/80 shadow-xl backdrop-blur-md">
+        <Card.Content className="p-4">
         <div className="flex items-center gap-2 mb-3">
           <div className="p-2 bg-sky-500/20 text-sky-400 rounded-lg">
             <TrendingUp className="w-5 h-5" />
@@ -122,10 +119,12 @@ export const StatsAnalytics: React.FC<StatsAnalyticsProps> = ({ activities, prof
           <span>20h</span>
           <span>23h</span>
         </div>
-      </div>
+        </Card.Content>
+      </Card>
 
       {/* Card 3: Today's Nutrition (Aligned directly under Food Predictor Card) */}
-      <div className="bg-slate-800/80 border border-slate-700/80 rounded-2xl p-4 shadow-xl backdrop-blur-md">
+      <Card className="bg-slate-800/80 border-slate-700/80 shadow-xl backdrop-blur-md">
+        <Card.Content className="p-4">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <div className="p-2 bg-purple-500/20 text-purple-400 rounded-lg">
@@ -143,18 +142,18 @@ export const StatsAnalytics: React.FC<StatsAnalyticsProps> = ({ activities, prof
           </span>
         </div>
 
-        <div className="w-full bg-slate-900 h-3 rounded-full overflow-hidden mb-3 border border-slate-700">
-          <div
-            className="bg-gradient-to-r from-purple-500 to-indigo-500 h-full transition-all duration-500"
-            style={{ width: `${foodGoalPercent}%` }}
-          />
-        </div>
+        <ProgressBar value={foodGoalPercent} color="accent" size="sm" className="mb-3">
+          <ProgressBar.Track className="bg-slate-900 border border-slate-700">
+            <ProgressBar.Fill />
+          </ProgressBar.Track>
+        </ProgressBar>
 
         <div className="text-xs text-slate-300 bg-slate-900/50 p-2.5 rounded-xl border border-slate-700/60 flex items-center justify-between">
           <span>{t.dashboard.targetMealsPerDay}</span>
           <span className="font-bold text-purple-300">{profile.targetMealsPerDay}</span>
         </div>
-      </div>
+        </Card.Content>
+      </Card>
     </div>
   );
 };

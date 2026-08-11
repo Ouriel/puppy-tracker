@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import type { Activity, ActivityType, Caretaker } from '../types';
-import { Droplet, Footprints, Utensils, Scale, Pill, Trash2, Pencil } from 'lucide-react';
+import { Droplet, Footprints, Utensils, Trash2, Pencil, User, ChevronDown } from 'lucide-react';
+import { Button, Card, Chip } from '@heroui/react';
 import { useI18n } from '../i18n';
 import { formatRelativeTime, parseIsoDate } from '../utils/date';
 import { EditActivityModal } from './EditActivityModal';
@@ -11,17 +12,24 @@ interface ActivityTimelineProps {
   caretakers: Caretaker[];
   onDeleteActivity: (id: string) => void;
   onUpdateActivity?: (updated: Partial<Activity> & { id: string }) => void;
+  onLoadMore?: () => Promise<void>;
+  isLoadingMore?: boolean;
+  hasMoreRemote?: boolean;
 }
 
-export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
+export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
   activities,
   caretakers,
   onDeleteActivity,
   onUpdateActivity,
+  onLoadMore,
+  isLoadingMore = false,
+  hasMoreRemote = true,
 }) => {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const [filter, setFilter] = useState<'all' | 'potty' | 'food'>('all');
   const [editingActivity, setEditingActivity] = useState<Activity | null>(null);
+  const [daysLimit, setDaysLimit] = useState<number>(180); // 180-day initial window
 
   const getIcon = (type: ActivityType) => {
     switch (type) {
@@ -31,10 +39,8 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
         return <Footprints className="w-4 h-4 text-amber-400" />;
       case 'food':
         return <Utensils className="w-4 h-4 text-purple-400" />;
-      case 'weight':
-        return <Scale className="w-4 h-4 text-pink-400" />;
-      case 'medication':
-        return <Pill className="w-4 h-4 text-red-400" />;
+      default:
+        return <Droplet className="w-4 h-4 text-sky-400" />;
     }
   };
 
@@ -44,17 +50,35 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
     return caretaker ? caretaker.color : '#6366F1';
   };
 
-  const filtered = activities.filter((activity) => {
-    if (filter === 'potty') return activity.type === 'pee' || activity.type === 'poop';
-    if (filter === 'food') return activity.type === 'food';
-    return true;
-  });
+  // Filter to Pee, Poop, Food logs sorted chronologically descending
+  const sortedCoreActivities = useMemo(() => {
+    return activities
+      .filter((act) => {
+        const isCoreType = act.type === 'pee' || act.type === 'poop' || act.type === 'food';
+        if (!isCoreType) return false;
+        if (filter === 'potty') return act.type === 'pee' || act.type === 'poop';
+        if (filter === 'food') return act.type === 'food';
+        return true;
+      })
+      .sort((a, b) => parseIsoDate(b.timestamp).getTime() - parseIsoDate(a.timestamp).getTime());
+  }, [activities, filter]);
 
-  const sorted = [...filtered].sort(
-    (activityA, activityB) => parseIsoDate(activityB.timestamp).getTime() - parseIsoDate(activityA.timestamp).getTime()
-  );
+  // Filter by time window
+  const now = new Date();
+  const cutoffTime = now.getTime() - daysLimit * 24 * 60 * 60 * 1000;
 
-  const { lang } = useI18n();
+  const visibleActivities = useMemo(() => {
+    return sortedCoreActivities.filter((act) => parseIsoDate(act.timestamp).getTime() >= cutoffTime);
+  }, [sortedCoreActivities, cutoffTime]);
+
+  const hasMorePriorLogs = sortedCoreActivities.length > visibleActivities.length || hasMoreRemote;
+
+  const handleLoadMore = async () => {
+    setDaysLimit((prev) => prev + 90);
+    if (onLoadMore) {
+      await onLoadMore();
+    }
+  };
 
   const formatTime = (isoString: string) => {
     return formatRelativeTime(isoString, lang as 'en' | 'fr', {
@@ -64,185 +88,198 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
   };
 
   return (
-    <div className="bg-slate-800/80 border border-slate-700/80 rounded-2xl p-5 shadow-xl backdrop-blur-md">
-      {/* Header & Filter Chips */}
-      <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
-        <div>
-          <h2 className="text-base font-bold text-slate-100 flex items-center gap-2">
-            <span>{t.dashboard.activityFeed}</span>
-            <span className="text-xs bg-slate-700 text-slate-300 px-2 py-0.5 rounded-full font-semibold">
-              {sorted.length}
-            </span>
-          </h2>
-          <p className="text-xs text-slate-400">{t.dashboard.chronologicalHistory}</p>
+    <Card className="shadow-xl bg-slate-900/90 border-slate-800">
+      <Card.Content className="p-5 space-y-4">
+        {/* Header & Filter Pills */}
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="text-base font-extrabold text-slate-100 flex items-center gap-2">
+              <span>{t.dashboard.activityFeed}</span>
+              <span className="text-xs bg-slate-800 text-slate-300 px-2 py-0.5 rounded-full font-bold">
+                {visibleActivities.length}
+              </span>
+            </h2>
+            <p className="text-xs text-slate-400">
+              Showing logs from last {daysLimit} days ({sortedCoreActivities.length} total)
+            </p>
+          </div>
+
+          {/* Filter Buttons */}
+          <div className="flex items-center gap-1 bg-slate-950/80 border border-slate-800 p-1 rounded-xl">
+            <button
+              type="button"
+              onClick={() => setFilter('all')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                filter === 'all'
+                  ? 'bg-indigo-600 text-white shadow'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+              }`}
+            >
+              {t.dashboard.all}
+            </button>
+            <button
+              type="button"
+              onClick={() => setFilter('potty')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                filter === 'potty'
+                  ? 'bg-indigo-600 text-white shadow'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+              }`}
+            >
+              {t.dashboard.pottyFilter}
+            </button>
+            <button
+              type="button"
+              onClick={() => setFilter('food')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                filter === 'food'
+                  ? 'bg-indigo-600 text-white shadow'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+              }`}
+            >
+              {t.dashboard.mealsFilter}
+            </button>
+          </div>
         </div>
 
-        {/* Filter Pills */}
-        <div className="flex items-center gap-1.5 bg-slate-900/60 border border-slate-700/60 p-1 rounded-xl">
-          <button
-            onClick={() => setFilter('all')}
-            className={`px-3 py-1 text-xs font-semibold rounded-lg transition cursor-pointer ${
-              filter === 'all'
-                ? 'bg-indigo-600 text-white shadow'
-                : 'text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            {t.dashboard.all}
-          </button>
-          <button
-            onClick={() => setFilter('potty')}
-            className={`px-3 py-1 text-xs font-semibold rounded-lg transition cursor-pointer ${
-              filter === 'potty'
-                ? 'bg-indigo-600 text-white shadow'
-                : 'text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            {t.dashboard.pottyFilter}
-          </button>
-          <button
-            onClick={() => setFilter('food')}
-            className={`px-3 py-1 text-xs font-semibold rounded-lg transition cursor-pointer ${
-              filter === 'food'
-                ? 'bg-indigo-600 text-white shadow'
-                : 'text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            {t.dashboard.mealsFilter}
-          </button>
-        </div>
-      </div>
+        {/* Timeline list */}
+        {visibleActivities.length === 0 ? (
+          <div className="text-center py-10 text-slate-400 bg-slate-950/60 rounded-xl border border-dashed border-slate-800 space-y-1">
+            <p className="text-sm font-semibold">{t.dashboard.noActivityLogs}</p>
+            <p className="text-xs text-slate-500">{t.dashboard.tapLogEvent}</p>
+          </div>
+        ) : (
+          <div className="relative pl-6 space-y-3.5 before:absolute before:left-2.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-800">
+            {visibleActivities.map((item) => {
+              const color = getCaretakerColor(item.loggedBy);
+              const caretakerName = resolveCaretakerName(item.loggedBy, caretakers);
 
-      {/* Timeline list */}
-      {sorted.length === 0 ? (
-        <div className="text-center py-10 text-slate-400 bg-slate-900/40 rounded-xl border border-dashed border-slate-700">
-          <p className="text-sm">{t.dashboard.noActivityLogs}</p>
-          <p className="text-xs text-slate-500 mt-1">{t.dashboard.tapLogEvent}</p>
-        </div>
-      ) : (
-        <div className="relative pl-6 space-y-4 before:absolute before:left-2.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-700/60">
-          {sorted.map((item) => {
-            const color = getCaretakerColor(item.loggedBy);
-            return (
-              <div
-                key={item.id}
-                className="relative group bg-slate-900/70 hover:bg-slate-900 border border-slate-700/70 hover:border-slate-600 rounded-xl p-3.5 transition-all shadow-sm flex items-start justify-between gap-3"
-              >
-                {/* Timeline dot */}
+              return (
                 <div
-                  className="absolute -left-[23px] top-4 w-3.5 h-3.5 rounded-full ring-4 ring-slate-800 flex items-center justify-center"
-                  style={{ backgroundColor: color }}
-                />
+                  key={item.id}
+                  className="relative group bg-slate-950/60 hover:bg-slate-950 border border-slate-800 rounded-xl p-3.5 transition-all shadow-sm flex items-start justify-between gap-3"
+                >
+                  {/* Timeline dot */}
+                  <div
+                    className="absolute -left-[23px] top-4 w-3.5 h-3.5 rounded-full ring-4 ring-slate-900 shrink-0"
+                    style={{ backgroundColor: color }}
+                  />
 
-                <div className="flex items-start gap-3">
-                  <div className="p-2.5 bg-slate-800 rounded-xl border border-slate-700/60 mt-0.5">
-                    {getIcon(item.type)}
-                  </div>
-
-                  <div>
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-xs font-bold text-slate-100 capitalize">
-                        {t.potty[item.type as keyof typeof t.potty] || item.type}
-                      </span>
-
-                      {/* Potty location pill */}
-                      {item.pottyLocation === 'outside' && (
-                        <span className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px] font-bold px-2 py-0.5 rounded-full">
-                          🌳 {t.potty.outside}
-                        </span>
-                      )}
-                      {item.pottyLocation === 'indoor_accident' && (
-                        <span className="bg-red-500/20 text-red-300 border border-red-500/30 text-[10px] font-bold px-2 py-0.5 rounded-full">
-                          🚨 {t.potty.accident}
-                        </span>
-                      )}
-
-                      {/* Stool consistency */}
-                      {item.stoolConsistency && (
-                        <span className="bg-slate-800 text-slate-300 text-[10px] px-2 py-0.5 rounded-full border border-slate-700">
-                          Stool: {t.potty[item.stoolConsistency as keyof typeof t.potty] || item.stoolConsistency}
-                        </span>
-                      )}
-
-                      {/* Food Grams */}
-                      {item.quantityGrams && (
-                        <span className="bg-purple-500/20 text-purple-300 border border-purple-500/30 text-[10px] font-bold px-2 py-0.5 rounded-full">
-                          {item.quantityGrams}{t.units.grams} ({item.quantityCups || 0.75} {t.units.cups}) - {item.foodType}
-                        </span>
-                      )}
-
-                      {/* Duration */}
-                      {item.durationMinutes && (
-                        <span className="bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-[10px] font-bold px-2 py-0.5 rounded-full">
-                          {item.durationMinutes} {t.units.minutes}
-                        </span>
-                      )}
-
-                      {/* Weight */}
-                      {item.weightKg && (
-                        <span className="bg-pink-500/20 text-pink-300 border border-pink-500/30 text-[10px] font-bold px-2 py-0.5 rounded-full">
-                          {item.weightKg} {t.units.kg}
-                        </span>
-                      )}
+                  <div className="flex items-start gap-3">
+                    <div className="p-2.5 bg-slate-900 rounded-xl border border-slate-800 mt-0.5 shrink-0">
+                      {getIcon(item.type)}
                     </div>
 
-                    {item.notes && (
-                      <p className="text-xs text-slate-300 mt-1 italic font-mono bg-slate-950/40 px-2 py-1 rounded border border-slate-800">
-                        "{item.notes}"
-                      </p>
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-xs font-bold text-slate-100 capitalize">
+                          {t.potty[item.type as keyof typeof t.potty] || item.type}
+                        </span>
+
+                        {/* Potty location pill */}
+                        {item.pottyLocation === 'outside' && (
+                          <Chip color="success" variant="soft" size="sm">
+                            🌳 {t.potty.outside}
+                          </Chip>
+                        )}
+                        {item.pottyLocation === 'indoor_accident' && (
+                          <Chip color="danger" variant="soft" size="sm">
+                            🚨 {t.potty.accident}
+                          </Chip>
+                        )}
+
+                        {/* Stool consistency */}
+                        {item.stoolConsistency && (
+                          <Chip color="default" variant="soft" size="sm">
+                            Stool: {t.potty[item.stoolConsistency as keyof typeof t.potty] || item.stoolConsistency}
+                          </Chip>
+                        )}
+
+                        {/* Food Grams */}
+                        {item.quantityGrams && (
+                          <Chip color="accent" variant="soft" size="sm">
+                            {item.quantityGrams}{t.units.grams} ({item.quantityCups || 0.75} {t.units.cups})
+                          </Chip>
+                        )}
+                      </div>
+
+                      {item.notes && (
+                        <p className="text-xs text-slate-300 italic font-mono bg-slate-900/80 px-2.5 py-1 rounded-lg border border-slate-800">
+                          "{item.notes}"
+                        </p>
+                      )}
+
+                      {/* Caretaker Name & Timestamp Line (Clean: just caretaker name, no "Logged by") */}
+                      <div className="flex items-center gap-2 text-[11px] text-slate-400 pt-0.5">
+                        <span className="font-medium text-slate-300">{formatTime(item.timestamp)}</span>
+                        <span>•</span>
+                        <span className="inline-flex items-center gap-1 font-bold px-2 py-0.5 rounded-full bg-slate-900 border border-slate-800" style={{ color }}>
+                          <User className="w-3 h-3" />
+                          <span>{caretakerName}</span>
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Actions: Edit & Delete */}
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    {onUpdateActivity && (
+                      <button
+                        type="button"
+                        onClick={() => setEditingActivity(item)}
+                        aria-label="Edit activity log"
+                        className="p-2 text-slate-400 hover:text-indigo-300 hover:bg-slate-800 rounded-lg border border-slate-800 bg-slate-950 transition-colors"
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </button>
                     )}
 
-                    <div className="flex items-center gap-2 mt-1.5 text-[11px] text-slate-400">
-                      <span>{formatTime(item.timestamp)}</span>
-                      <span>•</span>
-                      <span className="font-semibold" style={{ color }}>
-                        {resolveCaretakerName(item.loggedBy, caretakers)}
-                      </span>
-                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (window.confirm('Delete this activity log?')) {
+                          onDeleteActivity(item.id);
+                        }
+                      }}
+                      aria-label="Delete log"
+                      className="p-2 text-slate-400 hover:text-red-400 hover:bg-slate-800 rounded-lg border border-slate-800 bg-slate-950 transition-colors"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
                   </div>
                 </div>
+              );
+            })}
 
-                <div className="flex items-center gap-1 shrink-0 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition">
-                  {onUpdateActivity && (
-                    <button
-                      onClick={() => setEditingActivity(item)}
-                      title="Edit activity log"
-                      aria-label="Edit activity log"
-                      className="p-2 rounded-xl text-slate-400 hover:text-indigo-400 bg-slate-800/80 sm:bg-transparent hover:bg-slate-800 transition cursor-pointer border border-slate-700/60 sm:border-transparent"
-                    >
-                      <Pencil className="w-4 h-4" />
-                    </button>
-                  )}
-
-                  <button
-                    onClick={() => {
-                      const confirmMsg = 'Are you sure you want to delete this activity log?';
-                      if (window.confirm(confirmMsg)) {
-                        onDeleteActivity(item.id);
-                      }
-                    }}
-                    title="Delete log"
-                    aria-label="Delete log"
-                    className="p-2 rounded-xl text-slate-400 hover:text-red-400 bg-slate-800/80 sm:bg-transparent hover:bg-slate-800 transition cursor-pointer border border-slate-700/60 sm:border-transparent"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
+            {/* Load More Button for earlier logs */}
+            {hasMorePriorLogs && (
+              <div className="pt-2 text-center">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onPress={handleLoadMore}
+                  isDisabled={isLoadingMore}
+                  className="w-full text-xs font-bold text-slate-300 border-slate-800 hover:bg-slate-950"
+                >
+                  <ChevronDown className={`w-4 h-4 mr-1 inline ${isLoadingMore ? 'animate-spin' : ''}`} />
+                  <span>{isLoadingMore ? 'Loading Earlier Activities...' : `Load Earlier Logs (Past ${daysLimit} Days)`}</span>
+                </Button>
               </div>
-            );
-          })}
-        </div>
-      )}
+            )}
+          </div>
+        )}
 
-      {editingActivity && onUpdateActivity && (
-        <EditActivityModal
-          activity={editingActivity}
-          onSave={(updated) => {
-            onUpdateActivity(updated);
-            setEditingActivity(null);
-          }}
-          onClose={() => setEditingActivity(null)}
-        />
-      )}
-    </div>
+        {editingActivity && onUpdateActivity && (
+          <EditActivityModal
+            activity={editingActivity}
+            onSave={(updated) => {
+              onUpdateActivity(updated);
+              setEditingActivity(null);
+            }}
+            onClose={() => setEditingActivity(null)}
+          />
+        )}
+      </Card.Content>
+    </Card>
   );
-};
+});

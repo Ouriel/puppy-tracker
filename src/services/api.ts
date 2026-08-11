@@ -105,8 +105,18 @@ export async function deleteDog(id: string): Promise<boolean> {
 
 // ── Activities API ──
 
-export async function fetchActivities(puppyId?: string): Promise<Activity[] | null> {
-  const url = puppyId ? `/api/activities?puppyId=${encodeURIComponent(puppyId)}` : '/api/activities';
+export async function fetchActivities(
+  puppyId?: string,
+  options?: { days?: number; limit?: number; offset?: number }
+): Promise<Activity[] | null> {
+  const params = new URLSearchParams();
+  if (puppyId) params.append('puppyId', puppyId);
+  if (options?.days) params.append('days', String(options.days));
+  if (options?.limit) params.append('limit', String(options.limit));
+  if (options?.offset) params.append('offset', String(options.offset));
+
+  const queryString = params.toString();
+  const url = queryString ? `/api/activities?${queryString}` : '/api/activities';
   return request<Activity[]>(url);
 }
 

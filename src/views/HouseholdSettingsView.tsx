@@ -4,6 +4,7 @@ import { PuppiesView } from './PuppiesView';
 import { HouseholdView } from './HouseholdView';
 import { Dog, Home, Settings } from 'lucide-react';
 import { useI18n } from '../i18n';
+import { Card, Tabs } from '@heroui/react';
 
 interface HouseholdSettingsViewProps {
   puppies: PuppyProfile[];
@@ -38,50 +39,47 @@ export const HouseholdSettingsView: React.FC<HouseholdSettingsViewProps> = ({
   const [subTab, setSubTab] = useState<'puppies' | 'members'>('puppies');
 
   return (
-    <div className="space-y-6 animate-fadeIn max-w-4xl mx-auto">
+    <div className="space-y-6 max-w-4xl mx-auto">
       {/* Header with Sub-tab Switcher */}
-      <div className="flex flex-wrap items-center justify-between gap-4 bg-slate-900 border border-slate-800 p-6 rounded-2xl">
-        <div className="flex items-center gap-3">
-          <div className="p-3 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl shadow-md">
-            <Settings className="w-6 h-6 text-white" />
+      <Card className="bg-slate-900 border-slate-800 text-slate-100">
+        <Card.Content className="flex flex-wrap items-center justify-between gap-4 p-6">
+          <div className="flex items-center gap-3">
+            <div className="p-3 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl shadow-md">
+              <Settings className="w-6 h-6 text-white" />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-slate-100 flex items-center gap-2">
+                <span>{t.nav.settings}</span>
+              </h2>
+              <p className="text-xs text-slate-400">
+                {t.household.manageSettingsSubtitle}
+              </p>
+            </div>
           </div>
-          <div>
-            <h2 className="text-xl font-bold text-slate-100 flex items-center gap-2">
-              <span>{t.nav.settings}</span>
-            </h2>
-            <p className="text-xs text-slate-400">
-              {t.household.manageSettingsSubtitle}
-            </p>
-          </div>
-        </div>
 
-        {/* Sub-Tab Navigation */}
-        <div className="flex items-center gap-1 bg-slate-950/80 p-1 rounded-xl border border-slate-800">
-          <button
-            onClick={() => setSubTab('puppies')}
-            className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-bold transition cursor-pointer ${
-              subTab === 'puppies'
-                ? 'bg-indigo-600 text-white shadow'
-                : 'text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            <Dog className="w-4 h-4" />
-            <span>{t.puppies.title} ({puppies.length})</span>
-          </button>
-
-          <button
-            onClick={() => setSubTab('members')}
-            className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-bold transition cursor-pointer ${
-              subTab === 'members'
-                ? 'bg-indigo-600 text-white shadow'
-                : 'text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            <Home className="w-4 h-4" />
-            <span>{t.household.title} ({caretakers.length})</span>
-          </button>
-        </div>
-      </div>
+          {/* Sub-Tab Navigation */}
+          <Tabs selectedKey={subTab} onSelectionChange={(key) => setSubTab(key as 'puppies' | 'members')}>
+            <Tabs.ListContainer>
+              <Tabs.List aria-label="Settings tabs">
+                <Tabs.Tab id="puppies">
+                  <div className="flex items-center gap-1.5">
+                    <Dog className="w-4 h-4" />
+                    <span>{t.puppies.title} ({puppies.length})</span>
+                  </div>
+                  <Tabs.Indicator />
+                </Tabs.Tab>
+                <Tabs.Tab id="members">
+                  <div className="flex items-center gap-1.5">
+                    <Home className="w-4 h-4" />
+                    <span>{t.household.title} ({caretakers.length})</span>
+                  </div>
+                  <Tabs.Indicator />
+                </Tabs.Tab>
+              </Tabs.List>
+            </Tabs.ListContainer>
+          </Tabs>
+        </Card.Content>
+      </Card>
 
       {/* Sub-tab Content */}
       {subTab === 'puppies' ? (

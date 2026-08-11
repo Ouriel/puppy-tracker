@@ -1,22 +1,11 @@
 @import "tailwindcss";
+@import "@heroui/styles";
+
+@source "../node_modules/@heroui/theme/dist/**/*.{js,ts,jsx,tsx}";
 
 @layer base {
   body {
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    @apply bg-slate-950 text-slate-100 min-h-screen antialiased selection:bg-indigo-500 selection:text-white;
   }
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: scale(0.97);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-
-.animate-fadeIn {
-  animation: fadeIn 0.2s ease-out forwards;
 }

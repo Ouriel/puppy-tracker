@@ -19,7 +19,7 @@ export const EditActivityModal: React.FC<EditActivityModalProps> = ({
       activityToEdit={activity}
       currentUser={activity.loggedBy}
       onClose={onClose}
-      onSave={onSave}
+      onSave={(activityData) => onSave({ id: activity.id, ...activityData })}
     />
   );
 };

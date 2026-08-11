@@ -1,220 +1,136 @@
 import React from 'react';
 import type { PuppyProfile, UserAccount } from '../types';
-import { FileText, BookOpen, Flame, Plus, LogOut, ShieldAlert, LayoutDashboard, Settings, Syringe, Globe } from 'lucide-react';
+import { Plus, Settings, Globe } from 'lucide-react';
+import { Button, Select, ListBox, ListBoxItem } from '@heroui/react';
 import type { Language } from '../i18n';
 
-export type MainTabType = 'dashboard' | 'carnetdesante' | 'settings' | 'careguide' | 'admin';
-
 interface NavbarProps {
-  activeMainTab: MainTabType;
-  onSelectMainTab: (tab: MainTabType) => void;
   puppies: PuppyProfile[];
   activePuppy: PuppyProfile | null;
   onSelectPuppy: (puppyId: string) => void;
   user: UserAccount;
   onOpenQuickLog: () => void;
-  onOpenVetReport: () => void;
-  onClearSampleData: () => void;
-  onSignOut: () => void;
-  streakDays: number;
+  onOpenSettings: () => void;
   lang: Language;
   onLanguageChange: (lang: Language) => void;
   t: any;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
-  activeMainTab,
-  onSelectMainTab,
   puppies,
   activePuppy,
   onSelectPuppy,
-  user,
   onOpenQuickLog,
-  onOpenVetReport,
-  onSignOut,
-  streakDays,
+  onOpenSettings,
   lang,
   onLanguageChange,
   t,
 }) => {
-  const isSuperAdmin = user.email.toLowerCase() === 'matthieu.jacquet@gmail.com';
-  const showDogSelector = activeMainTab === 'dashboard' || activeMainTab === 'carnetdesante';
-
   return (
-    <header className="sticky top-0 z-30 bg-slate-900/95 backdrop-blur-md border-b border-slate-800 text-slate-100 shadow-xl">
-      <div className="max-w-6xl mx-auto px-4 py-3 space-y-3">
-        {/* Top row: Flat Vector Brand Logo, Language Dropdown & Sign Out */}
-        <div className="flex items-center justify-between gap-2 border-b border-slate-800/60 pb-2.5 shrink-0">
-          {/* Brand Logo */}
-          <div className="flex items-center gap-2 min-w-0">
+    <header className="sticky top-0 z-30 bg-slate-900/95 backdrop-blur-md border-b border-slate-800 text-slate-100 shadow-xl w-full">
+      <div className="max-w-6xl mx-auto px-3 sm:px-4 py-2.5 flex items-center justify-between gap-1.5 sm:gap-3">
+        {/* Brand Logo & Clean Dog Selector */}
+        <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
+          <div className="flex items-center gap-2">
             <img
               src="/flat_cocker_spaniel_logo.jpg"
               alt="PupPace Logo"
               className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl object-cover ring-2 ring-amber-500/50 shadow-md shrink-0"
             />
-            <div className="min-w-0">
-              <span className="text-sm sm:text-base font-extrabold tracking-tight bg-gradient-to-r from-amber-300 via-indigo-300 to-pink-300 bg-clip-text text-transparent block truncate">
-                {t.brand}
-              </span>
-              <p className="text-[11px] text-slate-400 hidden sm:block truncate">{t.headerSubtitle}</p>
-            </div>
+            <span className="text-base font-extrabold tracking-tight bg-gradient-to-r from-amber-300 via-indigo-300 to-pink-300 bg-clip-text text-transparent hidden md:inline">
+              {t.brand}
+            </span>
           </div>
 
-          {/* Controls: Scalable Language Select Dropdown & Sign Out */}
-          <div className="flex items-center gap-1.5 shrink-0">
-            {/* Scalable Language Switcher Dropdown */}
-            <div className="flex items-center bg-slate-950/80 border border-slate-700/80 rounded-xl px-2 py-1 text-xs font-semibold">
-              <Globe className="w-3.5 h-3.5 text-slate-400 mr-1 shrink-0" />
-              <select
-                value={lang}
-                onChange={(event) => onLanguageChange(event.target.value as Language)}
-                aria-label="Select Language"
-                className="bg-transparent text-slate-200 focus:outline-none cursor-pointer font-bold text-xs"
+          {/* Simple Active Dog Dropdown */}
+          {puppies.length > 0 && activePuppy && (
+            <div className="w-32 sm:w-48 shrink-0">
+              <Select
+                value={activePuppy.id}
+                onChange={(val) => onSelectPuppy(val as string)}
+                aria-label="Select Active Dog"
               >
-                <option value="en" className="bg-slate-800 text-slate-200">🇬🇧 EN</option>
-                <option value="fr" className="bg-slate-800 text-slate-200">🇫🇷 FR</option>
-              </select>
-            </div>
+                <Select.Trigger className="bg-slate-950/80 border-slate-700/80 min-h-0 h-9 font-bold text-xs text-slate-100 px-2 sm:px-3">
+                  <Select.Value />
+                  <Select.Indicator />
+                </Select.Trigger>
+                <Select.Popover className="bg-slate-900 border-slate-800 text-slate-100">
+                  <ListBox>
+                    {puppies.map((puppy) => {
+                      let ageLabel = '';
+                      if (puppy.birthDate) {
+                        const diffDays = (Date.now() - new Date(puppy.birthDate).getTime()) / (1000 * 60 * 60 * 24);
+                        const weeks = Math.max(1, Math.floor(diffDays / 7));
+                        if (weeks < 16) {
+                          ageLabel = `${weeks}w`;
+                        } else {
+                          const months = Math.floor(weeks / 4.34);
+                          ageLabel = months < 12 ? `${months}m` : `${Math.floor(months / 12)}y`;
+                        }
+                      }
+                      const displayName = ageLabel ? `${puppy.name} (${ageLabel})` : puppy.name;
 
-            {/* Sign Out Button */}
-            <button
-              onClick={onSignOut}
-              title={t.nav.signOut}
-              aria-label={t.nav.signOut}
-              className="p-1.5 rounded-xl bg-red-950/80 hover:bg-red-900 border border-red-800/60 text-red-300 transition cursor-pointer flex items-center gap-1 text-xs font-semibold"
-            >
-              <LogOut className="w-3.5 h-3.5 text-red-400 shrink-0" />
-              <span className="hidden sm:inline">{t.nav.signOut}</span>
-            </button>
-          </div>
+                      return (
+                        <ListBoxItem key={puppy.id} id={puppy.id} textValue={displayName}>
+                          {displayName}
+                        </ListBoxItem>
+                      );
+                    })}
+                  </ListBox>
+                </Select.Popover>
+              </Select>
+            </div>
+          )}
         </div>
 
-        {/* Bottom row: Main Page Tabs & Contextual Quick Actions */}
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          {/* Re-organized Tab Order with Clean Routing */}
-          <div className="flex items-center gap-1 bg-slate-950/60 p-1 rounded-xl border border-slate-800/80 overflow-x-auto">
-            {/* 1. Daily Log / Suivi Quotidien */}
-            <button
-              onClick={() => onSelectMainTab('dashboard')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
-                activeMainTab === 'dashboard'
-                  ? 'bg-indigo-600 text-white shadow'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
+        {/* Right Controls: Language Selector, Settings Gear ⚙️, Quick Log Button */}
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+          {/* Language Switcher Dropdown */}
+          <div className="w-16 sm:w-20 shrink-0">
+            <Select
+              value={lang}
+              onChange={(val) => onLanguageChange(val as Language)}
+              aria-label="Select Language"
             >
-              <LayoutDashboard className="w-3.5 h-3.5" />
-              <span>{t.nav.dashboard}</span>
-            </button>
-
-            {/* 2. Carnet de Santé */}
-            <button
-              onClick={() => onSelectMainTab('carnetdesante')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
-                activeMainTab === 'carnetdesante'
-                  ? 'bg-teal-600 text-white shadow'
-                  : 'text-teal-400 hover:text-teal-200'
-              }`}
-            >
-              <Syringe className="w-3.5 h-3.5" />
-              <span>{t.nav.carnetDeSante}</span>
-            </button>
-
-            {/* 3. Paramètres & Foyer (Combined Dogs & Household) */}
-            <button
-              onClick={() => onSelectMainTab('settings')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
-                activeMainTab === 'settings'
-                  ? 'bg-indigo-600 text-white shadow'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              <Settings className="w-3.5 h-3.5" />
-              <span>{t.nav.settings}</span>
-            </button>
-
-            {/* 4. Care Guide */}
-            <button
-              onClick={() => onSelectMainTab('careguide')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
-                activeMainTab === 'careguide'
-                  ? 'bg-indigo-600 text-white shadow'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              <BookOpen className="w-3.5 h-3.5" />
-              <span>{t.nav.careGuide}</span>
-            </button>
-
-            {/* 5. Admin (Super Admin only) */}
-            {isSuperAdmin && (
-              <button
-                onClick={() => onSelectMainTab('admin')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
-                  activeMainTab === 'admin'
-                    ? 'bg-red-600 text-white shadow'
-                    : 'text-red-400 hover:text-red-200'
-                }`}
-              >
-                <ShieldAlert className="w-3.5 h-3.5" />
-                <span>{t.nav.admin}</span>
-              </button>
-            )}
+              <Select.Trigger className="bg-slate-950/80 border-slate-700/80 min-h-0 h-9 text-xs px-1.5 sm:px-2 flex items-center justify-center">
+                <div className="flex items-center justify-center gap-1">
+                  <Globe className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+                  <Select.Value />
+                </div>
+                <Select.Indicator />
+              </Select.Trigger>
+              <Select.Popover className="bg-slate-900 border-slate-800 text-slate-100">
+                <ListBox>
+                  <ListBoxItem id="en" textValue="EN">🇬🇧 EN</ListBoxItem>
+                  <ListBoxItem id="fr" textValue="FR">🇫🇷 FR</ListBoxItem>
+                </ListBox>
+              </Select.Popover>
+            </Select>
           </div>
 
-          {/* Quick Log & Export Actions */}
-          <div className="flex items-center gap-2 flex-wrap">
-            {/* Show Active Dog Selector ONLY on Dog-Specific Views (Daily Log & Carnet de Sante) */}
-            {showDogSelector && puppies.length > 0 && activePuppy && (
-              <div className="flex items-center bg-slate-800/80 border border-slate-700/80 rounded-xl px-2.5 py-1 text-xs">
-                <span className="text-slate-400 mr-1.5">{t.nav.dog}</span>
-                <select
-                  value={activePuppy.id}
-                  onChange={(event) => onSelectPuppy(event.target.value)}
-                  aria-label="Select Dog"
-                  className="bg-transparent font-bold text-amber-300 focus:outline-none cursor-pointer"
-                >
-                  {puppies.map((puppy) => (
-                    <option key={puppy.id} value={puppy.id} className="bg-slate-800 text-slate-200">
-                      {puppy.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
+          {/* Settings & Admin Gear Icon Button */}
+          <button
+            type="button"
+            onClick={onOpenSettings}
+            aria-label="Settings & Administration"
+            className="h-9 w-9 flex items-center justify-center rounded-xl bg-slate-950/80 border border-slate-800 text-slate-300 hover:text-white hover:bg-slate-800 transition-colors shrink-0"
+          >
+            <Settings className="w-4 h-4" />
+          </button>
 
-            {/* Potty Clean Streak Badge */}
-            {showDogSelector && (
-              <div
-                title={`${streakDays} days clean!`}
-                className="flex items-center gap-1 bg-amber-950/40 border border-amber-500/30 text-amber-300 px-2.5 py-1 rounded-xl text-xs font-semibold"
-              >
-                <Flame className="w-3.5 h-3.5 text-amber-400" />
-                <span>{streakDays}d {t.nav.cleanStreak}</span>
-              </div>
-            )}
-
-            {/* Export Vet PDF Summary button */}
-            <button
-              onClick={onOpenVetReport}
-              title="Export Vet Summary PDF"
-              aria-label="Export Vet Summary PDF"
-              className="p-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 transition cursor-pointer"
+          {/* + Quick Log Button */}
+          {puppies.length > 0 && (
+            <Button
+              variant="primary"
+              size="sm"
+              onPress={onOpenQuickLog}
+              aria-label={t.nav.logEvent}
+              className="font-bold text-xs h-9 px-2.5 sm:px-3.5 shadow-md shrink-0"
             >
-              <FileText className="w-4 h-4" />
-            </button>
-
-            {/* Quick Log Event Button */}
-            {puppies.length > 0 && (
-              <button
-                onClick={onOpenQuickLog}
-                aria-label={t.nav.logEvent}
-                className="flex items-center gap-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white px-3.5 py-1.5 rounded-xl font-bold text-xs shadow-md transition active:scale-95 cursor-pointer"
-              >
-                <Plus className="w-4 h-4 stroke-[3]" />
-                <span>{t.nav.logEvent}</span>
-              </button>
-            )}
-          </div>
+              <Plus className="w-4 h-4 stroke-[3] sm:mr-1 inline" />
+              <span className="hidden sm:inline">{t.nav.logEvent}</span>
+            </Button>
+          )}
         </div>
       </div>
     </header>
