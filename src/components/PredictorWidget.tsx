@@ -127,19 +127,19 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = React.memo(({
                 </div>
                 <div>
                   <div className="text-xs font-semibold text-slate-400">{t.potty.nextPee}</div>
-                  <div className="flex items-baseline gap-1.5 flex-wrap">
+                  <div className="flex items-baseline gap-1.5">
                     <span className="text-xl sm:text-2xl font-black text-slate-100 whitespace-nowrap">
                       {formatCountdown(predictions.nextPeeExpectedAt)}
                     </span>
                     <span className="text-[10px] font-semibold text-slate-400 bg-slate-950/60 border border-slate-800 px-1.5 py-0.5 rounded-md shrink-0">
                       ±{predictions.peeDeltaMins || 20}m
                     </span>
-                    {predictions.peeMode === 'post_meal_override' && predictions.standardPeeExpectedAt && (
-                      <span className="text-[11px] font-semibold text-sky-400 bg-sky-950/60 border border-sky-800/60 px-1.5 py-0.5 rounded-lg">
-                        ({t.dashboard.withoutMeal} {formatCountdown(predictions.standardPeeExpectedAt)})
-                      </span>
-                    )}
                   </div>
+                  {predictions.peeMode === 'post_meal_override' && predictions.standardPeeExpectedAt && (
+                    <div className="mt-1.5 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-sky-950/80 border border-sky-700/60 text-xs font-semibold text-sky-300">
+                      <span>{t.dashboard.withoutMeal}: {formatCountdown(predictions.standardPeeExpectedAt)}</span>
+                    </div>
+                  )}
                 </div>
               </div>
               {getUrgencyBadge(predictions.peeUrgency)}
@@ -204,19 +204,19 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = React.memo(({
                 </div>
                 <div>
                   <div className="text-xs font-semibold text-slate-400">{t.potty.nextPoop}</div>
-                  <div className="flex items-baseline gap-1.5 flex-wrap">
+                  <div className="flex items-baseline gap-1.5">
                     <span className="text-xl sm:text-2xl font-black text-slate-100 whitespace-nowrap">
                       {formatCountdown(predictions.nextPoopExpectedAt)}
                     </span>
                     <span className="text-[10px] font-semibold text-slate-400 bg-slate-950/60 border border-slate-800 px-1.5 py-0.5 rounded-md shrink-0">
                       ±{predictions.poopDeltaMins || 25}m
                     </span>
-                    {predictions.poopMode === 'post_meal_override' && predictions.standardPoopExpectedAt && (
-                      <span className="text-[11px] font-semibold text-amber-400 bg-amber-950/60 border border-amber-800/60 px-1.5 py-0.5 rounded-lg">
-                        ({t.dashboard.withoutMeal} {formatCountdown(predictions.standardPoopExpectedAt)})
-                      </span>
-                    )}
                   </div>
+                  {predictions.poopMode === 'post_meal_override' && predictions.standardPoopExpectedAt && (
+                    <div className="mt-1.5 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-950/80 border border-amber-700/60 text-xs font-semibold text-amber-300">
+                      <span>{t.dashboard.withoutMeal}: {formatCountdown(predictions.standardPoopExpectedAt)}</span>
+                    </div>
+                  )}
                 </div>
               </div>
               {getUrgencyBadge(predictions.poopUrgency)}
