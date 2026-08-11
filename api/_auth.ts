@@ -70,11 +70,17 @@ export function verifyAppSessionToken(token: string): AuthContext | null {
 
     if (!payload.email || !payload.householdId) return null;
 
+    const userEmail = payload.email.toLowerCase();
+    const isSuperAdminEmail = userEmail === 'matthieu.jacquet@gmail.com';
+    const verifiedRole = isSuperAdminEmail
+      ? 'SuperAdmin'
+      : (payload.role === 'SuperAdmin' ? 'Member' : (payload.role || 'Member'));
+
     return {
       email: payload.email,
       name: payload.name || payload.email.split('@')[0],
       householdId: payload.householdId,
-      role: payload.role || 'Member',
+      role: verifiedRole,
     };
   } catch {
     return null;
