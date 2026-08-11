@@ -55,6 +55,14 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = React.memo(({
     : null;
 
   // Food stats
+  const allFoodLogs = activities
+    .filter((act) => act.type === 'food')
+    .sort((a, b) => parseIsoDate(b.timestamp).getTime() - parseIsoDate(a.timestamp).getTime());
+
+  const lastFoodMinsAgo = allFoodLogs.length > 0
+    ? Math.max(0, Math.floor((now.getTime() - parseIsoDate(allFoodLogs[0].timestamp).getTime()) / (1000 * 60)))
+    : null;
+
   const dailyGoal = profile.dailyFoodGramGoal || 200;
   const targetMeals = profile.targetMealsPerDay || 3;
   const remainingGrams = Math.max(0, dailyGoal - todayFoodLoggedGrams);
@@ -305,8 +313,13 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = React.memo(({
                   <ProgressBar.Fill />
                 </ProgressBar.Track>
               </ProgressBar>
-              <div className="text-[10px] text-purple-400 font-bold text-right pt-0.5">
-                Meal {todayMealsCount} of {targetMeals} logged ({portionLeftForNextMeal}g next)
+              <div className="flex items-center justify-between text-[10px] pt-0.5 font-bold">
+                <span className="text-slate-400 font-medium">
+                  Last meal: <span className="text-slate-200 font-bold">{lastFoodMinsAgo !== null ? `${formatMinutesToXhXX(lastFoodMinsAgo)} ago` : 'None logged'}</span>
+                </span>
+                <span className="text-purple-400">
+                  Meal {todayMealsCount}/{targetMeals} ({portionLeftForNextMeal}g next)
+                </span>
               </div>
             </div>
 
