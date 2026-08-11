@@ -71,13 +71,15 @@ export function detectSleepSchedule(
 ): { bedtimeHour: number; wakeupHour: number; bedtimeStr: string; wakeupStr: string } {
   const defaultSchedule = { bedtimeHour: 22, wakeupHour: 7, bedtimeStr: '22:00', wakeupStr: '07:00' };
 
-  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  const tz = timeZone || getUserTimezone();
+  const maxLogTime = activities.reduce((max, act) => Math.max(max, parseIsoDate(act.timestamp).getTime()), 0);
+  const nowTime = maxLogTime > 0 ? maxLogTime : Date.now();
+  const thirtyDaysAgo = new Date(nowTime - 30 * 24 * 60 * 60 * 1000);
   const recentActivities = activities.filter((activity) => parseIsoDate(activity.timestamp) >= thirtyDaysAgo);
   const targetLogs = recentActivities.length >= 5 ? recentActivities : activities;
 
   if (targetLogs.length < 5) return defaultSchedule;
 
-  const tz = timeZone || getUserTimezone();
   const byDate: Record<string, Date[]> = {};
 
   targetLogs.forEach((activity) => {
@@ -87,7 +89,6 @@ export function detectSleepSchedule(
     byDate[dateStr].push(d);
   });
 
-  const nowTime = Date.now();
   const morningData: { mins: number; weight: number }[] = [];
   const eveningData: { mins: number; weight: number }[] = [];
 
@@ -190,7 +191,9 @@ export function calculateLearnedIntervalMinutes(
   sleepSchedule = { bedtimeHour: 22, wakeupHour: 7 },
   timeZone?: string
 ): { intervalMins: number; deltaMins: number; sampleCount: number; isLearned: boolean } {
-  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  const maxLogTime = activities.reduce((max, act) => Math.max(max, parseIsoDate(act.timestamp).getTime()), 0);
+  const nowTime = maxLogTime > 0 ? maxLogTime : Date.now();
+  const thirtyDaysAgo = new Date(nowTime - 30 * 24 * 60 * 60 * 1000);
   const recentActivities = activities.filter((activity) => parseIsoDate(activity.timestamp) >= thirtyDaysAgo);
   const targetActivities = recentActivities.length >= 5 ? recentActivities : activities;
 
@@ -206,7 +209,6 @@ export function calculateLearnedIntervalMinutes(
 
   // Filter daytime gaps occurring between morning wakeup and bedtime
   const minThresholdMins = type === 'pee' ? 45 : 90; // Exclude short double-void walk pees (<45m) and same-walk poops (<90m)
-  const nowTime = Date.now();
   const intervals: { diffMinutes: number; weight: number }[] = [];
 
   for (let i = 1; i < sortedLogs.length; i++) {
