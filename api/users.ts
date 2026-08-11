@@ -58,7 +58,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(200).json(users);
     }
 
-    // Admin role check for mutation operations
+    const SUPER_ADMIN_EMAIL = 'matthieu.jacquet@gmail.com';
+
+    // Admin role check for mutation operations (POST, PUT, DELETE)
     if (auth.role !== 'Admin' && auth.role !== 'SuperAdmin') {
       return res.status(403).json({ error: 'Only admins can perform user management actions' });
     }
@@ -70,8 +72,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(400).json({ error: 'Invalid user payload', details: parsed.error.issues });
       }
       const body = parsed.data;
-
       const email = body.email.toLowerCase();
+
+      if (body.role === 'SuperAdmin' && email !== SUPER_ADMIN_EMAIL) {
+        return res.status(403).json({ error: 'SuperAdmin role assignment is restricted.' });
+      }
 
       const [existing] = await db
         .select()
@@ -104,8 +109,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         .returning();
       return res.status(201).json(created);
     }
-
-    const SUPER_ADMIN_EMAIL = 'matthieu.jacquet@gmail.com';
 
     // PUT /api/users — Update user role or status
     if (req.method === 'PUT') {
