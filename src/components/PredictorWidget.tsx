@@ -1,7 +1,7 @@
 import React from 'react';
 import type { Activity, ActivityType, PottyLocation, PuppyProfile, PredictionResult } from '../types';
 import { Droplet, Footprints, Utensils, CheckCircle2, Clock, AlertTriangle } from 'lucide-react';
-import { Card, Button, Chip, ProgressBar } from '@heroui/react';
+import { Card, Chip, ProgressBar } from '@heroui/react';
 import { useI18n } from '../i18n';
 import { formatMinutesToXhXX, isSameLocalDate, parseIsoDate } from '../utils/date';
 
@@ -151,22 +151,22 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = React.memo(({
             </p>
           </div>
 
-          <div className="grid grid-cols-2 gap-2 pt-1">
-            <Button
-              size="sm"
-              onPress={() => onQuickAction('pee', 'outside')}
-              className="bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs py-2 shadow border-0"
+          <div className="grid grid-cols-2 gap-2.5 w-full pt-1">
+            <button
+              type="button"
+              onClick={() => onQuickAction('pee', 'outside')}
+              className="w-full h-9 flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs rounded-xl shadow transition-colors px-2"
             >
-              <CheckCircle2 className="w-3.5 h-3.5 mr-1 inline" />
-              <span>{t.potty.peedOutside}</span>
-            </Button>
-            <Button
-              size="sm"
-              onPress={() => onQuickAction('pee', 'indoor_accident')}
-              className="bg-rose-950/60 border border-rose-700/60 text-rose-300 hover:bg-rose-900/60 text-xs py-2 font-bold"
+              <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+              <span className="truncate">{t.potty.peedOutside}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => onQuickAction('pee', 'indoor_accident')}
+              className="w-full h-9 flex items-center justify-center gap-1.5 bg-rose-950/70 border border-rose-700/70 text-rose-300 hover:bg-rose-900/80 font-bold text-xs rounded-xl transition-colors px-2"
             >
-              <span>{t.potty.accident}</span>
-            </Button>
+              <span className="truncate">{t.potty.accident}</span>
+            </button>
           </div>
         </Card.Content>
       </Card>
@@ -225,22 +225,22 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = React.memo(({
             </p>
           </div>
 
-          <div className="grid grid-cols-2 gap-2 pt-1">
-            <Button
-              size="sm"
-              onPress={() => onQuickAction('poop', 'outside')}
-              className="bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs py-2 shadow border-0"
+          <div className="grid grid-cols-2 gap-2.5 w-full pt-1">
+            <button
+              type="button"
+              onClick={() => onQuickAction('poop', 'outside')}
+              className="w-full h-9 flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs rounded-xl shadow transition-colors px-2"
             >
-              <CheckCircle2 className="w-3.5 h-3.5 mr-1 inline" />
-              <span>{t.potty.poopedOutside}</span>
-            </Button>
-            <Button
-              size="sm"
-              onPress={() => onQuickAction('poop', 'indoor_accident')}
-              className="bg-rose-950/60 border border-rose-700/60 text-rose-300 hover:bg-rose-900/60 text-xs py-2 font-bold"
+              <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+              <span className="truncate">{t.potty.poopedOutside}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => onQuickAction('poop', 'indoor_accident')}
+              className="w-full h-9 flex items-center justify-center gap-1.5 bg-rose-950/70 border border-rose-700/70 text-rose-300 hover:bg-rose-900/80 font-bold text-xs rounded-xl transition-colors px-2"
             >
-              <span>{t.potty.accident}</span>
-            </Button>
+              <span className="truncate">{t.potty.accident}</span>
+            </button>
           </div>
         </Card.Content>
       </Card>
@@ -294,15 +294,15 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = React.memo(({
             </p>
           </div>
 
-          <div className="pt-1">
-            <Button
-              size="sm"
-              onPress={() => onOpenQuickLogModal('food')}
-              className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold text-xs py-2 shadow border-0"
+          <div className="w-full pt-1">
+            <button
+              type="button"
+              onClick={() => onOpenQuickLogModal('food')}
+              className="w-full h-9 flex items-center justify-center gap-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold text-xs rounded-xl shadow transition-colors px-3"
             >
-              <Utensils className="w-3.5 h-3.5 mr-1 inline" />
-              <span>{t.dashboard.feedMealNow} ({portionLeftForNextMeal}g)</span>
-            </Button>
+              <Utensils className="w-3.5 h-3.5 shrink-0" />
+              <span className="truncate">{t.dashboard.feedMealNow} ({portionLeftForNextMeal}g)</span>
+            </button>
           </div>
         </Card.Content>
       </Card>
