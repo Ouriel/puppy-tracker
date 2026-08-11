@@ -127,11 +127,11 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = React.memo(({
                 </div>
                 <div>
                   <div className="text-xs font-semibold text-slate-400">{t.potty.nextPee}</div>
-                  <div className="flex items-baseline gap-1.5">
+                  <div className="flex items-baseline gap-2">
                     <span className="text-xl sm:text-2xl font-black text-slate-100 whitespace-nowrap">
                       {formatCountdown(predictions.nextPeeExpectedAt)}
                     </span>
-                    <span className="text-[10px] font-semibold text-slate-400 bg-slate-950/60 border border-slate-800 px-1.5 py-0.5 rounded-md shrink-0">
+                    <span className="text-xs font-bold text-slate-300 bg-slate-950 border border-slate-700/80 px-2 py-0.5 rounded-lg shrink-0 shadow-sm">
                       ±{predictions.peeDeltaMins || 20}m
                     </span>
                   </div>
@@ -204,11 +204,11 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = React.memo(({
                 </div>
                 <div>
                   <div className="text-xs font-semibold text-slate-400">{t.potty.nextPoop}</div>
-                  <div className="flex items-baseline gap-1.5">
+                  <div className="flex items-baseline gap-2">
                     <span className="text-xl sm:text-2xl font-black text-slate-100 whitespace-nowrap">
                       {formatCountdown(predictions.nextPoopExpectedAt)}
                     </span>
-                    <span className="text-[10px] font-semibold text-slate-400 bg-slate-950/60 border border-slate-800 px-1.5 py-0.5 rounded-md shrink-0">
+                    <span className="text-xs font-bold text-slate-300 bg-slate-950 border border-slate-700/80 px-2 py-0.5 rounded-lg shrink-0 shadow-sm">
                       ±{predictions.poopDeltaMins || 25}m
                     </span>
                   </div>
@@ -281,11 +281,11 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = React.memo(({
                 </div>
                 <div>
                   <div className="text-xs font-semibold text-slate-400">{t.potty.nextMeal}</div>
-                  <div className="flex items-baseline gap-1.5 flex-wrap">
+                  <div className="flex items-baseline gap-2">
                     <span className="text-xl sm:text-2xl font-black text-slate-100 whitespace-nowrap">
                       {formatCountdown(predictions.nextFoodExpectedAt)}
                     </span>
-                    <span className="text-[10px] font-semibold text-slate-400 bg-slate-950/60 border border-slate-800 px-1.5 py-0.5 rounded-md shrink-0">
+                    <span className="text-xs font-bold text-slate-300 bg-slate-950 border border-slate-700/80 px-2 py-0.5 rounded-lg shrink-0 shadow-sm">
                       ±{predictions.foodDeltaMins || 30}m
                     </span>
                   </div>
