@@ -97,19 +97,18 @@ export function detectSleepSchedule(
       const sortedLogs = [...logs].sort((a, b) => a.getTime() - b.getTime());
       const first = sortedLogs[0];
       const last = sortedLogs[sortedLogs.length - 1];
-
       const firstM = getLocalHour(first, tz) * 60 + first.getMinutes();
       let lastM = getLocalHour(last, tz) * 60 + last.getMinutes();
-
-      // Wrap late night bedtime (00:00 to 03:59) into 24h+ minutes for continuous circular math
-      if (lastM < 4 * 60) lastM += 24 * 60;
 
       // Exponential time decay (7-day half-life so recent days adapt as puppy grows)
       const daysAgo = Math.max(0, (nowTime - last.getTime()) / (1000 * 60 * 60 * 24));
       const weight = Math.exp(-daysAgo / 7);
 
       if (firstM >= 4 * 60 && firstM <= 11 * 60) morningData.push({ mins: firstM, weight });
-      if (lastM >= 19 * 60) eveningData.push({ mins: lastM, weight });
+      if (lastM >= 18 * 60 || lastM <= 4 * 60) {
+        if (lastM < 4 * 60) lastM += 24 * 60;
+        eveningData.push({ mins: lastM, weight });
+      }
     }
   });
 
