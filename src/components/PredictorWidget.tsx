@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import type { PredictionResult, ActivityType, PuppyProfile, Activity } from '../types';
-import { Droplet, Utensils, AlertCircle, Clock, CheckCircle2, Footprints } from 'lucide-react';
-import { Button, Card, Chip, ProgressBar } from '@heroui/react';
+import React from 'react';
+import type { Activity, ActivityType, PottyLocation, PuppyProfile, PredictionResult } from '../types';
+import { Droplet, Footprints, Utensils, CheckCircle2, Clock, AlertTriangle } from 'lucide-react';
+import { Card, Button, Chip, ProgressBar } from '@heroui/react';
 import { useI18n } from '../i18n';
 import { formatMinutesToXhXX, isSameLocalDate, parseIsoDate } from '../utils/date';
 
@@ -10,8 +10,8 @@ interface PredictorWidgetProps {
   profile: PuppyProfile;
   activities: Activity[];
   todayFoodLoggedGrams: number;
-  todayMealsCount?: number;
-  onQuickAction: (type: ActivityType, defaultLocation?: 'outside' | 'indoor_accident') => void;
+  todayMealsCount: number;
+  onQuickAction: (type: ActivityType, pottyLocation?: PottyLocation) => void;
   onOpenQuickLogModal: (type?: ActivityType) => void;
 }
 
@@ -20,17 +20,11 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = React.memo(({
   profile,
   activities,
   todayFoodLoggedGrams,
-  todayMealsCount = 0,
+  todayMealsCount,
   onQuickAction,
   onOpenQuickLogModal,
 }) => {
   const { t } = useI18n();
-  const [, setTick] = useState(0);
-
-  useEffect(() => {
-    const timer = setInterval(() => setTick((t) => t + 1), 30000);
-    return () => clearInterval(timer);
-  }, []);
 
   const now = new Date();
 
@@ -60,71 +54,45 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = React.memo(({
     ? Math.max(0, Math.floor((now.getTime() - parseIsoDate(allPoopLogs[0].timestamp).getTime()) / (1000 * 60)))
     : null;
 
-  const targetMeals = Math.max(1, profile.targetMealsPerDay || 3);
-  const dailyGoal = profile.dailyFoodGramGoal || 240;
-  const remainingFoodGrams = Math.max(0, dailyGoal - todayFoodLoggedGrams);
-  const remainingMealsToday = Math.max(1, targetMeals - todayMealsCount);
-
-  const portionLeftForNextMeal = remainingFoodGrams > 0
-    ? Math.max(10, Math.round(remainingFoodGrams / remainingMealsToday))
-    : Math.round(dailyGoal / targetMeals);
-
-  const formatCountdown = (targetDate: Date | null) => {
-    if (!targetDate) return t.dashboard.noLogYet;
-    const diffMs = targetDate.getTime() - now.getTime();
-    const diffMins = Math.round(diffMs / (1000 * 60));
-
-    if (diffMins < 0) {
-      const overdueMins = Math.abs(diffMins);
-      return `${formatMinutesToXhXX(overdueMins)} ${t.dashboard.overdueText}`;
-    } else if (diffMins === 0) {
-      return t.dashboard.dueNow;
-    } else {
-      return `~${formatMinutesToXhXX(diffMins)}`;
-    }
-  };
-
-  const formatTimeLeft = (targetDate: Date | null) => {
-    if (!targetDate) return '';
-    const diffMs = targetDate.getTime() - now.getTime();
-    const diffMins = Math.round(diffMs / (1000 * 60));
-
-    if (diffMins < 0) {
-      const overdueMins = Math.abs(diffMins);
-      return `${formatMinutesToXhXX(overdueMins)} ${t.dashboard.overdueText}`;
-    } else if (diffMins === 0) {
-      return t.dashboard.dueNow;
-    } else {
-      return formatMinutesToXhXX(diffMins);
-    }
-  };
+  // Food stats
+  const dailyGoal = profile.dailyFoodGramGoal || 200;
+  const targetMeals = profile.targetMealsPerDay || 3;
+  const remainingGrams = Math.max(0, dailyGoal - todayFoodLoggedGrams);
+  const remainingMeals = Math.max(1, targetMeals - todayMealsCount);
+  const portionLeftForNextMeal = Math.round(remainingGrams / remainingMeals) || Math.round(dailyGoal / targetMeals);
 
   const getUrgencyBadge = (urgency: 'safe' | 'soon' | 'overdue') => {
     if (urgency === 'overdue') {
       return (
-        <Chip color="danger" variant="soft" size="sm" className="animate-pulse font-bold">
-          <div className="flex items-center gap-1">
-            <AlertCircle className="w-3.5 h-3.5" /> {t.potty.overdue}
-          </div>
+        <Chip color="danger" variant="soft" size="sm" className="font-bold flex items-center gap-1 animate-pulse">
+          <AlertTriangle className="w-3 h-3" />
+          <span>Overdue</span>
         </Chip>
       );
     }
     if (urgency === 'soon') {
       return (
-        <Chip color="warning" variant="soft" size="sm" className="font-bold">
-          <div className="flex items-center gap-1">
-            <Clock className="w-3.5 h-3.5" /> {t.potty.dueSoon}
-          </div>
+        <Chip color="warning" variant="soft" size="sm" className="font-bold flex items-center gap-1">
+          <Clock className="w-3 h-3" />
+          <span>Due Soon</span>
         </Chip>
       );
     }
     return (
-      <Chip color="success" variant="soft" size="sm" className="font-bold">
-        <div className="flex items-center gap-1">
-          <CheckCircle2 className="w-3.5 h-3.5" /> {t.potty.allGood}
-        </div>
+      <Chip color="success" variant="soft" size="sm" className="font-semibold">
+        <span>Normal</span>
       </Chip>
     );
+  };
+
+  const formatCountdown = (dateObj: Date | null) => {
+    if (!dateObj) return 'N/A';
+    const mins = Math.round((dateObj.getTime() - Date.now()) / 60000);
+    if (mins <= 0) return 'Right now!';
+    if (mins < 60) return `~${mins}m`;
+    const hours = Math.floor(mins / 60);
+    const remMins = mins % 60;
+    return remMins > 0 ? `~${hours}h ${remMins}m` : `~${hours}h`;
   };
 
   return (
@@ -140,8 +108,8 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = React.memo(({
         }`}
       >
         <Card.Content className="p-4 flex flex-col justify-between h-full space-y-3">
-          <div>
-            <div className="flex items-start justify-between mb-2 gap-2">
+          <div className="space-y-3">
+            <div className="flex items-start justify-between gap-2">
               <div className="flex items-start gap-2.5">
                 <div className="p-2 bg-sky-500/20 text-sky-400 rounded-xl shrink-0 mt-0.5 border border-sky-500/30">
                   <Droplet className="w-5 h-5" />
@@ -154,7 +122,7 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = React.memo(({
                     </span>
                     {predictions.peeMode === 'post_meal_override' && predictions.standardPeeExpectedAt && (
                       <span className="text-[11px] font-semibold text-sky-400 bg-sky-950/60 border border-sky-800/60 px-1.5 py-0.5 rounded-lg">
-                        ({t.dashboard.withoutMeal} ~{formatTimeLeft(predictions.standardPeeExpectedAt)})
+                        ({t.dashboard.withoutMeal} ~{formatCountdown(predictions.standardPeeExpectedAt)})
                       </span>
                     )}
                   </div>
@@ -163,12 +131,7 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = React.memo(({
               {getUrgencyBadge(predictions.peeUrgency)}
             </div>
 
-            {/* Pee Recommendation Description */}
-            <p className="text-xs text-slate-300 my-2 bg-slate-950/60 p-2.5 rounded-xl border border-slate-800/80 leading-relaxed">
-              {predictions.peeReason}
-            </p>
-
-            {/* Pee Stats Summary */}
+            {/* FIRST: Pee Stats Summary (Records of the day) */}
             <div className="bg-slate-950/60 p-2.5 rounded-xl border border-slate-800/80 text-[11px] space-y-1 text-slate-400">
               <div className="flex justify-between font-medium">
                 <span>Pees today:</span>
@@ -181,6 +144,11 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = React.memo(({
                 </span>
               </div>
             </div>
+
+            {/* SECOND: Pee Recommendation Description (Calculation details) */}
+            <p className="text-xs text-slate-300 bg-slate-950/60 p-2.5 rounded-xl border border-slate-800/80 leading-relaxed">
+              {predictions.peeReason}
+            </p>
           </div>
 
           <div className="grid grid-cols-2 gap-2 pt-1">
@@ -214,8 +182,8 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = React.memo(({
         }`}
       >
         <Card.Content className="p-4 flex flex-col justify-between h-full space-y-3">
-          <div>
-            <div className="flex items-start justify-between mb-2 gap-2">
+          <div className="space-y-3">
+            <div className="flex items-start justify-between gap-2">
               <div className="flex items-start gap-2.5">
                 <div className="p-2 bg-amber-600/20 text-amber-400 rounded-xl shrink-0 mt-0.5 border border-amber-500/30">
                   <Footprints className="w-5 h-5" />
@@ -228,7 +196,7 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = React.memo(({
                     </span>
                     {predictions.poopMode === 'post_meal_override' && predictions.standardPoopExpectedAt && (
                       <span className="text-[11px] font-semibold text-amber-400 bg-amber-950/60 border border-amber-800/60 px-1.5 py-0.5 rounded-lg">
-                        ({t.dashboard.withoutMeal} ~{formatTimeLeft(predictions.standardPoopExpectedAt)})
+                        ({t.dashboard.withoutMeal} ~{formatCountdown(predictions.standardPoopExpectedAt)})
                       </span>
                     )}
                   </div>
@@ -237,12 +205,7 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = React.memo(({
               {getUrgencyBadge(predictions.poopUrgency)}
             </div>
 
-            {/* Poop Recommendation Description */}
-            <p className="text-xs text-slate-300 my-2 bg-slate-950/60 p-2.5 rounded-xl border border-slate-800/80 leading-relaxed">
-              {predictions.poopReason}
-            </p>
-
-            {/* Poop Stats Summary */}
+            {/* FIRST: Poop Stats Summary (Records of the day) */}
             <div className="bg-slate-950/60 p-2.5 rounded-xl border border-slate-800/80 text-[11px] space-y-1 text-slate-400">
               <div className="flex justify-between font-medium">
                 <span>Poops today:</span>
@@ -255,6 +218,11 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = React.memo(({
                 </span>
               </div>
             </div>
+
+            {/* SECOND: Poop Recommendation Description (Calculation details) */}
+            <p className="text-xs text-slate-300 bg-slate-950/60 p-2.5 rounded-xl border border-slate-800/80 leading-relaxed">
+              {predictions.poopReason}
+            </p>
           </div>
 
           <div className="grid grid-cols-2 gap-2 pt-1">
@@ -288,8 +256,8 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = React.memo(({
         }`}
       >
         <Card.Content className="p-4 flex flex-col justify-between h-full space-y-3">
-          <div>
-            <div className="flex items-start justify-between mb-2 gap-2">
+          <div className="space-y-3">
+            <div className="flex items-start justify-between gap-2">
               <div className="flex items-start gap-2.5">
                 <div className="p-2 bg-purple-500/20 text-purple-400 rounded-xl shrink-0 mt-0.5 border border-purple-500/30">
                   <Utensils className="w-5 h-5" />
@@ -304,12 +272,7 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = React.memo(({
               {getUrgencyBadge(predictions.foodUrgency)}
             </div>
 
-            {/* Clean, Non-Repetitive Food Description */}
-            <p className="text-xs text-slate-300 my-2 bg-slate-950/60 p-2.5 rounded-xl border border-slate-800/80 leading-relaxed">
-              {predictions.foodReason}
-            </p>
-
-            {/* Food Progress Summary */}
+            {/* FIRST: Food Progress Summary (Records of the day) */}
             <div className="bg-slate-950/60 p-2.5 rounded-xl border border-slate-800/80 space-y-1.5">
               <div className="flex justify-between text-[11px] font-semibold">
                 <span className="text-slate-400">Ration intake:</span>
@@ -324,6 +287,11 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = React.memo(({
                 Meal {todayMealsCount} of {targetMeals} logged ({portionLeftForNextMeal}g next)
               </div>
             </div>
+
+            {/* SECOND: Food Description (Calculation details) */}
+            <p className="text-xs text-slate-300 bg-slate-950/60 p-2.5 rounded-xl border border-slate-800/80 leading-relaxed">
+              {predictions.foodReason}
+            </p>
           </div>
 
           <div className="pt-1">
