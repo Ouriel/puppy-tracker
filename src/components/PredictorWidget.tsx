@@ -87,11 +87,20 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = React.memo(({
 
   const formatCountdown = (dateObj: Date | null) => {
     if (!dateObj) return 'N/A';
-    const mins = Math.round((dateObj.getTime() - Date.now()) / 60000);
-    if (mins <= 0) return '~0m';
-    if (mins < 60) return `~${mins}m`;
-    const hours = Math.floor(mins / 60);
-    const remMins = mins % 60;
+    const diffMins = Math.round((dateObj.getTime() - Date.now()) / 60000);
+
+    if (diffMins < 0) {
+      const overdueMins = Math.abs(diffMins);
+      if (overdueMins < 60) return `Overdue ~${overdueMins}m`;
+      const hours = Math.floor(overdueMins / 60);
+      const remMins = overdueMins % 60;
+      return remMins > 0 ? `Overdue ~${hours}h ${remMins}m` : `Overdue ~${hours}h`;
+    }
+
+    if (diffMins === 0) return 'Due now';
+    if (diffMins < 60) return `~${diffMins}m`;
+    const hours = Math.floor(diffMins / 60);
+    const remMins = diffMins % 60;
     return remMins > 0 ? `~${hours}h ${remMins}m` : `~${hours}h`;
   };
 
