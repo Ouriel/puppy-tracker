@@ -362,7 +362,7 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({
                 <span>{t.health.healthPassportFor.replace('{name}', activePuppy.name)}</span>
               </h2>
               <p className="text-xs text-slate-400">
-                {t.health.subtitle} &bull; {activePuppy.name} ({formatBreedName(activePuppy.breed, lang)})
+                Medical records, vaccination schedule, deworming tracking & weight growth curve &bull; {activePuppy.name} ({formatBreedName(activePuppy.breed, lang)})
               </p>
             </div>
           </div>
@@ -375,41 +375,6 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({
         profile={activePuppy}
         onOpenQuickLogModal={onOpenQuickLogModal || (() => {})}
       />
-
-      {/* Guidelines Info Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* French Vaccine Schedule Card */}
-        <Card className="bg-slate-900 border border-slate-800 text-slate-100">
-          <Card.Content className="p-4 space-y-2">
-            <h3 className="text-xs font-bold text-teal-400 flex items-center gap-1.5 uppercase tracking-wider">
-              <ShieldCheck className="w-4 h-4" />
-              <span>{t.health.frenchVaccineGuidelines}</span>
-            </h3>
-            <ul className="text-[11px] text-slate-300 space-y-1 list-disc list-inside">
-              <li>{t.health.week8Initial}</li>
-              <li>{t.health.week12Booster1}</li>
-              <li>{t.health.week16Booster2}</li>
-              <li>{t.health.year1Booster}</li>
-            </ul>
-          </Card.Content>
-        </Card>
-
-        {/* French ESCCAP Deworming Protocol Card */}
-        <Card className="bg-slate-900 border border-slate-800 text-slate-100">
-          <Card.Content className="p-4 space-y-2">
-            <h3 className="text-xs font-bold text-amber-400 flex items-center gap-1.5 uppercase tracking-wider">
-              <Pill className="w-4 h-4" />
-              <span>{t.health.esccapDewormingProtocol}</span>
-            </h3>
-            <ul className="text-[11px] text-slate-300 space-y-1 list-disc list-inside">
-              <li>{t.health.dewormSchedule1}</li>
-              <li>{t.health.dewormSchedule2}</li>
-              <li>{t.health.dewormSchedule3}</li>
-              <li>{t.health.dewormSchedule4}</li>
-            </ul>
-          </Card.Content>
-        </Card>
-      </div>
 
       {/* Vaccinations Section */}
       <Card className="bg-slate-900 border border-slate-800 text-slate-100">
@@ -637,6 +602,21 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({
               );
             })}
           </div>
+
+          {/* Collapsible Vaccine Recommendation Drawer */}
+          <details className="mt-4 pt-3 border-t border-slate-800/80 text-xs text-slate-400 group">
+            <summary className="cursor-pointer font-bold text-teal-400 flex items-center gap-1.5 hover:text-teal-300 transition-colors list-none">
+              <ShieldCheck className="w-4 h-4 shrink-0" />
+              <span>{t.health.frenchVaccineGuidelines}</span>
+              <span className="text-[10px] font-normal text-slate-500 ml-auto group-open:hidden">(click to view schedule)</span>
+            </summary>
+            <ul className="mt-2.5 pl-5 text-[11px] text-slate-300 space-y-1 list-disc">
+              <li>{t.health.week8Initial}</li>
+              <li>{t.health.week12Booster1}</li>
+              <li>{t.health.week16Booster2}</li>
+              <li>{t.health.year1Booster}</li>
+            </ul>
+          </details>
         </Card.Content>
       </Card>
 
@@ -838,6 +818,21 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({
               );
             })}
           </div>
+
+          {/* Collapsible Deworming Recommendation Drawer */}
+          <details className="mt-4 pt-3 border-t border-slate-800/80 text-xs text-slate-400 group">
+            <summary className="cursor-pointer font-bold text-amber-400 flex items-center gap-1.5 hover:text-amber-300 transition-colors list-none">
+              <Pill className="w-4 h-4 shrink-0" />
+              <span>{t.health.esccapDewormingProtocol}</span>
+              <span className="text-[10px] font-normal text-slate-500 ml-auto group-open:hidden">(click to view protocol)</span>
+            </summary>
+            <ul className="mt-2.5 pl-5 text-[11px] text-slate-300 space-y-1 list-disc">
+              <li>{t.health.dewormSchedule1}</li>
+              <li>{t.health.dewormSchedule2}</li>
+              <li>{t.health.dewormSchedule3}</li>
+              <li>{t.health.dewormSchedule4}</li>
+            </ul>
+          </details>
         </Card.Content>
       </Card>
     </div>

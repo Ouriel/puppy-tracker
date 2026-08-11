@@ -2,9 +2,9 @@ import React, { useState, useEffect } from 'react';
 import type { PuppyProfile, Activity, HealthRecord } from '../types';
 import { Syringe, Pill, Dog, Calendar, Scale, ExternalLink } from 'lucide-react';
 import { Card, Button, Chip } from '@heroui/react';
-import { useI18n } from '../i18n';
+import type { Language } from '../i18n';
 import { formatBreedName } from '../utils/breeds';
-import { getExpectedAdultWeight } from './WeightGrowthChart';
+import { calculateProjectedAdultWeightRange } from './WeightGrowthChart';
 import { getPuppyAge } from '../utils/predictions';
 import { fetchHealthRecords } from '../services/api';
 import { calculateNextVaccineBooster, calculateNextDewormingDate } from '../utils/health';
@@ -13,40 +13,34 @@ interface DogHealthSummaryProps {
   profile: PuppyProfile;
   activities: Activity[];
   onOpenHealthPassport: () => void;
+  lang: string;
 }
 
-export const DogHealthSummary: React.FC<DogHealthSummaryProps> = React.memo(({
+export const DogHealthSummary: React.FC<DogHealthSummaryProps> = ({
   profile,
   activities,
   onOpenHealthPassport,
+  lang,
 }) => {
-  const { lang } = useI18n();
 
   const [lastVaccine, setLastVaccine] = useState<HealthRecord | null>(null);
   const [lastDeworming, setLastDeworming] = useState<HealthRecord | null>(null);
 
   useEffect(() => {
-    if (!profile.id) return;
-    async function loadHealth() {
+    const loadHealth = async () => {
       const [vRes, dRes] = await Promise.all([
         fetchHealthRecords(profile.id, 'vaccination'),
         fetchHealthRecords(profile.id, 'deworming'),
       ]);
-
       if (vRes && vRes.length > 0) {
-        const sortedV = [...vRes].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-        setLastVaccine(sortedV[0]);
-      } else {
-        setLastVaccine(null);
+        const sorted = [...vRes].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        setLastVaccine(sorted[0]);
       }
-
       if (dRes && dRes.length > 0) {
-        const sortedD = [...dRes].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-        setLastDeworming(sortedD[0]);
-      } else {
-        setLastDeworming(null);
+        const sorted = [...dRes].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        setLastDeworming(sorted[0]);
       }
-    }
+    };
 
     loadHealth();
   }, [profile.id]);
@@ -57,25 +51,23 @@ export const DogHealthSummary: React.FC<DogHealthSummaryProps> = React.memo(({
     return getPuppyAge(profile.birthDate);
   }, [profile.birthDate]);
 
-  // Extract weight metrics (Last Logged, Assumed Current, Probable Adult Range)
+  // Extract weight metrics (Last Logged, Assumed Current, Probable Adult Range via empirical trajectory)
   const weightData = React.useMemo(() => {
     const weightLogs = activities
       .filter((act) => act.type === 'weight' && act.weightKg && act.weightKg > 0)
-      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+      .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
 
-    const lastLog = weightLogs.length > 0 ? weightLogs[0] : null;
+    const lastLog = weightLogs.length > 0 ? weightLogs[weightLogs.length - 1] : null;
     const lastWeightKg = lastLog ? lastLog.weightKg! : profile.weightKg || 4.2;
     const lastLogDateStr = lastLog ? new Date(lastLog.timestamp).toLocaleDateString(lang === 'fr' ? 'fr-FR' : 'en-US', { month: 'short', day: 'numeric' }) : null;
 
-    const adultTargetKg = getExpectedAdultWeight(profile.breed);
-    const minAdultKg = Math.round(adultTargetKg * 0.88 * 10) / 10;
-    const maxAdultKg = Math.round(adultTargetKg * 1.15 * 10) / 10;
+    const projectedWeight = calculateProjectedAdultWeightRange(profile.breed, weightLogs, ageInfo.weeks, profile.weightKg);
 
     let assumedCurrentKg = lastWeightKg;
     if (lastLog) {
       const daysDiff = Math.max(0, (Date.now() - new Date(lastLog.timestamp).getTime()) / (1000 * 60 * 60 * 24));
       if (daysDiff >= 2) {
-        const weeklyGainKg = adultTargetKg * 0.035;
+        const weeklyGainKg = projectedWeight.projectedAdultKg * 0.035;
         const estimatedGainKg = (daysDiff / 7) * weeklyGainKg;
         assumedCurrentKg = Math.round((lastWeightKg + estimatedGainKg) * 10) / 10;
       }
@@ -85,12 +77,12 @@ export const DogHealthSummary: React.FC<DogHealthSummaryProps> = React.memo(({
       lastWeightKg,
       lastLogDateStr,
       assumedCurrentKg,
-      adultTargetKg,
-      adultRangeStr: `${minAdultKg}–${maxAdultKg} kg`,
+      adultTargetKg: projectedWeight.projectedAdultKg,
+      adultRangeStr: `${projectedWeight.minAdultKg}–${projectedWeight.maxAdultKg} kg`,
     };
-  }, [activities, profile.weightKg, profile.breed, lang]);
+  }, [activities, profile.weightKg, profile.breed, ageInfo.weeks, lang]);
 
-  const localizedBreed = formatBreedName(profile.breed, lang);
+  const localizedBreed = formatBreedName(profile.breed, lang as Language);
 
   const nextVaccineDueDate = lastVaccine
     ? lastVaccine.boosterDate || calculateNextVaccineBooster(lastVaccine.date, lastVaccine.name)
@@ -211,4 +203,4 @@ export const DogHealthSummary: React.FC<DogHealthSummaryProps> = React.memo(({
       </Card.Content>
     </Card>
   );
-});
+};

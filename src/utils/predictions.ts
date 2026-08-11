@@ -321,15 +321,17 @@ export function calculatePredictions(
       const foodTime = parseIsoDate(lastFood.timestamp).getTime();
       const minsSinceMeal = Math.round((now.getTime() - foodTime) / (1000 * 60));
 
-      if (minsSinceMeal <= 60) {
+      const postMealPeeDelay = months < 3 ? 15 : months < 6 ? 20 : 30;
+
+      if (minsSinceMeal <= postMealPeeDelay + 40) {
         peeMode = 'post_meal_override';
-        const postFoodPee = new Date(foodTime + 20 * 60 * 1000);
+        const postFoodPee = new Date(foodTime + postMealPeeDelay * 60 * 1000);
         nextPeeExpectedAt = postFoodPee;
 
-        if (minsSinceMeal > 25) {
+        if (minsSinceMeal > postMealPeeDelay + 5) {
           peeReason = `Pup fed ${formatMinutesToXhXX(minsSinceMeal)} ago — post-meal potty break is overdue!`;
         } else {
-          peeReason = `Pup fed recently (${formatMinutesToXhXX(minsSinceMeal)} ago). Pees ~15-20m post-meal.`;
+          peeReason = `Pup fed recently (${formatMinutesToXhXX(minsSinceMeal)} ago). Age ${months.toFixed(1)}mo pees ~${postMealPeeDelay}m post-meal.`;
         }
       } else {
         peeMode = 'daytime_baseline';
@@ -404,15 +406,17 @@ export function calculatePredictions(
       const foodTime = parseIsoDate(lastFood.timestamp).getTime();
       const minsSinceMeal = Math.round((now.getTime() - foodTime) / (1000 * 60));
 
-      if (minsSinceMeal <= 90) {
+      const postMealPoopDelay = months < 3 ? 20 : months < 6 ? 35 : 50;
+
+      if (minsSinceMeal <= postMealPoopDelay + 45) {
         poopMode = 'post_meal_override';
-        const postFoodPoopTime = foodTime + 35 * 60 * 1000;
+        const postFoodPoopTime = foodTime + postMealPoopDelay * 60 * 1000;
         nextPoopExpectedAt = new Date(postFoodPoopTime);
 
-        if (minsSinceMeal > 45) {
+        if (minsSinceMeal > postMealPoopDelay + 10) {
           poopReason = `Pup fed ${formatMinutesToXhXX(minsSinceMeal)} ago — post-meal poop break (gastrocolic reflex) is overdue!`;
         } else {
-          poopReason = `Pup fed recently (${formatMinutesToXhXX(minsSinceMeal)} ago). Gastrocolic reflex triggers poop ~30-45m post-meal.`;
+          poopReason = `Pup fed recently (${formatMinutesToXhXX(minsSinceMeal)} ago). Gastrocolic reflex triggers poop ~${postMealPoopDelay}m post-meal (age ${months.toFixed(1)}mo).`;
         }
       } else {
         const todayDateStr = formatLocalDate(now, tz);
@@ -564,8 +568,11 @@ export function calculatePredictions(
     }
   }
 
-  const peeDeltaMins = peeMode === 'post_meal_override' ? 10 : learnedPee.deltaMins;
-  const poopDeltaMins = poopMode === 'post_meal_override' ? 15 : learnedPoop.deltaMins;
+  const postMealPeeDelta = months < 3 ? 8 : months < 6 ? 10 : 15;
+  const postMealPoopDelta = months < 3 ? 10 : months < 6 ? 15 : 20;
+
+  const peeDeltaMins = peeMode === 'post_meal_override' ? postMealPeeDelta : learnedPee.deltaMins;
+  const poopDeltaMins = poopMode === 'post_meal_override' ? postMealPoopDelta : learnedPoop.deltaMins;
   const foodDeltaMins = 30;
 
   return {

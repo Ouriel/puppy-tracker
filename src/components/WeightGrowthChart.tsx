@@ -27,6 +27,56 @@ export function getExpectedAdultWeight(breed: string): number {
   return 13;
 }
 
+export function calculateProjectedAdultWeightRange(
+  breed: string,
+  weightLogs: Activity[],
+  ageWeeks: number,
+  fallbackProfileWeight?: number
+): { projectedAdultKg: number; minAdultKg: number; maxAdultKg: number; isTrajectoryBased: boolean } {
+  const breedBaselineKg = getExpectedAdultWeight(breed);
+
+  const lastLog = weightLogs.length > 0 ? weightLogs[weightLogs.length - 1] : null;
+  const lastWeightKg = lastLog?.weightKg || fallbackProfileWeight;
+
+  if (!lastWeightKg || weightLogs.length === 0) {
+    const minAdultKg = Math.round(breedBaselineKg * 0.88 * 10) / 10;
+    const maxAdultKg = Math.round(breedBaselineKg * 1.15 * 10) / 10;
+    return { projectedAdultKg: breedBaselineKg, minAdultKg, maxAdultKg, isTrajectoryBased: false };
+  }
+
+  // Logistic growth model expected completion percentage by week
+  let expectedFraction = 0.20;
+  if (ageWeeks <= 8) {
+    expectedFraction = Math.max(0.15, 0.20 * (ageWeeks / 8));
+  } else if (ageWeeks <= 12) {
+    expectedFraction = 0.20 + (0.18 * ((ageWeeks - 8) / 4));
+  } else if (ageWeeks <= 16) {
+    expectedFraction = 0.38 + (0.17 * ((ageWeeks - 12) / 4));
+  } else if (ageWeeks <= 26) {
+    expectedFraction = 0.55 + (0.20 * ((ageWeeks - 16) / 10));
+  } else if (ageWeeks <= 36) {
+    expectedFraction = 0.75 + (0.15 * ((ageWeeks - 26) / 10));
+  } else if (ageWeeks <= 52) {
+    expectedFraction = 0.90 + (0.10 * ((ageWeeks - 36) / 16));
+  } else {
+    expectedFraction = 1.0;
+  }
+
+  const empiricalAdultKg = Math.max(lastWeightKg, lastWeightKg / expectedFraction);
+  // Blend breed baseline (30%) + empirical trajectory (70%)
+  const blendedAdultKg = Math.round(((breedBaselineKg * 0.3) + (empiricalAdultKg * 0.7)) * 10) / 10;
+
+  const minAdultKg = Math.round(blendedAdultKg * 0.90 * 10) / 10;
+  const maxAdultKg = Math.round(blendedAdultKg * 1.12 * 10) / 10;
+
+  return {
+    projectedAdultKg: blendedAdultKg,
+    minAdultKg,
+    maxAdultKg,
+    isTrajectoryBased: true,
+  };
+}
+
 export function scaleGrowthBenchmarks(adultWeightKg: number): Array<{ label: string; expectedKg: number; minKg: number; maxKg: number; weeks: number }> {
   const scale = adultWeightKg / 13; // 13 kg is the Cocker reference
   return [
@@ -70,22 +120,22 @@ export const WeightGrowthChart: React.FC<WeightGrowthChartProps> = ({
     return Math.max(1, Math.floor(diffDays / 7));
   }, [profile.birthDate]);
 
-  // Standard Expected Weight Curve scaled by breed
-  const adultTargetKg = getExpectedAdultWeight(profile.breed);
-  const minAdultKg = Math.round(adultTargetKg * 0.88 * 10) / 10;
-  const maxAdultKg = Math.round(adultTargetKg * 1.15 * 10) / 10;
+  // Standard & Trajectory-based Expected Adult Weight
+  const projectedWeight = React.useMemo(() => {
+    return calculateProjectedAdultWeightRange(profile.breed, weightLogs, ageWeeks, profile.weightKg);
+  }, [profile.breed, weightLogs, ageWeeks, profile.weightKg]);
 
   let assumedCurrentKg = latestWeight;
   if (lastLog) {
     const daysDiff = Math.max(0, (Date.now() - new Date(lastLog.timestamp).getTime()) / (1000 * 60 * 60 * 24));
     if (daysDiff >= 2) {
-      const weeklyGainKg = adultTargetKg * 0.035;
+      const weeklyGainKg = projectedWeight.projectedAdultKg * 0.035;
       const estimatedGainKg = (daysDiff / 7) * weeklyGainKg;
       assumedCurrentKg = Math.round((latestWeight + estimatedGainKg) * 10) / 10;
     }
   }
 
-  const growthBenchmarks = scaleGrowthBenchmarks(adultTargetKg);
+  const growthBenchmarks = scaleGrowthBenchmarks(projectedWeight.projectedAdultKg);
 
   return (
     <Card className="shadow-xl bg-slate-900 border-slate-800 text-slate-100">
@@ -131,8 +181,8 @@ export const WeightGrowthChart: React.FC<WeightGrowthChartProps> = ({
             <div className="text-base font-extrabold text-pink-400">~{assumedCurrentKg} kg</div>
           </div>
           <div className="bg-slate-950/60 p-3 rounded-xl border border-slate-800">
-            <div className="text-[10px] text-slate-400 uppercase font-semibold">Adult Range</div>
-            <div className="text-base font-extrabold text-indigo-300">{minAdultKg}–{maxAdultKg} kg</div>
+            <div className="text-[10px] text-slate-400 uppercase font-semibold">Adult Range (Est.)</div>
+            <div className="text-base font-extrabold text-indigo-300">{projectedWeight.minAdultKg}–{projectedWeight.maxAdultKg} kg</div>
           </div>
           <div className="bg-slate-950/60 p-3 rounded-xl border border-slate-800">
             <div className="text-[10px] text-slate-400 uppercase font-semibold">Current Age</div>
@@ -158,7 +208,7 @@ export const WeightGrowthChart: React.FC<WeightGrowthChartProps> = ({
                   <div className="flex-1 bg-slate-900 h-4 rounded-full overflow-hidden border border-slate-800 relative flex items-center px-2">
                     <div
                       className={`h-2 rounded-full ${isCurrentRange ? 'bg-gradient-to-r from-pink-500 to-indigo-500' : 'bg-slate-700'}`}
-                      style={{ width: `${(bench.expectedKg / (adultTargetKg * 1.15)) * 100}%` }}
+                      style={{ width: `${(bench.expectedKg / (projectedWeight.projectedAdultKg * 1.15)) * 100}%` }}
                     />
                   </div>
                   <span className={`w-16 font-mono text-right text-[11px] ${isCurrentRange ? 'font-extrabold text-pink-300' : 'text-slate-400'}`}>

@@ -448,6 +448,7 @@ export function App() {
                     profile={activePuppy}
                     activities={activePuppyActivities}
                     onOpenHealthPassport={() => handleNavigate('carnetdesante')}
+                    lang={lang}
                   />
                 </div>
               </div>
