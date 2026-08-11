@@ -82,7 +82,7 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
   };
 
   return (
-    <div className="space-y-6 max-w-4xl mx-auto">
+    <div className="space-y-6 w-full">
       {/* Header */}
       <Card className="bg-slate-900 border-slate-800 text-slate-100">
         <Card.Content className="flex flex-wrap items-center justify-between gap-4 p-6">

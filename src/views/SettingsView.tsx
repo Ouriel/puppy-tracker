@@ -43,7 +43,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [selectedTab, setSelectedTab] = useState<'dogs' | 'household' | 'admin'>('dogs');
 
   return (
-    <div className="space-y-6 max-w-5xl mx-auto pb-12">
+    <div className="space-y-6 max-w-4xl mx-auto pb-12">
       {/* Top Navigation Bar */}
       {onBackToDashboard && (
         <div className="flex items-center justify-between">
