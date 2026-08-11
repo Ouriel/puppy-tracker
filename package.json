@@ -38,7 +38,7 @@
     "@vitejs/plugin-react": "^6.0.4",
     "dotenv": "^17.4.2",
     "drizzle-kit": "^0.31.10",
-    "jsdom": "^29.1.1",
+    "jsdom": "^30.0.1",
     "oxlint": "^1.75.0",
     "tailwindcss": "^4.3.3",
     "typescript": "~6.0.2",
