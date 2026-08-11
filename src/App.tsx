@@ -49,15 +49,37 @@ export function App() {
   const [activePuppyId, setActivePuppyIdState] = useState<string>(getActivePuppyId());
   const [activities, setActivities] = useState<Activity[]>([]);
 
+  // URL-driven view routing helper
+  const getViewFromUrl = (): 'dashboard' | 'carnetdesante' | 'settings' => {
+    const params = new URLSearchParams(window.location.search);
+    const view = params.get('view');
+    if (view === 'carnetdesante' || view === 'settings') return view;
+    return 'dashboard';
+  };
+
   // Navigation & Modals
-  const [currentView, setCurrentView] = useState<'dashboard' | 'carnetdesante' | 'settings'>('dashboard');
+  const [currentView, setCurrentView] = useState<'dashboard' | 'carnetdesante' | 'settings'>(getViewFromUrl);
   const [isQuickLogOpen, setIsQuickLogOpen] = useState<boolean>(false);
   const [quickLogType, setQuickLogType] = useState<ActivityType>('pee');
 
   const handleNavigate = useCallback((view: 'dashboard' | 'carnetdesante' | 'settings') => {
     startTransition(() => {
       setCurrentView(view);
+      const newUrl = view === 'dashboard' ? window.location.pathname : `${window.location.pathname}?view=${view}`;
+      window.history.pushState({ view }, '', newUrl);
     });
+  }, []);
+
+  // Listen for browser Back/Forward navigation
+  useEffect(() => {
+    const handlePopState = () => {
+      startTransition(() => {
+        setCurrentView(getViewFromUrl());
+      });
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
   // Initial Auth & Data Load

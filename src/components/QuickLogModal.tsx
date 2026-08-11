@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import type { Activity, ActivityType, FoodType, PottyLocation, StoolConsistency } from '../types';
-import { Droplet, Footprints, Utensils, Scale, Pill, X, Calendar, User, FileText } from 'lucide-react';
-import { Modal, Select, ListBox, ListBoxItem } from '@heroui/react';
+import { Droplet, Footprints, Utensils, Scale, Pill, X, Calendar, FileText } from 'lucide-react';
+import { Modal } from '@heroui/react';
 import { useI18n } from '../i18n';
 import { getLocalDatetimeString } from '../utils/date';
 
@@ -58,9 +58,6 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
     activityToEdit?.medicationName || ''
   );
   const [notes, setNotes] = useState<string>(activityToEdit?.notes || '');
-  const [loggedBy, setLoggedBy] = useState<string>(
-    activityToEdit?.loggedBy || currentUser
-  );
 
   const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault();
@@ -70,7 +67,7 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
       puppyId: activityToEdit?.puppyId || '',
       type,
       timestamp: isoTimestamp,
-      loggedBy,
+      loggedBy: activityToEdit?.loggedBy || currentUser,
       notes: notes.trim() || undefined,
     };
 
@@ -161,7 +158,7 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
                   </div>
                 </div>
 
-                {/* Location Selection (Pee & Poop) */}
+                {/* Location & Consistency Selection (Pee & Poop) */}
                 {(type === 'pee' || type === 'poop') && (
                   <div className="space-y-4 pt-1">
                     <div>
@@ -197,26 +194,31 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
                       </div>
                     </div>
 
-                    {/* Stool Consistency (Poop only) */}
+                    {/* Stool Consistency Segmented Pills (Poop only) */}
                     {type === 'poop' && (
                       <div>
-                        <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">
+                        <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">
                           {t.potty.stoolConsistency}
                         </label>
-                        <Select value={stoolConsistency} onChange={(val) => setStoolConsistency(val as StoolConsistency)}>
-                          <Select.Trigger className="bg-slate-950 border-slate-800 text-slate-100 h-11 w-full rounded-xl">
-                            <Select.Value />
-                            <Select.Indicator />
-                          </Select.Trigger>
-                          <Select.Popover className="bg-slate-900 border-slate-800 text-slate-100">
-                            <ListBox>
-                              <ListBoxItem id="normal" textValue={t.potty.normal}>{t.potty.normal}</ListBoxItem>
-                              <ListBoxItem id="firm" textValue={t.potty.firm}>{t.potty.firm}</ListBoxItem>
-                              <ListBoxItem id="soft" textValue={t.potty.soft}>{t.potty.soft}</ListBoxItem>
-                              <ListBoxItem id="runny" textValue={t.potty.runny}>{t.potty.runny}</ListBoxItem>
-                            </ListBox>
-                          </Select.Popover>
-                        </Select>
+                        <div className="grid grid-cols-4 gap-2">
+                          {(['normal', 'firm', 'soft', 'runny'] as StoolConsistency[]).map((c) => {
+                            const isSelected = stoolConsistency === c;
+                            return (
+                              <button
+                                key={c}
+                                type="button"
+                                onClick={() => setStoolConsistency(c)}
+                                className={`py-2 px-2 rounded-xl text-xs font-bold border transition-all text-center capitalize ${
+                                  isSelected
+                                    ? 'bg-amber-600 border-amber-500 text-white shadow ring-2 ring-amber-400/30'
+                                    : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-white hover:bg-slate-800'
+                                }`}
+                              >
+                                {t.potty[c as keyof typeof t.potty] || c}
+                              </button>
+                            );
+                          })}
+                        </div>
                       </div>
                     )}
                   </div>
@@ -224,7 +226,7 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
 
                 {/* Food Quantity & Type Input */}
                 {type === 'food' && (
-                  <div className="grid grid-cols-2 gap-3 pt-1">
+                  <div className="space-y-4 pt-1">
                     <div>
                       <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">
                         {t.potty.quantity} (g)
@@ -242,23 +244,28 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
                     </div>
 
                     <div>
-                      <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">
+                      <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">
                         {t.potty.foodTypeLabel}
                       </label>
-                      <Select value={foodType} onChange={(val) => setFoodType(val as FoodType)}>
-                        <Select.Trigger className="bg-slate-950 border-slate-800 text-slate-100 h-11 w-full rounded-xl">
-                          <Select.Value />
-                          <Select.Indicator />
-                        </Select.Trigger>
-                        <Select.Popover className="bg-slate-900 border-slate-800 text-slate-100">
-                          <ListBox>
-                            <ListBoxItem id="kibble" textValue={t.potty.kibble}>{t.potty.kibble}</ListBoxItem>
-                            <ListBoxItem id="wet" textValue={t.potty.wet}>{t.potty.wet}</ListBoxItem>
-                            <ListBoxItem id="raw" textValue={t.potty.raw}>{t.potty.raw}</ListBoxItem>
-                            <ListBoxItem id="treats" textValue={t.potty.treats}>{t.potty.treats}</ListBoxItem>
-                          </ListBox>
-                        </Select.Popover>
-                      </Select>
+                      <div className="grid grid-cols-4 gap-2">
+                        {(['kibble', 'wet', 'raw', 'treats'] as FoodType[]).map((f) => {
+                          const isSelected = foodType === f;
+                          return (
+                            <button
+                              key={f}
+                              type="button"
+                              onClick={() => setFoodType(f)}
+                              className={`py-2 px-2 rounded-xl text-xs font-bold border transition-all text-center capitalize ${
+                                isSelected
+                                  ? 'bg-purple-600 border-purple-500 text-white shadow ring-2 ring-purple-400/30'
+                                  : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-white hover:bg-slate-800'
+                              }`}
+                            >
+                              {t.potty[f as keyof typeof t.potty] || f}
+                            </button>
+                          );
+                        })}
+                      </div>
                     </div>
                   </div>
                 )}
@@ -294,34 +301,18 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
                   </div>
                 )}
 
-                {/* Date/Time and Caretaker in 2 Columns */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-                  <div>
-                    <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
-                      <Calendar className="w-3.5 h-3.5 text-indigo-400" />
-                      <span>{t.potty.dateAndTime}</span>
-                    </label>
-                    <input
-                      type="datetime-local"
-                      style={{ colorScheme: 'dark' }}
-                      className="w-full bg-slate-950 border border-slate-800 text-slate-100 rounded-xl px-3.5 py-2.5 text-xs focus:outline-none focus:border-indigo-500 transition-colors"
-                      value={timestamp}
-                      onChange={(event) => setTimestamp(event.target.value)}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
-                      <User className="w-3.5 h-3.5 text-indigo-400" />
-                      <span>Logged By</span>
-                    </label>
-                    <input
-                      type="text"
-                      className="w-full bg-slate-950 border border-slate-800 text-slate-100 rounded-xl px-3.5 py-2.5 text-xs focus:outline-none focus:border-indigo-500 transition-colors"
-                      value={loggedBy}
-                      onChange={(event) => setLoggedBy(event.target.value)}
-                    />
-                  </div>
+                {/* Date & Time Input (Full Width, System Native Picker) */}
+                <div className="pt-1">
+                  <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+                    <Calendar className="w-3.5 h-3.5 text-indigo-400" />
+                    <span>{t.potty.dateAndTime}</span>
+                  </label>
+                  <input
+                    type="datetime-local"
+                    className="w-full bg-slate-950 border border-slate-800 text-slate-100 rounded-xl px-3.5 py-2.5 text-xs focus:outline-none focus:border-indigo-500 transition-colors [color-scheme:dark] cursor-pointer hover:bg-slate-900"
+                    value={timestamp}
+                    onChange={(event) => setTimestamp(event.target.value)}
+                  />
                 </div>
 
                 {/* Notes Input */}
