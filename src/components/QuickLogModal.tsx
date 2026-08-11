@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import type { Activity, ActivityType, FoodType, PottyLocation, StoolConsistency } from '../types';
-import { Droplet, Footprints, Utensils, Scale, Pill } from 'lucide-react';
-import { Button, Input, Modal, Select, ListBox, ListBoxItem, Label, TextField } from '@heroui/react';
+import { Droplet, Footprints, Utensils, Scale, Pill, X, Calendar, User, FileText } from 'lucide-react';
+import { Modal, Select, ListBox, ListBoxItem } from '@heroui/react';
 import { useI18n } from '../i18n';
 import { getLocalDatetimeString } from '../utils/date';
 
@@ -93,88 +93,118 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
     onClose();
   };
 
-  const activityTypes: { type: ActivityType; label: string; icon: React.ReactNode }[] = [
-    { type: 'pee', label: t.potty.pee, icon: <Droplet className="w-5 h-5" /> },
-    { type: 'poop', label: t.potty.poop, icon: <Footprints className="w-5 h-5" /> },
-    { type: 'food', label: t.potty.food, icon: <Utensils className="w-5 h-5" /> },
-    { type: 'weight', label: t.potty.weight, icon: <Scale className="w-5 h-5" /> },
-    { type: 'medication', label: t.potty.medication, icon: <Pill className="w-5 h-5" /> },
+  const activityTypes: { type: ActivityType; label: string; icon: React.ReactNode; color: string }[] = [
+    { type: 'pee', label: t.potty.pee, icon: <Droplet className="w-5 h-5" />, color: 'text-amber-400' },
+    { type: 'poop', label: t.potty.poop, icon: <Footprints className="w-5 h-5" />, color: 'text-amber-600' },
+    { type: 'food', label: t.potty.food, icon: <Utensils className="w-5 h-5" />, color: 'text-purple-400' },
+    { type: 'weight', label: t.potty.weight, icon: <Scale className="w-5 h-5" />, color: 'text-pink-400' },
+    { type: 'medication', label: t.potty.medication, icon: <Pill className="w-5 h-5" />, color: 'text-teal-400' },
   ];
 
   return (
     <Modal isOpen={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
-      <Modal.Backdrop>
+      <Modal.Backdrop className="bg-slate-950/80 backdrop-blur-sm">
         <Modal.Container size="lg" scroll="inside">
-          <Modal.Dialog className="bg-slate-900 border border-slate-800 text-slate-100 shadow-2xl rounded-2xl max-w-md w-full">
-            <Modal.CloseTrigger />
-            <Modal.Header className="border-b border-slate-800/80 pb-3">
-              <Modal.Heading className="text-base font-extrabold text-white">
-                <span>{isEditMode ? t.potty.editActivity : t.potty.logActivity}</span>
-              </Modal.Heading>
-            </Modal.Header>
-            <Modal.Body className="p-4">
-              <form id="quicklog-form" onSubmit={handleSubmit} className="space-y-4">
-                {/* Activity Type Selector Grid */}
+          <Modal.Dialog className="bg-slate-900 border border-slate-800 text-slate-100 shadow-2xl rounded-2xl max-w-lg w-full overflow-hidden">
+            {/* Header */}
+            <div className="flex items-center justify-between p-5 border-b border-slate-800/80 bg-slate-900/60">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 bg-indigo-600/20 text-indigo-400 rounded-xl border border-indigo-500/30">
+                  <Utensils className="w-5 h-5" />
+                </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-400 mb-2">
+                  <h3 className="text-base font-extrabold text-white">
+                    {isEditMode ? t.potty.editActivity : t.potty.logActivity}
+                  </h3>
+                  <p className="text-xs text-slate-400">
+                    Record care event for your puppy
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={onClose}
+                className="p-2 text-slate-400 hover:text-white rounded-xl hover:bg-slate-800 transition-colors"
+                aria-label="Close"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="p-6 space-y-5">
+              <form id="quicklog-form" onSubmit={handleSubmit} className="space-y-5">
+                {/* Activity Type Segmented Selector */}
+                <div>
+                  <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2.5">
                     {t.potty.activityType}
                   </label>
-                  <div className="grid grid-cols-5 gap-1.5">
-                    {activityTypes.map((item) => (
-                      <Button
-                        key={item.type}
-                        onPress={() => setType(item.type)}
-                        className={`h-16 flex flex-col items-center justify-center p-1 rounded-xl transition-all ${
-                          type === item.type
-                            ? 'bg-indigo-600 text-white font-bold ring-2 ring-indigo-400 shadow-md'
-                            : 'bg-slate-950 border border-slate-800 text-slate-400 hover:text-white hover:bg-slate-800'
-                        }`}
-                      >
-                        {item.icon}
-                        <span className="mt-1 text-[11px] truncate w-full text-center">{item.label}</span>
-                      </Button>
-                    ))}
+                  <div className="grid grid-cols-5 gap-2">
+                    {activityTypes.map((item) => {
+                      const isSelected = type === item.type;
+                      return (
+                        <button
+                          key={item.type}
+                          type="button"
+                          onClick={() => setType(item.type)}
+                          className={`flex flex-col items-center justify-center p-3 rounded-xl border transition-all duration-150 ${
+                            isSelected
+                              ? 'bg-indigo-600 border-indigo-500 text-white shadow-lg ring-2 ring-indigo-400/40 font-bold'
+                              : 'bg-slate-950/80 border-slate-800/80 text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+                          }`}
+                        >
+                          <span className={isSelected ? 'text-white' : item.color}>{item.icon}</span>
+                          <span className="mt-1.5 text-xs font-medium truncate w-full text-center">{item.label}</span>
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
 
-                {/* Conditional Input Fields */}
+                {/* Location Selection (Pee & Poop) */}
                 {(type === 'pee' || type === 'poop') && (
-                  <div className="space-y-3">
+                  <div className="space-y-4 pt-1">
                     <div>
-                      <label className="block text-xs font-semibold text-slate-400 mb-1.5">
+                      <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">
                         {t.potty.location}
                       </label>
-                      <div className="grid grid-cols-2 gap-2">
-                        <Button
-                          size="sm"
-                          onPress={() => setPottyLocation('outside')}
-                          className={`h-10 text-xs font-bold ${
+                      <div className="grid grid-cols-2 gap-3">
+                        <button
+                          type="button"
+                          onClick={() => setPottyLocation('outside')}
+                          className={`flex items-center justify-center gap-2 py-3 px-4 rounded-xl border font-bold text-xs transition-all ${
                             pottyLocation === 'outside'
-                              ? 'bg-emerald-600 text-white shadow-md'
-                              : 'bg-slate-950 border border-slate-800 text-slate-300 hover:bg-slate-800'
+                              ? 'bg-emerald-600 border-emerald-500 text-white shadow-md ring-2 ring-emerald-400/30'
+                              : 'bg-slate-950 border-slate-800 text-slate-300 hover:bg-slate-800'
                           }`}
                         >
-                          🌳 {t.potty.outside}
-                        </Button>
-                        <Button
-                          size="sm"
-                          onPress={() => setPottyLocation('indoor_accident')}
-                          className={`h-10 text-xs font-bold ${
+                          <span className="text-base">🌳</span>
+                          <span>{t.potty.outside}</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => setPottyLocation('indoor_accident')}
+                          className={`flex items-center justify-center gap-2 py-3 px-4 rounded-xl border font-bold text-xs transition-all ${
                             pottyLocation === 'indoor_accident'
-                              ? 'bg-rose-950 border border-rose-700 text-rose-300 shadow-md'
-                              : 'bg-slate-950 border border-slate-800 text-slate-300 hover:bg-slate-800'
+                              ? 'bg-rose-950 border-rose-700 text-rose-300 shadow-md ring-2 ring-rose-500/30'
+                              : 'bg-slate-950 border-slate-800 text-slate-300 hover:bg-slate-800'
                           }`}
                         >
-                          🚨 {t.potty.accident}
-                        </Button>
+                          <span className="text-base">🚨</span>
+                          <span>{t.potty.accident}</span>
+                        </button>
                       </div>
                     </div>
 
+                    {/* Stool Consistency (Poop only) */}
                     {type === 'poop' && (
                       <div>
+                        <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">
+                          {t.potty.stoolConsistency}
+                        </label>
                         <Select value={stoolConsistency} onChange={(val) => setStoolConsistency(val as StoolConsistency)}>
-                          <Label className="text-xs font-semibold text-slate-400 mb-1 block">{t.potty.stoolConsistency}</Label>
-                          <Select.Trigger className="bg-slate-950 border-slate-800 text-slate-100 h-10 w-full">
+                          <Select.Trigger className="bg-slate-950 border-slate-800 text-slate-100 h-11 w-full rounded-xl">
                             <Select.Value />
                             <Select.Indicator />
                           </Select.Trigger>
@@ -192,13 +222,16 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
                   </div>
                 )}
 
+                {/* Food Quantity & Type Input */}
                 {type === 'food' && (
-                  <div className="grid grid-cols-2 gap-3">
-                    <TextField>
-                      <Label className="text-xs font-semibold text-slate-400 mb-1 block">{t.potty.quantity} (g)</Label>
-                      <Input
+                  <div className="grid grid-cols-2 gap-3 pt-1">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">
+                        {t.potty.quantity} (g)
+                      </label>
+                      <input
                         type="number"
-                        className="bg-slate-950 border-slate-800 text-slate-100 h-10 w-full"
+                        className="w-full bg-slate-950 border border-slate-800 text-slate-100 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-indigo-500 transition-colors"
                         value={String(quantityGrams)}
                         onChange={(event) => {
                           const grams = Number(event.target.value);
@@ -206,98 +239,125 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
                           setQuantityCups(Math.round((grams / 110) * 100) / 100);
                         }}
                       />
-                    </TextField>
-                    <Select value={foodType} onChange={(val) => setFoodType(val as FoodType)}>
-                      <Label className="text-xs font-semibold text-slate-400 mb-1 block">{t.potty.foodTypeLabel}</Label>
-                      <Select.Trigger className="bg-slate-950 border-slate-800 text-slate-100 h-10 w-full">
-                        <Select.Value />
-                        <Select.Indicator />
-                      </Select.Trigger>
-                      <Select.Popover className="bg-slate-900 border-slate-800 text-slate-100">
-                        <ListBox>
-                          <ListBoxItem id="kibble" textValue={t.potty.kibble}>{t.potty.kibble}</ListBoxItem>
-                          <ListBoxItem id="wet" textValue={t.potty.wet}>{t.potty.wet}</ListBoxItem>
-                          <ListBoxItem id="raw" textValue={t.potty.raw}>{t.potty.raw}</ListBoxItem>
-                          <ListBoxItem id="treats" textValue={t.potty.treats}>{t.potty.treats}</ListBoxItem>
-                        </ListBox>
-                      </Select.Popover>
-                    </Select>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">
+                        {t.potty.foodTypeLabel}
+                      </label>
+                      <Select value={foodType} onChange={(val) => setFoodType(val as FoodType)}>
+                        <Select.Trigger className="bg-slate-950 border-slate-800 text-slate-100 h-11 w-full rounded-xl">
+                          <Select.Value />
+                          <Select.Indicator />
+                        </Select.Trigger>
+                        <Select.Popover className="bg-slate-900 border-slate-800 text-slate-100">
+                          <ListBox>
+                            <ListBoxItem id="kibble" textValue={t.potty.kibble}>{t.potty.kibble}</ListBoxItem>
+                            <ListBoxItem id="wet" textValue={t.potty.wet}>{t.potty.wet}</ListBoxItem>
+                            <ListBoxItem id="raw" textValue={t.potty.raw}>{t.potty.raw}</ListBoxItem>
+                            <ListBoxItem id="treats" textValue={t.potty.treats}>{t.potty.treats}</ListBoxItem>
+                          </ListBox>
+                        </Select.Popover>
+                      </Select>
+                    </div>
                   </div>
                 )}
 
+                {/* Weight Input */}
                 {type === 'weight' && (
-                  <TextField>
-                    <Label className="text-xs font-semibold text-slate-400 mb-1 block">{t.potty.weight} ({t.units.kg})</Label>
-                    <Input
+                  <div className="pt-1">
+                    <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">
+                      {t.potty.weight} ({t.units.kg})
+                    </label>
+                    <input
                       type="number"
                       step="0.1"
-                      className="bg-slate-950 border-slate-800 text-slate-100 h-10 w-full"
+                      className="w-full bg-slate-950 border border-slate-800 text-slate-100 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-indigo-500 transition-colors"
                       value={String(weightKg)}
                       onChange={(event) => setWeightKg(Number(event.target.value))}
                     />
-                  </TextField>
+                  </div>
                 )}
 
+                {/* Medication Input */}
                 {type === 'medication' && (
-                  <TextField>
-                    <Label className="text-xs font-semibold text-slate-400 mb-1 block">{t.potty.medication}</Label>
-                    <Input
+                  <div className="pt-1">
+                    <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">
+                      {t.potty.medication}
+                    </label>
+                    <input
                       type="text"
-                      className="bg-slate-950 border-slate-800 text-slate-100 h-10 w-full"
+                      className="w-full bg-slate-950 border border-slate-800 text-slate-100 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-indigo-500 transition-colors"
                       value={medicationName}
                       onChange={(event) => setMedicationName(event.target.value)}
                     />
-                  </TextField>
+                  </div>
                 )}
 
-                {/* Date & Time Input */}
-                <TextField>
-                  <Label className="text-xs font-semibold text-slate-400 mb-1 block">{t.potty.dateAndTime}</Label>
-                  <Input
-                    type="datetime-local"
-                    className="bg-slate-950 border-slate-800 text-slate-100 h-10 w-full"
-                    value={timestamp}
-                    onChange={(event) => setTimestamp(event.target.value)}
-                  />
-                </TextField>
+                {/* Date/Time and Caretaker in 2 Columns */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+                      <Calendar className="w-3.5 h-3.5 text-indigo-400" />
+                      <span>{t.potty.dateAndTime}</span>
+                    </label>
+                    <input
+                      type="datetime-local"
+                      style={{ colorScheme: 'dark' }}
+                      className="w-full bg-slate-950 border border-slate-800 text-slate-100 rounded-xl px-3.5 py-2.5 text-xs focus:outline-none focus:border-indigo-500 transition-colors"
+                      value={timestamp}
+                      onChange={(event) => setTimestamp(event.target.value)}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+                      <User className="w-3.5 h-3.5 text-indigo-400" />
+                      <span>Logged By</span>
+                    </label>
+                    <input
+                      type="text"
+                      className="w-full bg-slate-950 border border-slate-800 text-slate-100 rounded-xl px-3.5 py-2.5 text-xs focus:outline-none focus:border-indigo-500 transition-colors"
+                      value={loggedBy}
+                      onChange={(event) => setLoggedBy(event.target.value)}
+                    />
+                  </div>
+                </div>
 
                 {/* Notes Input */}
-                <TextField>
-                  <Label className="text-xs font-semibold text-slate-400 mb-1 block">{t.potty.notes}</Label>
-                  <Input
+                <div>
+                  <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+                    <FileText className="w-3.5 h-3.5 text-indigo-400" />
+                    <span>{t.potty.notes}</span>
+                  </label>
+                  <input
                     type="text"
-                    className="bg-slate-950 border-slate-800 text-slate-100 h-10 w-full"
+                    className="w-full bg-slate-950 border border-slate-800 text-slate-100 rounded-xl px-3.5 py-2.5 text-xs focus:outline-none focus:border-indigo-500 transition-colors"
                     placeholder="e.g., Peed on grass after 15m walk"
                     value={notes}
                     onChange={(event) => setNotes(event.target.value)}
                   />
-                </TextField>
-
-                {/* Logged by Input */}
-                <TextField>
-                  <Label className="text-xs font-semibold text-slate-400 mb-1 block">Logged By</Label>
-                  <Input
-                    type="text"
-                    className="bg-slate-950 border-slate-800 text-slate-100 h-10 w-full"
-                    value={loggedBy}
-                    onChange={(event) => setLoggedBy(event.target.value)}
-                  />
-                </TextField>
+                </div>
               </form>
-            </Modal.Body>
+            </div>
 
-            <Modal.Footer className="border-t border-slate-800/80 pt-3">
-              <Button
-                onPress={onClose}
-                size="sm"
-                className="bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-300 font-bold"
+            {/* Footer Actions */}
+            <div className="flex items-center justify-end gap-3 p-5 border-t border-slate-800/80 bg-slate-900/60">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-2.5 rounded-xl border border-slate-800 text-slate-300 font-bold text-xs hover:bg-slate-800 hover:text-white transition-colors"
               >
                 {t.potty.cancel}
-              </Button>
-              <Button form="quicklog-form" type="submit" size="sm" className="font-bold bg-indigo-600 hover:bg-indigo-500 text-white shadow-md">
+              </button>
+              <button
+                type="submit"
+                form="quicklog-form"
+                className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-lg shadow-indigo-600/30 transition-all"
+              >
                 {isEditMode ? 'Save Changes' : t.potty.saveLog}
-              </Button>
-            </Modal.Footer>
+              </button>
+            </div>
           </Modal.Dialog>
         </Modal.Container>
       </Modal.Backdrop>
