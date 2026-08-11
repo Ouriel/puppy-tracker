@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import type { PuppyProfile, Caretaker, UserAccount } from '../types';
 import { Settings, Dog, Users, Shield, ArrowLeft } from 'lucide-react';
-import { Button, Card } from '@heroui/react';
+import { Card } from '@heroui/react';
 import { PuppiesView } from './PuppiesView';
 import { HouseholdView } from './HouseholdView';
 import { AdminView } from './AdminView';
@@ -44,6 +44,20 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto pb-12">
+      {/* Top Navigation Bar */}
+      {onBackToDashboard && (
+        <div className="flex items-center justify-between">
+          <button
+            type="button"
+            onClick={onBackToDashboard}
+            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-white text-xs font-bold transition-all shadow-sm group"
+          >
+            <ArrowLeft className="w-4 h-4 text-indigo-400 group-hover:-translate-x-0.5 transition-transform" />
+            <span>Back to Dashboard</span>
+          </button>
+        </div>
+      )}
+
       {/* Header Banner */}
       <Card className="bg-slate-900 border-slate-800 text-slate-100 shadow-xl">
         <Card.Content className="flex flex-wrap items-center justify-between gap-4 p-6">
@@ -60,15 +74,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               </p>
             </div>
           </div>
-
-          <Button
-            size="sm"
-            onPress={onBackToDashboard}
-            className="bg-slate-950 border border-slate-800 text-slate-300 font-bold hover:bg-slate-800 hover:text-white"
-          >
-            <ArrowLeft className="w-4 h-4 mr-1.5 inline" />
-            <span>Back to Dashboard</span>
-          </Button>
         </Card.Content>
       </Card>
 

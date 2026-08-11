@@ -327,7 +327,21 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePupp
 
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
-      {/* Header */}
+      {/* Top Navigation Bar */}
+      {onBackToDashboard && (
+        <div className="flex items-center justify-between">
+          <button
+            type="button"
+            onClick={onBackToDashboard}
+            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-white text-xs font-bold transition-all shadow-sm group"
+          >
+            <ArrowLeft className="w-4 h-4 text-indigo-400 group-hover:-translate-x-0.5 transition-transform" />
+            <span>Back to Dashboard</span>
+          </button>
+        </div>
+      )}
+
+      {/* Header Card */}
       <Card className="bg-slate-900 border-slate-800">
         <Card.Content className="flex flex-wrap items-center justify-between gap-4 p-6">
           <div className="flex items-center gap-3">
@@ -343,18 +357,6 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePupp
               </p>
             </div>
           </div>
-
-          {onBackToDashboard && (
-            <Button
-              variant="outline"
-              size="sm"
-              onPress={onBackToDashboard}
-              className="font-bold text-xs border-slate-700 text-slate-200 hover:bg-slate-800"
-            >
-              <ArrowLeft className="w-4 h-4 mr-1 inline" />
-              <span>Back to Dashboard</span>
-            </Button>
-          )}
         </Card.Content>
       </Card>
 
