@@ -299,9 +299,10 @@ describe('predictions utility — comprehensive test suite', () => {
         expect(predictions.poopMode).toBe('daytime_baseline');
       });
 
-      it('uses 2-hour digestive transit for young puppies (<6mo) and 3-hour for older puppies (6-10mo)', () => {
-        const youngProfile: PuppyProfile = { ...mockProfile, birthDate: '2026-04-01' }; // ~4 months old
-        const olderProfile: PuppyProfile = { ...mockProfile, birthDate: '2025-12-01' }; // ~8 months old
+      it('calculates realistic digestive transit interval (~6 hours after meal)', () => {
+        const youngProfile: PuppyProfile = { ...mockProfile, birthDate: '2026-06-01' };
+        const olderProfile: PuppyProfile = { ...mockProfile, birthDate: '2026-01-01' };
+
         const referenceTime = new Date(2026, 7, 7, 14, 0);
 
         const activities: Activity[] = [
@@ -312,10 +313,9 @@ describe('predictions utility — comprehensive test suite', () => {
         const predYoung = calculatePredictions(activities, youngProfile, referenceTime, 'Europe/Paris');
         const predOlder = calculatePredictions(activities, olderProfile, referenceTime, 'Europe/Paris');
 
-        // Young puppy (<6mo): 12:00 + 2h = 14:00
-        expect(predYoung.nextPoopExpectedAt?.getHours()).toBe(14);
-        // Older puppy (6-10mo): 12:00 + 3h = 15:00
-        expect(predOlder.nextPoopExpectedAt?.getHours()).toBe(15);
+        // Meal at 12:00 + 6h = 18:00
+        expect(predYoung.nextPoopExpectedAt?.getHours()).toBe(18);
+        expect(predOlder.nextPoopExpectedAt?.getHours()).toBe(18);
       });
     });
 
