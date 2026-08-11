@@ -1,96 +1,95 @@
 import React, { useState } from 'react';
 import type { Activity, ActivityType, FoodType, PottyLocation, StoolConsistency } from '../types';
-import { Droplet, Footprints, Utensils, Scale, Pill, Check } from 'lucide-react';
-import confetti from 'canvas-confetti';
+import { Droplet, Footprints, Utensils, Scale, Pill } from 'lucide-react';
+import { Button, Input, Modal, Select, ListBox, ListBoxItem, Label, TextField } from '@heroui/react';
 import { useI18n } from '../i18n';
 import { getLocalDatetimeString } from '../utils/date';
-import { Modal, Button, TextField, Input, Label, Select, ListBox, ListBoxItem } from '@heroui/react';
 
 interface QuickLogModalProps {
   isOpen: boolean;
-  activityToEdit?: Activity;
   initialType?: ActivityType;
-  initialLocation?: PottyLocation;
+  activityToEdit?: Activity;
   defaultMealPortionGrams?: number;
-  currentUser: string;
   onClose: () => void;
-  onSave: (activityData: any) => void;
+  onSave: (activity: Omit<Activity, 'id'>) => void;
+  currentUser?: string;
 }
 
 export const QuickLogModal: React.FC<QuickLogModalProps> = ({
   isOpen,
-  activityToEdit,
   initialType = 'pee',
-  initialLocation = 'outside',
+  activityToEdit,
   defaultMealPortionGrams = 80,
-  currentUser,
   onClose,
   onSave,
+  currentUser = 'Matthieu',
 }) => {
   const { t } = useI18n();
 
-  // Helper to format ISO date string for <input type="datetime-local">
-  const formatDatetimeLocal = (isoString?: string) => {
-    if (!isoString) return getLocalDatetimeString();
-    const d = new Date(isoString);
-    if (isNaN(d.getTime())) return getLocalDatetimeString();
-    const pad = (n: number) => String(n).padStart(2, '0');
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-  };
-
   const isEditMode = !!activityToEdit;
 
-  const [type, setType] = useState<ActivityType>(activityToEdit?.type || initialType);
-  const [timestamp, setTimestamp] = useState<string>(() => formatDatetimeLocal(activityToEdit?.timestamp));
-  const [notes, setNotes] = useState(activityToEdit?.notes || '');
+  const [type, setType] = useState<ActivityType>(
+    activityToEdit?.type || initialType
+  );
+  const [timestamp, setTimestamp] = useState<string>(
+    activityToEdit?.timestamp
+      ? getLocalDatetimeString(new Date(activityToEdit.timestamp))
+      : getLocalDatetimeString(new Date())
+  );
+  const [pottyLocation, setPottyLocation] = useState<PottyLocation>(
+    activityToEdit?.pottyLocation || 'outside'
+  );
+  const [stoolConsistency, setStoolConsistency] = useState<StoolConsistency>(
+    activityToEdit?.stoolConsistency || 'normal'
+  );
+  const [foodType, setFoodType] = useState<FoodType>(
+    activityToEdit?.foodType || 'kibble'
+  );
+  const [quantityGrams, setQuantityGrams] = useState<number>(
+    activityToEdit?.quantityGrams || defaultMealPortionGrams
+  );
+  const [quantityCups, setQuantityCups] = useState<number>(
+    activityToEdit?.quantityCups || Math.round((defaultMealPortionGrams / 110) * 100) / 100
+  );
+  const [weightKg, setWeightKg] = useState<number>(
+    activityToEdit?.weightKg || 4.5
+  );
+  const [medicationName, setMedicationName] = useState<string>(
+    activityToEdit?.medicationName || ''
+  );
+  const [notes, setNotes] = useState<string>(activityToEdit?.notes || '');
+  const [loggedBy, setLoggedBy] = useState<string>(
+    activityToEdit?.loggedBy || currentUser
+  );
 
-  const [pottyLocation, setPottyLocation] = useState<PottyLocation>(activityToEdit?.pottyLocation || initialLocation);
-  const [stoolConsistency, setStoolConsistency] = useState<StoolConsistency>(activityToEdit?.stoolConsistency || 'normal');
+  const handleSubmit = (event: React.FormEvent) => {
+    event.preventDefault();
+    const isoTimestamp = new Date(timestamp).toISOString();
 
-  const [foodType, setFoodType] = useState<FoodType>(activityToEdit?.foodType || 'kibble');
-  const [quantityGrams, setQuantityGrams] = useState<number>(activityToEdit?.quantityGrams ?? defaultMealPortionGrams);
-  const [quantityCups, setQuantityCups] = useState<number>(activityToEdit?.quantityCups ?? 0.75);
-
-  const [weightKg, setWeightKg] = useState<number>(activityToEdit?.weightKg ?? 8.5);
-  const [medicationName, setMedicationName] = useState<string>(activityToEdit?.medicationName || 'Flea & Tick Prevention');
-
-  const handleSubmit = (event?: React.FormEvent) => {
-    if (event) {
-      event.preventDefault();
-    }
-
-    if (!isEditMode && (type === 'pee' || type === 'poop')) {
-      confetti({
-        particleCount: 50,
-        spread: 60,
-        origin: { y: 0.8 },
-      });
-    }
-
-    const payload: any = {
-      ...(isEditMode ? { id: activityToEdit.id, puppyId: activityToEdit.puppyId } : {}),
+    const activityData: Omit<Activity, 'id'> = {
+      puppyId: activityToEdit?.puppyId || '',
       type,
-      timestamp: new Date(timestamp).toISOString(),
-      loggedBy: activityToEdit?.loggedBy || currentUser,
-      notes: notes.trim() ? notes.trim() : undefined,
+      timestamp: isoTimestamp,
+      loggedBy,
+      notes: notes.trim() || undefined,
     };
 
-    if (type === 'pee') {
-      payload.pottyLocation = pottyLocation;
-    } else if (type === 'poop') {
-      payload.pottyLocation = pottyLocation;
-      payload.stoolConsistency = stoolConsistency;
+    if (type === 'pee' || type === 'poop') {
+      activityData.pottyLocation = pottyLocation;
+      if (type === 'poop') {
+        activityData.stoolConsistency = stoolConsistency;
+      }
     } else if (type === 'food') {
-      payload.foodType = foodType;
-      payload.quantityGrams = quantityGrams;
-      payload.quantityCups = quantityCups;
+      activityData.foodType = foodType;
+      activityData.quantityGrams = quantityGrams;
+      activityData.quantityCups = quantityCups;
     } else if (type === 'weight') {
-      payload.weightKg = weightKg;
+      activityData.weightKg = weightKg;
     } else if (type === 'medication') {
-      payload.medicationName = medicationName;
+      activityData.medicationName = medicationName;
     }
 
-    onSave(payload);
+    onSave(activityData);
     onClose();
   };
 
@@ -106,14 +105,14 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
     <Modal isOpen={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
       <Modal.Backdrop>
         <Modal.Container size="lg" scroll="inside">
-          <Modal.Dialog>
+          <Modal.Dialog className="bg-slate-900 border border-slate-800 text-slate-100 shadow-2xl">
             <Modal.CloseTrigger />
             <Modal.Header>
-              <Modal.Heading>
+              <Modal.Heading className="text-base font-extrabold text-white">
                 <span>{isEditMode ? t.potty.editActivity : t.potty.logActivity}</span>
               </Modal.Heading>
             </Modal.Header>
-            <Modal.Body>
+            <Modal.Body className="p-4">
               <form id="quicklog-form" onSubmit={handleSubmit} className="space-y-5">
                 {/* Activity Type Selector Grid */}
                 <div>
@@ -124,12 +123,14 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
                     {activityTypes.map((item) => (
                       <Button
                         key={item.type}
-                        variant={type === item.type ? 'primary' : 'outline'}
+                        variant={type === item.type ? 'primary' : 'tertiary'}
                         onPress={() => setType(item.type)}
-                        className="h-auto flex flex-col items-center justify-center py-3.5"
+                        className={`h-auto flex flex-col items-center justify-center py-3 ${
+                          type === item.type ? 'bg-indigo-600 font-bold text-white' : 'bg-slate-950/80 border border-slate-800 text-slate-300'
+                        }`}
                       >
                         {item.icon}
-                        <span className="mt-1.5">{item.label}</span>
+                        <span className="mt-1.5 text-xs">{item.label}</span>
                       </Button>
                     ))}
                   </div>
@@ -144,16 +145,16 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
                       </label>
                       <div className="grid grid-cols-2 gap-2">
                         <Button
-                          variant={pottyLocation === 'outside' ? 'primary' : 'outline'}
                           size="sm"
                           onPress={() => setPottyLocation('outside')}
+                          className={pottyLocation === 'outside' ? 'bg-emerald-600 text-white font-bold' : 'bg-slate-950/80 border border-slate-800 text-slate-300'}
                         >
                           🌳 {t.potty.outside}
                         </Button>
                         <Button
-                          variant={pottyLocation === 'indoor_accident' ? 'primary' : 'outline'}
                           size="sm"
                           onPress={() => setPottyLocation('indoor_accident')}
+                          className={pottyLocation === 'indoor_accident' ? 'bg-rose-950/80 border border-rose-700 text-rose-300 font-bold' : 'bg-slate-950/80 border border-slate-800 text-slate-300'}
                         >
                           🚨 {t.potty.accident}
                         </Button>
@@ -163,12 +164,12 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
                     {type === 'poop' && (
                       <div>
                         <Select value={stoolConsistency} onChange={(val) => setStoolConsistency(val as StoolConsistency)}>
-                          <Label>{t.potty.stoolConsistency}</Label>
-                          <Select.Trigger>
+                          <Label className="text-xs font-semibold text-slate-400">{t.potty.stoolConsistency}</Label>
+                          <Select.Trigger className="bg-slate-950 border-slate-800 text-slate-100">
                             <Select.Value />
                             <Select.Indicator />
                           </Select.Trigger>
-                          <Select.Popover>
+                          <Select.Popover className="bg-slate-900 border-slate-800 text-slate-100">
                             <ListBox>
                               <ListBoxItem id="normal" textValue={t.potty.normal}>{t.potty.normal}</ListBoxItem>
                               <ListBoxItem id="firm" textValue={t.potty.firm}>{t.potty.firm}</ListBoxItem>
@@ -185,9 +186,10 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
                 {type === 'food' && (
                   <div className="grid grid-cols-2 gap-3">
                     <TextField>
-                      <Label>{t.potty.quantity}</Label>
+                      <Label className="text-xs font-semibold text-slate-400">{t.potty.quantity} (g)</Label>
                       <Input
                         type="number"
+                        className="bg-slate-950 border-slate-800 text-slate-100"
                         value={String(quantityGrams)}
                         onChange={(event) => {
                           const grams = Number(event.target.value);
@@ -197,12 +199,12 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
                       />
                     </TextField>
                     <Select value={foodType} onChange={(val) => setFoodType(val as FoodType)}>
-                      <Label>{t.potty.foodTypeLabel}</Label>
-                      <Select.Trigger>
+                      <Label className="text-xs font-semibold text-slate-400">{t.potty.foodTypeLabel}</Label>
+                      <Select.Trigger className="bg-slate-950 border-slate-800 text-slate-100">
                         <Select.Value />
                         <Select.Indicator />
                       </Select.Trigger>
-                      <Select.Popover>
+                      <Select.Popover className="bg-slate-900 border-slate-800 text-slate-100">
                         <ListBox>
                           <ListBoxItem id="kibble" textValue={t.potty.kibble}>{t.potty.kibble}</ListBoxItem>
                           <ListBoxItem id="wet" textValue={t.potty.wet}>{t.potty.wet}</ListBoxItem>
@@ -216,10 +218,11 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
 
                 {type === 'weight' && (
                   <TextField>
-                    <Label>{t.potty.weight} ({t.units.kg})</Label>
+                    <Label className="text-xs font-semibold text-slate-400">{t.potty.weight} ({t.units.kg})</Label>
                     <Input
                       type="number"
                       step="0.1"
+                      className="bg-slate-950 border-slate-800 text-slate-100"
                       value={String(weightKg)}
                       onChange={(event) => setWeightKg(Number(event.target.value))}
                     />
@@ -228,9 +231,10 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
 
                 {type === 'medication' && (
                   <TextField>
-                    <Label>{t.potty.medication}</Label>
+                    <Label className="text-xs font-semibold text-slate-400">{t.potty.medication}</Label>
                     <Input
                       type="text"
+                      className="bg-slate-950 border-slate-800 text-slate-100"
                       value={medicationName}
                       onChange={(event) => setMedicationName(event.target.value)}
                     />
@@ -239,9 +243,10 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
 
                 {/* Date & Time Input */}
                 <TextField>
-                  <Label>{t.potty.dateAndTime}</Label>
+                  <Label className="text-xs font-semibold text-slate-400">{t.potty.dateAndTime}</Label>
                   <Input
                     type="datetime-local"
+                    className="bg-slate-950 border-slate-800 text-slate-100"
                     value={timestamp}
                     onChange={(event) => setTimestamp(event.target.value)}
                   />
@@ -249,23 +254,35 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
 
                 {/* Notes Input */}
                 <TextField>
-                  <Label>{t.potty.notes}</Label>
+                  <Label className="text-xs font-semibold text-slate-400">{t.potty.notes}</Label>
                   <Input
                     type="text"
-                    placeholder="e.g. Peed within 2 minutes..."
+                    className="bg-slate-950 border-slate-800 text-slate-100"
+                    placeholder="e.g., Peed on grass after 15m walk"
                     value={notes}
                     onChange={(event) => setNotes(event.target.value)}
                   />
                 </TextField>
+
+                {/* Logged by Input */}
+                <TextField>
+                  <Label className="text-xs font-semibold text-slate-400">Logged By</Label>
+                  <Input
+                    type="text"
+                    className="bg-slate-950 border-slate-800 text-slate-100"
+                    value={loggedBy}
+                    onChange={(event) => setLoggedBy(event.target.value)}
+                  />
+                </TextField>
               </form>
             </Modal.Body>
+
             <Modal.Footer>
-              <Button variant="tertiary" onPress={onClose}>
+              <Button variant="tertiary" onPress={onClose} size="sm">
                 {t.potty.cancel}
               </Button>
-              <Button variant="primary" onPress={() => handleSubmit()}>
-                <Check className="w-4 h-4 mr-2" />
-                {t.potty.saveLog}
+              <Button form="quicklog-form" type="submit" variant="primary" size="sm" className="font-bold bg-indigo-600 hover:bg-indigo-500 text-white">
+                {isEditMode ? 'Save Changes' : t.potty.saveLog}
               </Button>
             </Modal.Footer>
           </Modal.Dialog>

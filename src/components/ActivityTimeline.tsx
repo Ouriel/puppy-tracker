@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import type { Activity, ActivityType, Caretaker } from '../types';
-import { Droplet, Footprints, Utensils, Trash2, Pencil, User } from 'lucide-react';
+import { Droplet, Footprints, Utensils, Trash2, Pencil, User, ChevronDown } from 'lucide-react';
 import { Button, Card, Chip } from '@heroui/react';
 import { useI18n } from '../i18n';
 import { formatRelativeTime, parseIsoDate } from '../utils/date';
@@ -23,6 +23,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
   const { t, lang } = useI18n();
   const [filter, setFilter] = useState<'all' | 'potty' | 'food'>('all');
   const [editingActivity, setEditingActivity] = useState<Activity | null>(null);
+  const [daysLimit, setDaysLimit] = useState<number>(30); // 30-day initial window
 
   const getIcon = (type: ActivityType) => {
     switch (type) {
@@ -43,19 +44,28 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
     return caretaker ? caretaker.color : '#6366F1';
   };
 
-  // Strictly filter to Pee, Poop, and Food logs only
-  const filtered = activities.filter((activity) => {
-    const isCoreType = activity.type === 'pee' || activity.type === 'poop' || activity.type === 'food';
-    if (!isCoreType) return false;
+  // Filter to Pee, Poop, Food logs sorted chronologically descending
+  const sortedCoreActivities = useMemo(() => {
+    return activities
+      .filter((act) => {
+        const isCoreType = act.type === 'pee' || act.type === 'poop' || act.type === 'food';
+        if (!isCoreType) return false;
+        if (filter === 'potty') return act.type === 'pee' || act.type === 'poop';
+        if (filter === 'food') return act.type === 'food';
+        return true;
+      })
+      .sort((a, b) => parseIsoDate(b.timestamp).getTime() - parseIsoDate(a.timestamp).getTime());
+  }, [activities, filter]);
 
-    if (filter === 'potty') return activity.type === 'pee' || activity.type === 'poop';
-    if (filter === 'food') return activity.type === 'food';
-    return true;
-  });
+  // Filter by 30-day window
+  const now = new Date();
+  const cutoffTime = now.getTime() - daysLimit * 24 * 60 * 60 * 1000;
 
-  const sorted = [...filtered].sort(
-    (activityA, activityB) => parseIsoDate(activityB.timestamp).getTime() - parseIsoDate(activityA.timestamp).getTime()
-  );
+  const visibleActivities = useMemo(() => {
+    return sortedCoreActivities.filter((act) => parseIsoDate(act.timestamp).getTime() >= cutoffTime);
+  }, [sortedCoreActivities, cutoffTime]);
+
+  const hasMorePriorLogs = sortedCoreActivities.length > visibleActivities.length;
 
   const formatTime = (isoString: string) => {
     return formatRelativeTime(isoString, lang as 'en' | 'fr', {
@@ -73,10 +83,12 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
             <h2 className="text-base font-extrabold text-slate-100 flex items-center gap-2">
               <span>{t.dashboard.activityFeed}</span>
               <span className="text-xs bg-slate-800 text-slate-300 px-2 py-0.5 rounded-full font-bold">
-                {sorted.length}
+                {visibleActivities.length}
               </span>
             </h2>
-            <p className="text-xs text-slate-400">{t.dashboard.chronologicalHistory}</p>
+            <p className="text-xs text-slate-400">
+              Showing logs from last {daysLimit} days ({sortedCoreActivities.length} total)
+            </p>
           </div>
 
           {/* Filter Buttons */}
@@ -109,14 +121,14 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
         </div>
 
         {/* Timeline list */}
-        {sorted.length === 0 ? (
+        {visibleActivities.length === 0 ? (
           <div className="text-center py-10 text-slate-400 bg-slate-950/60 rounded-xl border border-dashed border-slate-800 space-y-1">
             <p className="text-sm font-semibold">{t.dashboard.noActivityLogs}</p>
             <p className="text-xs text-slate-500">{t.dashboard.tapLogEvent}</p>
           </div>
         ) : (
           <div className="relative pl-6 space-y-3.5 before:absolute before:left-2.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-800">
-            {sorted.map((item) => {
+            {visibleActivities.map((item) => {
               const color = getCaretakerColor(item.loggedBy);
               const caretakerName = resolveCaretakerName(item.loggedBy, caretakers);
 
@@ -175,13 +187,13 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
                         </p>
                       )}
 
-                      {/* Explicit Caretaker & Timestamp Line */}
+                      {/* Caretaker Name & Timestamp Line (Clean: just caretaker name, no "Logged by") */}
                       <div className="flex items-center gap-2 text-[11px] text-slate-400 pt-0.5">
                         <span className="font-medium text-slate-300">{formatTime(item.timestamp)}</span>
                         <span>•</span>
                         <span className="inline-flex items-center gap-1 font-bold px-2 py-0.5 rounded-full bg-slate-900 border border-slate-800" style={{ color }}>
                           <User className="w-3 h-3" />
-                          <span>Logged by {caretakerName}</span>
+                          <span>{caretakerName}</span>
                         </span>
                       </div>
                     </div>
@@ -220,6 +232,21 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
                 </div>
               );
             })}
+
+            {/* Load More Button for earlier logs */}
+            {hasMorePriorLogs && (
+              <div className="pt-2 text-center">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onPress={() => setDaysLimit((prev) => prev + 30)}
+                  className="w-full text-xs font-bold text-slate-300 border-slate-800 hover:bg-slate-950"
+                >
+                  <ChevronDown className="w-4 h-4 mr-1 inline" />
+                  <span>Load Earlier Logs (Beyond {daysLimit} Days)</span>
+                </Button>
+              </div>
+            )}
           </div>
         )}
 

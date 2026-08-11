@@ -29,8 +29,8 @@ import { QuickLogModal } from './components/QuickLogModal';
 import { PredictorWidget } from './components/PredictorWidget';
 import { ActivityTimeline } from './components/ActivityTimeline';
 import { DogHealthSummary } from './components/DogHealthSummary';
-import { CarnetDeSanteModal } from './components/CarnetDeSanteModal';
 import { SettingsAdminModal } from './components/SettingsAdminModal';
+import { CarnetDeSanteView } from './views/CarnetDeSanteView';
 import { AuthLockScreen } from './components/AuthLockScreen';
 import { Button, Card } from '@heroui/react';
 import { useI18n } from './i18n';
@@ -48,11 +48,13 @@ export function App() {
   const [activePuppyId, setActivePuppyIdState] = useState<string>(getActivePuppyId());
   const [activities, setActivities] = useState<Activity[]>([]);
 
+  // Navigation View State ('dashboard' or 'carnetdesante')
+  const [currentView, setCurrentView] = useState<'dashboard' | 'carnetdesante'>('dashboard');
+
   // Modal Open States
   const [isQuickLogOpen, setIsQuickLogOpen] = useState(false);
   const [quickLogType, setQuickLogType] = useState<ActivityType | undefined>(undefined);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [isHealthPassportOpen, setIsHealthPassportOpen] = useState(false);
 
   // Sync token check on launch
   useEffect(() => {
@@ -302,7 +304,13 @@ export function App() {
 
       {/* Main Content Area */}
       <main className="flex-1 max-w-6xl w-full mx-auto px-4 py-6">
-        {puppies.length === 0 ? (
+        {currentView === 'carnetdesante' ? (
+          /* Full Page View for Health Passport */
+          <CarnetDeSanteView
+            activePuppy={activePuppy}
+            onBackToDashboard={() => setCurrentView('dashboard')}
+          />
+        ) : puppies.length === 0 ? (
           <Card className="p-10 text-center max-w-lg mx-auto my-12 bg-slate-900 border border-slate-800">
             <Card.Content className="space-y-4">
               <div className="p-4 bg-indigo-950 text-indigo-400 rounded-2xl inline-block border border-indigo-800/50">
@@ -312,7 +320,7 @@ export function App() {
               <p className="text-xs text-slate-400 max-w-sm mx-auto leading-relaxed">
                 {t.dashboard.welcomeSubtitle}
               </p>
-              <Button variant="primary" size="lg" onPress={() => setIsSettingsOpen(true)} className="inline-flex items-center gap-2 font-bold">
+              <Button variant="primary" size="lg" onPress={() => setIsSettingsOpen(true)} className="inline-flex items-center gap-2 font-bold bg-indigo-600 hover:bg-indigo-500 text-white">
                 <Plus className="w-4 h-4" />
                 <span>{t.dashboard.registerDog}</span>
               </Button>
@@ -325,6 +333,7 @@ export function App() {
               <PredictorWidget
                 predictions={predictions}
                 profile={activePuppy}
+                activities={activePuppyActivities}
                 todayFoodLoggedGrams={todayFoodLoggedGrams}
                 todayMealsCount={todayMealsCount}
                 onQuickAction={handleQuickAction}
@@ -350,7 +359,7 @@ export function App() {
                   <DogHealthSummary
                     profile={activePuppy}
                     activities={activePuppyActivities}
-                    onOpenHealthPassport={() => setIsHealthPassportOpen(true)}
+                    onOpenHealthPassport={() => setCurrentView('carnetdesante')}
                   />
                 </div>
               </div>
@@ -364,7 +373,7 @@ export function App() {
         <div className="max-w-6xl mx-auto px-4 flex flex-wrap items-center justify-between gap-2">
           <span>PupPace &bull; Household Puppy Sync Platform</span>
           <div className="flex items-center gap-3">
-            <Button variant="tertiary" size="sm" onPress={() => setIsHealthPassportOpen(true)} className="text-slate-400 hover:text-white">Health Passport</Button>
+            <Button variant="tertiary" size="sm" onPress={() => setCurrentView('carnetdesante')} className="text-slate-400 hover:text-white">Health Passport</Button>
             <span>&bull;</span>
             <Button variant="tertiary" size="sm" onPress={() => setIsSettingsOpen(true)} className="text-slate-400 hover:text-white">Settings</Button>
             <span>&bull;</span>
@@ -376,13 +385,6 @@ export function App() {
           </div>
         </div>
       </footer>
-
-      {/* Full Health Passport Modal */}
-      <CarnetDeSanteModal
-        isOpen={isHealthPassportOpen}
-        onClose={() => setIsHealthPassportOpen(false)}
-        activePuppy={activePuppy}
-      />
 
       {/* Settings & Administration Modal */}
       <SettingsAdminModal

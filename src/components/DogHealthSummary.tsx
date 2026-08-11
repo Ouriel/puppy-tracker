@@ -2,6 +2,8 @@ import React from 'react';
 import type { PuppyProfile, Activity } from '../types';
 import { Syringe, Pill, Dog, Calendar, Scale, ExternalLink } from 'lucide-react';
 import { Card, Button, Chip } from '@heroui/react';
+import { useI18n } from '../i18n';
+import { formatBreedName } from '../utils/breeds';
 import { getExpectedAdultWeight } from './WeightGrowthChart';
 import { getPuppyAge } from '../utils/predictions';
 
@@ -16,6 +18,7 @@ export const DogHealthSummary: React.FC<DogHealthSummaryProps> = ({
   activities,
   onOpenHealthPassport,
 }) => {
+  const { lang } = useI18n();
 
   // Calculate puppy age in weeks & months
   const ageInfo = React.useMemo(() => {
@@ -34,6 +37,7 @@ export const DogHealthSummary: React.FC<DogHealthSummaryProps> = ({
   }, [activities, profile.weightKg]);
 
   const adultTargetKg = getExpectedAdultWeight(profile.breed);
+  const localizedBreed = formatBreedName(profile.breed, lang);
 
   return (
     <Card className="shadow-xl bg-slate-900/90 border-slate-800">
@@ -51,7 +55,7 @@ export const DogHealthSummary: React.FC<DogHealthSummaryProps> = ({
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-white text-base">{profile.name}</span>
             <Chip size="sm" variant="soft" color="accent" className="font-bold">
-              {profile.breed}
+              {localizedBreed}
             </Chip>
           </div>
 

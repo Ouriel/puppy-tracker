@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import type { PuppyProfile } from '../types';
-import { Syringe, ShieldCheck, Plus, Pill, Trash2, Pencil, Check } from 'lucide-react';
+import { Syringe, ShieldCheck, Plus, Pill, Trash2, Pencil, Check, ArrowLeft } from 'lucide-react';
 import { useI18n } from '../i18n';
 import { formatLocalDate } from '../utils/date';
 import { showToast } from '../utils/toast';
+import { formatBreedName } from '../utils/breeds';
 import { Card, Button, Input, Select, ListBox, ListBoxItem, Chip } from '@heroui/react';
 import {
   fetchHealthRecords,
@@ -31,19 +32,20 @@ interface DewormingEntry {
   puppyId?: string;
   type?: string;
   name: string;
+  productName?: string;
   date: string;
   boosterDate?: string;
-  productName?: string;
   weightAtTime?: number;
   notes?: string;
 }
 
 interface CarnetDeSanteViewProps {
   activePuppy: PuppyProfile | null;
+  onBackToDashboard?: () => void;
 }
 
-export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePuppy }) => {
-  const { t } = useI18n();
+export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePuppy, onBackToDashboard }) => {
+  const { t, lang } = useI18n();
 
   const getVaccineStatus = (
     vaccine: VaccinationEntry,
@@ -326,7 +328,7 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePupp
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
       {/* Header */}
-      <Card>
+      <Card className="bg-slate-900 border-slate-800">
         <Card.Content className="flex flex-wrap items-center justify-between gap-4 p-6">
           <div className="flex items-center gap-3">
             <div className="p-3 bg-gradient-to-br from-teal-500 to-emerald-600 rounded-xl shadow-md">
@@ -337,10 +339,22 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePupp
                 <span>{t.health.healthPassportFor.replace('{name}', activePuppy.name)}</span>
               </h2>
               <p className="text-xs text-slate-400">
-                {t.health.subtitle} &bull; {activePuppy.name} ({activePuppy.breed})
+                {t.health.subtitle} &bull; {activePuppy.name} ({formatBreedName(activePuppy.breed, lang)})
               </p>
             </div>
           </div>
+
+          {onBackToDashboard && (
+            <Button
+              variant="outline"
+              size="sm"
+              onPress={onBackToDashboard}
+              className="font-bold text-xs border-slate-700 text-slate-200 hover:bg-slate-800"
+            >
+              <ArrowLeft className="w-4 h-4 mr-1 inline" />
+              <span>Back to Dashboard</span>
+            </Button>
+          )}
         </Card.Content>
       </Card>
 
