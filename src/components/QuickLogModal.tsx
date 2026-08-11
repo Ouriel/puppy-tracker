@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import type { Activity, ActivityType, FoodType, PottyLocation, StoolConsistency } from '../types';
+import type { Activity, ActivityType, PottyLocation, StoolConsistency } from '../types';
 import { Droplet, Footprints, Utensils, Scale, Pill, X, Calendar, FileText } from 'lucide-react';
 import { Modal } from '@heroui/react';
 import { useI18n } from '../i18n';
@@ -42,9 +42,6 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
   const [stoolConsistency, setStoolConsistency] = useState<StoolConsistency>(
     activityToEdit?.stoolConsistency || 'normal'
   );
-  const [foodType, setFoodType] = useState<FoodType>(
-    activityToEdit?.foodType || 'kibble'
-  );
   const [quantityGrams, setQuantityGrams] = useState<number>(
     activityToEdit?.quantityGrams || defaultMealPortionGrams
   );
@@ -77,7 +74,6 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
         activityData.stoolConsistency = stoolConsistency;
       }
     } else if (type === 'food') {
-      activityData.foodType = foodType;
       activityData.quantityGrams = quantityGrams;
       activityData.quantityCups = quantityCups;
     } else if (type === 'weight') {
@@ -224,49 +220,22 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
                   </div>
                 )}
 
-                {/* Food Quantity & Type Input */}
+                {/* Food Quantity Input */}
                 {type === 'food' && (
-                  <div className="space-y-4 pt-1">
-                    <div>
-                      <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">
-                        {t.potty.quantity} (g)
-                      </label>
-                      <input
-                        type="number"
-                        className="w-full bg-slate-950 border border-slate-800 text-slate-100 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-indigo-500 transition-colors"
-                        value={String(quantityGrams)}
-                        onChange={(event) => {
-                          const grams = Number(event.target.value);
-                          setQuantityGrams(grams);
-                          setQuantityCups(Math.round((grams / 110) * 100) / 100);
-                        }}
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">
-                        {t.potty.foodTypeLabel}
-                      </label>
-                      <div className="grid grid-cols-3 gap-2">
-                        {(['kibble', 'wet', 'raw'] as FoodType[]).map((f) => {
-                          const isSelected = foodType === f;
-                          return (
-                            <button
-                              key={f}
-                              type="button"
-                              onClick={() => setFoodType(f)}
-                              className={`py-2.5 px-2 rounded-xl text-xs font-bold border transition-all text-center capitalize ${
-                                isSelected
-                                  ? 'bg-purple-600 border-purple-500 text-white shadow ring-2 ring-purple-400/30'
-                                  : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-white hover:bg-slate-800'
-                              }`}
-                            >
-                              {t.potty[f as keyof typeof t.potty] || f}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
+                  <div className="pt-1">
+                    <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">
+                      {t.potty.quantity} (g)
+                    </label>
+                    <input
+                      type="number"
+                      className="w-full bg-slate-950 border border-slate-800 text-slate-100 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-indigo-500 transition-colors"
+                      value={String(quantityGrams)}
+                      onChange={(event) => {
+                        const grams = Number(event.target.value);
+                        setQuantityGrams(grams);
+                        setQuantityCups(Math.round((grams / 110) * 100) / 100);
+                      }}
+                    />
                   </div>
                 )}
 

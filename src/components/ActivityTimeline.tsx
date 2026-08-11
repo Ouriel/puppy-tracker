@@ -185,7 +185,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
                         {/* Food Grams */}
                         {item.quantityGrams && (
                           <Chip color="accent" variant="soft" size="sm">
-                            {item.quantityGrams}{t.units.grams} ({item.quantityCups || 0.75} {t.units.cups}) - {item.foodType}
+                            {item.quantityGrams}{t.units.grams} ({item.quantityCups || 0.75} {t.units.cups})
                           </Chip>
                         )}
                       </div>
