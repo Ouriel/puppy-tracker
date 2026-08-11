@@ -38,8 +38,6 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = ({
   const todayPeeLogs = activities.filter(
     (act) => act.type === 'pee' && isSameLocalDate(act.timestamp, now)
   );
-  const todayPeeOutside = todayPeeLogs.filter((act) => act.pottyLocation === 'outside').length;
-  const todayPeeAccidents = todayPeeLogs.filter((act) => act.pottyLocation === 'indoor_accident').length;
 
   const allPeeLogs = activities
     .filter((act) => act.type === 'pee')
@@ -53,8 +51,6 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = ({
   const todayPoopLogs = activities.filter(
     (act) => act.type === 'poop' && isSameLocalDate(act.timestamp, now)
   );
-  const todayPoopOutside = todayPoopLogs.filter((act) => act.pottyLocation === 'outside').length;
-  const todayPoopAccidents = todayPoopLogs.filter((act) => act.pottyLocation === 'indoor_accident').length;
 
   const allPoopLogs = activities
     .filter((act) => act.type === 'poop')
@@ -176,7 +172,7 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = ({
             <div className="bg-slate-950/60 p-2.5 rounded-xl border border-slate-800/80 text-[11px] space-y-1 text-slate-400">
               <div className="flex justify-between font-medium">
                 <span>Pees today:</span>
-                <span className="font-bold text-sky-300">{todayPeeLogs.length} ({todayPeeOutside} outside{todayPeeAccidents > 0 ? `, ${todayPeeAccidents} accident` : ''})</span>
+                <span className="font-bold text-sky-300">{todayPeeLogs.length}</span>
               </div>
               <div className="flex justify-between font-medium">
                 <span>Last pee:</span>
@@ -250,7 +246,7 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = ({
             <div className="bg-slate-950/60 p-2.5 rounded-xl border border-slate-800/80 text-[11px] space-y-1 text-slate-400">
               <div className="flex justify-between font-medium">
                 <span>Poops today:</span>
-                <span className="font-bold text-amber-300">{todayPoopLogs.length} ({todayPoopOutside} outside{todayPoopAccidents > 0 ? `, ${todayPoopAccidents} accident` : ''})</span>
+                <span className="font-bold text-amber-300">{todayPoopLogs.length}</span>
               </div>
               <div className="flex justify-between font-medium">
                 <span>Last poop:</span>

@@ -1,11 +1,13 @@
-import React from 'react';
-import type { PuppyProfile, Activity } from '../types';
+import React, { useState, useEffect } from 'react';
+import type { PuppyProfile, Activity, HealthRecord } from '../types';
 import { Syringe, Pill, Dog, Calendar, Scale, ExternalLink } from 'lucide-react';
 import { Card, Button, Chip } from '@heroui/react';
 import { useI18n } from '../i18n';
 import { formatBreedName } from '../utils/breeds';
 import { getExpectedAdultWeight } from './WeightGrowthChart';
 import { getPuppyAge } from '../utils/predictions';
+import { fetchHealthRecords } from '../services/api';
+import { calculateNextVaccineBooster, calculateNextDewormingDate } from '../utils/health';
 
 interface DogHealthSummaryProps {
   profile: PuppyProfile;
@@ -19,6 +21,35 @@ export const DogHealthSummary: React.FC<DogHealthSummaryProps> = ({
   onOpenHealthPassport,
 }) => {
   const { lang } = useI18n();
+
+  const [lastVaccine, setLastVaccine] = useState<HealthRecord | null>(null);
+  const [lastDeworming, setLastDeworming] = useState<HealthRecord | null>(null);
+
+  useEffect(() => {
+    if (!profile.id) return;
+    async function loadHealth() {
+      const [vRes, dRes] = await Promise.all([
+        fetchHealthRecords(profile.id, 'vaccination'),
+        fetchHealthRecords(profile.id, 'deworming'),
+      ]);
+
+      if (vRes && vRes.length > 0) {
+        const sortedV = [...vRes].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        setLastVaccine(sortedV[0]);
+      } else {
+        setLastVaccine(null);
+      }
+
+      if (dRes && dRes.length > 0) {
+        const sortedD = [...dRes].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        setLastDeworming(sortedD[0]);
+      } else {
+        setLastDeworming(null);
+      }
+    }
+
+    loadHealth();
+  }, [profile.id]);
 
   // Calculate puppy age in weeks & months
   const ageInfo = React.useMemo(() => {
@@ -38,6 +69,14 @@ export const DogHealthSummary: React.FC<DogHealthSummaryProps> = ({
 
   const adultTargetKg = getExpectedAdultWeight(profile.breed);
   const localizedBreed = formatBreedName(profile.breed, lang);
+
+  const nextVaccineDueDate = lastVaccine
+    ? lastVaccine.boosterDate || calculateNextVaccineBooster(lastVaccine.date, lastVaccine.name)
+    : null;
+
+  const nextDewormingDueDate = lastDeworming
+    ? lastDeworming.boosterDate || calculateNextDewormingDate(lastDeworming.date, Math.max(1, Math.floor(ageInfo.weeks / 4)))
+    : null;
 
   return (
     <Card className="shadow-xl bg-slate-900/90 border-slate-800">
@@ -78,7 +117,7 @@ export const DogHealthSummary: React.FC<DogHealthSummaryProps> = ({
           </div>
         </div>
 
-        {/* Health Overview (Vaccine & Deworming) */}
+        {/* Dynamic Health Overview (Vaccine & Deworming) */}
         <div className="space-y-2.5">
           {/* Last Vaccine */}
           <div className="bg-slate-950/60 p-3.5 rounded-xl border border-slate-800 flex items-center justify-between gap-3">
@@ -87,8 +126,16 @@ export const DogHealthSummary: React.FC<DogHealthSummaryProps> = ({
                 <Syringe className="w-4 h-4" />
               </div>
               <div>
-                <div className="text-xs font-bold text-slate-200">Last Vaccination</div>
-                <div className="text-[11px] text-slate-400">CHPPi + L4 &bull; Next booster due: <strong className="text-teal-300">In 3 weeks</strong></div>
+                <div className="text-xs font-bold text-slate-200">
+                  {lastVaccine ? lastVaccine.name : 'Last Vaccination'}
+                </div>
+                <div className="text-[11px] text-slate-400">
+                  {lastVaccine ? (
+                    <>Given: {lastVaccine.date} &bull; Next due: <strong className="text-teal-300">{nextVaccineDueDate}</strong></>
+                  ) : (
+                    'No vaccine records logged yet.'
+                  )}
+                </div>
               </div>
             </div>
           </div>
@@ -100,8 +147,16 @@ export const DogHealthSummary: React.FC<DogHealthSummaryProps> = ({
                 <Pill className="w-4 h-4" />
               </div>
               <div>
-                <div className="text-xs font-bold text-slate-200">Last Deworming</div>
-                <div className="text-[11px] text-slate-400">Credelio Plus &bull; Next due: <strong className="text-amber-300">In 1 month</strong></div>
+                <div className="text-xs font-bold text-slate-200">
+                  {lastDeworming ? (lastDeworming.productName || lastDeworming.name) : 'Last Deworming'}
+                </div>
+                <div className="text-[11px] text-slate-400">
+                  {lastDeworming ? (
+                    <>Given: {lastDeworming.date} &bull; Next due: <strong className="text-amber-300">{nextDewormingDueDate}</strong></>
+                  ) : (
+                    'No deworming records logged yet.'
+                  )}
+                </div>
               </div>
             </div>
           </div>
@@ -112,7 +167,7 @@ export const DogHealthSummary: React.FC<DogHealthSummaryProps> = ({
           variant="primary"
           size="sm"
           onPress={onOpenHealthPassport}
-          className="w-full font-bold text-xs py-2 shadow"
+          className="w-full font-bold text-xs py-2 shadow bg-indigo-600 hover:bg-indigo-500 text-white border-0"
         >
           <ExternalLink className="w-3.5 h-3.5 mr-1.5 inline" />
           <span>View Full Health Passport</span>

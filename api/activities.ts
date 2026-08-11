@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { neon } from '@neondatabase/serverless';
 import { drizzle } from 'drizzle-orm/neon-http';
-import { eq, and, desc } from 'drizzle-orm';
+import { eq, and, desc, gte } from 'drizzle-orm';
 import { activitiesTable } from '../src/db/schema.js';
 import { verifyAuth } from './_auth.js';
 import { z } from 'zod';
@@ -53,15 +53,33 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method === 'GET') {
       res.setHeader('Cache-Control', 'private, max-age=10, stale-while-revalidate=60');
       const puppyId = req.query.puppyId as string;
-      const conditions = puppyId
+      const days = req.query.days ? parseInt(req.query.days as string, 10) : null;
+      const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : null;
+      const offset = req.query.offset ? parseInt(req.query.offset as string, 10) : null;
+
+      let whereClause = puppyId
         ? and(eq(activitiesTable.householdId, householdId), eq(activitiesTable.puppyId, puppyId))
         : eq(activitiesTable.householdId, householdId);
 
-      const activities = await db
+      if (days && !isNaN(days)) {
+        const cutoffDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+        whereClause = and(whereClause, gte(activitiesTable.timestamp, cutoffDate));
+      }
+
+      let baseQuery = db
         .select()
         .from(activitiesTable)
-        .where(conditions)
+        .where(whereClause)
         .orderBy(desc(activitiesTable.timestamp));
+
+      if (limit && !isNaN(limit)) {
+        baseQuery = baseQuery.limit(limit) as typeof baseQuery;
+      }
+      if (offset && !isNaN(offset)) {
+        baseQuery = baseQuery.offset(offset) as typeof baseQuery;
+      }
+
+      const activities = await baseQuery;
       const formatted = activities.map((act) => ({
         ...act,
         timestamp: act.timestamp instanceof Date ? act.timestamp.toISOString() : new Date(act.timestamp).toISOString(),
