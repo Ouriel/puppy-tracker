@@ -271,10 +271,10 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
                       </Button>
 
                       <Button
-                        variant="tertiary"
                         size="sm"
                         isIconOnly
                         onPress={() => setEditingId(null)}
+                        className="bg-slate-950 border border-slate-800 text-slate-400 hover:text-white hover:bg-slate-800"
                       >
                         <X className="w-4 h-4" />
                       </Button>
@@ -300,7 +300,6 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
 
                   <div className="flex items-center gap-2">
                     <Button
-                      variant="tertiary"
                       size="sm"
                       isIconOnly
                       onPress={() => {
@@ -308,6 +307,7 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
                         setEditName(caretaker.name);
                         setEditColor(caretaker.color);
                       }}
+                      className="bg-slate-950 border border-slate-800 text-slate-400 hover:text-white hover:bg-slate-800"
                       aria-label="Edit Member Name & Color"
                     >
                       <Pencil className="w-4 h-4" />

@@ -15,7 +15,7 @@ interface DogHealthSummaryProps {
   onOpenHealthPassport: () => void;
 }
 
-export const DogHealthSummary: React.FC<DogHealthSummaryProps> = ({
+export const DogHealthSummary: React.FC<DogHealthSummaryProps> = React.memo(({
   profile,
   activities,
   onOpenHealthPassport,
@@ -175,4 +175,4 @@ export const DogHealthSummary: React.FC<DogHealthSummaryProps> = ({
       </Card.Content>
     </Card>
   );
-};
+});

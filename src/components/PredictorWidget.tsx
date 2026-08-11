@@ -15,7 +15,7 @@ interface PredictorWidgetProps {
   onOpenQuickLogModal: (type?: ActivityType) => void;
 }
 
-export const PredictorWidget: React.FC<PredictorWidgetProps> = ({
+export const PredictorWidget: React.FC<PredictorWidgetProps> = React.memo(({
   predictions,
   profile,
   activities,
@@ -340,4 +340,4 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = ({
       </Card>
     </div>
   );
-};
+});

@@ -14,7 +14,7 @@ interface ActivityTimelineProps {
   onUpdateActivity?: (updated: Partial<Activity> & { id: string }) => void;
 }
 
-export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
+export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
   activities,
   caretakers,
   onDeleteActivity,
@@ -263,4 +263,4 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
       </Card.Content>
     </Card>
   );
-};
+});
