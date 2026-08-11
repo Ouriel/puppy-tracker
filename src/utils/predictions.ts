@@ -278,7 +278,8 @@ export function calculatePredictions(
   activities: Activity[],
   profile: PuppyProfile,
   referenceTime?: Date,
-  timeZone?: string
+  timeZone?: string,
+  customSleepSchedule?: { bedtimeHour: number; wakeupHour: number; bedtimeStr: string; wakeupStr: string }
 ): PredictionResult {
   const tz = timeZone || getUserTimezone();
   const now = referenceTime || new Date();
@@ -286,7 +287,7 @@ export function calculatePredictions(
 
   const pastActivities = activities.filter((activity) => parseIsoDate(activity.timestamp).getTime() <= now.getTime());
 
-  const sleepSchedule = detectSleepSchedule(pastActivities, tz);
+  const sleepSchedule = customSleepSchedule || detectSleepSchedule(pastActivities, tz);
   const mealSchedule = detectMealSchedule(pastActivities, tz);
   const isCurrentlyNight = isNighttimeHour(currentHour, sleepSchedule.wakeupHour, sleepSchedule.bedtimeHour);
 
