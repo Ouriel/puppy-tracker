@@ -10,6 +10,7 @@ interface QuickLogModalProps {
   initialType?: ActivityType;
   activityToEdit?: Activity;
   defaultMealPortionGrams?: number;
+  defaultWeightKg?: number;
   onClose: () => void;
   onSave: (activity: Omit<Activity, 'id'>) => void;
   currentUser?: string;
@@ -20,6 +21,7 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
   initialType = 'pee',
   activityToEdit,
   defaultMealPortionGrams = 80,
+  defaultWeightKg = 4.2,
   onClose,
   onSave,
   currentUser = 'Matthieu',
@@ -49,7 +51,7 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
     activityToEdit?.quantityCups || Math.round((defaultMealPortionGrams / 110) * 100) / 100
   );
   const [weightKg, setWeightKg] = useState<number>(
-    activityToEdit?.weightKg || 4.5
+    activityToEdit?.weightKg || defaultWeightKg
   );
   const [medicationName, setMedicationName] = useState<string>(
     activityToEdit?.medicationName || ''

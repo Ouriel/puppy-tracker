@@ -213,6 +213,14 @@ export function App() {
     return Math.round(remainingGrams / remainingMeals) || Math.round(dailyGoal / mealsPerDay);
   }, [activePuppy, todayFoodLoggedGrams, todayMealsCount]);
 
+  const lastWeightLogKg = useMemo(() => {
+    if (!activePuppyActivities) return activePuppy?.weightKg || 4.2;
+    const weightLogs = activePuppyActivities
+      .filter((act) => act.type === 'weight' && act.weightKg && act.weightKg > 0)
+      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+    return weightLogs.length > 0 ? weightLogs[0].weightKg! : (activePuppy?.weightKg || 4.2);
+  }, [activePuppyActivities, activePuppy?.weightKg]);
+
   // Handlers
   const handleSelectPuppy = useCallback((id: string) => {
     startTransition(() => {
@@ -519,6 +527,7 @@ export function App() {
           isOpen={isQuickLogOpen}
           initialType={quickLogType}
           defaultMealPortionGrams={nextMealPortionGrams}
+          defaultWeightKg={lastWeightLogKg}
           onClose={() => setIsQuickLogOpen(false)}
           onSave={handleAddActivity}
           currentUser={currentUser}
