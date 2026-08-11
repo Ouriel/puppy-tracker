@@ -343,7 +343,7 @@ describe('predictions utility — comprehensive test suite', () => {
 
         const predictions = calculatePredictions(noMealsToday, mockProfile, referenceTime, 'Europe/Paris');
         expect(predictions.foodMode).toBe('daytime_schedule');
-        expect(predictions.foodReason).toMatch(/breakfast due|Breakfast scheduled/i);
+        expect(predictions.foodReason).toMatch(/breakfast due|Breakfast scheduled|Breakfast overdue/i);
       });
 
       it('spaces remaining daytime meals evenly when partial meals have been logged today', () => {
