@@ -1,0 +1,6 @@
+# Files to exclude from Vercel deployment build context
+scripts/
+drizzle/
+.agents/
+CLAUDE.md
+fix_plan.md
