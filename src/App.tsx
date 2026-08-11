@@ -430,26 +430,26 @@ export function App() {
               />
             )}
 
-            {/* Dashboard Main Grid (2 Columns on Desktop, 1 Column on Mobile) */}
+            {/* Dashboard Main Grid (DogHealthSummary first on mobile, right column on desktop) */}
             {activePuppy && (
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Left Column (2 cols wide): Focused Activity Timeline (Pee, Poop, Food only) */}
-                <div className="lg:col-span-2 space-y-6">
-                  <ActivityTimeline
-                    activities={activePuppyActivities}
-                    caretakers={caretakers}
-                    onDeleteActivity={handleDeleteActivity}
-                    onUpdateActivity={handleUpdateActivity}
-                  />
-                </div>
-
-                {/* Right Column (1 col wide): Dog Profile & Health Summary Card */}
-                <div className="space-y-6">
+                {/* Dog Profile & Health Summary Card (First on mobile, right column on desktop) */}
+                <div className="order-1 lg:order-2 lg:col-span-1 space-y-6">
                   <DogHealthSummary
                     profile={activePuppy}
                     activities={activePuppyActivities}
                     onOpenHealthPassport={() => handleNavigate('carnetdesante')}
                     lang={lang}
+                  />
+                </div>
+
+                {/* Focused Activity Timeline (Second on mobile, 2 cols left on desktop) */}
+                <div className="order-2 lg:order-1 lg:col-span-2 space-y-6">
+                  <ActivityTimeline
+                    activities={activePuppyActivities}
+                    caretakers={caretakers}
+                    onDeleteActivity={handleDeleteActivity}
+                    onUpdateActivity={handleUpdateActivity}
                   />
                 </div>
               </div>
