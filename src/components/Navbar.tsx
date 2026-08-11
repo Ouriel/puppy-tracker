@@ -92,16 +92,14 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
 
           {/* Settings & Admin Gear Icon Button */}
-          <Button
-            isIconOnly
-            variant="tertiary"
-            size="sm"
-            onPress={onOpenSettings}
+          <button
+            type="button"
+            onClick={onOpenSettings}
             aria-label="Settings & Administration"
-            className="h-9 w-9 bg-slate-950/80 border border-slate-700/80 text-slate-300 hover:text-white"
+            className="h-9 w-9 flex items-center justify-center rounded-xl bg-slate-950/80 border border-slate-800 text-slate-300 hover:text-white hover:bg-slate-800 transition-colors"
           >
             <Settings className="w-4 h-4" />
-          </Button>
+          </button>
 
           {/* + Quick Log Button */}
           {puppies.length > 0 && (

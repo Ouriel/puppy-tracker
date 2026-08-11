@@ -596,25 +596,23 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePupp
                         {status.label}
                       </Chip>
                     </div>
-                    <div className="flex items-center gap-1">
-                      <Button
-                        variant="tertiary"
-                        size="sm"
-                        isIconOnly
-                        onPress={() => startEditVaccine(vaccine)}
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => startEditVaccine(vaccine)}
                         aria-label="Edit vaccine entry"
+                        className="p-1.5 text-slate-400 hover:text-indigo-300 hover:bg-slate-800 rounded-lg border border-slate-800 bg-slate-950 transition-colors"
                       >
                         <Pencil className="w-3.5 h-3.5" />
-                      </Button>
-                      <Button
-                        variant="danger-soft"
-                        size="sm"
-                        isIconOnly
-                        onPress={() => handleDeleteVaccine(vaccine.id)}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteVaccine(vaccine.id)}
                         aria-label={t.health.deleteVaccineConfirm}
+                        className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-slate-800 rounded-lg border border-slate-800 bg-slate-950 transition-colors"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
-                      </Button>
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -799,25 +797,23 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePupp
                         {status.label}
                       </Chip>
                     </div>
-                    <div className="flex items-center gap-1">
-                      <Button
-                        variant="tertiary"
-                        size="sm"
-                        isIconOnly
-                        onPress={() => startEditDeworming(deworming)}
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => startEditDeworming(deworming)}
                         aria-label="Edit deworming entry"
+                        className="p-1.5 text-slate-400 hover:text-indigo-300 hover:bg-slate-800 rounded-lg border border-slate-800 bg-slate-950 transition-colors"
                       >
                         <Pencil className="w-3.5 h-3.5" />
-                      </Button>
-                      <Button
-                        variant="danger-soft"
-                        size="sm"
-                        isIconOnly
-                        onPress={() => handleDeleteDeworming(deworming.id)}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteDeworming(deworming.id)}
                         aria-label={t.health.deleteDewormingConfirm}
+                        className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-slate-800 rounded-lg border border-slate-800 bg-slate-950 transition-colors"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
-                      </Button>
+                      </button>
                     </div>
                   </div>
                 </div>

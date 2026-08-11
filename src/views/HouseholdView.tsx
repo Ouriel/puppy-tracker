@@ -299,19 +299,18 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
                   </div>
 
                   <div className="flex items-center gap-2">
-                    <Button
-                      size="sm"
-                      isIconOnly
-                      onPress={() => {
+                    <button
+                      type="button"
+                      onClick={() => {
                         setEditingId(caretaker.id);
                         setEditName(caretaker.name);
                         setEditColor(caretaker.color);
                       }}
-                      className="bg-slate-950 border border-slate-800 text-slate-400 hover:text-white hover:bg-slate-800"
                       aria-label="Edit Member Name & Color"
+                      className="p-2 text-slate-400 hover:text-indigo-300 hover:bg-slate-800 rounded-xl border border-slate-800 bg-slate-950 transition-colors"
                     >
                       <Pencil className="w-4 h-4" />
-                    </Button>
+                    </button>
 
                     {isSelected && (
                       <Chip color="success" variant="soft" size="sm">
@@ -321,15 +320,14 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
                     )}
 
                     {caretaker.name !== 'Matthieu' && (
-                      <Button
-                        variant="danger-soft"
-                        size="sm"
-                        isIconOnly
-                        onPress={() => onDeleteCaretaker(caretaker.id)}
+                      <button
+                        type="button"
+                        onClick={() => onDeleteCaretaker(caretaker.id)}
                         aria-label={t.household.deleteMember}
+                        className="p-2 text-slate-400 hover:text-red-400 hover:bg-slate-800 rounded-xl border border-slate-800 bg-slate-950 transition-colors"
                       >
                         <Trash2 className="w-4 h-4" />
-                      </Button>
+                      </button>
                     )}
                   </div>
                 </div>

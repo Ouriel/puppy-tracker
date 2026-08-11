@@ -93,30 +93,39 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
 
           {/* Filter Buttons */}
           <div className="flex items-center gap-1 bg-slate-950/80 border border-slate-800 p-1 rounded-xl">
-            <Button
-              size="sm"
-              variant={filter === 'all' ? 'primary' : 'tertiary'}
-              onPress={() => setFilter('all')}
-              className="text-xs font-bold"
+            <button
+              type="button"
+              onClick={() => setFilter('all')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                filter === 'all'
+                  ? 'bg-indigo-600 text-white shadow'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+              }`}
             >
               {t.dashboard.all}
-            </Button>
-            <Button
-              size="sm"
-              variant={filter === 'potty' ? 'primary' : 'tertiary'}
-              onPress={() => setFilter('potty')}
-              className="text-xs font-bold"
+            </button>
+            <button
+              type="button"
+              onClick={() => setFilter('potty')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                filter === 'potty'
+                  ? 'bg-indigo-600 text-white shadow'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+              }`}
             >
               {t.dashboard.pottyFilter}
-            </Button>
-            <Button
-              size="sm"
-              variant={filter === 'food' ? 'primary' : 'tertiary'}
-              onPress={() => setFilter('food')}
-              className="text-xs font-bold"
+            </button>
+            <button
+              type="button"
+              onClick={() => setFilter('food')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                filter === 'food'
+                  ? 'bg-indigo-600 text-white shadow'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+              }`}
             >
               {t.dashboard.mealsFilter}
-            </Button>
+            </button>
           </div>
         </div>
 
@@ -200,34 +209,30 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
                   </div>
 
                   {/* Actions: Edit & Delete */}
-                  <div className="flex items-center gap-1 shrink-0">
+                  <div className="flex items-center gap-1.5 shrink-0">
                     {onUpdateActivity && (
-                      <Button
-                        onPress={() => setEditingActivity(item)}
+                      <button
+                        type="button"
+                        onClick={() => setEditingActivity(item)}
                         aria-label="Edit activity log"
-                        isIconOnly
-                        size="sm"
-                        variant="tertiary"
-                        className="text-slate-400 hover:text-indigo-400"
+                        className="p-2 text-slate-400 hover:text-indigo-300 hover:bg-slate-800 rounded-lg border border-slate-800 bg-slate-950 transition-colors"
                       >
                         <Pencil className="w-4 h-4" />
-                      </Button>
+                      </button>
                     )}
 
-                    <Button
-                      onPress={() => {
+                    <button
+                      type="button"
+                      onClick={() => {
                         if (window.confirm('Delete this activity log?')) {
                           onDeleteActivity(item.id);
                         }
                       }}
                       aria-label="Delete log"
-                      isIconOnly
-                      size="sm"
-                      variant="tertiary"
-                      className="text-slate-400 hover:text-red-400"
+                      className="p-2 text-slate-400 hover:text-red-400 hover:bg-slate-800 rounded-lg border border-slate-800 bg-slate-950 transition-colors"
                     >
                       <Trash2 className="w-4 h-4" />
-                    </Button>
+                    </button>
                   </div>
                 </div>
               );

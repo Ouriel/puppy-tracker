@@ -418,29 +418,27 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
                         </Button>
                       )}
 
-                      <Button
-                        size="sm"
-                        variant="tertiary"
-                        isIconOnly
-                        onPress={() => handleStartEdit(pup)}
-                        aria-label={t.puppies.editProfileTitle}
+                      <button
+                        type="button"
+                        onClick={() => handleStartEdit(pup)}
+                        aria-label="Edit Profile"
+                        className="p-2 text-slate-400 hover:text-indigo-300 hover:bg-slate-800 rounded-xl border border-slate-800 bg-slate-950 transition-colors"
                       >
-                        <Edit3 className="w-4 h-4 text-slate-400 hover:text-white" />
-                      </Button>
+                        <Edit3 className="w-4 h-4" />
+                      </button>
 
-                      <Button
-                        size="sm"
-                        variant="danger-soft"
-                        isIconOnly
-                        onPress={() => {
+                      <button
+                        type="button"
+                        onClick={() => {
                           if (window.confirm(`Delete profile for ${pup.name}?`)) {
                             onDeletePuppy(pup.id);
                           }
                         }}
                         aria-label="Delete Dog"
+                        className="p-2 text-slate-400 hover:text-red-400 hover:bg-slate-800 rounded-xl border border-slate-800 bg-slate-950 transition-colors"
                       >
-                        <Trash2 className="w-4 h-4 text-red-400" />
-                      </Button>
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     </div>
                   </div>
 

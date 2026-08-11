@@ -239,14 +239,14 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail }) => {
                       <UserCheck className="w-3.5 h-3.5 mr-1 inline" />
                       Activate
                     </Button>
-                    <Button
-                      size="sm"
-                      isIconOnly
-                      onPress={() => setUserToDelete(userItem)}
-                      className="bg-slate-950 border border-slate-800 text-red-400 hover:bg-slate-800"
+                    <button
+                      type="button"
+                      onClick={() => setUserToDelete(userItem)}
+                      aria-label="Delete User Account"
+                      className="p-2 text-slate-400 hover:text-red-400 hover:bg-slate-800 rounded-xl border border-slate-800 bg-slate-950 transition-colors"
                     >
                       <Trash2 className="w-4 h-4" />
-                    </Button>
+                    </button>
                   </div>
                 </div>
               ))}
@@ -325,14 +325,14 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail }) => {
                           <UserX className="w-3.5 h-3.5 mr-1 inline" />
                           Revoke
                         </Button>
-                        <Button
-                          size="sm"
-                          isIconOnly
-                          onPress={() => setUserToDelete(userItem)}
-                          className="bg-slate-950 border border-slate-800 text-red-400 hover:bg-slate-800"
+                        <button
+                          type="button"
+                          onClick={() => setUserToDelete(userItem)}
+                          aria-label="Delete User Account"
+                          className="p-2 text-slate-400 hover:text-red-400 hover:bg-slate-800 rounded-xl border border-slate-800 bg-slate-950 transition-colors"
                         >
                           <Trash2 className="w-4 h-4" />
-                        </Button>
+                        </button>
                       </div>
                     )}
                   </div>
