@@ -1,7 +1,7 @@
 import React from 'react';
 import { Card, Button, Chip } from '@heroui/react';
 import type { Activity, PuppyProfile } from '../types';
-import { Scale, TrendingUp, Plus, ShieldCheck } from 'lucide-react';
+import { Scale, Plus, ShieldCheck } from 'lucide-react';
 import { useI18n } from '../i18n';
 
 export function getExpectedAdultWeight(breed: string): number {
@@ -58,9 +58,8 @@ export const WeightGrowthChart: React.FC<WeightGrowthChartProps> = ({
       .sort((activityA, activityB) => new Date(activityA.timestamp).getTime() - new Date(activityB.timestamp).getTime());
   }, [activities]);
 
-  const latestWeight = weightLogs.length > 0
-    ? weightLogs[weightLogs.length - 1].weightKg!
-    : (profile.weightKg || 0);
+  const lastLog = weightLogs.length > 0 ? weightLogs[weightLogs.length - 1] : null;
+  const latestWeight = lastLog ? lastLog.weightKg! : (profile.weightKg || 4.2);
 
   // Calculate puppy age in weeks
   const ageWeeks = React.useMemo(() => {
@@ -73,6 +72,19 @@ export const WeightGrowthChart: React.FC<WeightGrowthChartProps> = ({
 
   // Standard Expected Weight Curve scaled by breed
   const adultTargetKg = getExpectedAdultWeight(profile.breed);
+  const minAdultKg = Math.round(adultTargetKg * 0.88 * 10) / 10;
+  const maxAdultKg = Math.round(adultTargetKg * 1.15 * 10) / 10;
+
+  let assumedCurrentKg = latestWeight;
+  if (lastLog) {
+    const daysDiff = Math.max(0, (Date.now() - new Date(lastLog.timestamp).getTime()) / (1000 * 60 * 60 * 24));
+    if (daysDiff >= 2) {
+      const weeklyGainKg = adultTargetKg * 0.035;
+      const estimatedGainKg = (daysDiff / 7) * weeklyGainKg;
+      assumedCurrentKg = Math.round((latestWeight + estimatedGainKg) * 10) / 10;
+    }
+  }
+
   const growthBenchmarks = scaleGrowthBenchmarks(adultTargetKg);
 
   return (
@@ -108,26 +120,23 @@ export const WeightGrowthChart: React.FC<WeightGrowthChartProps> = ({
       </Card.Header>
 
       <Card.Content className="p-5 pt-0">
-        {/* Growth Statistics Row */}
+        {/* Growth Statistics Row: Last Logged, Assumed Current, Probable Adult Range, Age */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
           <div className="bg-slate-950/60 p-3 rounded-xl border border-slate-800">
-            <div className="text-[10px] text-slate-400 uppercase font-semibold">{t.weightChart.currentWeight}</div>
-            <div className="text-base font-extrabold text-pink-400">{latestWeight} kg</div>
+            <div className="text-[10px] text-slate-400 uppercase font-semibold">Last Logged</div>
+            <div className="text-base font-extrabold text-slate-200">{latestWeight} kg</div>
           </div>
           <div className="bg-slate-950/60 p-3 rounded-xl border border-slate-800">
-            <div className="text-[10px] text-slate-400 uppercase font-semibold">{t.weightChart.adultTarget}</div>
-            <div className="text-base font-extrabold text-indigo-300">~{adultTargetKg} kg</div>
+            <div className="text-[10px] text-slate-400 uppercase font-semibold">Current (Assumed)</div>
+            <div className="text-base font-extrabold text-pink-400">~{assumedCurrentKg} kg</div>
           </div>
           <div className="bg-slate-950/60 p-3 rounded-xl border border-slate-800">
-            <div className="text-[10px] text-slate-400 uppercase font-semibold">{t.weightChart.currentAge}</div>
-            <div className="text-base font-extrabold text-slate-200">{ageWeeks} sem.</div>
+            <div className="text-[10px] text-slate-400 uppercase font-semibold">Adult Range</div>
+            <div className="text-base font-extrabold text-indigo-300">{minAdultKg}–{maxAdultKg} kg</div>
           </div>
           <div className="bg-slate-950/60 p-3 rounded-xl border border-slate-800">
-            <div className="text-[10px] text-slate-400 uppercase font-semibold">{t.weightChart.growthTrajectory}</div>
-            <div className="text-xs font-bold text-emerald-400 flex items-center gap-1 mt-1">
-              <TrendingUp className="w-3.5 h-3.5" />
-              <span>{t.weightChart.normalPace}</span>
-            </div>
+            <div className="text-[10px] text-slate-400 uppercase font-semibold">Current Age</div>
+            <div className="text-base font-extrabold text-amber-300">{ageWeeks} weeks</div>
           </div>
         </div>
 

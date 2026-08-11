@@ -57,17 +57,39 @@ export const DogHealthSummary: React.FC<DogHealthSummaryProps> = React.memo(({
     return getPuppyAge(profile.birthDate);
   }, [profile.birthDate]);
 
-  // Extract latest recorded weight
-  const latestWeight = React.useMemo(() => {
+  // Extract weight metrics (Last Logged, Assumed Current, Probable Adult Range)
+  const weightData = React.useMemo(() => {
     const weightLogs = activities
       .filter((act) => act.type === 'weight' && act.weightKg && act.weightKg > 0)
       .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 
-    if (weightLogs.length > 0) return weightLogs[0].weightKg;
-    return profile.weightKg || 4.2;
-  }, [activities, profile.weightKg]);
+    const lastLog = weightLogs.length > 0 ? weightLogs[0] : null;
+    const lastWeightKg = lastLog ? lastLog.weightKg! : profile.weightKg || 4.2;
+    const lastLogDateStr = lastLog ? new Date(lastLog.timestamp).toLocaleDateString(lang === 'fr' ? 'fr-FR' : 'en-US', { month: 'short', day: 'numeric' }) : null;
 
-  const adultTargetKg = getExpectedAdultWeight(profile.breed);
+    const adultTargetKg = getExpectedAdultWeight(profile.breed);
+    const minAdultKg = Math.round(adultTargetKg * 0.88 * 10) / 10;
+    const maxAdultKg = Math.round(adultTargetKg * 1.15 * 10) / 10;
+
+    let assumedCurrentKg = lastWeightKg;
+    if (lastLog) {
+      const daysDiff = Math.max(0, (Date.now() - new Date(lastLog.timestamp).getTime()) / (1000 * 60 * 60 * 24));
+      if (daysDiff >= 2) {
+        const weeklyGainKg = adultTargetKg * 0.035;
+        const estimatedGainKg = (daysDiff / 7) * weeklyGainKg;
+        assumedCurrentKg = Math.round((lastWeightKg + estimatedGainKg) * 10) / 10;
+      }
+    }
+
+    return {
+      lastWeightKg,
+      lastLogDateStr,
+      assumedCurrentKg,
+      adultTargetKg,
+      adultRangeStr: `${minAdultKg}–${maxAdultKg} kg`,
+    };
+  }, [activities, profile.weightKg, profile.breed, lang]);
+
   const localizedBreed = formatBreedName(profile.breed, lang);
 
   const nextVaccineDueDate = lastVaccine
@@ -90,7 +112,7 @@ export const DogHealthSummary: React.FC<DogHealthSummaryProps> = React.memo(({
         </div>
 
         {/* Dog Profile Info Card */}
-        <div className="bg-slate-950/60 p-4 rounded-xl border border-slate-800 space-y-2.5">
+        <div className="bg-slate-950/60 p-4 rounded-xl border border-slate-800 space-y-3">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-white text-base">{profile.name}</span>
             <Chip size="sm" variant="soft" color="accent" className="font-bold">
@@ -99,7 +121,7 @@ export const DogHealthSummary: React.FC<DogHealthSummaryProps> = React.memo(({
           </div>
 
           <div className="grid grid-cols-2 gap-2 text-xs pt-1">
-            <div className="flex items-center gap-2 bg-slate-900/80 p-2 rounded-lg border border-slate-800">
+            <div className="flex items-center gap-2 bg-slate-900/80 p-2.5 rounded-lg border border-slate-800">
               <Calendar className="w-4 h-4 text-amber-400 shrink-0" />
               <div>
                 <div className="text-[10px] text-slate-400 font-semibold">Age</div>
@@ -107,12 +129,26 @@ export const DogHealthSummary: React.FC<DogHealthSummaryProps> = React.memo(({
               </div>
             </div>
 
-            <div className="flex items-center gap-2 bg-slate-900/80 p-2 rounded-lg border border-slate-800">
+            <div className="flex items-center gap-2 bg-slate-900/80 p-2.5 rounded-lg border border-slate-800">
               <Scale className="w-4 h-4 text-pink-400 shrink-0" />
               <div>
-                <div className="text-[10px] text-slate-400 font-semibold">Weight</div>
-                <div className="font-bold text-slate-200">{latestWeight} kg <span className="text-[10px] text-slate-400 font-normal">(~{adultTargetKg}kg target)</span></div>
+                <div className="text-[10px] text-slate-400 font-semibold">Assumed Current</div>
+                <div className="font-bold text-pink-300">~{weightData.assumedCurrentKg} kg</div>
               </div>
+            </div>
+          </div>
+
+          {/* Weight Details Row: Last Logged & Probable Adult Range */}
+          <div className="grid grid-cols-2 gap-2 text-[11px] bg-slate-900/40 p-2.5 rounded-lg border border-slate-800/80">
+            <div>
+              <span className="text-slate-400 block text-[10px] font-semibold">Last Weight Logged</span>
+              <span className="font-bold text-slate-200">
+                {weightData.lastWeightKg} kg {weightData.lastLogDateStr && <span className="text-slate-400 font-normal">({weightData.lastLogDateStr})</span>}
+              </span>
+            </div>
+            <div>
+              <span className="text-slate-400 block text-[10px] font-semibold">Adult Weight Range</span>
+              <span className="font-bold text-indigo-300">{weightData.adultRangeStr}</span>
             </div>
           </div>
         </div>
