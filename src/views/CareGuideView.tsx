@@ -13,7 +13,7 @@ export const CareGuideView: React.FC<CareGuideViewProps> = ({ onBackToDashboard 
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
       {/* Header with Back to Dashboard exit button */}
-      <Card>
+      <Card className="bg-slate-900 border-slate-800 text-slate-100">
         <Card.Content className="flex flex-wrap items-center justify-between gap-4 p-6">
           <div className="flex items-center gap-3">
             <div className="p-3 bg-gradient-to-br from-indigo-500 to-teal-600 rounded-xl shadow-md">
@@ -27,10 +27,9 @@ export const CareGuideView: React.FC<CareGuideViewProps> = ({ onBackToDashboard 
 
           {onBackToDashboard && (
             <Button
-              variant="outline"
               size="sm"
               onPress={onBackToDashboard}
-              className="text-indigo-300"
+              className="bg-slate-950 border border-slate-800 text-slate-300 font-bold hover:bg-slate-800 hover:text-white"
             >
               <ArrowLeft className="w-4 h-4" />
               <span>{t.careGuide.backToDashboard}</span>

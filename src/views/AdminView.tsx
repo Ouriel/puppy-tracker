@@ -147,7 +147,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail }) => {
       <Modal isOpen={!!userToDelete} onOpenChange={(isOpen) => !isOpen && setUserToDelete(null)}>
         <Modal.Backdrop>
           <Modal.Container>
-            <Modal.Dialog>
+            <Modal.Dialog className="bg-slate-900 border border-slate-800 text-slate-100 shadow-2xl">
               <Modal.CloseTrigger />
               <Modal.Header>
                 <Modal.Heading className="flex items-center gap-3">
@@ -159,7 +159,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail }) => {
                 <p className="text-sm text-slate-400">{t.admin.deleteConfirmBody}</p>
               </Modal.Body>
               <Modal.Footer>
-                <Button variant="tertiary" onPress={() => setUserToDelete(null)}>
+                <Button onPress={() => setUserToDelete(null)} className="bg-slate-950 border border-slate-800 text-slate-300 font-bold hover:bg-slate-800">
                   {t.potty.cancel}
                 </Button>
                 <Button variant="danger" onPress={confirmDeleteUser}>

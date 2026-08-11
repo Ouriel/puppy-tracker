@@ -41,7 +41,7 @@ export const HouseholdSettingsView: React.FC<HouseholdSettingsViewProps> = ({
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
       {/* Header with Sub-tab Switcher */}
-      <Card>
+      <Card className="bg-slate-900 border-slate-800 text-slate-100">
         <Card.Content className="flex flex-wrap items-center justify-between gap-4 p-6">
           <div className="flex items-center gap-3">
             <div className="p-3 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl shadow-md">

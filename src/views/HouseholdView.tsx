@@ -173,9 +173,9 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
             </h3>
 
             <Button
-              variant="outline"
               size="sm"
               onPress={() => setIsAdding(!isAdding)}
+              className="bg-slate-950 border border-slate-800 text-slate-300 font-bold hover:bg-slate-800 hover:text-white"
             >
               <UserPlus className="w-4 h-4 mr-1 inline" />
               {isAdding ? t.potty.cancel : t.household.addMember}

@@ -29,7 +29,7 @@ export const CarnetDeSanteModal: React.FC<CarnetDeSanteModalProps> = ({
               <CarnetDeSanteView activePuppy={activePuppy} />
             </Modal.Body>
             <Modal.Footer>
-              <Button variant="tertiary" onPress={onClose} size="sm">
+              <Button onPress={onClose} size="sm" className="bg-slate-950 border border-slate-800 text-slate-300 font-bold hover:bg-slate-800">
                 Close
               </Button>
             </Modal.Footer>

@@ -76,7 +76,7 @@ export const WeightGrowthChart: React.FC<WeightGrowthChartProps> = ({
   const growthBenchmarks = scaleGrowthBenchmarks(adultTargetKg);
 
   return (
-    <Card className="shadow-xl">
+    <Card className="shadow-xl bg-slate-900 border-slate-800 text-slate-100">
       {/* Header */}
       <Card.Header className="flex flex-wrap items-center justify-between gap-3 pb-3">
         <div className="flex items-center gap-3">

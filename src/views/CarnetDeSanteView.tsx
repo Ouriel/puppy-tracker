@@ -361,7 +361,7 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePupp
       {/* Guidelines Info Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* French Vaccine Schedule Card */}
-        <Card>
+        <Card className="bg-slate-900 border border-slate-800 text-slate-100">
           <Card.Content className="p-4 space-y-2">
             <h3 className="text-xs font-bold text-teal-400 flex items-center gap-1.5 uppercase tracking-wider">
               <ShieldCheck className="w-4 h-4" />
@@ -377,7 +377,7 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePupp
         </Card>
 
         {/* French ESCCAP Deworming Protocol Card */}
-        <Card>
+        <Card className="bg-slate-900 border border-slate-800 text-slate-100">
           <Card.Content className="p-4 space-y-2">
             <h3 className="text-xs font-bold text-amber-400 flex items-center gap-1.5 uppercase tracking-wider">
               <Pill className="w-4 h-4" />
@@ -394,7 +394,7 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePupp
       </div>
 
       {/* Vaccinations Section */}
-      <Card>
+      <Card className="bg-slate-900 border border-slate-800 text-slate-100">
         <Card.Content className="p-6 space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-bold text-slate-100 flex items-center gap-2">
@@ -419,11 +419,11 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePupp
                     <div>
                       <label className="block text-xs font-semibold text-slate-400 mb-1">{t.health.vaccineType}</label>
                       <Select value={vaccineType} onChange={(val) => setVaccineType(val as string)}>
-                        <Select.Trigger>
+                        <Select.Trigger className="bg-slate-950 border-slate-800 text-slate-100">
                           <Select.Value />
                           <Select.Indicator />
                         </Select.Trigger>
-                        <Select.Popover>
+                        <Select.Popover className="bg-slate-900 border-slate-800 text-slate-100">
                           <ListBox>
                             {getHealthProtocols().vaccines.map((v) => (
                               <ListBoxItem key={v.id} id={v.name} textValue={v.fullName}>
@@ -625,7 +625,7 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePupp
       </Card>
 
       {/* Deworming / Vermifuge Section */}
-      <Card>
+      <Card className="bg-slate-900 border border-slate-800 text-slate-100">
         <Card.Content className="p-6 space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-bold text-slate-100 flex items-center gap-2">
@@ -650,11 +650,11 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePupp
                     <div>
                       <label className="block text-xs font-semibold text-slate-400 mb-1">{t.health.productName}</label>
                       <Select value={productName} onChange={(val) => setProductName(val as string)}>
-                        <Select.Trigger>
+                        <Select.Trigger className="bg-slate-950 border-slate-800 text-slate-100">
                           <Select.Value />
                           <Select.Indicator />
                         </Select.Trigger>
-                        <Select.Popover>
+                        <Select.Popover className="bg-slate-900 border-slate-800 text-slate-100">
                           <ListBox>
                             {getHealthProtocols().antiparasitics.map((p) => (
                               <ListBoxItem key={p.id} id={p.name} textValue={p.label}>
