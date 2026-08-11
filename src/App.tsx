@@ -49,10 +49,10 @@ export function App() {
   const [activePuppyId, setActivePuppyIdState] = useState<string>(getActivePuppyId());
   const [activities, setActivities] = useState<Activity[]>([]);
 
-  // URL-driven view routing helper (Standard clean pathnames: /, /carnetdesante, /settings)
+  // URL-driven view routing helper (Standard clean pathnames: /, /health-passport, /settings)
   const getViewFromPath = (): 'dashboard' | 'carnetdesante' | 'settings' => {
     const path = window.location.pathname.toLowerCase();
-    if (path.includes('carnetdesante') || path.includes('passport')) return 'carnetdesante';
+    if (path.includes('health-passport') || path.includes('passport') || path.includes('carnetdesante')) return 'carnetdesante';
     if (path.includes('settings')) return 'settings';
     return 'dashboard';
   };
@@ -65,7 +65,7 @@ export function App() {
   const handleNavigate = useCallback((view: 'dashboard' | 'carnetdesante' | 'settings') => {
     startTransition(() => {
       setCurrentView(view);
-      const targetPath = view === 'dashboard' ? '/' : `/${view}`;
+      const targetPath = view === 'dashboard' ? '/' : view === 'carnetdesante' ? '/health-passport' : `/${view}`;
       if (window.location.pathname !== targetPath) {
         window.history.pushState({ view }, '', targetPath);
       }
