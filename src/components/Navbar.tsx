@@ -1,6 +1,7 @@
 import React from 'react';
 import type { PuppyProfile, UserAccount } from '../types';
 import { FileText, BookOpen, Flame, Plus, LogOut, ShieldAlert, LayoutDashboard, Settings, Syringe, Globe } from 'lucide-react';
+import { Button, Select, ListBox, ListBoxItem } from '@heroui/react';
 import type { Language } from '../i18n';
 
 export type MainTabType = 'dashboard' | 'carnetdesante' | 'settings' | 'careguide' | 'admin';
@@ -63,29 +64,37 @@ export const Navbar: React.FC<NavbarProps> = ({
           {/* Controls: Scalable Language Select Dropdown & Sign Out */}
           <div className="flex items-center gap-1.5 shrink-0">
             {/* Scalable Language Switcher Dropdown */}
-            <div className="flex items-center bg-slate-950/80 border border-slate-700/80 rounded-xl px-2 py-1 text-xs font-semibold">
-              <Globe className="w-3.5 h-3.5 text-slate-400 mr-1 shrink-0" />
-              <select
+            <div className="flex items-center w-24">
+              <Select
                 value={lang}
-                onChange={(event) => onLanguageChange(event.target.value as Language)}
+                onChange={(val) => onLanguageChange(val as Language)}
                 aria-label="Select Language"
-                className="bg-transparent text-slate-200 focus:outline-none cursor-pointer font-bold text-xs"
               >
-                <option value="en" className="bg-slate-800 text-slate-200">🇬🇧 EN</option>
-                <option value="fr" className="bg-slate-800 text-slate-200">🇫🇷 FR</option>
-              </select>
+                <Select.Trigger className="bg-slate-950/80 border-slate-700/80 min-h-0 h-8">
+                  <Globe className="w-3.5 h-3.5 text-slate-400 shrink-0 mr-1" />
+                  <Select.Value />
+                  <Select.Indicator />
+                </Select.Trigger>
+                <Select.Popover>
+                  <ListBox>
+                    <ListBoxItem id="en" textValue="English">🇬🇧 EN</ListBoxItem>
+                    <ListBoxItem id="fr" textValue="Français">🇫🇷 FR</ListBoxItem>
+                  </ListBox>
+                </Select.Popover>
+              </Select>
             </div>
 
             {/* Sign Out Button */}
-            <button
-              onClick={onSignOut}
-              title={t.nav.signOut}
+            <Button
+              onPress={onSignOut}
               aria-label={t.nav.signOut}
-              className="p-1.5 rounded-xl bg-red-950/80 hover:bg-red-900 border border-red-800/60 text-red-300 transition cursor-pointer flex items-center gap-1 text-xs font-semibold"
+              variant="tertiary"
+              size="sm"
+              className="font-semibold text-xs min-w-0"
             >
-              <LogOut className="w-3.5 h-3.5 text-red-400 shrink-0" />
+              <LogOut className="w-3.5 h-3.5 shrink-0 mr-1 inline" />
               <span className="hidden sm:inline">{t.nav.signOut}</span>
-            </button>
+            </Button>
           </div>
         </div>
 
@@ -94,70 +103,60 @@ export const Navbar: React.FC<NavbarProps> = ({
           {/* Re-organized Tab Order with Clean Routing */}
           <div className="flex items-center gap-1 bg-slate-950/60 p-1 rounded-xl border border-slate-800/80 overflow-x-auto">
             {/* 1. Daily Log / Suivi Quotidien */}
-            <button
-              onClick={() => onSelectMainTab('dashboard')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
-                activeMainTab === 'dashboard'
-                  ? 'bg-indigo-600 text-white shadow'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
+            <Button
+              onPress={() => onSelectMainTab('dashboard')}
+              variant={activeMainTab === 'dashboard' ? 'primary' : 'tertiary'}
+              size="sm"
+              className="text-xs font-bold min-w-0"
             >
-              <LayoutDashboard className="w-3.5 h-3.5" />
-              <span>{t.nav.dashboard}</span>
-            </button>
+              <LayoutDashboard className="w-3.5 h-3.5 mr-1 inline" />
+              {t.nav.dashboard}
+            </Button>
 
             {/* 2. Carnet de Santé */}
-            <button
-              onClick={() => onSelectMainTab('carnetdesante')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
-                activeMainTab === 'carnetdesante'
-                  ? 'bg-teal-600 text-white shadow'
-                  : 'text-teal-400 hover:text-teal-200'
-              }`}
+            <Button
+              onPress={() => onSelectMainTab('carnetdesante')}
+              variant={activeMainTab === 'carnetdesante' ? 'primary' : 'tertiary'}
+              size="sm"
+              className="text-xs font-bold min-w-0"
             >
-              <Syringe className="w-3.5 h-3.5" />
-              <span>{t.nav.carnetDeSante}</span>
-            </button>
+              <Syringe className="w-3.5 h-3.5 mr-1 inline" />
+              {t.nav.carnetDeSante}
+            </Button>
 
             {/* 3. Paramètres & Foyer (Combined Dogs & Household) */}
-            <button
-              onClick={() => onSelectMainTab('settings')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
-                activeMainTab === 'settings'
-                  ? 'bg-indigo-600 text-white shadow'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
+            <Button
+              onPress={() => onSelectMainTab('settings')}
+              variant={activeMainTab === 'settings' ? 'primary' : 'tertiary'}
+              size="sm"
+              className="text-xs font-bold min-w-0"
             >
-              <Settings className="w-3.5 h-3.5" />
-              <span>{t.nav.settings}</span>
-            </button>
+              <Settings className="w-3.5 h-3.5 mr-1 inline" />
+              {t.nav.settings}
+            </Button>
 
             {/* 4. Care Guide */}
-            <button
-              onClick={() => onSelectMainTab('careguide')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
-                activeMainTab === 'careguide'
-                  ? 'bg-indigo-600 text-white shadow'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
+            <Button
+              onPress={() => onSelectMainTab('careguide')}
+              variant={activeMainTab === 'careguide' ? 'primary' : 'tertiary'}
+              size="sm"
+              className="text-xs font-bold min-w-0"
             >
-              <BookOpen className="w-3.5 h-3.5" />
-              <span>{t.nav.careGuide}</span>
-            </button>
+              <BookOpen className="w-3.5 h-3.5 mr-1 inline" />
+              {t.nav.careGuide}
+            </Button>
 
             {/* 5. Admin (Super Admin only) */}
             {isSuperAdmin && (
-              <button
-                onClick={() => onSelectMainTab('admin')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
-                  activeMainTab === 'admin'
-                    ? 'bg-red-600 text-white shadow'
-                    : 'text-red-400 hover:text-red-200'
-                }`}
+              <Button
+                onPress={() => onSelectMainTab('admin')}
+                variant={activeMainTab === 'admin' ? 'danger' : 'tertiary'}
+                size="sm"
+                className="text-xs font-bold min-w-0"
               >
-                <ShieldAlert className="w-3.5 h-3.5" />
-                <span>{t.nav.admin}</span>
-              </button>
+                <ShieldAlert className="w-3.5 h-3.5 mr-1 inline" />
+                {t.nav.admin}
+              </Button>
             )}
           </div>
 
@@ -165,20 +164,27 @@ export const Navbar: React.FC<NavbarProps> = ({
           <div className="flex items-center gap-2 flex-wrap">
             {/* Show Active Dog Selector ONLY on Dog-Specific Views (Daily Log & Carnet de Sante) */}
             {showDogSelector && puppies.length > 0 && activePuppy && (
-              <div className="flex items-center bg-slate-800/80 border border-slate-700/80 rounded-xl px-2.5 py-1 text-xs">
-                <span className="text-slate-400 mr-1.5">{t.nav.dog}</span>
-                <select
+              <div className="flex items-center w-36">
+                <Select
                   value={activePuppy.id}
-                  onChange={(event) => onSelectPuppy(event.target.value)}
+                  onChange={(val) => onSelectPuppy(val as string)}
                   aria-label="Select Dog"
-                  className="bg-transparent font-bold text-amber-300 focus:outline-none cursor-pointer"
                 >
-                  {puppies.map((puppy) => (
-                    <option key={puppy.id} value={puppy.id} className="bg-slate-800 text-slate-200">
-                      {puppy.name}
-                    </option>
-                  ))}
-                </select>
+                  <Select.Trigger className="bg-slate-800/80 border-slate-700/80 min-h-0 h-8">
+                    <span className="text-slate-400 text-xs mr-1">{t.nav.dog}</span>
+                    <Select.Value />
+                    <Select.Indicator />
+                  </Select.Trigger>
+                  <Select.Popover>
+                    <ListBox>
+                      {puppies.map((puppy) => (
+                        <ListBoxItem key={puppy.id} id={puppy.id} textValue={puppy.name}>
+                          {puppy.name}
+                        </ListBoxItem>
+                      ))}
+                    </ListBox>
+                  </Select.Popover>
+                </Select>
               </div>
             )}
 
@@ -194,25 +200,28 @@ export const Navbar: React.FC<NavbarProps> = ({
             )}
 
             {/* Export Vet PDF Summary button */}
-            <button
-              onClick={onOpenVetReport}
-              title="Export Vet Summary PDF"
+            <Button
+              isIconOnly
+              onPress={onOpenVetReport}
               aria-label="Export Vet Summary PDF"
-              className="p-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 transition cursor-pointer"
+              variant="secondary"
+              size="sm"
             >
               <FileText className="w-4 h-4" />
-            </button>
+            </Button>
 
             {/* Quick Log Event Button */}
             {puppies.length > 0 && (
-              <button
-                onClick={onOpenQuickLog}
+              <Button
+                onPress={onOpenQuickLog}
                 aria-label={t.nav.logEvent}
-                className="flex items-center gap-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white px-3.5 py-1.5 rounded-xl font-bold text-xs shadow-md transition active:scale-95 cursor-pointer"
+                variant="primary"
+                size="sm"
+                className="font-bold text-xs"
               >
-                <Plus className="w-4 h-4 stroke-[3]" />
-                <span>{t.nav.logEvent}</span>
-              </button>
+                <Plus className="w-4 h-4 stroke-[3] mr-1 inline" />
+                {t.nav.logEvent}
+              </Button>
             )}
           </div>
         </div>

@@ -35,9 +35,9 @@ import { ActivityTimeline } from './components/ActivityTimeline';
 import { StatsAnalytics } from './components/StatsAnalytics';
 import { WeightGrowthChart } from './components/WeightGrowthChart';
 import { AuthLockScreen } from './components/AuthLockScreen';
-import { ToastContainer } from './components/Toast';
 import { HouseholdSettingsView } from './views/HouseholdSettingsView';
 import { AdminView } from './views/AdminView';
+import { Button, Card } from '@heroui/react';
 import { CareGuideView } from './views/CareGuideView';
 import { CarnetDeSanteView } from './views/CarnetDeSanteView';
 import { useI18n } from './i18n';
@@ -477,7 +477,6 @@ export function App() {
   if (!isAuthenticated) {
     return (
       <>
-        <ToastContainer />
         <AuthLockScreen
           onUnlockWithSSO={handleUnlockWithSSO}
           onUnlockWithPassword={() => ({ success: false })}
@@ -489,7 +488,6 @@ export function App() {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans">
-      <ToastContainer />
       {/* Top Navbar */}
       <Navbar
         activeMainTab={activeMainTab}
@@ -546,22 +544,21 @@ export function App() {
           <>
             {/* If 0 puppies exist, show clean welcome prompt to create first puppy */}
             {puppies.length === 0 ? (
-              <div className="bg-slate-900 border border-slate-800 rounded-3xl p-10 text-center space-y-4 shadow-2xl max-w-lg mx-auto my-12">
-                <div className="p-4 bg-indigo-950 text-indigo-400 rounded-2xl inline-block border border-indigo-800/50">
-                  <Dog className="w-12 h-12" />
-                </div>
-                <h2 className="text-xl font-extrabold text-white">{t.dashboard.welcomeTitle}</h2>
-                <p className="text-xs text-slate-400 max-w-sm mx-auto leading-relaxed">
-                  {t.dashboard.welcomeSubtitle}
-                </p>
-                <button
-                  onClick={() => handleSelectMainTab('settings')}
-                  className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs px-6 py-3 rounded-xl shadow-lg transition active:scale-95 cursor-pointer inline-flex items-center gap-2"
-                >
-                  <Plus className="w-4 h-4" />
-                  <span>{t.dashboard.registerDog}</span>
-                </button>
-              </div>
+              <Card className="p-10 text-center max-w-lg mx-auto my-12">
+                <Card.Content className="space-y-4">
+                  <div className="p-4 bg-indigo-950 text-indigo-400 rounded-2xl inline-block border border-indigo-800/50">
+                    <Dog className="w-12 h-12" />
+                  </div>
+                  <h2 className="text-xl font-extrabold text-white">{t.dashboard.welcomeTitle}</h2>
+                  <p className="text-xs text-slate-400 max-w-sm mx-auto leading-relaxed">
+                    {t.dashboard.welcomeSubtitle}
+                  </p>
+                  <Button variant="primary" size="lg" onPress={() => handleSelectMainTab('settings')} className="inline-flex items-center gap-2">
+                    <Plus className="w-4 h-4" />
+                    <span>{t.dashboard.registerDog}</span>
+                  </Button>
+                </Card.Content>
+              </Card>
             ) : (
               <div className="space-y-6">
                 {/* Active Puppy Prediction Card */}
@@ -606,11 +603,9 @@ export function App() {
         <div className="max-w-6xl mx-auto px-4 flex flex-wrap items-center justify-between gap-2">
           <span>PupPace &bull; Household Puppy Sync Platform</span>
           <div className="flex items-center gap-3">
-            <button onClick={() => handleSelectMainTab('carnetdesante')} className="hover:text-slate-400 transition cursor-pointer">
-              {t.nav.carnetDeSante}
-            </button>
+            <Button variant="tertiary" size="sm" onPress={() => handleSelectMainTab('carnetdesante')}>{t.nav.carnetDeSante}</Button>
             <span>&bull;</span>
-            <button onClick={() => handleSelectMainTab('careguide')} className="hover:text-slate-400 transition cursor-pointer">{t.nav.careGuide}</button>
+            <Button variant="tertiary" size="sm" onPress={() => handleSelectMainTab('careguide')}>{t.nav.careGuide}</Button>
             <span>&bull;</span>
             <a href="/privacy" className="hover:text-slate-400 transition">Privacy</a>
             <span>&bull;</span>

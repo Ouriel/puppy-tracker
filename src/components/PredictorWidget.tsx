@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import type { PredictionResult, ActivityType, PuppyProfile } from '../types';
 import { Droplet, Utensils, AlertCircle, Clock, CheckCircle2, Sparkles, Footprints } from 'lucide-react';
+import { Button, Card, Chip, ProgressBar } from '@heroui/react';
 import { useI18n } from '../i18n';
 import { formatMinutesToXhXX } from '../utils/date';
 
@@ -73,27 +74,34 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = ({
   const getUrgencyBadge = (urgency: 'safe' | 'soon' | 'overdue') => {
     if (urgency === 'overdue') {
       return (
-        <span className="bg-red-500/20 text-red-300 border border-red-500/40 text-[11px] font-bold px-2 py-0.5 rounded-md flex items-center gap-1 animate-pulse shrink-0">
-          <AlertCircle className="w-3.5 h-3.5" /> {t.potty.overdue}
-        </span>
+        <Chip color="danger" variant="soft" size="sm" className="animate-pulse">
+          <div className="flex items-center gap-1 font-bold">
+            <AlertCircle className="w-3.5 h-3.5" /> {t.potty.overdue}
+          </div>
+        </Chip>
       );
     }
     if (urgency === 'soon') {
       return (
-        <span className="bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[11px] font-bold px-2 py-0.5 rounded-md flex items-center gap-1 shrink-0">
-          <Clock className="w-3.5 h-3.5" /> {t.potty.dueSoon}
-        </span>
+        <Chip color="warning" variant="soft" size="sm">
+          <div className="flex items-center gap-1 font-bold">
+            <Clock className="w-3.5 h-3.5" /> {t.potty.dueSoon}
+          </div>
+        </Chip>
       );
     }
     return (
-      <span className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[11px] font-medium px-2 py-0.5 rounded-md flex items-center gap-1 shrink-0">
-        <CheckCircle2 className="w-3.5 h-3.5" /> {t.potty.allGood}
-      </span>
+      <Chip color="success" variant="soft" size="sm">
+        <div className="flex items-center gap-1 font-medium">
+          <CheckCircle2 className="w-3.5 h-3.5" /> {t.potty.allGood}
+        </div>
+      </Chip>
     );
   };
 
   return (
-    <div className="bg-slate-800/80 border border-slate-700/80 rounded-2xl p-5 shadow-xl backdrop-blur-md">
+    <Card className="bg-slate-800/80 border-slate-700/80 shadow-xl backdrop-blur-md">
+      <Card.Content className="p-5">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <div className="p-2 bg-indigo-500/20 text-indigo-400 rounded-xl">
@@ -112,8 +120,8 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = ({
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* Next Pee Card */}
-        <div
-          className={`relative rounded-xl p-4 border transition-all flex flex-col justify-between ${
+        <Card
+          className={`transition-all ${
             predictions.peeUrgency === 'overdue'
               ? 'bg-red-950/30 border-red-700/60 shadow-lg shadow-red-950/50'
               : predictions.peeUrgency === 'soon'
@@ -121,6 +129,7 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = ({
               : 'bg-slate-900/60 border-slate-700/60'
           }`}
         >
+          <Card.Content className="p-4 flex flex-col justify-between h-full">
           <div>
             <div className="flex items-start justify-between mb-2 gap-2">
               <div className="flex items-start gap-2.5">
@@ -137,7 +146,7 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = ({
                     {predictions.peeMode === 'post_meal_override' &&
                       predictions.standardPeeExpectedAt && (
                         <span className="text-xs font-bold text-sky-400 bg-sky-950/60 border border-sky-800/60 px-2 py-0.5 rounded-lg">
-                          ({t.potty.withoutMeal} ~{formatTimeLeft(predictions.standardPeeExpectedAt)})
+                          ({t.dashboard.withoutMeal} ~{formatTimeLeft(predictions.standardPeeExpectedAt)})
                         </span>
                     )}
                   </div>
@@ -152,25 +161,30 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = ({
           </div>
 
           <div className="grid grid-cols-2 gap-2 mt-2">
-            <button
-              onClick={() => onQuickAction('pee', 'outside')}
-              className="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs py-2 px-2 rounded-lg flex items-center justify-center gap-1 shadow transition active:scale-95 cursor-pointer"
+            <Button
+              variant="primary"
+              size="sm"
+              onPress={() => onQuickAction('pee', 'outside')}
+              className="font-semibold text-xs py-2 px-2 shadow"
             >
-              <CheckCircle2 className="w-3.5 h-3.5" />
+              <CheckCircle2 className="w-3.5 h-3.5 mr-1 inline" />
               <span>{t.potty.peedOutside}</span>
-            </button>
-            <button
-              onClick={() => onQuickAction('pee', 'indoor_accident')}
-              className="bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs py-2 px-2 rounded-lg border border-slate-700 flex items-center justify-center gap-1 transition cursor-pointer"
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onPress={() => onQuickAction('pee', 'indoor_accident')}
+              className="text-slate-300 text-xs py-2 px-2 border-slate-700"
             >
               <span>{t.potty.accident}</span>
-            </button>
+            </Button>
           </div>
-        </div>
+          </Card.Content>
+        </Card>
 
         {/* Next Poop Card */}
-        <div
-          className={`relative rounded-xl p-4 border transition-all flex flex-col justify-between ${
+        <Card
+          className={`transition-all ${
             predictions.poopUrgency === 'overdue'
               ? 'bg-red-950/30 border-red-700/60 shadow-lg shadow-red-950/50'
               : predictions.poopUrgency === 'soon'
@@ -178,6 +192,7 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = ({
               : 'bg-slate-900/60 border-slate-700/60'
           }`}
         >
+          <Card.Content className="p-4 flex flex-col justify-between h-full">
           <div>
             <div className="flex items-start justify-between mb-2 gap-2">
               <div className="flex items-start gap-2.5">
@@ -193,7 +208,7 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = ({
                     {predictions.poopMode === 'post_meal_override' &&
                       predictions.standardPoopExpectedAt && (
                         <span className="text-xs font-bold text-amber-400 bg-amber-950/60 border border-amber-800/60 px-2 py-0.5 rounded-lg">
-                          ({t.potty.withoutMeal} ~{formatTimeLeft(predictions.standardPoopExpectedAt)})
+                          ({t.dashboard.withoutMeal} ~{formatTimeLeft(predictions.standardPoopExpectedAt)})
                         </span>
                     )}
                   </div>
@@ -208,25 +223,30 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = ({
           </div>
 
           <div className="grid grid-cols-2 gap-2 mt-2">
-            <button
-              onClick={() => onQuickAction('poop', 'outside')}
-              className="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs py-2 px-2 rounded-lg flex items-center justify-center gap-1 shadow transition active:scale-95 cursor-pointer"
+            <Button
+              variant="primary"
+              size="sm"
+              onPress={() => onQuickAction('poop', 'outside')}
+              className="font-semibold text-xs py-2 px-2 shadow"
             >
-              <CheckCircle2 className="w-3.5 h-3.5" />
+              <CheckCircle2 className="w-3.5 h-3.5 mr-1 inline" />
               <span>{t.potty.poopedOutside}</span>
-            </button>
-            <button
-              onClick={() => onQuickAction('poop', 'indoor_accident')}
-              className="bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs py-2 px-2 rounded-lg border border-slate-700 flex items-center justify-center gap-1 transition cursor-pointer"
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onPress={() => onQuickAction('poop', 'indoor_accident')}
+              className="text-slate-300 text-xs py-2 px-2 border-slate-700"
             >
               <span>{t.potty.accident}</span>
-            </button>
+            </Button>
           </div>
-        </div>
+          </Card.Content>
+        </Card>
 
         {/* Next Food Card with Remaining Food Grams */}
-        <div
-          className={`relative rounded-xl p-4 border transition-all flex flex-col justify-between ${
+        <Card
+          className={`transition-all ${
             predictions.foodUrgency === 'overdue'
               ? 'bg-amber-950/30 border-amber-700/60'
               : predictions.foodUrgency === 'soon'
@@ -234,6 +254,7 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = ({
               : 'bg-slate-900/60 border-slate-700/60'
           }`}
         >
+          <Card.Content className="p-4 flex flex-col justify-between h-full">
           <div>
             <div className="flex items-start justify-between mb-2 gap-2">
               <div className="flex items-start gap-2.5">
@@ -254,30 +275,32 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = ({
               {predictions.foodReason}
             </p>
 
-            {/* Display Remaining Food Grams vs Daily Goal */}
             <div className="mb-3">
               <div className="flex justify-between text-[11px] font-semibold mb-1">
                 <span className="text-slate-400">{t.dashboard.remainingFoodToday}</span>
                 <span className="text-purple-300 font-bold">{remainingFoodGrams}g {t.dashboard.leftOf} {dailyGoal}g</span>
               </div>
-              <div className="w-full bg-slate-950 rounded-full h-1.5 overflow-hidden border border-slate-800">
-                <div
-                  className="bg-gradient-to-r from-purple-500 to-indigo-500 h-1.5 rounded-full transition-all"
-                  style={{ width: `${Math.min(100, Math.round((todayFoodLoggedGrams / dailyGoal) * 100))}%` }}
-                />
-              </div>
+              <ProgressBar value={Math.min(100, Math.round((todayFoodLoggedGrams / dailyGoal) * 100))} color="accent" size="sm">
+                <ProgressBar.Track className="bg-slate-950 border border-slate-800">
+                  <ProgressBar.Fill />
+                </ProgressBar.Track>
+              </ProgressBar>
             </div>
           </div>
 
-          <button
-            onClick={() => onOpenQuickLogModal('food')}
-            className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs py-2 px-3 rounded-lg flex items-center justify-center gap-1.5 shadow transition active:scale-95 cursor-pointer mt-2"
+          <Button
+            variant="primary"
+            size="sm"
+            onPress={() => onOpenQuickLogModal('food')}
+            className="w-full font-semibold text-xs py-2 px-3 shadow mt-2"
           >
-            <Utensils className="w-3.5 h-3.5" />
+            <Utensils className="w-3.5 h-3.5 mr-1 inline" />
             <span>{t.dashboard.feedMealNow} ({portionLeftForNextMeal}g)</span>
-          </button>
-        </div>
+          </Button>
+          </Card.Content>
+        </Card>
       </div>
-    </div>
+      </Card.Content>
+    </Card>
   );
 };

@@ -4,6 +4,7 @@ import { Home, Users, UserPlus, Trash2, Mail, Send, CheckCircle2, UserCheck, Cop
 import { createUser } from '../services/api';
 import { showToast } from '../utils/toast';
 import { useI18n } from '../i18n';
+import { Card, Button, Input, Chip } from '@heroui/react';
 
 interface HouseholdViewProps {
   user: UserAccount;
@@ -81,242 +82,261 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
   };
 
   return (
-    <div className="space-y-6 animate-fadeIn max-w-4xl mx-auto">
+    <div className="space-y-6 max-w-4xl mx-auto">
       {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-4 bg-slate-900 border border-slate-800 p-6 rounded-2xl">
-        <div className="flex items-center gap-3">
-          <div className="p-3 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl shadow-md">
-            <Home className="w-6 h-6 text-white" />
+      <Card>
+        <Card.Content className="flex flex-wrap items-center justify-between gap-4 p-6">
+          <div className="flex items-center gap-3">
+            <div className="p-3 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl shadow-md">
+              <Home className="w-6 h-6 text-white" />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-slate-100">{t.household.title}</h2>
+              <p className="text-xs text-slate-400">{t.household.subtitle}</p>
+            </div>
           </div>
-          <div>
-            <h2 className="text-xl font-bold text-slate-100">{t.household.title}</h2>
-            <p className="text-xs text-slate-400">{t.household.subtitle}</p>
-          </div>
-        </div>
 
-        {/* Pre-Approve Action Button */}
-        <button
-          onClick={() => setIsInvitingEmail(!isInvitingEmail)}
-          className="flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-md transition active:scale-95 cursor-pointer"
-        >
-          <Mail className="w-4 h-4" />
-          <span>{t.household.preApproveBtn}</span>
-        </button>
-      </div>
+          {/* Pre-Approve Action Button */}
+          <Button
+            variant="primary"
+            onPress={() => setIsInvitingEmail(!isInvitingEmail)}
+          >
+            <Mail className="w-4 h-4 mr-1.5 inline" />
+            {t.household.preApproveBtn}
+          </Button>
+        </Card.Content>
+      </Card>
 
       {/* Email Registration Box */}
       {isInvitingEmail && (
-        <form onSubmit={handlePreApproveMember} className="bg-slate-900 border border-indigo-800/60 p-6 rounded-2xl space-y-4 shadow-xl">
-          <h3 className="text-sm font-bold text-slate-100 flex items-center gap-2">
-            <Mail className="w-4 h-4 text-indigo-400" />
-            <span>{t.household.inviteViaEmail}</span>
-          </h3>
+        <Card className="border-indigo-800/60">
+          <form onSubmit={handlePreApproveMember}>
+            <Card.Content className="p-6 space-y-4">
+              <h3 className="text-sm font-bold text-slate-100 flex items-center gap-2">
+                <Mail className="w-4 h-4 text-indigo-400" />
+                <span>{t.household.inviteViaEmail}</span>
+              </h3>
 
-          <p className="text-xs text-slate-400 leading-relaxed">
-            {t.household.authorizeInstructions}
-          </p>
+              <p className="text-xs text-slate-400 leading-relaxed">
+                {t.household.authorizeInstructions}
+              </p>
 
-          {inviteSuccess && (
-            <div className="bg-emerald-950/40 border border-emerald-800/50 text-emerald-400 p-3.5 rounded-xl text-xs flex flex-wrap items-center justify-between gap-2 font-semibold">
-              <div className="flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                <span>{inviteSuccess}</span>
+              {inviteSuccess && (
+                <div className="bg-emerald-950/40 border border-emerald-800/50 text-emerald-400 p-3.5 rounded-xl text-xs flex flex-wrap items-center justify-between gap-2 font-semibold">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                    <span>{inviteSuccess}</span>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    onPress={copyAppUrl}
+                  >
+                    <Copy className="w-3.5 h-3.5 mr-1 inline" />
+                    {t.household.copyLink}
+                  </Button>
+                </div>
+              )}
+
+              <div className="flex gap-2">
+                <div className="flex-1">
+                  <Input
+                    type="email"
+                    placeholder={t.household.emailPlaceholder}
+                    value={inviteEmail}
+                    onChange={(event) => setInviteEmail(event.target.value)}
+                    required
+                  />
+                </div>
+                <Button
+                  type="submit"
+                  variant="primary"
+                >
+                  <Send className="w-3.5 h-3.5 mr-1.5 inline" />
+                  {t.household.sendInvite}
+                </Button>
               </div>
-              <button
-                type="button"
-                onClick={copyAppUrl}
-                className="bg-emerald-800 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1 cursor-pointer"
-              >
-                <Copy className="w-3.5 h-3.5" />
-                <span>{t.household.copyLink}</span>
-              </button>
-            </div>
-          )}
-
-          <div className="flex gap-2">
-            <input
-              type="email"
-              placeholder={t.household.emailPlaceholder}
-              value={inviteEmail}
-              onChange={(event) => setInviteEmail(event.target.value)}
-              className="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-slate-100 focus:outline-none focus:border-indigo-500"
-              required
-            />
-            <button
-              type="submit"
-              className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs px-5 py-2.5 rounded-xl transition cursor-pointer flex items-center gap-1.5"
-            >
-              <Send className="w-3.5 h-3.5" />
-              <span>{t.household.sendInvite}</span>
-            </button>
-          </div>
-        </form>
+            </Card.Content>
+          </form>
+        </Card>
       )}
 
       {/* Household Caretakers Badges */}
-      <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl space-y-4 shadow-xl">
-        <div className="flex items-center justify-between">
-          <h3 className="text-sm font-bold text-slate-100 flex items-center gap-2">
-            <Users className="w-4 h-4 text-indigo-400" />
-            <span>{t.household.membersTab} ({caretakers.length})</span>
-          </h3>
+      <Card>
+        <Card.Content className="p-6 space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-bold text-slate-100 flex items-center gap-2">
+              <Users className="w-4 h-4 text-indigo-400" />
+              <span>{t.household.membersTab} ({caretakers.length})</span>
+            </h3>
 
-          <button
-            onClick={() => setIsAdding(!isAdding)}
-            className="flex items-center gap-1 bg-slate-800 hover:bg-slate-700 text-indigo-300 border border-slate-700 font-bold text-xs px-3.5 py-2 rounded-xl transition cursor-pointer"
-          >
-            <UserPlus className="w-4 h-4" />
-            <span>{isAdding ? t.potty.cancel : t.household.addMember}</span>
-          </button>
-        </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onPress={() => setIsAdding(!isAdding)}
+            >
+              <UserPlus className="w-4 h-4 mr-1 inline" />
+              {isAdding ? t.potty.cancel : t.household.addMember}
+            </Button>
+          </div>
 
-        {/* Add Caretaker Form */}
-        {isAdding && (
-          <form onSubmit={handleAddSubmit} className="bg-slate-950/60 border border-slate-800 p-4 rounded-xl space-y-3">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-semibold text-slate-400 mb-1">{t.household.memberName}</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Alex"
-                  value={name}
-                  onChange={(event) => setName(event.target.value)}
-                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-indigo-500"
-                  required
-                />
-              </div>
+          {/* Add Caretaker Form */}
+          {isAdding && (
+            <Card variant="default" className="bg-slate-950/60">
+              <form onSubmit={handleAddSubmit}>
+                <Card.Content className="p-4 space-y-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-400 mb-1">{t.household.memberName}</label>
+                      <Input
+                        type="text"
+                        placeholder="e.g. Alex"
+                        value={name}
+                        onChange={(event) => setName(event.target.value)}
+                        required
+                      />
+                    </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-400 mb-1">{t.household.badgeColor}</label>
-                <input
-                  type="color"
-                  value={color}
-                  onChange={(event) => setColor(event.target.value)}
-                  className="w-full bg-slate-800 border border-slate-700 rounded-xl h-9 px-1 py-1 cursor-pointer"
-                />
-              </div>
-            </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-400 mb-1">{t.household.badgeColor}</label>
+                      <input
+                        type="color"
+                        value={color}
+                        onChange={(event) => setColor(event.target.value)}
+                        className="w-full bg-slate-800 border border-slate-700 rounded-xl h-9 px-1 py-1 cursor-pointer"
+                      />
+                    </div>
+                  </div>
 
-            <div className="flex justify-end">
-              <button
-                type="submit"
-                className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs px-4 py-2 rounded-xl transition cursor-pointer"
-              >
-                {t.household.addMemberBadge}
-              </button>
-            </div>
-          </form>
-        )}
+                  <div className="flex justify-end">
+                    <Button
+                      type="submit"
+                      variant="primary"
+                      size="sm"
+                    >
+                      {t.household.addMemberBadge}
+                    </Button>
+                  </div>
+                </Card.Content>
+              </form>
+            </Card>
+          )}
 
-        {/* Caretakers List */}
-        <div className="space-y-2">
-          {caretakers.map((caretaker) => {
-            const isSelected = currentUser === caretaker.name;
-            const isEditingThis = editingId === caretaker.id;
+          {/* Caretakers List */}
+          <div className="space-y-2">
+            {caretakers.map((caretaker) => {
+              const isSelected = currentUser === caretaker.name;
+              const isEditingThis = editingId === caretaker.id;
 
-            if (isEditingThis) {
+              if (isEditingThis) {
+                return (
+                  <div
+                    key={caretaker.id}
+                    className="flex flex-wrap items-center justify-between p-3.5 bg-slate-900 border border-indigo-500/60 rounded-xl gap-3 shadow-md"
+                  >
+                    <div className="flex items-center gap-3 flex-1 min-w-[200px]">
+                      <input
+                        type="color"
+                        value={editColor}
+                        onChange={(e) => setEditColor(e.target.value)}
+                        className="w-7 h-7 rounded-full bg-transparent border border-slate-700 cursor-pointer shrink-0"
+                      />
+                      <Input
+                        type="text"
+                        value={editName}
+                        onChange={(e) => setEditName(e.target.value)}
+                        placeholder="Member Name"
+                        autoFocus
+                      />
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        onPress={() => {
+                          if (!editName.trim()) return;
+                          onUpdateCaretaker(caretaker.id, {
+                            name: editName.trim(),
+                            color: editColor,
+                            role: caretaker.role,
+                          });
+                          setEditingId(null);
+                        }}
+                      >
+                        <Check className="w-3.5 h-3.5 mr-1 inline" />
+                        Save
+                      </Button>
+
+                      <Button
+                        variant="tertiary"
+                        size="sm"
+                        isIconOnly
+                        onPress={() => setEditingId(null)}
+                      >
+                        <X className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                );
+              }
+
               return (
                 <div
                   key={caretaker.id}
-                  className="flex flex-wrap items-center justify-between p-3.5 bg-slate-900 border border-indigo-500/60 rounded-xl gap-3 shadow-md"
+                  className="flex items-center justify-between p-3.5 bg-slate-950/40 rounded-xl border border-slate-800"
                 >
-                  <div className="flex items-center gap-3 flex-1 min-w-[200px]">
-                    <input
-                      type="color"
-                      value={editColor}
-                      onChange={(e) => setEditColor(e.target.value)}
-                      className="w-7 h-7 rounded-full bg-transparent border border-slate-700 cursor-pointer shrink-0"
+                  <div className="flex items-center gap-3">
+                    <div
+                      className="w-4 h-4 rounded-full ring-2 ring-white/20 shrink-0"
+                      style={{ backgroundColor: caretaker.color }}
                     />
-                    <input
-                      type="text"
-                      value={editName}
-                      onChange={(e) => setEditName(e.target.value)}
-                      className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-100 font-bold focus:outline-none focus:border-indigo-500"
-                      placeholder="Member Name"
-                      autoFocus
-                    />
+                    <div className="text-xs font-bold text-slate-100">
+                      {caretaker.name}
+                    </div>
                   </div>
 
                   <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => {
-                        if (!editName.trim()) return;
-                        onUpdateCaretaker(caretaker.id, {
-                          name: editName.trim(),
-                          color: editColor,
-                          role: caretaker.role,
-                        });
-                        setEditingId(null);
+                    <Button
+                      variant="tertiary"
+                      size="sm"
+                      isIconOnly
+                      onPress={() => {
+                        setEditingId(caretaker.id);
+                        setEditName(caretaker.name);
+                        setEditColor(caretaker.color);
                       }}
-                      title="Save Changes"
-                      className="flex items-center gap-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs px-3 py-1.5 rounded-lg transition cursor-pointer"
+                      aria-label="Edit Member Name & Color"
                     >
-                      <Check className="w-3.5 h-3.5" />
-                      <span>Save</span>
-                    </button>
+                      <Pencil className="w-4 h-4" />
+                    </Button>
 
-                    <button
-                      onClick={() => setEditingId(null)}
-                      title="Cancel"
-                      className="p-1.5 text-slate-400 hover:text-slate-200 bg-slate-800 rounded-lg transition cursor-pointer"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
+                    {isSelected && (
+                      <Chip color="success" variant="soft" size="sm">
+                        <UserCheck className="w-3.5 h-3.5 mr-1 inline text-emerald-400" />
+                        {t.household.activeMember}
+                      </Chip>
+                    )}
+
+                    {caretaker.name !== 'Matthieu' && (
+                      <Button
+                        variant="danger-soft"
+                        size="sm"
+                        isIconOnly
+                        onPress={() => onDeleteCaretaker(caretaker.id)}
+                        aria-label={t.household.deleteMember}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    )}
                   </div>
                 </div>
               );
-            }
-
-            return (
-              <div
-                key={caretaker.id}
-                className="flex items-center justify-between p-3.5 bg-slate-950/40 rounded-xl border border-slate-800"
-              >
-                <div className="flex items-center gap-3">
-                  <div
-                    className="w-4 h-4 rounded-full ring-2 ring-white/20 shrink-0"
-                    style={{ backgroundColor: caretaker.color }}
-                  />
-                  <div className="text-xs font-bold text-slate-100">
-                    {caretaker.name}
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => {
-                      setEditingId(caretaker.id);
-                      setEditName(caretaker.name);
-                      setEditColor(caretaker.color);
-                    }}
-                    title="Edit Member Name & Color"
-                    className="p-1.5 text-slate-400 hover:text-indigo-300 hover:bg-slate-800 rounded-lg transition cursor-pointer"
-                  >
-                    <Pencil className="w-4 h-4" />
-                  </button>
-
-                  {isSelected && (
-                    <span className="text-xs bg-emerald-950 text-emerald-400 border border-emerald-800 px-2.5 py-1 rounded-lg font-bold flex items-center gap-1">
-                      <UserCheck className="w-3.5 h-3.5" />
-                      <span>{t.household.activeMember}</span>
-                    </span>
-                  )}
-
-                  {caretaker.name !== 'Matthieu' && (
-                    <button
-                      onClick={() => onDeleteCaretaker(caretaker.id)}
-                      title={t.household.deleteMember}
-                      className="p-1.5 text-slate-500 hover:text-red-400 hover:bg-red-950/40 rounded-lg transition cursor-pointer"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
+            })}
+          </div>
+        </Card.Content>
+      </Card>
     </div>
   );
 };

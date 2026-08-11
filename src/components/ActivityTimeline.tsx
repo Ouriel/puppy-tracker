@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import type { Activity, ActivityType, Caretaker } from '../types';
 import { Droplet, Footprints, Utensils, Scale, Pill, Trash2, Pencil } from 'lucide-react';
+import { Button, Card, Chip } from '@heroui/react';
 import { useI18n } from '../i18n';
 import { formatRelativeTime, parseIsoDate } from '../utils/date';
 import { EditActivityModal } from './EditActivityModal';
@@ -64,8 +65,9 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
   };
 
   return (
-    <div className="bg-slate-800/80 border border-slate-700/80 rounded-2xl p-5 shadow-xl backdrop-blur-md">
-      {/* Header & Filter Chips */}
+    <Card className="shadow-xl backdrop-blur-md bg-slate-800/80 border-slate-700/80">
+      <Card.Content className="p-5">
+        {/* Header & Filter Chips */}
       <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
         <div>
           <h2 className="text-base font-bold text-slate-100 flex items-center gap-2">
@@ -79,36 +81,27 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
 
         {/* Filter Pills */}
         <div className="flex items-center gap-1.5 bg-slate-900/60 border border-slate-700/60 p-1 rounded-xl">
-          <button
-            onClick={() => setFilter('all')}
-            className={`px-3 py-1 text-xs font-semibold rounded-lg transition cursor-pointer ${
-              filter === 'all'
-                ? 'bg-indigo-600 text-white shadow'
-                : 'text-slate-400 hover:text-slate-200'
-            }`}
+          <Button
+            size="sm"
+            variant={filter === 'all' ? 'primary' : 'tertiary'}
+            onPress={() => setFilter('all')}
           >
             {t.dashboard.all}
-          </button>
-          <button
-            onClick={() => setFilter('potty')}
-            className={`px-3 py-1 text-xs font-semibold rounded-lg transition cursor-pointer ${
-              filter === 'potty'
-                ? 'bg-indigo-600 text-white shadow'
-                : 'text-slate-400 hover:text-slate-200'
-            }`}
+          </Button>
+          <Button
+            size="sm"
+            variant={filter === 'potty' ? 'primary' : 'tertiary'}
+            onPress={() => setFilter('potty')}
           >
             {t.dashboard.pottyFilter}
-          </button>
-          <button
-            onClick={() => setFilter('food')}
-            className={`px-3 py-1 text-xs font-semibold rounded-lg transition cursor-pointer ${
-              filter === 'food'
-                ? 'bg-indigo-600 text-white shadow'
-                : 'text-slate-400 hover:text-slate-200'
-            }`}
+          </Button>
+          <Button
+            size="sm"
+            variant={filter === 'food' ? 'primary' : 'tertiary'}
+            onPress={() => setFilter('food')}
           >
             {t.dashboard.mealsFilter}
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -123,10 +116,11 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
           {sorted.map((item) => {
             const color = getCaretakerColor(item.loggedBy);
             return (
-              <div
+              <Card
                 key={item.id}
-                className="relative group bg-slate-900/70 hover:bg-slate-900 border border-slate-700/70 hover:border-slate-600 rounded-xl p-3.5 transition-all shadow-sm flex items-start justify-between gap-3"
+                className="relative group bg-slate-900/70 hover:bg-slate-900 border border-slate-700/70 hover:border-slate-600 transition-all shadow-sm"
               >
+                <Card.Content className="p-3.5 flex items-start justify-between gap-3">
                 {/* Timeline dot */}
                 <div
                   className="absolute -left-[23px] top-4 w-3.5 h-3.5 rounded-full ring-4 ring-slate-800 flex items-center justify-center"
@@ -146,42 +140,42 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
 
                       {/* Potty location pill */}
                       {item.pottyLocation === 'outside' && (
-                        <span className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                        <Chip color="success" variant="soft" size="sm">
                           🌳 {t.potty.outside}
-                        </span>
+                        </Chip>
                       )}
                       {item.pottyLocation === 'indoor_accident' && (
-                        <span className="bg-red-500/20 text-red-300 border border-red-500/30 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                        <Chip color="danger" variant="soft" size="sm">
                           🚨 {t.potty.accident}
-                        </span>
+                        </Chip>
                       )}
 
                       {/* Stool consistency */}
                       {item.stoolConsistency && (
-                        <span className="bg-slate-800 text-slate-300 text-[10px] px-2 py-0.5 rounded-full border border-slate-700">
+                        <Chip color="default" variant="soft" size="sm">
                           Stool: {t.potty[item.stoolConsistency as keyof typeof t.potty] || item.stoolConsistency}
-                        </span>
+                        </Chip>
                       )}
 
                       {/* Food Grams */}
                       {item.quantityGrams && (
-                        <span className="bg-purple-500/20 text-purple-300 border border-purple-500/30 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                        <Chip color="accent" variant="soft" size="sm">
                           {item.quantityGrams}{t.units.grams} ({item.quantityCups || 0.75} {t.units.cups}) - {item.foodType}
-                        </span>
+                        </Chip>
                       )}
 
                       {/* Duration */}
                       {item.durationMinutes && (
-                        <span className="bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                        <Chip color="default" variant="soft" size="sm">
                           {item.durationMinutes} {t.units.minutes}
-                        </span>
+                        </Chip>
                       )}
 
                       {/* Weight */}
                       {item.weightKg && (
-                        <span className="bg-pink-500/20 text-pink-300 border border-pink-500/30 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                        <Chip color="danger" variant="soft" size="sm">
                           {item.weightKg} {t.units.kg}
-                        </span>
+                        </Chip>
                       )}
                     </div>
 
@@ -203,31 +197,36 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
 
                 <div className="flex items-center gap-1 shrink-0 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition">
                   {onUpdateActivity && (
-                    <button
-                      onClick={() => setEditingActivity(item)}
-                      title="Edit activity log"
+                    <Button
+                      onPress={() => setEditingActivity(item)}
                       aria-label="Edit activity log"
-                      className="p-2 rounded-xl text-slate-400 hover:text-indigo-400 bg-slate-800/80 sm:bg-transparent hover:bg-slate-800 transition cursor-pointer border border-slate-700/60 sm:border-transparent"
+                      isIconOnly
+                      size="sm"
+                      variant="tertiary"
+                      className="text-slate-400 hover:text-indigo-400"
                     >
                       <Pencil className="w-4 h-4" />
-                    </button>
+                    </Button>
                   )}
 
-                  <button
-                    onClick={() => {
+                  <Button
+                    onPress={() => {
                       const confirmMsg = 'Are you sure you want to delete this activity log?';
                       if (window.confirm(confirmMsg)) {
                         onDeleteActivity(item.id);
                       }
                     }}
-                    title="Delete log"
                     aria-label="Delete log"
-                    className="p-2 rounded-xl text-slate-400 hover:text-red-400 bg-slate-800/80 sm:bg-transparent hover:bg-slate-800 transition cursor-pointer border border-slate-700/60 sm:border-transparent"
+                    isIconOnly
+                    size="sm"
+                    variant="tertiary"
+                    className="text-slate-400 hover:text-red-400"
                   >
                     <Trash2 className="w-4 h-4" />
-                  </button>
+                  </Button>
                 </div>
-              </div>
+                </Card.Content>
+              </Card>
             );
           })}
         </div>
@@ -243,6 +242,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
           onClose={() => setEditingActivity(null)}
         />
       )}
-    </div>
+      </Card.Content>
+    </Card>
   );
 };
