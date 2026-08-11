@@ -14,6 +14,8 @@ import {
 } from '../services/api';
 import { calculateNextAntiparasiticDate, calculateNextVaccineBooster, getHealthProtocols } from '../utils/health';
 import { getPuppyAge } from '../utils/predictions';
+import { WeightGrowthChart } from '../components/WeightGrowthChart';
+import type { Activity } from '../types';
 
 interface VaccinationEntry {
   id: string;
@@ -41,10 +43,17 @@ interface DewormingEntry {
 
 interface CarnetDeSanteViewProps {
   activePuppy: PuppyProfile | null;
+  activities?: Activity[];
+  onOpenQuickLogModal?: (type: 'weight') => void;
   onBackToDashboard?: () => void;
 }
 
-export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePuppy, onBackToDashboard }) => {
+export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({
+  activePuppy,
+  activities = [],
+  onOpenQuickLogModal,
+  onBackToDashboard,
+}) => {
   const { t, lang } = useI18n();
 
   const getVaccineStatus = (
@@ -359,6 +368,13 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({ activePupp
           </div>
         </Card.Content>
       </Card>
+
+      {/* Weight & Growth Trajectory Chart */}
+      <WeightGrowthChart
+        activities={activities}
+        profile={activePuppy}
+        onOpenQuickLogModal={onOpenQuickLogModal || (() => {})}
+      />
 
       {/* Guidelines Info Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

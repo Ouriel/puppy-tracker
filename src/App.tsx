@@ -377,6 +377,8 @@ export function App() {
           /* Full Page View for Health Passport */
           <CarnetDeSanteView
             activePuppy={activePuppy}
+            activities={activities}
+            onOpenQuickLogModal={handleOpenQuickLogModal}
             onBackToDashboard={() => handleNavigate('dashboard')}
           />
         ) : currentView === 'settings' ? (
