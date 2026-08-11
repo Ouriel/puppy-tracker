@@ -49,24 +49,26 @@ export function App() {
   const [activePuppyId, setActivePuppyIdState] = useState<string>(getActivePuppyId());
   const [activities, setActivities] = useState<Activity[]>([]);
 
-  // URL-driven view routing helper
-  const getViewFromUrl = (): 'dashboard' | 'carnetdesante' | 'settings' => {
-    const params = new URLSearchParams(window.location.search);
-    const view = params.get('view');
-    if (view === 'carnetdesante' || view === 'settings') return view;
+  // URL-driven view routing helper (Standard clean pathnames: /, /carnetdesante, /settings)
+  const getViewFromPath = (): 'dashboard' | 'carnetdesante' | 'settings' => {
+    const path = window.location.pathname.toLowerCase();
+    if (path.includes('carnetdesante') || path.includes('passport')) return 'carnetdesante';
+    if (path.includes('settings')) return 'settings';
     return 'dashboard';
   };
 
   // Navigation & Modals
-  const [currentView, setCurrentView] = useState<'dashboard' | 'carnetdesante' | 'settings'>(getViewFromUrl);
+  const [currentView, setCurrentView] = useState<'dashboard' | 'carnetdesante' | 'settings'>(getViewFromPath);
   const [isQuickLogOpen, setIsQuickLogOpen] = useState<boolean>(false);
   const [quickLogType, setQuickLogType] = useState<ActivityType>('pee');
 
   const handleNavigate = useCallback((view: 'dashboard' | 'carnetdesante' | 'settings') => {
     startTransition(() => {
       setCurrentView(view);
-      const newUrl = view === 'dashboard' ? window.location.pathname : `${window.location.pathname}?view=${view}`;
-      window.history.pushState({ view }, '', newUrl);
+      const targetPath = view === 'dashboard' ? '/' : `/${view}`;
+      if (window.location.pathname !== targetPath) {
+        window.history.pushState({ view }, '', targetPath);
+      }
     });
   }, []);
 
@@ -74,7 +76,7 @@ export function App() {
   useEffect(() => {
     const handlePopState = () => {
       startTransition(() => {
-        setCurrentView(getViewFromUrl());
+        setCurrentView(getViewFromPath());
       });
     };
 

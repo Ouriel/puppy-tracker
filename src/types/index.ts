@@ -2,7 +2,7 @@ export type ActivityType = 'pee' | 'poop' | 'food' | 'weight' | 'medication';
 
 export type PottyLocation = 'outside' | 'indoor_accident';
 
-export type StoolConsistency = 'hard' | 'normal' | 'soft' | 'runny';
+export type StoolConsistency = 'hard' | 'normal' | 'diarrhea' | 'soft' | 'runny';
 
 export type FoodType = 'kibble' | 'wet' | 'raw' | 'treats' | 'topper';
 

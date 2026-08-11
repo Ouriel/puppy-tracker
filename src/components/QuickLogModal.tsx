@@ -194,21 +194,21 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
                       </div>
                     </div>
 
-                    {/* Stool Consistency Segmented Pills (Poop only) */}
+                    {/* Stool Consistency Segmented Pills (Poop only: Hard, Normal, Diarrhea) */}
                     {type === 'poop' && (
                       <div>
                         <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">
                           {t.potty.stoolConsistency}
                         </label>
-                        <div className="grid grid-cols-4 gap-2">
-                          {(['normal', 'firm', 'soft', 'runny'] as StoolConsistency[]).map((c) => {
+                        <div className="grid grid-cols-3 gap-2">
+                          {(['hard', 'normal', 'diarrhea'] as StoolConsistency[]).map((c) => {
                             const isSelected = stoolConsistency === c;
                             return (
                               <button
                                 key={c}
                                 type="button"
                                 onClick={() => setStoolConsistency(c)}
-                                className={`py-2 px-2 rounded-xl text-xs font-bold border transition-all text-center capitalize ${
+                                className={`py-2.5 px-2 rounded-xl text-xs font-bold border transition-all text-center capitalize ${
                                   isSelected
                                     ? 'bg-amber-600 border-amber-500 text-white shadow ring-2 ring-amber-400/30'
                                     : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-white hover:bg-slate-800'
@@ -247,15 +247,15 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
                       <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">
                         {t.potty.foodTypeLabel}
                       </label>
-                      <div className="grid grid-cols-4 gap-2">
-                        {(['kibble', 'wet', 'raw', 'treats'] as FoodType[]).map((f) => {
+                      <div className="grid grid-cols-3 gap-2">
+                        {(['kibble', 'wet', 'raw'] as FoodType[]).map((f) => {
                           const isSelected = foodType === f;
                           return (
                             <button
                               key={f}
                               type="button"
                               onClick={() => setFoodType(f)}
-                              className={`py-2 px-2 rounded-xl text-xs font-bold border transition-all text-center capitalize ${
+                              className={`py-2.5 px-2 rounded-xl text-xs font-bold border transition-all text-center capitalize ${
                                 isSelected
                                   ? 'bg-purple-600 border-purple-500 text-white shadow ring-2 ring-purple-400/30'
                                   : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-white hover:bg-slate-800'

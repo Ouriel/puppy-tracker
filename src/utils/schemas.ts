@@ -11,7 +11,7 @@ export const ActivityTypeSchema = z.enum([
 
 export const PottyLocationSchema = z.enum(['outside', 'indoor_accident']);
 
-export const StoolConsistencySchema = z.enum(['hard', 'normal', 'soft', 'runny']);
+export const StoolConsistencySchema = z.enum(['hard', 'normal', 'diarrhea', 'soft', 'runny']);
 
 export const FoodTypeSchema = z.enum(['kibble', 'wet', 'raw', 'treats', 'topper']);
 
