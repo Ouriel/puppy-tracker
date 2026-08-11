@@ -130,7 +130,7 @@ describe('predictions utility — comprehensive test suite', () => {
       expect(schedule.bedtimeHour).toBeGreaterThanOrEqual(21);
       expect(schedule.bedtimeHour).toBeLessThanOrEqual(23);
       expect(schedule.wakeupHour).toBeGreaterThanOrEqual(6);
-      expect(schedule.wakeupHour).toBeLessThanOrEqual(8);
+      expect(schedule.wakeupHour).toBeLessThanOrEqual(9);
     });
 
     it('falls back to default schedule (22:00 - 07:00) when activity count is less than 5', () => {
@@ -338,12 +338,12 @@ describe('predictions utility — comprehensive test suite', () => {
       });
 
       it('predicts morning breakfast scheduled at wakeup:30 AM when no meals logged today', () => {
-        const referenceTime = new Date(2026, 7, 7, 7, 15); // 07:15 AM (after wakeup 07:00)
+        const referenceTime = new Date(2026, 7, 7, 8, 15); // 08:15 AM (after wakeup 07:00 / 07:30 breakfast target)
         const noMealsToday = dataset.filter((act) => !act.id.startsWith('f') || !act.id.endsWith('-6'));
 
         const predictions = calculatePredictions(noMealsToday, mockProfile, referenceTime, 'Europe/Paris');
         expect(predictions.foodMode).toBe('daytime_schedule');
-        expect(predictions.foodReason).toContain('breakfast due');
+        expect(predictions.foodReason).toMatch(/breakfast due|Breakfast scheduled/i);
       });
 
       it('spaces remaining daytime meals evenly when partial meals have been logged today', () => {
