@@ -145,7 +145,7 @@ export const DogHealthSummary: React.FC<DogHealthSummaryProps> = ({
                 <div className="text-[10px] text-slate-400 font-semibold">Assumed Current</div>
                 <div className="font-extrabold text-pink-400">~{weightData.assumedCurrentKg} kg</div>
                 <div className="text-[10px] text-slate-400 mt-0.5 truncate">
-                  Growth velocity
+                  Today ({ageInfo.weeks}w)
                 </div>
               </div>
             </div>
