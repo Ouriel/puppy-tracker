@@ -1,7 +1,7 @@
 import React from 'react';
-import { Card, Button, Chip } from '@heroui/react';
+import { Card, Button } from '@heroui/react';
 import type { Activity, PuppyProfile } from '../types';
-import { Scale, Plus, ShieldCheck } from 'lucide-react';
+import { Scale, Plus, Trash2 } from 'lucide-react';
 import { useI18n } from '../i18n';
 
 export function getExpectedAdultWeight(breed: string): number {
@@ -92,23 +92,25 @@ interface WeightGrowthChartProps {
   activities: Activity[];
   profile: PuppyProfile;
   onOpenQuickLogModal: (type: 'weight') => void;
+  onDeleteActivity?: (id: string) => void;
 }
 
 export const WeightGrowthChart: React.FC<WeightGrowthChartProps> = ({
   activities,
   profile,
   onOpenQuickLogModal,
+  onDeleteActivity,
 }) => {
   const { t } = useI18n();
 
-  // Extract and sort weight entries chronologically
+  // Extract and sort weight entries (newest first for listing)
   const weightLogs = React.useMemo(() => {
     return activities
       .filter((activity) => activity.type === 'weight' && activity.weightKg && activity.weightKg > 0)
-      .sort((activityA, activityB) => new Date(activityA.timestamp).getTime() - new Date(activityB.timestamp).getTime());
+      .sort((activityA, activityB) => new Date(activityB.timestamp).getTime() - new Date(activityA.timestamp).getTime());
   }, [activities]);
 
-  const lastLog = weightLogs.length > 0 ? weightLogs[weightLogs.length - 1] : null;
+  const lastLog = weightLogs.length > 0 ? weightLogs[0] : null;
   const latestWeight = lastLog ? lastLog.weightKg! : (profile.weightKg || 4.2);
 
   // Calculate puppy age in weeks
@@ -122,7 +124,8 @@ export const WeightGrowthChart: React.FC<WeightGrowthChartProps> = ({
 
   // Standard & Trajectory-based Expected Adult Weight
   const projectedWeight = React.useMemo(() => {
-    return calculateProjectedAdultWeightRange(profile.breed, weightLogs, ageWeeks, profile.weightKg);
+    const chronologicalLogs = [...weightLogs].reverse();
+    return calculateProjectedAdultWeightRange(profile.breed, chronologicalLogs, ageWeeks, profile.weightKg);
   }, [profile.breed, weightLogs, ageWeeks, profile.weightKg]);
 
   let assumedCurrentKg = latestWeight;
@@ -135,43 +138,27 @@ export const WeightGrowthChart: React.FC<WeightGrowthChartProps> = ({
     }
   }
 
-  const growthBenchmarks = scaleGrowthBenchmarks(projectedWeight.projectedAdultKg);
-
   return (
-    <Card className="shadow-xl bg-slate-900 border-slate-800 text-slate-100">
-      {/* Header */}
-      <Card.Header className="flex flex-wrap items-center justify-between gap-3 pb-3">
-        <div className="flex items-center gap-3">
-          <div className="p-2.5 bg-pink-500/20 text-pink-400 rounded-xl border border-pink-500/30">
-            <Scale className="w-5 h-5" />
-          </div>
-          <div>
-            <h3 className="text-sm font-bold text-slate-100 flex items-center gap-2">
-              <span>{t.weightChart.title}</span>
-              <Chip color="success" variant="soft" size="sm" className="font-bold flex items-center gap-1">
-                <ShieldCheck className="w-3 h-3" />
-                <span>{t.weightChart.healthyPace}</span>
-              </Chip>
-            </h3>
-            <p className="text-xs text-slate-400">
-              {t.weightChart.puppyAgeInfo.replace('{weeks}', String(ageWeeks)).replace('{weight}', String(latestWeight))}
-            </p>
-          </div>
+    <Card className="bg-slate-900 border border-slate-800 text-slate-100">
+      <Card.Content className="p-6 space-y-4">
+        {/* Header: Title + Right Action Button */}
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-bold text-slate-100 flex items-center gap-2">
+            <Scale className="w-4 h-4 text-pink-400" />
+            <span>Weight Entries ({weightLogs.length})</span>
+          </h3>
+          <Button
+            variant="primary"
+            size="sm"
+            onPress={() => onOpenQuickLogModal('weight')}
+          >
+            <Plus className="w-4 h-4 mr-1 inline" />
+            {t.weightChart.logWeight}
+          </Button>
         </div>
 
-        <Button
-          variant="primary"
-          onPress={() => onOpenQuickLogModal('weight')}
-          className="font-bold shadow"
-        >
-          <Plus className="w-4 h-4 mr-1 inline" />
-          {t.weightChart.logWeight}
-        </Button>
-      </Card.Header>
-
-      <Card.Content className="p-5 pt-0">
-        {/* Growth Statistics Row: Last Logged, Assumed Current, Probable Adult Range, Age */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
+        {/* Growth Statistics Row */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
           <div className="bg-slate-950/60 p-3 rounded-xl border border-slate-800">
             <div className="text-[10px] text-slate-400 uppercase font-semibold">Last Logged</div>
             <div className="text-base font-extrabold text-slate-200">{latestWeight} kg</div>
@@ -190,35 +177,54 @@ export const WeightGrowthChart: React.FC<WeightGrowthChartProps> = ({
           </div>
         </div>
 
-        {/* Visual Benchmark Curve */}
-        <div className="bg-slate-950/80 p-4 rounded-xl border border-slate-800 space-y-3">
-          <div className="flex items-center justify-between text-xs text-slate-400 font-semibold border-b border-slate-800/80 pb-2">
-            <span>{t.weightChart.standardWeightByAge.replace('{breed}', profile.breed)}</span>
-            <span className="text-[10px] text-slate-500">{t.weightChart.fciReference}</span>
+        {/* Logged Weight Entries List */}
+        {weightLogs.length === 0 ? (
+          <div className="p-4 text-center bg-slate-950/40 rounded-xl border border-slate-800 text-xs text-slate-400">
+            No weight entries logged yet. Click "+ Log Weight" to record your puppy's first weight.
           </div>
-
+        ) : (
           <div className="space-y-2">
-            {growthBenchmarks.map((bench) => {
-              const isCurrentRange = ageWeeks >= bench.weeks - 2 && ageWeeks <= bench.weeks + 2;
+            {weightLogs.map((log) => {
+              const logDate = new Date(log.timestamp);
+              const formattedDate = logDate.toLocaleDateString(undefined, {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+              });
+
               return (
-                <div key={bench.label} className="flex items-center text-xs gap-3">
-                  <span className={`w-10 text-right font-mono font-bold ${isCurrentRange ? 'text-pink-400' : 'text-slate-400'}`}>
-                    {bench.label}
-                  </span>
-                  <div className="flex-1 bg-slate-900 h-4 rounded-full overflow-hidden border border-slate-800 relative flex items-center px-2">
-                    <div
-                      className={`h-2 rounded-full ${isCurrentRange ? 'bg-gradient-to-r from-pink-500 to-indigo-500' : 'bg-slate-700'}`}
-                      style={{ width: `${(bench.expectedKg / (projectedWeight.projectedAdultKg * 1.15)) * 100}%` }}
-                    />
+                <div key={log.id} className="flex items-center justify-between p-3.5 bg-slate-950/40 rounded-xl border border-slate-800">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-pink-500/20 text-pink-400 rounded-lg">
+                      <Scale className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <div className="text-xs font-bold text-white flex items-center gap-2">
+                        <span>{log.weightKg} kg</span>
+                      </div>
+                      <div className="text-[11px] text-slate-400">
+                        {formattedDate} {log.notes ? `• ${log.notes}` : ''}
+                      </div>
+                    </div>
                   </div>
-                  <span className={`w-16 font-mono text-right text-[11px] ${isCurrentRange ? 'font-extrabold text-pink-300' : 'text-slate-400'}`}>
-                    ~{bench.expectedKg} kg
-                  </span>
+
+                  {onDeleteActivity && (
+                    <button
+                      type="button"
+                      onClick={() => onDeleteActivity(log.id)}
+                      aria-label="Delete weight entry"
+                      className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-slate-800 rounded-lg border border-slate-800 bg-slate-950 transition-colors"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  )}
                 </div>
               );
             })}
           </div>
-        </div>
+        )}
       </Card.Content>
     </Card>
   );

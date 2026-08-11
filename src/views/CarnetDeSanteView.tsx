@@ -46,6 +46,7 @@ interface CarnetDeSanteViewProps {
   activities?: Activity[];
   onOpenQuickLogModal?: (type: 'weight') => void;
   onBackToDashboard?: () => void;
+  onDeleteActivity?: (id: string) => void;
 }
 
 export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({
@@ -53,6 +54,7 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({
   activities = [],
   onOpenQuickLogModal,
   onBackToDashboard,
+  onDeleteActivity,
 }) => {
   const { t, lang } = useI18n();
 
@@ -374,6 +376,7 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({
         activities={activities}
         profile={activePuppy}
         onOpenQuickLogModal={onOpenQuickLogModal || (() => {})}
+        onDeleteActivity={onDeleteActivity}
       />
 
       {/* Vaccinations Section */}

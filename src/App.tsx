@@ -380,6 +380,7 @@ export function App() {
             activities={activities}
             onOpenQuickLogModal={handleOpenQuickLogModal}
             onBackToDashboard={() => handleNavigate('dashboard')}
+            onDeleteActivity={handleDeleteActivity}
           />
         ) : currentView === 'settings' ? (
           /* Full Page View for Settings & Administration */
