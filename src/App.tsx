@@ -131,19 +131,52 @@ export function App() {
     init();
   }, []);
 
+  const [isFetchingMoreActivities, setIsFetchingMoreActivities] = useState(false);
+  const [hasMoreRemoteActivities, setHasMoreRemoteActivities] = useState(true);
+
   // Fetch activities when active puppy changes
   useEffect(() => {
     if (!activePuppyId) return;
 
     async function loadActivities() {
-      const remoteLogs = await fetchActivities(activePuppyId, { days: 30, limit: 50, offset: 0 });
+      const remoteLogs = await fetchActivities(activePuppyId, { days: 180, limit: 250, offset: 0 });
       if (remoteLogs) {
         setActivities(remoteLogs);
+        if (remoteLogs.length < 250) {
+          setHasMoreRemoteActivities(false);
+        } else {
+          setHasMoreRemoteActivities(true);
+        }
       }
     }
 
     loadActivities();
   }, [activePuppyId]);
+
+  const handleLoadMoreActivities = async () => {
+    if (!activePuppyId || isFetchingMoreActivities) return;
+    setIsFetchingMoreActivities(true);
+    const currentPuppyLogs = activities.filter((a) => a.puppyId === activePuppyId);
+    const olderLogs = await fetchActivities(activePuppyId, {
+      days: 365,
+      limit: 100,
+      offset: currentPuppyLogs.length,
+    });
+
+    if (olderLogs && olderLogs.length > 0) {
+      setActivities((prev) => {
+        const existingIds = new Set(prev.map((a) => a.id));
+        const newUnique = olderLogs.filter((a) => !existingIds.has(a.id));
+        return [...prev, ...newUnique];
+      });
+      if (olderLogs.length < 100) {
+        setHasMoreRemoteActivities(false);
+      }
+    } else {
+      setHasMoreRemoteActivities(false);
+    }
+    setIsFetchingMoreActivities(false);
+  };
 
   const activePuppy = puppies.find((p) => p.id === activePuppyId) || puppies[0] || null;
 
@@ -450,6 +483,9 @@ export function App() {
                     caretakers={caretakers}
                     onDeleteActivity={handleDeleteActivity}
                     onUpdateActivity={handleUpdateActivity}
+                    onLoadMore={handleLoadMoreActivities}
+                    isLoadingMore={isFetchingMoreActivities}
+                    hasMoreRemote={hasMoreRemoteActivities}
                   />
                 </div>
               </div>

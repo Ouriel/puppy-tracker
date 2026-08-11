@@ -12,6 +12,9 @@ interface ActivityTimelineProps {
   caretakers: Caretaker[];
   onDeleteActivity: (id: string) => void;
   onUpdateActivity?: (updated: Partial<Activity> & { id: string }) => void;
+  onLoadMore?: () => Promise<void>;
+  isLoadingMore?: boolean;
+  hasMoreRemote?: boolean;
 }
 
 export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
@@ -19,11 +22,14 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
   caretakers,
   onDeleteActivity,
   onUpdateActivity,
+  onLoadMore,
+  isLoadingMore = false,
+  hasMoreRemote = true,
 }) => {
   const { t, lang } = useI18n();
   const [filter, setFilter] = useState<'all' | 'potty' | 'food'>('all');
   const [editingActivity, setEditingActivity] = useState<Activity | null>(null);
-  const [daysLimit, setDaysLimit] = useState<number>(30); // 30-day initial window
+  const [daysLimit, setDaysLimit] = useState<number>(180); // 180-day initial window
 
   const getIcon = (type: ActivityType) => {
     switch (type) {
@@ -57,7 +63,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
       .sort((a, b) => parseIsoDate(b.timestamp).getTime() - parseIsoDate(a.timestamp).getTime());
   }, [activities, filter]);
 
-  // Filter by 30-day window
+  // Filter by time window
   const now = new Date();
   const cutoffTime = now.getTime() - daysLimit * 24 * 60 * 60 * 1000;
 
@@ -65,7 +71,14 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
     return sortedCoreActivities.filter((act) => parseIsoDate(act.timestamp).getTime() >= cutoffTime);
   }, [sortedCoreActivities, cutoffTime]);
 
-  const hasMorePriorLogs = sortedCoreActivities.length > visibleActivities.length;
+  const hasMorePriorLogs = sortedCoreActivities.length > visibleActivities.length || hasMoreRemote;
+
+  const handleLoadMore = async () => {
+    setDaysLimit((prev) => prev + 90);
+    if (onLoadMore) {
+      await onLoadMore();
+    }
+  };
 
   const formatTime = (isoString: string) => {
     return formatRelativeTime(isoString, lang as 'en' | 'fr', {
@@ -244,11 +257,12 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
                 <Button
                   variant="outline"
                   size="sm"
-                  onPress={() => setDaysLimit((prev) => prev + 30)}
+                  onPress={handleLoadMore}
+                  isDisabled={isLoadingMore}
                   className="w-full text-xs font-bold text-slate-300 border-slate-800 hover:bg-slate-950"
                 >
-                  <ChevronDown className="w-4 h-4 mr-1 inline" />
-                  <span>Load Earlier Logs (Beyond {daysLimit} Days)</span>
+                  <ChevronDown className={`w-4 h-4 mr-1 inline ${isLoadingMore ? 'animate-spin' : ''}`} />
+                  <span>{isLoadingMore ? 'Loading Earlier Activities...' : `Load Earlier Logs (Past ${daysLimit} Days)`}</span>
                 </Button>
               </div>
             )}

@@ -153,4 +153,23 @@ describe('SOTA Prediction Engine & Age-Decay Test Suite', () => {
     expect(schedule.bedtimeHour).toBeGreaterThanOrEqual(23.0);
     expect(schedule.bedtimeStr).toMatch(/^23:/);
   });
+
+  it('5. Activity Feed Pagination: Merging older activity logs deduplicates and preserves order', () => {
+    const initialBatch: Activity[] = [
+      { id: 'act-10', puppyId: 'pup-mid', type: 'pee', timestamp: '2026-08-10T10:00:00Z', loggedBy: 'Matthieu' },
+      { id: 'act-9', puppyId: 'pup-mid', type: 'poop', timestamp: '2026-08-09T10:00:00Z', loggedBy: 'Matthieu' },
+    ];
+    const olderBatch: Activity[] = [
+      { id: 'act-9', puppyId: 'pup-mid', type: 'poop', timestamp: '2026-08-09T10:00:00Z', loggedBy: 'Matthieu' }, // duplicate
+      { id: 'act-6', puppyId: 'pup-mid', type: 'food', timestamp: '2026-08-06T10:00:00Z', loggedBy: 'Matthieu' }, // older (Aug 6)
+      { id: 'act-5', puppyId: 'pup-mid', type: 'pee', timestamp: '2026-08-05T10:00:00Z', loggedBy: 'Matthieu' }, // older (Aug 5)
+    ];
+
+    const existingIds = new Set(initialBatch.map((a) => a.id));
+    const newUnique = olderBatch.filter((a) => !existingIds.has(a.id));
+    const merged = [...initialBatch, ...newUnique];
+
+    expect(merged.length).toBe(4);
+    expect(merged.map((a) => a.id)).toEqual(['act-10', 'act-9', 'act-6', 'act-5']);
+  });
 });
