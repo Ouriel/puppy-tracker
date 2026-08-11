@@ -85,23 +85,25 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = React.memo(({
     );
   };
 
-  const formatCountdown = (dateObj: Date | null) => {
+  const formatCountdown = (dateObj: Date | null, deltaMins: number = 15) => {
     if (!dateObj) return 'N/A';
     const diffMins = Math.round((dateObj.getTime() - Date.now()) / 60000);
 
-    if (diffMins < 0) {
+    if (diffMins < -deltaMins) {
       const overdueMins = Math.abs(diffMins);
-      if (overdueMins < 60) return `Overdue ~${overdueMins}m`;
-      const hours = Math.floor(overdueMins / 60);
-      const remMins = overdueMins % 60;
-      return remMins > 0 ? `Overdue ~${hours}h ${remMins}m` : `Overdue ~${hours}h`;
+      const formattedOverdue = overdueMins < 60
+        ? `${overdueMins}m`
+        : `${Math.floor(overdueMins / 60)}h ${overdueMins % 60 > 0 ? (overdueMins % 60) + 'm' : ''}`.trim();
+      return `Overdue ~${formattedOverdue} (±${deltaMins}m)`;
     }
 
-    if (diffMins === 0) return 'Due now';
-    if (diffMins < 60) return `~${diffMins}m`;
+    if (Math.abs(diffMins) <= deltaMins) return `Due now (±${deltaMins}m)`;
+
+    if (diffMins < 60) return `in ~${diffMins}m (±${deltaMins}m)`;
     const hours = Math.floor(diffMins / 60);
     const remMins = diffMins % 60;
-    return remMins > 0 ? `~${hours}h ${remMins}m` : `~${hours}h`;
+    const timeStr = remMins > 0 ? `${hours}h ${remMins}m` : `${hours}h`;
+    return `in ~${timeStr} (±${deltaMins}m)`;
   };
 
   return (
@@ -127,11 +129,11 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = React.memo(({
                   <div className="text-xs font-semibold text-slate-400">{t.potty.nextPee}</div>
                   <div className="flex items-baseline gap-1.5 flex-wrap">
                     <span className="text-2xl font-black text-slate-100">
-                      {formatCountdown(predictions.nextPeeExpectedAt)}
+                      {formatCountdown(predictions.nextPeeExpectedAt, predictions.peeDeltaMins || 20)}
                     </span>
                     {predictions.peeMode === 'post_meal_override' && predictions.standardPeeExpectedAt && (
                       <span className="text-[11px] font-semibold text-sky-400 bg-sky-950/60 border border-sky-800/60 px-1.5 py-0.5 rounded-lg">
-                        ({t.dashboard.withoutMeal} ~{formatCountdown(predictions.standardPeeExpectedAt)})
+                        ({t.dashboard.withoutMeal} {formatCountdown(predictions.standardPeeExpectedAt, predictions.peeDeltaMins || 20)})
                       </span>
                     )}
                   </div>
@@ -201,11 +203,11 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = React.memo(({
                   <div className="text-xs font-semibold text-slate-400">{t.potty.nextPoop}</div>
                   <div className="flex items-baseline gap-1.5 flex-wrap">
                     <span className="text-2xl font-black text-slate-100">
-                      {formatCountdown(predictions.nextPoopExpectedAt)}
+                      {formatCountdown(predictions.nextPoopExpectedAt, predictions.poopDeltaMins || 25)}
                     </span>
                     {predictions.poopMode === 'post_meal_override' && predictions.standardPoopExpectedAt && (
                       <span className="text-[11px] font-semibold text-amber-400 bg-amber-950/60 border border-amber-800/60 px-1.5 py-0.5 rounded-lg">
-                        ({t.dashboard.withoutMeal} ~{formatCountdown(predictions.standardPoopExpectedAt)})
+                        ({t.dashboard.withoutMeal} {formatCountdown(predictions.standardPoopExpectedAt, predictions.poopDeltaMins || 25)})
                       </span>
                     )}
                   </div>
@@ -274,7 +276,7 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = React.memo(({
                 <div>
                   <div className="text-xs font-semibold text-slate-400">{t.potty.nextMeal}</div>
                   <div className="text-2xl font-black text-slate-100">
-                    {formatCountdown(predictions.nextFoodExpectedAt)}
+                    {formatCountdown(predictions.nextFoodExpectedAt, predictions.foodDeltaMins || 30)}
                   </div>
                 </div>
               </div>

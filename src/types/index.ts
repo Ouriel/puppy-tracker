@@ -74,17 +74,20 @@ export type FoodScheduleMode = 'daytime_schedule' | 'goal_reached' | 'night_slee
 export interface PredictionResult {
   nextPeeExpectedAt: Date | null;
   standardPeeExpectedAt?: Date | null;
+  peeDeltaMins?: number;
   peeMode: ScheduleMode;
   peeUrgency: 'safe' | 'soon' | 'overdue';
   peeReason: string;
   
   nextPoopExpectedAt: Date | null;
   standardPoopExpectedAt?: Date | null;
+  poopDeltaMins?: number;
   poopMode: ScheduleMode;
   poopUrgency: 'safe' | 'soon' | 'overdue';
   poopReason: string;
 
   nextFoodExpectedAt: Date | null;
+  foodDeltaMins?: number;
   foodMode: FoodScheduleMode;
   foodUrgency: 'safe' | 'soon' | 'overdue';
   foodReason: string;
