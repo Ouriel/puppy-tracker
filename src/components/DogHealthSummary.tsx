@@ -4,7 +4,7 @@ import { Syringe, Pill, Dog, Scale, ExternalLink } from 'lucide-react';
 import { Card, Button, Chip } from '@heroui/react';
 import type { Language } from '../i18n';
 import { formatBreedName } from '../utils/breeds';
-import { calculateProjectedAdultWeightRange } from './WeightGrowthChart';
+import { calculateProjectedAdultWeightRange, estimateCurrentWeightFromLastLog } from './WeightGrowthChart';
 import { getPuppyAge } from '../utils/predictions';
 import { fetchHealthRecords } from '../services/api';
 import { calculateNextVaccineBooster, calculateNextDewormingDate } from '../utils/health';
@@ -73,12 +73,13 @@ export const DogHealthSummary: React.FC<DogHealthSummaryProps> = ({
 
     let assumedCurrentKg = lastWeightKg;
     if (lastLog) {
-      const daysDiff = Math.max(0, (Date.now() - new Date(lastLog.timestamp).getTime()) / (1000 * 60 * 60 * 24));
-      if (daysDiff >= 2) {
-        const weeklyGainKg = projectedWeight.projectedAdultKg * 0.035;
-        const estimatedGainKg = (daysDiff / 7) * weeklyGainKg;
-        assumedCurrentKg = Math.round((lastWeightKg + estimatedGainKg) * 10) / 10;
-      }
+      const logAgeWeeks = lastLogAgeWeeks || ageInfo.weeks;
+      assumedCurrentKg = estimateCurrentWeightFromLastLog(
+        lastWeightKg,
+        lastLog.timestamp,
+        logAgeWeeks,
+        projectedWeight.projectedAdultKg
+      );
     }
 
     return {

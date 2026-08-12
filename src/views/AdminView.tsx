@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Shield, Send, Users, AlertCircle, UserCheck, UserX, Trash2 } from 'lucide-react';
+import { Shield, Send, Users, AlertCircle, UserCheck, UserX, Trash2, RefreshCw } from 'lucide-react';
 import {
   fetchUsers,
   createUser,
@@ -159,9 +159,11 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail }) => {
           <Button
             size="sm"
             onPress={loadUsers}
-            className="bg-slate-950 border border-slate-800 text-slate-300 font-bold hover:bg-slate-800"
+            isDisabled={isLoading}
+            className="bg-slate-950 border border-slate-800 text-slate-300 font-bold hover:bg-slate-800 flex items-center gap-1.5 shrink-0"
           >
-            Refresh Accounts
+            <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
+            <span>Refresh User List</span>
           </Button>
         </Card.Content>
       </Card>

@@ -3,7 +3,7 @@ import type { PuppyProfile } from '../types';
 import { Dog, Plus, Trash2, Edit3, Utensils, Calendar } from 'lucide-react';
 import { useI18n } from '../i18n';
 import { formatBreedName } from '../utils/breeds';
-import { Card, Button, Input, Select, ListBox, ListBoxItem, Modal, Chip } from '@heroui/react';
+import { Card, Button, Input, Select, ListBox, ListBoxItem, Chip } from '@heroui/react';
 import { DOG_BREEDS } from '../constants/breeds';
 
 interface PuppiesViewProps {
@@ -243,124 +243,6 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
         </Card>
       )}
 
-      {/* Edit Dog Modal */}
-      <Modal isOpen={!!editingPuppy} onOpenChange={(open) => { if (!open) setEditingPuppy(null); }}>
-        <Modal.Backdrop>
-          <Modal.Container size="lg" scroll="inside">
-            <Modal.Dialog className="bg-slate-900 border border-slate-800 text-slate-100 shadow-2xl">
-              <Modal.CloseTrigger />
-              <Modal.Header>
-                <Modal.Heading className="text-white font-bold">{t.puppies.editProfileTitle}</Modal.Heading>
-              </Modal.Header>
-              <Modal.Body className="p-4">
-                <form id="edit-puppy-form" onSubmit={handleEditSubmit} className="space-y-4">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs font-semibold text-slate-400 mb-1">
-                        {t.puppies.dogName}
-                      </label>
-                      <Input
-                        type="text"
-                        className="bg-slate-950 border-slate-800 text-slate-100"
-                        value={editName}
-                        onChange={(event) => setEditName(event.target.value)}
-                        required
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-semibold text-slate-400 mb-1">{t.puppies.breed}</label>
-                      <Select value={editBreed} onChange={(val) => setEditBreed(val as string)}>
-                        <Select.Trigger className="bg-slate-950 border-slate-800 text-slate-100">
-                          <Select.Value />
-                          <Select.Indicator />
-                        </Select.Trigger>
-                        <Select.Popover className="bg-slate-900 border-slate-800 text-slate-100">
-                          <ListBox>
-                            {DOG_BREEDS.map((breedOption) => (
-                              <ListBoxItem key={breedOption} id={breedOption} textValue={formatBreedName(breedOption, lang)}>
-                                {formatBreedName(breedOption, lang)}
-                              </ListBoxItem>
-                            ))}
-                          </ListBox>
-                        </Select.Popover>
-                      </Select>
-
-                      {editBreed === 'Other' && (
-                        <Input
-                          type="text"
-                          placeholder={t.puppies.specifyCustomBreed}
-                          className="bg-slate-950 border-slate-800 text-slate-100 mt-2"
-                          value={editCustomBreed}
-                          onChange={(event) => setEditCustomBreed(event.target.value)}
-                        />
-                      )}
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-semibold text-slate-400 mb-1">{t.puppies.birthDate}</label>
-                      <Input
-                        type="date"
-                        className="bg-slate-950 border-slate-800 text-slate-100"
-                        value={editBirthDate}
-                        onChange={(event) => setEditBirthDate(event.target.value)}
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-semibold text-slate-400 mb-1">{t.puppies.foodGramGoal}</label>
-                      <Input
-                        type="number"
-                        className="bg-slate-950 border-slate-800 text-slate-100"
-                        value={String(editFoodGramGoal)}
-                        onChange={(event) => setEditFoodGramGoal(Number(event.target.value))}
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-semibold text-slate-400 mb-1">{t.dashboard.targetMealsPerDay}</label>
-                      <Input
-                        type="number"
-                        min="1"
-                        max="6"
-                        className="bg-slate-950 border-slate-800 text-slate-100"
-                        value={String(editMealsPerDay)}
-                        onChange={(event) => setEditMealsPerDay(Number(event.target.value))}
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-semibold text-slate-400 mb-1">{t.potty.notes}</label>
-                      <Input
-                        type="text"
-                        className="bg-slate-950 border-slate-800 text-slate-100"
-                        value={editNotes}
-                        onChange={(event) => setEditNotes(event.target.value)}
-                      />
-                    </div>
-                  </div>
-                </form>
-              </Modal.Body>
-              <Modal.Footer>
-                <Button
-                  onPress={() => setEditingPuppy(null)}
-                  className="bg-slate-950 border border-slate-800 text-slate-300 font-bold"
-                >
-                  {t.potty.cancel}
-                </Button>
-                <Button
-                  type="submit"
-                  form="edit-puppy-form"
-                  variant="primary"
-                >
-                  {t.puppies.updateProfile}
-                </Button>
-              </Modal.Footer>
-            </Modal.Dialog>
-          </Modal.Container>
-        </Modal.Backdrop>
-      </Modal>
-
       {/* Puppies Grid */}
       {puppies.length === 0 ? (
         <Card className="bg-slate-900 border-slate-800 border-dashed p-10 text-center text-slate-100">
@@ -378,6 +260,126 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {puppies.map((pup) => {
             const isActive = pup.id === activePuppyId;
+            const isEditingThis = editingPuppy?.id === pup.id;
+
+            if (isEditingThis) {
+              return (
+                <Card key={pup.id} className="bg-slate-900 border-indigo-500/80 text-slate-100 ring-2 ring-indigo-500/20">
+                  <Card.Content className="p-5 space-y-4">
+                    <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                      <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                        <Edit3 className="w-4 h-4 text-indigo-400" />
+                        <span>{t.puppies.editProfileTitle} ({pup.name})</span>
+                      </h3>
+                    </div>
+
+                    <form onSubmit={handleEditSubmit} className="space-y-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-400 mb-1">{t.puppies.dogName}</label>
+                          <Input
+                            type="text"
+                            className="bg-slate-950 border-slate-800 text-slate-100"
+                            value={editName}
+                            onChange={(event) => setEditName(event.target.value)}
+                            required
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-400 mb-1">{t.puppies.breed}</label>
+                          <Select value={editBreed} onChange={(val) => setEditBreed(val as string)}>
+                            <Select.Trigger className="bg-slate-950 border-slate-800 text-slate-100">
+                              <Select.Value />
+                              <Select.Indicator />
+                            </Select.Trigger>
+                            <Select.Popover className="bg-slate-900 border-slate-800 text-slate-100">
+                              <ListBox>
+                                {DOG_BREEDS.map((breedOption) => (
+                                  <ListBoxItem key={breedOption} id={breedOption} textValue={formatBreedName(breedOption, lang)}>
+                                    {formatBreedName(breedOption, lang)}
+                                  </ListBoxItem>
+                                ))}
+                              </ListBox>
+                            </Select.Popover>
+                          </Select>
+
+                          {editBreed === 'Other' && (
+                            <Input
+                              type="text"
+                              placeholder={t.puppies.specifyCustomBreed}
+                              className="bg-slate-950 border-slate-800 text-slate-100 mt-2"
+                              value={editCustomBreed}
+                              onChange={(event) => setEditCustomBreed(event.target.value)}
+                            />
+                          )}
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-400 mb-1">{t.puppies.birthDate}</label>
+                          <Input
+                            type="date"
+                            className="bg-slate-950 border-slate-800 text-slate-100"
+                            value={editBirthDate}
+                            onChange={(event) => setEditBirthDate(event.target.value)}
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-400 mb-1">{t.puppies.foodGramGoal}</label>
+                          <Input
+                            type="number"
+                            className="bg-slate-950 border-slate-800 text-slate-100"
+                            value={String(editFoodGramGoal)}
+                            onChange={(event) => setEditFoodGramGoal(Number(event.target.value))}
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-400 mb-1">{t.dashboard.targetMealsPerDay}</label>
+                          <Input
+                            type="number"
+                            min="1"
+                            max="6"
+                            className="bg-slate-950 border-slate-800 text-slate-100"
+                            value={String(editMealsPerDay)}
+                            onChange={(event) => setEditMealsPerDay(Number(event.target.value))}
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-400 mb-1">{t.potty.notes}</label>
+                          <Input
+                            type="text"
+                            className="bg-slate-950 border-slate-800 text-slate-100"
+                            value={editNotes}
+                            onChange={(event) => setEditNotes(event.target.value)}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-end gap-2 pt-2">
+                        <Button
+                          size="sm"
+                          type="button"
+                          onPress={() => setEditingPuppy(null)}
+                          className="bg-slate-950 border border-slate-800 text-slate-300 font-bold"
+                        >
+                          {t.potty.cancel}
+                        </Button>
+                        <Button
+                          size="sm"
+                          type="submit"
+                          variant="primary"
+                        >
+                          {t.puppies.updateProfile}
+                        </Button>
+                      </div>
+                    </form>
+                  </Card.Content>
+                </Card>
+              );
+            }
 
             return (
               <Card

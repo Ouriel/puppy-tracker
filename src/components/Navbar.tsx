@@ -85,28 +85,16 @@ export const Navbar: React.FC<NavbarProps> = ({
 
         {/* Right Controls: Language Selector, Settings Gear ⚙️, Quick Log Button */}
         <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-          {/* Language Switcher Dropdown */}
-          <div className="w-16 sm:w-20 shrink-0">
-            <Select
-              value={lang}
-              onChange={(val) => onLanguageChange(val as Language)}
-              aria-label="Select Language"
-            >
-              <Select.Trigger className="bg-slate-950/80 border-slate-700/80 min-h-0 h-9 text-xs px-1.5 sm:px-2 flex items-center justify-center">
-                <div className="flex items-center justify-center gap-1">
-                  <Globe className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
-                  <Select.Value />
-                </div>
-                <Select.Indicator />
-              </Select.Trigger>
-              <Select.Popover className="bg-slate-900 border-slate-800 text-slate-100">
-                <ListBox>
-                  <ListBoxItem id="en" textValue="EN">🇬🇧 EN</ListBoxItem>
-                  <ListBoxItem id="fr" textValue="FR">🇫🇷 FR</ListBoxItem>
-                </ListBox>
-              </Select.Popover>
-            </Select>
-          </div>
+          {/* Language Switcher Button (Globe + Flag) */}
+          <button
+            type="button"
+            onClick={() => onLanguageChange(lang === 'en' ? 'fr' : 'en')}
+            aria-label="Toggle language"
+            className="h-9 px-2.5 flex items-center justify-center gap-1.5 rounded-xl bg-slate-950/80 border border-slate-800 text-slate-300 hover:text-white hover:bg-slate-800 transition-colors shrink-0 text-xs font-bold"
+          >
+            <Globe className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+            <span>{lang === 'en' ? '🇬🇧 EN' : '🇫🇷 FR'}</span>
+          </button>
 
           {/* Settings & Admin Gear Icon Button */}
           <button

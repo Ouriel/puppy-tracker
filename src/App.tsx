@@ -302,6 +302,10 @@ export function App() {
 
     if (pottyLocation) {
       newAct.pottyLocation = pottyLocation;
+    }
+    
+    if (type === 'poop') {
+      newAct.stoolConsistency = 'normal';
     } else if (type === 'food') {
       newAct.foodType = 'kibble';
       newAct.quantityGrams = nextMealPortionGrams;
