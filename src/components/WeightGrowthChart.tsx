@@ -77,47 +77,8 @@ export function calculateProjectedAdultWeightRange(
   };
 }
 
-/**
- * Estimates puppy's current weight based on last recorded weight log, days elapsed,
- * and age-scaled growth velocity (Waltham / NRC growth curves).
- */
-export function estimateCurrentWeightFromLastLog(
-  lastWeightKg: number,
-  lastLogDate: Date | string,
-  ageWeeksAtLogTime: number,
-  projectedAdultKg: number
-): number {
-  const logTime = new Date(lastLogDate).getTime();
-  const daysDiff = Math.max(0, (Date.now() - logTime) / (1000 * 60 * 60 * 24));
-  if (daysDiff < 1) return lastWeightKg;
-
-  // Age-scaled weekly growth velocity as % of current body weight based on Waltham growth curves
-  let weeklyRatePercent = 0.035;
-  if (ageWeeksAtLogTime <= 8) {
-    weeklyRatePercent = 0.035;
-  } else if (ageWeeksAtLogTime <= 12) {
-    weeklyRatePercent = 0.030 - (0.005 * ((ageWeeksAtLogTime - 8) / 4));
-  } else if (ageWeeksAtLogTime <= 16) {
-    weeklyRatePercent = 0.025 - (0.005 * ((ageWeeksAtLogTime - 12) / 4));
-  } else if (ageWeeksAtLogTime <= 26) {
-    weeklyRatePercent = 0.020 - (0.008 * ((ageWeeksAtLogTime - 16) / 10)); // ~1.2%-2.0%/wk
-  } else if (ageWeeksAtLogTime <= 36) {
-    weeklyRatePercent = 0.012 - (0.006 * ((ageWeeksAtLogTime - 26) / 10)); // ~0.6%-1.2%/wk
-  } else if (ageWeeksAtLogTime <= 52) {
-    weeklyRatePercent = 0.006 - (0.004 * ((ageWeeksAtLogTime - 36) / 16)); // ~0.2%-0.6%/wk
-  } else {
-    weeklyRatePercent = 0;
-  }
-
-  const dailyGainKg = (lastWeightKg * weeklyRatePercent) / 7;
-  const totalGainKg = daysDiff * dailyGainKg;
-
-  // Cap maximum gain to prevent unrealistic estimates over long unlogged periods
-  const maxPossibleGain = projectedAdultKg * 0.10;
-  const boundedGain = Math.min(totalGainKg, maxPossibleGain);
-
-  return Math.round((lastWeightKg + boundedGain) * 10) / 10;
-}
+import { estimateCurrentWeightFromLastLog, getEffectivePuppyWeight } from '../utils/weight';
+export { estimateCurrentWeightFromLastLog, getEffectivePuppyWeight };
 
 export function scaleGrowthBenchmarks(adultWeightKg: number): Array<{ label: string; expectedKg: number; minKg: number; maxKg: number; weeks: number }> {
   const scale = adultWeightKg / 13; // 13 kg is the Cocker reference

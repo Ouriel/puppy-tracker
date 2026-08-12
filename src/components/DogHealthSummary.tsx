@@ -4,7 +4,8 @@ import { Syringe, Pill, Dog, Scale, ExternalLink } from 'lucide-react';
 import { Card, Button, Chip } from '@heroui/react';
 import type { Language } from '../i18n';
 import { formatBreedName } from '../utils/breeds';
-import { calculateProjectedAdultWeightRange, estimateCurrentWeightFromLastLog } from './WeightGrowthChart';
+import { calculateProjectedAdultWeightRange } from './WeightGrowthChart';
+import { getEffectivePuppyWeight } from '../utils/weight';
 import { getPuppyAge } from '../utils/predictions';
 import { fetchHealthRecords } from '../services/api';
 import { calculateNextVaccineBooster, calculateNextDewormingDate } from '../utils/health';
@@ -58,7 +59,6 @@ export const DogHealthSummary: React.FC<DogHealthSummaryProps> = ({
       .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
 
     const lastLog = weightLogs.length > 0 ? weightLogs[weightLogs.length - 1] : null;
-    const lastWeightKg = lastLog ? lastLog.weightKg! : profile.weightKg || 4.2;
     const lastLogDateStr = lastLog ? new Date(lastLog.timestamp).toLocaleDateString(lang === 'fr' ? 'fr-FR' : 'en-US', { month: 'short', day: 'numeric' }) : null;
 
     let lastLogAgeWeeks: number | null = null;
@@ -70,23 +70,13 @@ export const DogHealthSummary: React.FC<DogHealthSummaryProps> = ({
     }
 
     const projectedWeight = calculateProjectedAdultWeightRange(profile.breed, weightLogs, ageInfo.weeks, profile.weightKg);
-
-    let assumedCurrentKg = lastWeightKg;
-    if (lastLog) {
-      const logAgeWeeks = lastLogAgeWeeks || ageInfo.weeks;
-      assumedCurrentKg = estimateCurrentWeightFromLastLog(
-        lastWeightKg,
-        lastLog.timestamp,
-        logAgeWeeks,
-        projectedWeight.projectedAdultKg
-      );
-    }
+    const weightInfo = getEffectivePuppyWeight(profile, activities);
 
     return {
-      lastWeightKg,
+      lastWeightKg: weightInfo.lastLoggedWeight,
       lastLogDateStr,
       lastLogAgeWeeks,
-      assumedCurrentKg,
+      assumedCurrentKg: weightInfo.estimatedCurrentWeight,
       adultTargetKg: projectedWeight.projectedAdultKg,
       adultRangeStr: `${projectedWeight.minAdultKg}–${projectedWeight.maxAdultKg} kg`,
     };

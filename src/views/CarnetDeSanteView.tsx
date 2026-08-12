@@ -13,6 +13,7 @@ import {
   deleteHealthRecord,
 } from '../services/api';
 import { calculateNextAntiparasiticDate, calculateNextVaccineBooster, getHealthProtocols } from '../utils/health';
+import { getEffectivePuppyWeight } from '../utils/weight';
 import { getPuppyAge } from '../utils/predictions';
 import { WeightGrowthChart } from '../components/WeightGrowthChart';
 import type { Activity } from '../types';
@@ -301,7 +302,7 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({
       productName: productName.trim() || 'Credelio Plus',
       date: dewormAdminDate,
       boosterDate: dewormNextDate,
-      weightAtTime: activePuppy.weightKg,
+      weightAtTime: getEffectivePuppyWeight(activePuppy, activities).estimatedCurrentWeight,
     };
 
     const created = await createHealthRecord(newEntry);
