@@ -4,6 +4,8 @@ import { Plus, Settings, Globe } from 'lucide-react';
 import { Button, Select, ListBox, ListBoxItem } from '@heroui/react';
 import type { Language } from '../i18n';
 
+import { getPuppyAge } from '../utils/predictions';
+
 interface NavbarProps {
   puppies: PuppyProfile[];
   activePuppy: PuppyProfile | null;
@@ -59,14 +61,8 @@ export const Navbar: React.FC<NavbarProps> = ({
                     {puppies.map((puppy) => {
                       let ageLabel = '';
                       if (puppy.birthDate) {
-                        const diffDays = (Date.now() - new Date(puppy.birthDate).getTime()) / (1000 * 60 * 60 * 24);
-                        const weeks = Math.max(1, Math.floor(diffDays / 7));
-                        if (weeks < 16) {
-                          ageLabel = `${weeks}w`;
-                        } else {
-                          const months = Math.floor(weeks / 4.34);
-                          ageLabel = months < 12 ? `${months}m` : `${Math.floor(months / 12)}y`;
-                        }
+                        const age = getPuppyAge(puppy.birthDate);
+                        ageLabel = age.weeks < 16 ? `${age.weeks}w` : `${Math.floor(age.months)}m`;
                       }
                       const displayName = ageLabel ? `${puppy.name} (${ageLabel})` : puppy.name;
 

@@ -4,81 +4,20 @@ import type { Activity, PuppyProfile } from '../types';
 import { Scale, Plus, Trash2 } from 'lucide-react';
 import { useI18n } from '../i18n';
 
-export function getExpectedAdultWeight(breed: string): number {
-  const breedLower = breed.toLowerCase();
-  // Small breeds (3-9 kg adult)
-  if (breedLower.includes('chihuahua')) return 3;
-  if (breedLower.includes('jack russell')) return 7;
-  if (breedLower.includes('cavalier')) return 7.5;
-  if (breedLower.includes('dachshund') || breedLower.includes('teckel')) return 9;
-  // Medium breeds (10-18 kg adult)
-  if (breedLower.includes('cocker')) return 13;
-  if (breedLower.includes('beagle')) return 12;
-  if (breedLower.includes('poodle') || breedLower.includes('caniche')) return 14;
-  if (breedLower.includes('french bulldog') || breedLower.includes('bouledogue')) return 12;
-  if (breedLower.includes('border collie')) return 18;
-  // Large breeds (20-35 kg adult)
-  if (breedLower.includes('australian shepherd') || breedLower.includes('berger australien')) return 25;
-  if (breedLower.includes('german shepherd') || breedLower.includes('berger allemand')) return 32;
-  if (breedLower.includes('labrador')) return 30;
-  if (breedLower.includes('golden')) return 30;
-  if (breedLower.includes('husky')) return 23;
-  // Default medium
-  return 13;
-}
+import {
+  getExpectedAdultWeight,
+  calculateProjectedAdultWeightRange,
+  estimateCurrentWeightFromLastLog,
+  getEffectivePuppyWeight,
+} from '../utils/weight';
 
-export function calculateProjectedAdultWeightRange(
-  breed: string,
-  weightLogs: Activity[],
-  ageWeeks: number,
-  fallbackProfileWeight?: number
-): { projectedAdultKg: number; minAdultKg: number; maxAdultKg: number; isTrajectoryBased: boolean } {
-  const breedBaselineKg = getExpectedAdultWeight(breed);
+export {
+  getExpectedAdultWeight,
+  calculateProjectedAdultWeightRange,
+  estimateCurrentWeightFromLastLog,
+  getEffectivePuppyWeight,
+};
 
-  const lastLog = weightLogs.length > 0 ? weightLogs[weightLogs.length - 1] : null;
-  const lastWeightKg = lastLog?.weightKg || fallbackProfileWeight;
-
-  if (!lastWeightKg || weightLogs.length === 0) {
-    const minAdultKg = Math.round(breedBaselineKg * 0.88 * 10) / 10;
-    const maxAdultKg = Math.round(breedBaselineKg * 1.15 * 10) / 10;
-    return { projectedAdultKg: breedBaselineKg, minAdultKg, maxAdultKg, isTrajectoryBased: false };
-  }
-
-  // Logistic growth model expected completion percentage by week
-  let expectedFraction = 0.20;
-  if (ageWeeks <= 8) {
-    expectedFraction = Math.max(0.15, 0.20 * (ageWeeks / 8));
-  } else if (ageWeeks <= 12) {
-    expectedFraction = 0.20 + (0.18 * ((ageWeeks - 8) / 4));
-  } else if (ageWeeks <= 16) {
-    expectedFraction = 0.38 + (0.17 * ((ageWeeks - 12) / 4));
-  } else if (ageWeeks <= 26) {
-    expectedFraction = 0.55 + (0.20 * ((ageWeeks - 16) / 10));
-  } else if (ageWeeks <= 36) {
-    expectedFraction = 0.75 + (0.15 * ((ageWeeks - 26) / 10));
-  } else if (ageWeeks <= 52) {
-    expectedFraction = 0.90 + (0.10 * ((ageWeeks - 36) / 16));
-  } else {
-    expectedFraction = 1.0;
-  }
-
-  const empiricalAdultKg = Math.max(lastWeightKg, lastWeightKg / expectedFraction);
-  // Blend breed baseline (30%) + empirical trajectory (70%)
-  const blendedAdultKg = Math.round(((breedBaselineKg * 0.3) + (empiricalAdultKg * 0.7)) * 10) / 10;
-
-  const minAdultKg = Math.round(blendedAdultKg * 0.90 * 10) / 10;
-  const maxAdultKg = Math.round(blendedAdultKg * 1.12 * 10) / 10;
-
-  return {
-    projectedAdultKg: blendedAdultKg,
-    minAdultKg,
-    maxAdultKg,
-    isTrajectoryBased: true,
-  };
-}
-
-import { estimateCurrentWeightFromLastLog, getEffectivePuppyWeight } from '../utils/weight';
-export { estimateCurrentWeightFromLastLog, getEffectivePuppyWeight };
 
 export function scaleGrowthBenchmarks(adultWeightKg: number): Array<{ label: string; expectedKg: number; minKg: number; maxKg: number; weeks: number }> {
   const scale = adultWeightKg / 13; // 13 kg is the Cocker reference
