@@ -425,6 +425,7 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({
                       <label className="block text-xs font-semibold text-slate-400 mb-1">{t.health.administeredDate}</label>
                       <Input
                         type="date"
+                        className="bg-slate-950 border-slate-800 text-slate-100"
                         value={administeredDate}
                         onChange={(event) => setAdministeredDate(event.target.value)}
                         required
@@ -435,6 +436,7 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({
                       <label className="block text-xs font-semibold text-slate-400 mb-1">{t.health.boosterDue}</label>
                       <Input
                         type="date"
+                        className="bg-slate-950 border-slate-800 text-slate-100"
                         value={nextDueDate}
                         onChange={(event) => setNextDueDate(event.target.value)}
                         required
@@ -448,6 +450,7 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({
                       <Input
                         type="text"
                         placeholder="e.g. Clinique Vétérinaire Saint-Roch"
+                        className="bg-slate-950 border-slate-800 text-slate-100"
                         value={vetClinic}
                         onChange={(event) => setVetClinic(event.target.value)}
                       />
@@ -458,6 +461,7 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({
                       <Input
                         type="text"
                         placeholder="e.g. BATCH-2026-X99"
+                        className="bg-slate-950 border-slate-800 text-slate-100"
                         value={batchNumber}
                         onChange={(event) => setBatchNumber(event.target.value)}
                       />
@@ -491,6 +495,7 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({
                           <label className="block text-[10px] text-slate-400 font-semibold mb-1">Vaccine Name</label>
                           <Input
                             type="text"
+                            className="bg-slate-950 border-slate-800 text-slate-100"
                             value={editVaccineName}
                             onChange={(e) => setEditVaccineName(e.target.value)}
                           />
@@ -499,6 +504,7 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({
                           <label className="block text-[10px] text-slate-400 font-semibold mb-1">Injected Date</label>
                           <Input
                             type="date"
+                            className="bg-slate-950 border-slate-800 text-slate-100"
                             value={editVaccineDate}
                             onChange={(e) => setEditVaccineDate(e.target.value)}
                           />
@@ -507,6 +513,7 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({
                           <label className="block text-[10px] text-slate-400 font-semibold mb-1">Booster Due Date</label>
                           <Input
                             type="date"
+                            className="bg-slate-950 border-slate-800 text-slate-100"
                             value={editVaccineBoosterDate}
                             onChange={(e) => setEditVaccineBoosterDate(e.target.value)}
                           />
@@ -517,6 +524,7 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({
                           <label className="block text-[10px] text-slate-400 font-semibold mb-1">Vet Clinic</label>
                           <Input
                             type="text"
+                            className="bg-slate-950 border-slate-800 text-slate-100"
                             value={editVaccineVetClinic}
                             onChange={(e) => setEditVaccineVetClinic(e.target.value)}
                           />
@@ -525,6 +533,7 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({
                           <label className="block text-[10px] text-slate-400 font-semibold mb-1">Batch / Lot N°</label>
                           <Input
                             type="text"
+                            className="bg-slate-950 border-slate-800 text-slate-100"
                             value={editVaccineBatchNumber}
                             onChange={(e) => setEditVaccineBatchNumber(e.target.value)}
                           />
@@ -532,9 +541,9 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({
                       </div>
                       <div className="flex justify-end gap-2 pt-1">
                         <Button
-                          variant="tertiary"
                           size="sm"
                           onPress={() => setEditingVaccineId(null)}
+                          className="bg-slate-900 border border-slate-800 text-slate-300 font-bold hover:bg-slate-800 hover:text-white"
                         >
                           Cancel
                         </Button>
@@ -669,6 +678,7 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({
                       <label className="block text-xs font-semibold text-slate-400 mb-1">{t.health.administeredDate}</label>
                       <Input
                         type="date"
+                        className="bg-slate-950 border-slate-800 text-slate-100"
                         value={dewormAdminDate}
                         onChange={(event) => setDewormAdminDate(event.target.value)}
                         required
@@ -679,6 +689,7 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({
                       <label className="block text-xs font-semibold text-slate-400 mb-1">{t.health.boosterDue}</label>
                       <Input
                         type="date"
+                        className="bg-slate-950 border-slate-800 text-slate-100"
                         value={dewormNextDate}
                         onChange={(event) => setDewormNextDate(event.target.value)}
                         required
@@ -713,6 +724,7 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({
                           <label className="block text-[10px] text-slate-400 font-semibold mb-1">Product Name</label>
                           <Input
                             type="text"
+                            className="bg-slate-950 border-slate-800 text-slate-100"
                             value={editDewormingName}
                             onChange={(e) => setEditDewormingName(e.target.value)}
                           />
@@ -723,6 +735,7 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({
                             type="number"
                             step="0.1"
                             placeholder="e.g. 7.5"
+                            className="bg-slate-950 border-slate-800 text-slate-100"
                             value={editDewormingWeight}
                             onChange={(e) => setEditDewormingWeight(e.target.value)}
                           />
@@ -733,6 +746,7 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({
                           <label className="block text-[10px] text-slate-400 font-semibold mb-1">Given Date</label>
                           <Input
                             type="date"
+                            className="bg-slate-950 border-slate-800 text-slate-100"
                             value={editDewormingDate}
                             onChange={(e) => setEditDewormingDate(e.target.value)}
                           />
@@ -741,6 +755,7 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({
                           <label className="block text-[10px] text-slate-400 font-semibold mb-1">Next Due Date</label>
                           <Input
                             type="date"
+                            className="bg-slate-950 border-slate-800 text-slate-100"
                             value={editDewormingBoosterDate}
                             onChange={(e) => setEditDewormingBoosterDate(e.target.value)}
                           />
@@ -748,9 +763,9 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({
                       </div>
                       <div className="flex justify-end gap-2 pt-1">
                         <Button
-                          variant="tertiary"
                           size="sm"
                           onPress={() => setEditingDewormingId(null)}
+                          className="bg-slate-900 border border-slate-800 text-slate-300 font-bold hover:bg-slate-800 hover:text-white"
                         >
                           Cancel
                         </Button>
