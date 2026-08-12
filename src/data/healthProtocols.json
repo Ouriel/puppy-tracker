@@ -2,59 +2,91 @@
   "vaccines": [
     {
       "id": "chppi_l4",
-      "name": "CHPPi + L4",
-      "fullName": "CHPPi + L4 / DHPP (Carré, Hépatite, Parvo, Pi + Lepto 4)",
-      "aliases": ["chppi", "dhpp", "chppi + l4", "dhpp + l4"],
+      "name": "CHPPi + L4 (Eurican / Nobivac / Versican)",
+      "fullName": "CHPPi + L4 / DHPPi (Eurican / Nobivac / Versican Plus)",
+      "aliases": ["chppi", "dhpp", "chppi + l4", "dhpp + l4", "eurican", "nobivac", "versican"],
       "defaultBoosterMonths": 1,
-      "description": "Primovaccination chiot à 8, 12 et 16 semaines"
+      "description": "Primovaccination chiot à 8, 12 et 16 semaines (Carré, Hépatite, Parvo, Pi + Lepto 4)"
     },
     {
-      "id": "chppi",
-      "name": "CHPPi",
-      "fullName": "CHPPi / DHPP (Carré, Hépatite, Parvovirose, Para-influenza)",
-      "aliases": ["chppi", "dhpp"],
+      "id": "eurican_dappi_l4",
+      "name": "Eurican DAPPi + L4 (Boehringer)",
+      "fullName": "Eurican DAPPi + L4 (Carré, Adénovirus, Parvovirose, Pi + Lepto 4)",
+      "aliases": ["eurican", "dappi", "eurican dappi", "eurican l4"],
       "defaultBoosterMonths": 1,
-      "description": "Protection de base chiot"
+      "description": "Gamme de référence Boehringer Ingelheim / Merial France"
+    },
+    {
+      "id": "nobivac_dhppi_l4",
+      "name": "Nobivac DHPPi + L4 (MSD)",
+      "fullName": "Nobivac DHPPi + L4 (Carré, Hépatite, Parvo, Pi + Lepto 4)",
+      "aliases": ["nobivac", "nobivac dhppi", "nobivac l4"],
+      "defaultBoosterMonths": 1,
+      "description": "Gamme MSD Santé Animale France"
+    },
+    {
+      "id": "versican_plus_l4",
+      "name": "Versican Plus DHPPi/L4 (Zoetis)",
+      "fullName": "Versican Plus DHPPi/L4 (Zoetis France)",
+      "aliases": ["versican", "versican plus", "zoetis"],
+      "defaultBoosterMonths": 1,
+      "description": "Gamme Zoetis France pour chiots dès 8 semaines"
+    },
+    {
+      "id": "canigen_chppi_l4",
+      "name": "Canigen CHPPi / L4 (Virbac)",
+      "fullName": "Canigen CHPPi / L4 (Virbac France)",
+      "aliases": ["canigen", "virbac"],
+      "defaultBoosterMonths": 1,
+      "description": "Gamme Virbac France"
+    },
+    {
+      "id": "vanguard_cpv",
+      "name": "Vanguard CPV / Parvovirose (Zoetis)",
+      "fullName": "Vanguard CPV (Précoce Parvovirose chiot dès 6w)",
+      "aliases": ["vanguard", "cpv", "parvovirose"],
+      "defaultBoosterMonths": 1,
+      "description": "Vaccin précoce Parvovirose chiot dès 6 semaines"
     },
     {
       "id": "l4",
-      "name": "L4 (Leptospirose)",
-      "fullName": "L4 (Leptospirose 4 souches)",
+      "name": "L4 (Leptospirose 4 souches)",
+      "fullName": "L4 (Leptospirose 4 souches - Nobivac L4 / Eurican L4)",
       "aliases": ["leptospirose", "l4"],
       "defaultBoosterMonths": 6,
-      "description": "Rappel semestriel pour zones à risque"
+      "description": "Rappel semestriel ou annuel selon l'exposition"
     },
     {
       "id": "rage",
-      "name": "Rage (R)",
-      "fullName": "Rage (R) - Voyage / Obligatoire",
-      "aliases": ["rage", "rabies", "r"],
+      "name": "Rage (Eurican LR / Nobivac Rabies / Versiguard)",
+      "fullName": "Rage (Eurican LR / Nobivac Rabies / Versiguard / Rabisin)",
+      "aliases": ["rage", "rabies", "r", "rabisin", "versiguard"],
       "defaultBoosterMonths": 12,
-      "description": "Rappel annuel obligatoire pour les voyages"
+      "description": "Obligatoire pour voyager, campings et chiens de catégorie"
     },
     {
       "id": "kc",
-      "name": "Toux de Chenil (Bb/Kc)",
-      "fullName": "Toux de Chenil (Bordetella / Kc)",
-      "aliases": ["toux de chenil", "kc", "bordetella"],
+      "name": "Toux de Chenil (Nobivac KC / Bronchi-Shield)",
+      "fullName": "Toux de Chenil (Nobivac KC / Bronchi-Shield - Bordetella)",
+      "aliases": ["toux de chenil", "kc", "nobivac kc", "bronchi-shield", "bordetella"],
       "defaultBoosterMonths": 12,
-      "description": "Recommandé pour pension / cours collectifs"
+      "description": "Intranasal / injectable pour pensions, expositions et collectivités"
     },
     {
       "id": "piroplasmose",
-      "name": "Piroplasmose",
-      "fullName": "Piroplasmose (Tiques - France)",
-      "aliases": ["piroplasmose"],
+      "name": "Piroplasmose (Eurican Piro / Nobivac Piro)",
+      "fullName": "Piroplasmose (Eurican Piro / Nobivac Piro - Babésiose Tiques)",
+      "aliases": ["piroplasmose", "eurican piro", "nobivac piro"],
       "defaultBoosterMonths": 12,
-      "description": "Vaccin préventif Babésiose"
+      "description": "Vaccin préventif Babésiose transmise par les tiques en France"
     },
     {
       "id": "leishmaniose",
-      "name": "Leishmaniose",
-      "fullName": "Leishmaniose (Singe / Sud de France)",
-      "aliases": ["leishmaniose"],
+      "name": "Leishmaniose (LetiFend / CaniLeish)",
+      "fullName": "Leishmaniose (LetiFend / CaniLeish - Phlébotomes)",
+      "aliases": ["leishmaniose", "letifend", "canileish"],
       "defaultBoosterMonths": 12,
-      "description": "Protection contre les phlébotomes"
+      "description": "Protection contre la leishmaniose (Sud de la France / Méditerranée)"
     }
   ],
   "antiparasitics": [
