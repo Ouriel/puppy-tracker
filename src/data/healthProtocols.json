@@ -14,7 +14,15 @@
       "fullName": "Eurican DAPPi + L4 (Carré, Adénovirus, Parvovirose, Pi + Lepto 4)",
       "aliases": ["eurican", "dappi", "eurican dappi", "eurican l4"],
       "defaultBoosterMonths": 1,
-      "description": "Gamme de référence Boehringer Ingelheim / Merial France"
+      "description": "Gamme de référence Boehringer Ingelheim / Merial France (avec Leptospirose L4)"
+    },
+    {
+      "id": "eurican_dappi",
+      "name": "Eurican DAPPi (Boehringer - sans L4)",
+      "fullName": "Eurican DAPPi (Carré, Adénovirus, Parvovirose, Parainfluenza - sans L4)",
+      "aliases": ["eurican dappi", "dappi", "eurican sans l4"],
+      "defaultBoosterMonths": 1,
+      "description": "Fraction virale pure Boehringer Ingelheim sans Leptospirose"
     },
     {
       "id": "nobivac_dhppi_l4",
