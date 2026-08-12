@@ -460,7 +460,7 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({
                       <label className="block text-xs font-semibold text-slate-400 mb-1">{t.health.batchNumber}</label>
                       <Input
                         type="text"
-                        placeholder="e.g. BATCH-2026-X99"
+                        placeholder="e.g. BATCH-01 / BATCH-02"
                         className="bg-slate-900 border-slate-700/80 text-slate-100"
                         value={batchNumber}
                         onChange={(event) => setBatchNumber(event.target.value)}
