@@ -2,91 +2,59 @@
   "vaccines": [
     {
       "id": "chppi_l4",
-      "name": "CHPPi + L4 (Eurican / Nobivac / Versican)",
-      "fullName": "CHPPi + L4 / DHPPi (Eurican / Nobivac / Versican Plus)",
-      "aliases": ["chppi", "dhpp", "chppi + l4", "dhpp + l4", "eurican", "nobivac", "versican"],
+      "name": "CHPPi / DAPPi + L4 (Eurican / Nobivac / Versican / Canigen)",
+      "fullName": "CHPPi / DAPPi + L4 (Eurican / Nobivac / Versican / Canigen)",
+      "aliases": ["chppi", "dappi", "dhppi", "chppi + l4", "dappi + l4", "eurican", "nobivac", "versican", "canigen"],
       "defaultBoosterMonths": 1,
-      "description": "Primovaccination chiot à 8, 12 et 16 semaines (Carré, Hépatite, Parvo, Pi + Lepto 4)"
+      "description": "Primovaccination chiot à 8, 12 et 16 semaines (Carré, Hépatite/Adénovirus, Parvo, Pi + Lepto 4)"
     },
     {
-      "id": "eurican_dappi_l4",
-      "name": "Eurican DAPPi + L4 (Boehringer)",
-      "fullName": "Eurican DAPPi + L4 (Carré, Adénovirus, Parvovirose, Pi + Lepto 4)",
-      "aliases": ["eurican", "dappi", "eurican dappi", "eurican l4"],
+      "id": "chppi_sans_l4",
+      "name": "CHPPi / DAPPi (sans L4)",
+      "fullName": "CHPPi / DAPPi - sans L4 (Eurican / Nobivac / Versican)",
+      "aliases": ["chppi", "dappi", "dhppi", "eurican dappi", "nobivac dhppi", "sans l4"],
       "defaultBoosterMonths": 1,
-      "description": "Gamme de référence Boehringer Ingelheim / Merial France (avec Leptospirose L4)"
-    },
-    {
-      "id": "eurican_dappi",
-      "name": "Eurican DAPPi (Boehringer - sans L4)",
-      "fullName": "Eurican DAPPi (Carré, Adénovirus, Parvovirose, Parainfluenza - sans L4)",
-      "aliases": ["eurican dappi", "dappi", "eurican sans l4"],
-      "defaultBoosterMonths": 1,
-      "description": "Fraction virale pure Boehringer Ingelheim sans Leptospirose"
-    },
-    {
-      "id": "nobivac_dhppi_l4",
-      "name": "Nobivac DHPPi + L4 (MSD)",
-      "fullName": "Nobivac DHPPi + L4 (Carré, Hépatite, Parvo, Pi + Lepto 4)",
-      "aliases": ["nobivac", "nobivac dhppi", "nobivac l4"],
-      "defaultBoosterMonths": 1,
-      "description": "Gamme MSD Santé Animale France"
-    },
-    {
-      "id": "versican_plus_l4",
-      "name": "Versican Plus DHPPi/L4 (Zoetis)",
-      "fullName": "Versican Plus DHPPi/L4 (Zoetis France)",
-      "aliases": ["versican", "versican plus", "zoetis"],
-      "defaultBoosterMonths": 1,
-      "description": "Gamme Zoetis France pour chiots dès 8 semaines"
-    },
-    {
-      "id": "canigen_chppi_l4",
-      "name": "Canigen CHPPi / L4 (Virbac)",
-      "fullName": "Canigen CHPPi / L4 (Virbac France)",
-      "aliases": ["canigen", "virbac"],
-      "defaultBoosterMonths": 1,
-      "description": "Gamme Virbac France"
-    },
-    {
-      "id": "vanguard_cpv",
-      "name": "Vanguard CPV / Parvovirose (Zoetis)",
-      "fullName": "Vanguard CPV (Précoce Parvovirose chiot dès 6w)",
-      "aliases": ["vanguard", "cpv", "parvovirose"],
-      "defaultBoosterMonths": 1,
-      "description": "Vaccin précoce Parvovirose chiot dès 6 semaines"
+      "description": "Fraction virale pure (Carré, Hépatite/Adénovirus, Parvovirose, Parainfluenza) sans Leptospirose"
     },
     {
       "id": "l4",
       "name": "L4 (Leptospirose 4 souches)",
-      "fullName": "L4 (Leptospirose 4 souches - Nobivac L4 / Eurican L4)",
-      "aliases": ["leptospirose", "l4"],
+      "fullName": "L4 (Leptospirose 4 souches - Eurican L4 / Nobivac L4 / Versican L4)",
+      "aliases": ["leptospirose", "l4", "eurican l4", "nobivac l4"],
       "defaultBoosterMonths": 6,
-      "description": "Rappel semestriel ou annuel selon l'exposition"
+      "description": "Protection contre les 4 souches de Leptospirose (rappel semestriel/annuel)"
     },
     {
       "id": "rage",
-      "name": "Rage (Eurican LR / Nobivac Rabies / Versiguard)",
+      "name": "Rage (Eurican LR / Nobivac Rabies / Versiguard / Rabisin)",
       "fullName": "Rage (Eurican LR / Nobivac Rabies / Versiguard / Rabisin)",
       "aliases": ["rage", "rabies", "r", "rabisin", "versiguard"],
       "defaultBoosterMonths": 12,
-      "description": "Obligatoire pour voyager, campings et chiens de catégorie"
+      "description": "Obligatoire pour voyager à l'étranger, séjours collectifs et chiens de catégorie"
+    },
+    {
+      "id": "vanguard_cpv",
+      "name": "Parvovirose Précoce (CPV / Vanguard / Nobivac Parvo)",
+      "fullName": "Parvovirose Précoce (CPV - Vanguard / Nobivac Parvo dès 6 sem)",
+      "aliases": ["vanguard", "cpv", "parvo", "parvovirose"],
+      "defaultBoosterMonths": 1,
+      "description": "Vaccination précoce ciblée Parvovirose pour chiots dès 6 semaines"
     },
     {
       "id": "kc",
       "name": "Toux de Chenil (Nobivac KC / Bronchi-Shield)",
-      "fullName": "Toux de Chenil (Nobivac KC / Bronchi-Shield - Bordetella)",
+      "fullName": "Toux de Chenil (Nobivac KC / Bronchi-Shield - Bordetella + Pi)",
       "aliases": ["toux de chenil", "kc", "nobivac kc", "bronchi-shield", "bordetella"],
       "defaultBoosterMonths": 12,
-      "description": "Intranasal / injectable pour pensions, expositions et collectivités"
+      "description": "Vaccin intranasal ou injectable pour chenils, cours collectifs et pensions"
     },
     {
       "id": "piroplasmose",
       "name": "Piroplasmose (Eurican Piro / Nobivac Piro)",
-      "fullName": "Piroplasmose (Eurican Piro / Nobivac Piro - Babésiose Tiques)",
-      "aliases": ["piroplasmose", "eurican piro", "nobivac piro"],
+      "fullName": "Piroplasmose (Eurican Piro / Nobivac Piro - Babésiose tiques)",
+      "aliases": ["piroplasmose", "piro", "eurican piro", "nobivac piro"],
       "defaultBoosterMonths": 12,
-      "description": "Vaccin préventif Babésiose transmise par les tiques en France"
+      "description": "Vaccin préventif contre la Babésiose transmise par les tiques en France"
     },
     {
       "id": "leishmaniose",
@@ -94,7 +62,7 @@
       "fullName": "Leishmaniose (LetiFend / CaniLeish - Phlébotomes)",
       "aliases": ["leishmaniose", "letifend", "canileish"],
       "defaultBoosterMonths": 12,
-      "description": "Protection contre la leishmaniose (Sud de la France / Méditerranée)"
+      "description": "Protection contre la leishmaniose transmise par les phlébotomes (Sud de la France)"
     }
   ],
   "antiparasitics": [
