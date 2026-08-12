@@ -493,12 +493,28 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                         <div>
                           <label className="block text-[10px] text-slate-400 font-semibold mb-1">Vaccine Name</label>
-                          <Input
-                            type="text"
-                            className="bg-slate-900 border-slate-700/80 text-slate-100"
-                            value={editVaccineName}
-                            onChange={(e) => setEditVaccineName(e.target.value)}
-                          />
+                          <Select value={editVaccineName} onChange={(val) => setEditVaccineName(val as string)}>
+                            <Select.Trigger className="bg-slate-900 border-slate-700/80 text-slate-100">
+                              <Select.Value />
+                              <Select.Indicator />
+                            </Select.Trigger>
+                            <Select.Popover className="bg-slate-900 border-slate-800 text-slate-100">
+                              <ListBox>
+                                {(() => {
+                                  const options = getHealthProtocols().vaccines;
+                                  const hasMatch = options.some((v) => v.name === editVaccineName);
+                                  const list = hasMatch || !editVaccineName
+                                    ? options
+                                    : [{ id: editVaccineName, name: editVaccineName, fullName: editVaccineName }, ...options];
+                                  return list.map((v) => (
+                                    <ListBoxItem key={v.id} id={v.name} textValue={v.fullName}>
+                                      {v.fullName}
+                                    </ListBoxItem>
+                                  ));
+                                })()}
+                              </ListBox>
+                            </Select.Popover>
+                          </Select>
                         </div>
                         <div>
                           <label className="block text-[10px] text-slate-400 font-semibold mb-1">Injected Date</label>
@@ -722,12 +738,28 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         <div>
                           <label className="block text-[10px] text-slate-400 font-semibold mb-1">Product Name</label>
-                          <Input
-                            type="text"
-                            className="bg-slate-900 border-slate-700/80 text-slate-100"
-                            value={editDewormingName}
-                            onChange={(e) => setEditDewormingName(e.target.value)}
-                          />
+                          <Select value={editDewormingName} onChange={(val) => setEditDewormingName(val as string)}>
+                            <Select.Trigger className="bg-slate-900 border-slate-700/80 text-slate-100">
+                              <Select.Value />
+                              <Select.Indicator />
+                            </Select.Trigger>
+                            <Select.Popover className="bg-slate-900 border-slate-800 text-slate-100">
+                              <ListBox>
+                                {(() => {
+                                  const options = getHealthProtocols().antiparasitics;
+                                  const hasMatch = options.some((p) => p.name === editDewormingName);
+                                  const list = hasMatch || !editDewormingName
+                                    ? options
+                                    : [{ id: editDewormingName, name: editDewormingName, label: editDewormingName }, ...options];
+                                  return list.map((p) => (
+                                    <ListBoxItem key={p.id} id={p.name} textValue={p.label}>
+                                      {p.label}
+                                    </ListBoxItem>
+                                  ));
+                                })()}
+                              </ListBox>
+                            </Select.Popover>
+                          </Select>
                         </div>
                         <div>
                           <label className="block text-[10px] text-slate-400 font-semibold mb-1">Weight at time (kg)</label>
