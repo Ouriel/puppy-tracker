@@ -93,8 +93,8 @@
     },
     {
       "id": "milbemax",
-      "name": "Milbemax Tab / Milprazon",
-      "label": "Milbemax Tab / Milprazon (Vers • Mensuel <6m, 3m adulte)",
+      "name": "Milbemax Chiot / Milprazon / Milprazikan",
+      "label": "Milbemax Chiot / Milprazon / Milprazikan (Vers • Mensuel <6m)",
       "category": "dewormer_only",
       "minAgeWeeks": 2,
       "minWeightKg": 0.5,
@@ -104,16 +104,98 @@
       "activeIngredients": "Milbemycin oxime + Praziquantel"
     },
     {
-      "id": "drontal",
-      "name": "Drontal Chien",
-      "label": "Drontal Chien (Vers internes • 3 mois adulte)",
+      "id": "drontal_chiot",
+      "name": "Drontal Chiot (Sirop / Comprimés)",
+      "label": "Drontal Chiot (Sirop / Comprimés • Vers internes)",
       "category": "dewormer_only",
       "minAgeWeeks": 2,
       "minWeightKg": 0.5,
       "intervalMonthsPuppy": 1,
       "intervalMonthsAdult": 3,
       "frequencyType": "esccap_age_based",
-      "activeIngredients": "Praziquantel + Pyrantel + Febantel"
+      "activeIngredients": "Pyrantel + Febantel (+ Praziquantel)"
+    },
+    {
+      "id": "panacur",
+      "name": "Panacur (Fenbendazole)",
+      "label": "Panacur (Vers & Giardiose • Poudre / Comprimés / Sirop)",
+      "category": "dewormer_only",
+      "minAgeWeeks": 2,
+      "minWeightKg": 0.5,
+      "intervalMonthsPuppy": 1,
+      "intervalMonthsAdult": 3,
+      "frequencyType": "esccap_age_based",
+      "activeIngredients": "Fenbendazole"
+    },
+    {
+      "id": "vitaminthe",
+      "name": "Vitaminthe (Pâte Virbac)",
+      "label": "Vitaminthe Virbac (Pâte orale en seringue graduée • Chiot)",
+      "category": "dewormer_only",
+      "minAgeWeeks": 2,
+      "minWeightKg": 0.5,
+      "intervalMonthsPuppy": 1,
+      "intervalMonthsAdult": 3,
+      "frequencyType": "esccap_age_based",
+      "activeIngredients": "Niclosamide + Oxibendazole"
+    },
+    {
+      "id": "procox",
+      "name": "Procox (Sirop Elanco)",
+      "label": "Procox Elanco (Sirop oral • Vers & Coccidiose chiot)",
+      "category": "dewormer_only",
+      "minAgeWeeks": 2,
+      "minWeightKg": 0.4,
+      "intervalMonthsPuppy": 1,
+      "intervalMonthsAdult": 3,
+      "frequencyType": "esccap_age_based",
+      "activeIngredients": "Emodepside + Toltrazuril"
+    },
+    {
+      "id": "strantel_biocanina",
+      "name": "Strantel / Biocanina / Clément Thékan",
+      "label": "Strantel / Biocanina / Clément Thékan (Vermifuge Pharmacie)",
+      "category": "dewormer_only",
+      "minAgeWeeks": 2,
+      "minWeightKg": 0.5,
+      "intervalMonthsPuppy": 1,
+      "intervalMonthsAdult": 3,
+      "frequencyType": "esccap_age_based",
+      "activeIngredients": "Pyrantel + Febantel + Praziquantel"
+    },
+    {
+      "id": "dolpac",
+      "name": "Dolpac (Vetoquinol)",
+      "label": "Dolpac Vetoquinol (Vers internes chien)",
+      "category": "dewormer_only",
+      "minAgeWeeks": 8,
+      "minWeightKg": 1.0,
+      "intervalMonthsPuppy": 1,
+      "intervalMonthsAdult": 3,
+      "frequencyType": "esccap_age_based",
+      "activeIngredients": "Oxantel + Pyrantel + Praziquantel"
+    },
+    {
+      "id": "advocate",
+      "name": "Advocate (Pipette Spot-on)",
+      "label": "Advocate (Pipette: Puces, Vers, Gale • Mensuel)",
+      "category": "all_in_one",
+      "minAgeWeeks": 7,
+      "minWeightKg": 1.0,
+      "intervalMonths": 1,
+      "frequencyType": "monthly",
+      "activeIngredients": "Imidaclopride + Moxidectine"
+    },
+    {
+      "id": "stronghold",
+      "name": "Stronghold / Stronghold Plus",
+      "label": "Stronghold / Stronghold Plus (Pipette Spot-on • Mensuel)",
+      "category": "all_in_one",
+      "minAgeWeeks": 6,
+      "minWeightKg": 1.25,
+      "intervalMonths": 1,
+      "frequencyType": "monthly",
+      "activeIngredients": "Sélamectine (+ Sarolaner)"
     },
     {
       "id": "bravecto",
@@ -125,30 +207,6 @@
       "intervalMonths": 3,
       "frequencyType": "quarterly",
       "activeIngredients": "Fluralaner"
-    },
-    {
-      "id": "panacur",
-      "name": "Panacur (Fenbendazole)",
-      "label": "Panacur (Chiots / Giardiose)",
-      "category": "dewormer_only",
-      "minAgeWeeks": 2,
-      "minWeightKg": 0.5,
-      "intervalMonthsPuppy": 1,
-      "intervalMonthsAdult": 3,
-      "frequencyType": "esccap_age_based",
-      "activeIngredients": "Fenbendazole"
-    },
-    {
-      "id": "dolpac",
-      "name": "Dolpac / Procox",
-      "label": "Dolpac / Procox",
-      "category": "dewormer_only",
-      "minAgeWeeks": 2,
-      "minWeightKg": 0.5,
-      "intervalMonthsPuppy": 1,
-      "intervalMonthsAdult": 3,
-      "frequencyType": "esccap_age_based",
-      "activeIngredients": "Oxantel + Pyrantel + Praziquantel"
     }
   ],
   "esccapGuidelines": {
