@@ -9,6 +9,7 @@ import { getEffectivePuppyWeight } from '../utils/weight';
 import { getPuppyAge } from '../utils/predictions';
 import { fetchHealthRecords } from '../services/api';
 import { calculateNextVaccineBooster, calculateNextDewormingDate } from '../utils/health';
+import { formatShortDate } from '../utils/date';
 
 interface DogHealthSummaryProps {
   profile: PuppyProfile;
@@ -59,15 +60,8 @@ export const DogHealthSummary: React.FC<DogHealthSummaryProps> = ({
       .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
 
     const lastLog = weightLogs.length > 0 ? weightLogs[weightLogs.length - 1] : null;
-    const lastLogDateStr = lastLog ? new Date(lastLog.timestamp).toLocaleDateString(lang === 'fr' ? 'fr-FR' : 'en-US', { month: 'short', day: 'numeric' }) : null;
-
-    let lastLogAgeWeeks: number | null = null;
-    if (lastLog && profile.birthDate) {
-      const birth = new Date(profile.birthDate).getTime();
-      const logTime = new Date(lastLog.timestamp).getTime();
-      const diffDays = (logTime - birth) / (1000 * 60 * 60 * 24);
-      lastLogAgeWeeks = Math.max(1, Math.floor(diffDays / 7));
-    }
+    const lastLogDateStr = lastLog ? formatShortDate(lastLog.timestamp, lang as 'en' | 'fr') : null;
+    const lastLogAgeWeeks = lastLog && profile.birthDate ? getPuppyAge(profile.birthDate, lastLog.timestamp).weeks : null;
 
     const projectedWeight = calculateProjectedAdultWeightRange(profile.breed, weightLogs, ageInfo.weeks, profile.weightKg);
     const weightInfo = getEffectivePuppyWeight(profile, activities);

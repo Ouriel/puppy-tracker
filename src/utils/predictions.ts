@@ -28,12 +28,15 @@ function getWakingHours(wakeupHour: number, bedtimeHour: number): number {
   return ((bedtimeHour - wakeupHour) + 24) % 24;
 }
 
-export function getPuppyAge(birthDateIso: string): { weeks: number; months: number; text: string } {
+export function getPuppyAge(
+  birthDateIso: string,
+  targetDateIso: string | Date = new Date()
+): { weeks: number; months: number; text: string } {
   const birth = parseIsoDate(birthDateIso);
-  const now = new Date();
-  const diffMs = Math.max(0, now.getTime() - birth.getTime());
+  const target = parseIsoDate(targetDateIso);
+  const diffMs = Math.max(0, target.getTime() - birth.getTime());
   const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-  const weeks = Math.floor(diffDays / 7);
+  const weeks = Math.max(0, Math.floor(diffDays / 7));
   const months = (diffDays / 30.4375).toFixed(1);
 
   if (weeks < 16) {

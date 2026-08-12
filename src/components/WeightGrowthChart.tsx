@@ -3,6 +3,8 @@ import { Card, Button } from '@heroui/react';
 import type { Activity, PuppyProfile } from '../types';
 import { Scale, Plus, Trash2 } from 'lucide-react';
 import { useI18n } from '../i18n';
+import { formatRelativeTime } from '../utils/date';
+import { getPuppyAge } from '../utils/predictions';
 
 import {
   getExpectedAdultWeight,
@@ -123,18 +125,8 @@ export const WeightGrowthChart: React.FC<WeightGrowthChartProps> = ({
         ) : (
           <div className="space-y-2">
             {weightLogs.map((log) => {
-              const logDate = new Date(log.timestamp);
-              const formattedDate = logDate.toLocaleDateString(undefined, {
-                year: 'numeric',
-                month: 'short',
-                day: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit',
-              });
-
-              const logAgeWeeks = profile.birthDate
-                ? Math.max(1, Math.floor((logDate.getTime() - new Date(profile.birthDate).getTime()) / (1000 * 60 * 60 * 24 * 7)))
-                : null;
+              const formattedDate = formatRelativeTime(log.timestamp);
+              const logAgeWeeks = profile.birthDate ? getPuppyAge(profile.birthDate, log.timestamp).weeks : null;
 
               return (
                 <div key={log.id} className="flex items-center justify-between p-3.5 bg-slate-950/40 rounded-xl border border-slate-800">
