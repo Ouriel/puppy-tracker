@@ -401,19 +401,19 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({
             <Card variant="default" className="bg-slate-950/90 border border-slate-800">
               <form onSubmit={handleAddVaccineSubmit}>
                 <Card.Content className="p-4 space-y-3">
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    <div>
+                  <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                    <div className="sm:col-span-2 min-w-0">
                       <label className="block text-xs font-semibold text-slate-400 mb-1">{t.health.vaccineType}</label>
                       <Select value={vaccineType} onChange={(val) => setVaccineType(val as string)}>
-                        <Select.Trigger className="bg-slate-900 border-slate-700/80 text-slate-100">
-                          <Select.Value />
+                        <Select.Trigger className="w-full bg-slate-900 border-slate-700/80 text-slate-100 min-w-0 flex items-center justify-between">
+                          <Select.Value className="truncate block text-left" />
                           <Select.Indicator />
                         </Select.Trigger>
-                        <Select.Popover className="bg-slate-900 border-slate-800 text-slate-100">
+                        <Select.Popover className="bg-slate-900 border border-slate-800 text-slate-100 max-w-xl w-full">
                           <ListBox>
                             {getHealthProtocols().vaccines.map((v) => (
-                              <ListBoxItem key={v.id} id={v.name} textValue={v.fullName}>
-                                {v.fullName}
+                              <ListBoxItem key={v.id} id={v.name} textValue={v.fullName} className="truncate whitespace-nowrap overflow-hidden">
+                                <span className="truncate block text-xs">{v.fullName}</span>
                               </ListBoxItem>
                             ))}
                           </ListBox>
@@ -421,7 +421,7 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({
                       </Select>
                     </div>
 
-                    <div>
+                    <div className="sm:col-span-1 min-w-0">
                       <label className="block text-xs font-semibold text-slate-400 mb-1">{t.health.administeredDate}</label>
                       <Input
                         type="date"
@@ -432,7 +432,7 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({
                       />
                     </div>
 
-                    <div>
+                    <div className="sm:col-span-1 min-w-0">
                       <label className="block text-xs font-semibold text-slate-400 mb-1">{t.health.boosterDue}</label>
                       <Input
                         type="date"
@@ -490,15 +490,15 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({
                 return (
                   <Card key={vaccine.id} variant="default" className="bg-slate-950/90 border border-teal-500/60">
                     <Card.Content className="p-3.5 space-y-3">
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                        <div>
+                      <div className="grid grid-cols-1 sm:grid-cols-4 gap-2">
+                        <div className="sm:col-span-2 min-w-0">
                           <label className="block text-[10px] text-slate-400 font-semibold mb-1">Vaccine Name</label>
                           <Select value={editVaccineName} onChange={(val) => setEditVaccineName(val as string)}>
-                            <Select.Trigger className="bg-slate-900 border-slate-700/80 text-slate-100">
-                              <Select.Value />
+                            <Select.Trigger className="w-full bg-slate-900 border-slate-700/80 text-slate-100 min-w-0 flex items-center justify-between">
+                              <Select.Value className="truncate block text-left" />
                               <Select.Indicator />
                             </Select.Trigger>
-                            <Select.Popover className="bg-slate-900 border-slate-800 text-slate-100">
+                            <Select.Popover className="bg-slate-900 border border-slate-800 text-slate-100 max-w-xl w-full">
                               <ListBox>
                                 {(() => {
                                   const options = getHealthProtocols().vaccines;
@@ -507,8 +507,8 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({
                                     ? options
                                     : [{ id: editVaccineName, name: editVaccineName, fullName: editVaccineName }, ...options];
                                   return list.map((v) => (
-                                    <ListBoxItem key={v.id} id={v.name} textValue={v.fullName}>
-                                      {v.fullName}
+                                    <ListBoxItem key={v.id} id={v.name} textValue={v.fullName} className="truncate whitespace-nowrap overflow-hidden">
+                                      <span className="truncate block text-xs">{v.fullName}</span>
                                     </ListBoxItem>
                                   ));
                                 })()}
@@ -516,7 +516,7 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({
                             </Select.Popover>
                           </Select>
                         </div>
-                        <div>
+                        <div className="sm:col-span-1 min-w-0">
                           <label className="block text-[10px] text-slate-400 font-semibold mb-1">Injected Date</label>
                           <Input
                             type="date"
@@ -525,7 +525,7 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({
                             onChange={(e) => setEditVaccineDate(e.target.value)}
                           />
                         </div>
-                        <div>
+                        <div className="sm:col-span-1 min-w-0">
                           <label className="block text-[10px] text-slate-400 font-semibold mb-1">Booster Due Date</label>
                           <Input
                             type="date"
@@ -670,19 +670,19 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({
             <Card variant="default" className="bg-slate-950/90 border border-slate-800">
               <form onSubmit={handleAddDewormingSubmit}>
                 <Card.Content className="p-4 space-y-3">
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    <div>
+                  <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                    <div className="sm:col-span-2 min-w-0">
                       <label className="block text-xs font-semibold text-slate-400 mb-1">{t.health.productName}</label>
                       <Select value={productName} onChange={(val) => setProductName(val as string)}>
-                        <Select.Trigger className="bg-slate-900 border-slate-700/80 text-slate-100">
-                          <Select.Value />
+                        <Select.Trigger className="w-full bg-slate-900 border-slate-700/80 text-slate-100 min-w-0 flex items-center justify-between">
+                          <Select.Value className="truncate block text-left" />
                           <Select.Indicator />
                         </Select.Trigger>
-                        <Select.Popover className="bg-slate-900 border-slate-800 text-slate-100">
+                        <Select.Popover className="bg-slate-900 border border-slate-800 text-slate-100 max-w-xl w-full">
                           <ListBox>
                             {getHealthProtocols().antiparasitics.map((p) => (
-                              <ListBoxItem key={p.id} id={p.name} textValue={p.label}>
-                                {p.label}
+                              <ListBoxItem key={p.id} id={p.name} textValue={p.label} className="truncate whitespace-nowrap overflow-hidden">
+                                <span className="truncate block text-xs">{p.label}</span>
                               </ListBoxItem>
                             ))}
                           </ListBox>
@@ -690,7 +690,7 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({
                       </Select>
                     </div>
 
-                    <div>
+                    <div className="sm:col-span-1 min-w-0">
                       <label className="block text-xs font-semibold text-slate-400 mb-1">{t.health.administeredDate}</label>
                       <Input
                         type="date"
@@ -701,7 +701,7 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({
                       />
                     </div>
 
-                    <div>
+                    <div className="sm:col-span-1 min-w-0">
                       <label className="block text-xs font-semibold text-slate-400 mb-1">{t.health.boosterDue}</label>
                       <Input
                         type="date"
@@ -735,15 +735,15 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({
                 return (
                   <Card key={deworming.id} variant="default" className="bg-slate-950/90 border border-amber-500/60">
                     <Card.Content className="p-3.5 space-y-3">
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        <div>
+                      <div className="grid grid-cols-1 sm:grid-cols-4 gap-2">
+                        <div className="sm:col-span-2 min-w-0">
                           <label className="block text-[10px] text-slate-400 font-semibold mb-1">Product Name</label>
                           <Select value={editDewormingName} onChange={(val) => setEditDewormingName(val as string)}>
-                            <Select.Trigger className="bg-slate-900 border-slate-700/80 text-slate-100">
-                              <Select.Value />
+                            <Select.Trigger className="w-full bg-slate-900 border-slate-700/80 text-slate-100 min-w-0 flex items-center justify-between">
+                              <Select.Value className="truncate block text-left" />
                               <Select.Indicator />
                             </Select.Trigger>
-                            <Select.Popover className="bg-slate-900 border-slate-800 text-slate-100">
+                            <Select.Popover className="bg-slate-900 border border-slate-800 text-slate-100 max-w-xl w-full">
                               <ListBox>
                                 {(() => {
                                   const options = getHealthProtocols().antiparasitics;
@@ -752,8 +752,8 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({
                                     ? options
                                     : [{ id: editDewormingName, name: editDewormingName, label: editDewormingName }, ...options];
                                   return list.map((p) => (
-                                    <ListBoxItem key={p.id} id={p.name} textValue={p.label}>
-                                      {p.label}
+                                    <ListBoxItem key={p.id} id={p.name} textValue={p.label} className="truncate whitespace-nowrap overflow-hidden">
+                                      <span className="truncate block text-xs">{p.label}</span>
                                     </ListBoxItem>
                                   ));
                                 })()}
@@ -761,7 +761,7 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({
                             </Select.Popover>
                           </Select>
                         </div>
-                        <div>
+                        <div className="sm:col-span-2 min-w-0">
                           <label className="block text-[10px] text-slate-400 font-semibold mb-1">Weight at time (kg)</label>
                           <Input
                             type="number"
@@ -774,7 +774,7 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({
                         </div>
                       </div>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        <div>
+                        <div className="sm:col-span-1 min-w-0">
                           <label className="block text-[10px] text-slate-400 font-semibold mb-1">Given Date</label>
                           <Input
                             type="date"
@@ -783,7 +783,7 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({
                             onChange={(e) => setEditDewormingDate(e.target.value)}
                           />
                         </div>
-                        <div>
+                        <div className="sm:col-span-1 min-w-0">
                           <label className="block text-[10px] text-slate-400 font-semibold mb-1">Next Due Date</label>
                           <Input
                             type="date"

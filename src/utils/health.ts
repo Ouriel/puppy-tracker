@@ -18,7 +18,15 @@ export interface HealthProtocolData {
 }
 
 export function getHealthProtocols(): HealthProtocolData {
-  return healthProtocols as HealthProtocolData;
+  return {
+    ...healthProtocols,
+    vaccines: [...healthProtocols.vaccines].sort((a, b) =>
+      a.fullName.localeCompare(b.fullName, 'fr', { sensitivity: 'base' })
+    ),
+    antiparasitics: [...healthProtocols.antiparasitics].sort((a, b) =>
+      a.label.localeCompare(b.label, 'fr', { sensitivity: 'base' })
+    ),
+  } as HealthProtocolData;
 }
 
 /**
