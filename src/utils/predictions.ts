@@ -59,6 +59,22 @@ export function calculateVetFoodGramGoal(weightKg: number, ageMonths: number): n
 }
 
 /**
+ * Calculates remaining portion grams for the next meal given daily goal and meals logged today.
+ */
+export function calculateNextMealPortion(
+  dailyGramGoal: number = 200,
+  targetMealsPerDay: number = 3,
+  loggedGramsToday: number = 0,
+  loggedMealsCountToday: number = 0
+): number {
+  const goal = dailyGramGoal || 200;
+  const targetMeals = targetMealsPerDay || 3;
+  const remainingGrams = Math.max(0, goal - loggedGramsToday);
+  const remainingMeals = Math.max(1, targetMeals - loggedMealsCountToday);
+  return Math.round(remainingGrams / remainingMeals) || Math.round(goal / targetMeals);
+}
+
+/**
  * Learns puppy's exact night sleep schedule (bedtime & morning wakeup) with minute precision from activity logs
  */
 /**

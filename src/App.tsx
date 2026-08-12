@@ -22,7 +22,7 @@ import {
   deleteCaretaker,
   exchangeSessionToken,
 } from './services/api';
-import { calculatePredictions } from './utils/predictions';
+import { calculatePredictions, calculateNextMealPortion } from './utils/predictions';
 import { getEffectivePuppyWeight } from './utils/weight';
 import { isSameLocalDate } from './utils/date';
 import { Navbar } from './components/Navbar';
@@ -206,12 +206,13 @@ export function App() {
   }, [activePuppyActivities]);
 
   const nextMealPortionGrams = useMemo(() => {
-    if (!activePuppy) return 80;
-    const dailyGoal = activePuppy.dailyFoodGramGoal || 200;
-    const mealsPerDay = activePuppy.targetMealsPerDay || 3;
-    const remainingGrams = Math.max(0, dailyGoal - todayFoodLoggedGrams);
-    const remainingMeals = Math.max(1, mealsPerDay - todayMealsCount);
-    return Math.round(remainingGrams / remainingMeals) || Math.round(dailyGoal / mealsPerDay);
+    if (!activePuppy) return 70;
+    return calculateNextMealPortion(
+      activePuppy.dailyFoodGramGoal,
+      activePuppy.targetMealsPerDay,
+      todayFoodLoggedGrams,
+      todayMealsCount
+    );
   }, [activePuppy, todayFoodLoggedGrams, todayMealsCount]);
 
   const activePuppyEffectiveWeightInfo = useMemo(() => {

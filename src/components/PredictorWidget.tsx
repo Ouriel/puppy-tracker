@@ -4,6 +4,7 @@ import { Droplet, Footprints, Utensils, CheckCircle2, Clock, AlertTriangle } fro
 import { Card, Chip } from '@heroui/react';
 import { useI18n } from '../i18n';
 import { formatMinutesToXhXX, isSameLocalDate, parseIsoDate } from '../utils/date';
+import { calculateNextMealPortion } from '../utils/predictions';
 
 interface PredictorWidgetProps {
   predictions: PredictionResult;
@@ -65,9 +66,13 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = React.memo(({
 
   const dailyGoal = profile.dailyFoodGramGoal || 200;
   const targetMeals = profile.targetMealsPerDay || 3;
-  const remainingGrams = Math.max(0, dailyGoal - todayFoodLoggedGrams);
-  const remainingMeals = Math.max(1, targetMeals - todayMealsCount);
-  const portionLeftForNextMeal = Math.round(remainingGrams / remainingMeals) || Math.round(dailyGoal / targetMeals);
+
+  const portionLeftForNextMeal = calculateNextMealPortion(
+    profile.dailyFoodGramGoal,
+    profile.targetMealsPerDay,
+    todayFoodLoggedGrams,
+    todayMealsCount
+  );
 
   const getUrgencyBadge = (urgency: 'safe' | 'soon' | 'overdue') => {
     if (urgency === 'overdue') {

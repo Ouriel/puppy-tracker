@@ -132,6 +132,16 @@ export function formatRelativeTime(
 }
 
 /**
+ * Formats a Date object or ISO string into localized short date format (e.g. 'Nov 12' or '12 nov.')
+ */
+export function formatShortDate(date: string | Date, lang: 'en' | 'fr' = 'en'): string {
+  const parsed = parseIsoDate(date);
+  if (isNaN(parsed.getTime())) return '';
+  const locale = lang === 'fr' ? 'fr-FR' : 'en-US';
+  return parsed.toLocaleDateString(locale, { month: 'short', day: 'numeric' });
+}
+
+/**
  * Formats minute durations into human-readable XhXX format when >= 60 (e.g. 75m -> 1h15, 120m -> 2h, 125m -> 2h05)
  */
 export function formatMinutesToXhXX(minutes: number): string {
