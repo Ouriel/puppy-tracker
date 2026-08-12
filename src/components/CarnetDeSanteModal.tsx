@@ -18,7 +18,7 @@ export const CarnetDeSanteModal: React.FC<CarnetDeSanteModalProps> = ({
     <Modal isOpen={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
       <Modal.Backdrop>
         <Modal.Container size="lg" scroll="inside">
-          <Modal.Dialog className="bg-slate-900 border border-slate-800 text-slate-100 max-w-4xl">
+          <Modal.Dialog className="bg-slate-900 border border-slate-800 text-slate-100 max-w-5xl w-full">
             <Modal.CloseTrigger />
             <Modal.Header>
               <Modal.Heading className="text-base font-extrabold text-white">

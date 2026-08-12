@@ -337,7 +337,7 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({
   }
 
   return (
-    <div className="space-y-6 max-w-4xl mx-auto">
+    <div className="space-y-6 w-full">
       {/* Top Navigation Bar */}
       {onBackToDashboard && (
         <div className="flex items-center justify-between">
