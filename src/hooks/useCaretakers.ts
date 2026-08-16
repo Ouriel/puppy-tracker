@@ -1,14 +1,27 @@
-import { useState, useCallback } from 'react';
-import type { Caretaker } from '../types';
+import { useState, useCallback, useMemo } from 'react';
+import type { Caretaker, UserAccount } from '../types';
 import { getStoredCaretakers } from '../utils/storage';
 import { createCaretaker, updateCaretaker as apiUpdateCaretaker, deleteCaretaker as apiDeleteCaretaker } from '../services/api';
 import { showToast } from '../utils/toast';
 import { useI18n } from '../i18n';
 
-export function useCaretakers(initialCaretakers: Caretaker[] = getStoredCaretakers()) {
+export function useCaretakers(
+  user: UserAccount | null = null,
+  initialCaretakers: Caretaker[] = getStoredCaretakers()
+) {
   const { t } = useI18n();
   const [caretakers, setCaretakers] = useState<Caretaker[]>(initialCaretakers);
-  const [currentUser] = useState<string>('Matthieu');
+
+  const currentUser = useMemo(() => {
+    if (!user) return 'Unknown';
+    const matchedCaretaker = caretakers.find(
+      (c) =>
+        (c.email && user.email && c.email.toLowerCase() === user.email.toLowerCase()) ||
+        (c.name && user.name && c.name.toLowerCase() === user.name.toLowerCase())
+    );
+    if (matchedCaretaker) return matchedCaretaker.name;
+    return user.name || (user.email ? user.email.split('@')[0] : 'Unknown');
+  }, [user, caretakers]);
 
   const addCaretaker = useCallback(
     async (caretaker: Caretaker) => {

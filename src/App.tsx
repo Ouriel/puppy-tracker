@@ -35,7 +35,7 @@ export function App() {
 
   // Domain state hooks
   const puppyState = usePuppies();
-  const caretakerState = useCaretakers();
+  const caretakerState = useCaretakers(user);
   const activityState = useActivities(puppyState.activePuppy);
 
   // URL-driven view routing helper

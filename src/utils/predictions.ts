@@ -1,5 +1,5 @@
 import type { Activity, PredictionResult, PuppyProfile, ScheduleMode, FoodScheduleMode } from '../types';
-import { parseIsoDate, formatLocalDate, formatMinutesToXhXX, getLocalHour, getUserTimezone } from './date';
+import { parseIsoDate, formatLocalDate, formatMinutesToXhXX, getLocalHour, getUserTimezone, isSameLocalDate } from './date';
 
 /**
  * Wrap-aware check: is the given hour within daytime (between wakeup and bedtime)?
@@ -291,6 +291,21 @@ export function calculateLearnedIntervalMinutes(
 }
 
 /**
+ * Calculates the next upcoming occurrence of a decimal clock hour (e.g. 7.61 -> 07:37 AM) strictly after referenceDate.
+ */
+export function getNextOccurrenceOfClockTime(referenceDate: Date, targetHourDecimal: number): Date {
+  const target = new Date(referenceDate);
+  const h = Math.floor(targetHourDecimal);
+  const m = Math.round((targetHourDecimal - h) * 60);
+  target.setHours(h, m, 0, 0);
+
+  if (target.getTime() <= referenceDate.getTime()) {
+    target.setDate(target.getDate() + 1);
+  }
+  return target;
+}
+
+/**
  * Advanced Predictive Potty & Feeding Schedules with Night Sleep Detection & Timezone Awareness
  */
 export function calculatePredictions(
@@ -318,6 +333,16 @@ export function calculatePredictions(
   const lastPoop = sorted.find((activity) => activity.type === 'poop');
   const lastFood = sorted.find((activity) => activity.type === 'food');
 
+  // Check if puppy has already awoken and had morning activity today
+  const hasAwokenToday = sorted.some((act) => {
+    const actDate = parseIsoDate(act.timestamp);
+    return isSameLocalDate(actDate, now) && getLocalHour(actDate, tz) >= 5;
+  });
+
+  const isApproachingBedtime = currentHour >= Math.floor(sleepSchedule.bedtimeHour - 1);
+  const isMorning = currentHour >= 5 && currentHour < 12;
+  const isNightTime = (isMorning ? !hasAwokenToday : true) && (isCurrentlyNight || isApproachingBedtime);
+
   const { months } = getPuppyAge(profile.birthDate);
   const baseBladderHours = Math.max(1, Math.min(months, 4));
   const fallbackPeeIntervalMins = baseBladderHours * 60;
@@ -338,18 +363,9 @@ export function calculatePredictions(
 
     standardPeeExpectedAt = new Date(lastPeeTime + learnedPee.intervalMins * 60 * 1000);
 
-    const isApproachingBedtime = currentHour >= Math.floor(sleepSchedule.bedtimeHour - 1);
-    const isNightTime = isCurrentlyNight || isApproachingBedtime;
-
     if (isNightTime) {
       peeMode = 'night_sleep';
-      const targetWakeup = new Date(now);
-      if (currentHour >= Math.floor(sleepSchedule.bedtimeHour)) {
-        targetWakeup.setDate(targetWakeup.getDate() + 1);
-      }
-      const wakeH = Math.floor(sleepSchedule.wakeupHour);
-      const wakeM = Math.round((sleepSchedule.wakeupHour - wakeH) * 60);
-      targetWakeup.setHours(wakeH, wakeM, 0, 0);
+      const targetWakeup = getNextOccurrenceOfClockTime(now, sleepSchedule.wakeupHour);
 
       if (months < 2.5) {
         const midNightPee = new Date(lastPeeTime + 4 * 60 * 60 * 1000);
@@ -397,7 +413,7 @@ export function calculatePredictions(
 
     if (nextPeeExpectedAt) {
       const minsUntilPee = (nextPeeExpectedAt.getTime() - now.getTime()) / (1000 * 60);
-      if (isCurrentlyNight && minsUntilPee > -120) {
+      if (isNightTime) {
         peeUrgency = 'safe';
       } else if (minsUntilPee <= 0) {
         peeUrgency = 'overdue';
@@ -441,13 +457,9 @@ export function calculatePredictions(
 
     if (isNightTime) {
       poopMode = 'night_sleep';
-      const targetMorningPoop = new Date(now);
-      if (currentHour >= Math.floor(sleepSchedule.bedtimeHour - 2)) {
-        targetMorningPoop.setDate(targetMorningPoop.getDate() + 1);
-      }
-      const wakeH = Math.min(23, Math.floor(sleepSchedule.wakeupHour) + 1);
-      const wakeM = Math.round((sleepSchedule.wakeupHour - Math.floor(sleepSchedule.wakeupHour)) * 60);
-      targetMorningPoop.setHours(wakeH, wakeM, 0, 0);
+      const targetMorningPoop = getNextOccurrenceOfClockTime(now, sleepSchedule.wakeupHour + 1);
+      const wakeH = targetMorningPoop.getHours();
+      const wakeM = targetMorningPoop.getMinutes();
       nextPoopExpectedAt = targetMorningPoop;
       poopReason = `Night mode: Sleeping overnight. Expected post-breakfast (~${String(wakeH).padStart(2,'0')}:${String(wakeM).padStart(2,'0')})`;
     } else if (isLastPoopDiarrhea && hoursSinceLastPoop < 12) {
@@ -527,7 +539,7 @@ export function calculatePredictions(
 
     if (nextPoopExpectedAt && !isLastPoopConstipated) {
       const minsUntilPoop = (nextPoopExpectedAt.getTime() - now.getTime()) / (1000 * 60);
-      if (isCurrentlyNight && minsUntilPoop > -120) {
+      if (isNightTime) {
         poopUrgency = 'safe';
       } else if (minsUntilPoop <= 0) {
         poopUrgency = 'overdue';
@@ -555,37 +567,29 @@ export function calculatePredictions(
     (activity) => activity.type === 'food' && formatLocalDate(parseIsoDate(activity.timestamp), tz) === todayDateStr
   );
   const todayGramTotal = todayMeals.reduce((sum, activity) => sum + (activity.quantityGrams ?? 80), 0);
-  const isGoalReached = (profile.dailyFoodGramGoal > 0 && todayGramTotal >= profile.dailyFoodGramGoal) || todayMeals.length >= targetMeals;
+  const isGramGoalMet = profile.dailyFoodGramGoal > 0 && todayGramTotal >= profile.dailyFoodGramGoal * 0.90;
+  const isGoalReached = isGramGoalMet || (profile.dailyFoodGramGoal === 0 && todayMeals.length >= targetMeals);
 
   // Use learned meal times (breakfast, lunch, dinner)
-  const targetBreakfastToday = new Date(now);
   const bfastH = Math.floor(mealSchedule.breakfastMins / 60);
   const bfastM = mealSchedule.breakfastMins % 60;
+  const bfastStr = `${String(bfastH).padStart(2, '0')}:${String(bfastM).padStart(2, '0')}`;
+  const targetBreakfastToday = new Date(now);
   targetBreakfastToday.setHours(bfastH, bfastM, 0, 0);
 
-  const bfastStr = `${String(bfastH).padStart(2, '0')}:${String(bfastM).padStart(2, '0')}`;
+  const lateEveningFoodHour = Math.max(20, Math.floor(sleepSchedule.bedtimeHour - 1));
 
-  const lateEveningFoodHour = Math.max(19, Math.floor(sleepSchedule.bedtimeHour - 2));
-
-  if (isCurrentlyNight) {
+  if (isNightTime) {
     foodMode = 'night_sleep';
-    const targetBreakfastTomorrow = new Date(now);
-    if (currentHour >= Math.floor(sleepSchedule.bedtimeHour)) {
-      targetBreakfastTomorrow.setDate(targetBreakfastTomorrow.getDate() + 1);
-    }
-    targetBreakfastTomorrow.setHours(bfastH, bfastM, 0, 0);
-    nextFoodExpectedAt = targetBreakfastTomorrow;
+    nextFoodExpectedAt = getNextOccurrenceOfClockTime(now, mealSchedule.breakfastMins / 60);
     foodUrgency = 'safe';
     foodReason = `Night mode: Puppy sleeping until breakfast at ~${bfastStr}`;
   } else if (isGoalReached || currentHour >= lateEveningFoodHour) {
     foodMode = 'goal_reached';
-    const targetBreakfastTomorrow = new Date(now);
-    targetBreakfastTomorrow.setDate(targetBreakfastTomorrow.getDate() + 1);
-    targetBreakfastTomorrow.setHours(bfastH, bfastM, 0, 0);
-    nextFoodExpectedAt = targetBreakfastTomorrow;
+    nextFoodExpectedAt = getNextOccurrenceOfClockTime(now, mealSchedule.breakfastMins / 60);
     foodUrgency = 'safe';
     foodReason = isGoalReached
-      ? `Today's food goal reached (${todayGramTotal}g / ${targetMeals} meals). Next: Breakfast tomorrow ~${bfastStr}`
+      ? `Today's food goal reached (${todayGramTotal}g logged). Next: Breakfast tomorrow ~${bfastStr}`
       : `Evening mode: Next meal is breakfast tomorrow ~${bfastStr}`;
   } else if (todayMeals.length === 0) {
     foodMode = 'daytime_schedule';

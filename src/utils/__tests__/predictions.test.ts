@@ -389,4 +389,84 @@ describe('predictions utility — comprehensive test suite', () => {
       });
     });
   });
+
+  // 6. Regression Bug Fixes (Bugs 1 - 5)
+  describe('Regression Bug Fixes', () => {
+    it('Bug 1: early morning potty before estimated wakeup overrides Night Mode', () => {
+      // Reference time: 07:15 AM today. Wakeup schedule is 07:37 AM.
+      // A pee log occurred at 07:05 AM today.
+      const refTime = new Date(2026, 7, 13, 7, 15);
+      const activities: Activity[] = [
+        { id: '1', puppyId: 'pup-1', type: 'pee', timestamp: new Date(2026, 7, 13, 7, 5).toISOString(), loggedBy: 'Matthieu' },
+      ];
+
+      const predictions = calculatePredictions(
+        activities,
+        mockProfile,
+        refTime,
+        'Europe/Paris',
+        { bedtimeHour: 22, wakeupHour: 7.61, bedtimeStr: '22:00', wakeupStr: '07:37' }
+      );
+
+      expect(predictions.peeMode).toBe('daytime_baseline');
+      expect(predictions.peeReason).not.toContain('Night mode');
+    });
+
+    it('Bug 2: late evening potty (e.g. 21:22 PM) predicts wakeup TOMORROW morning (+10h) and urgency is safe', () => {
+      // Reference time: 21:22 PM today. Bedtime is 21:30 PM. Wakeup is 07:37 AM.
+      const refTime = new Date(2026, 7, 13, 21, 22);
+      const activities: Activity[] = [
+        { id: '1', puppyId: 'pup-1', type: 'pee', timestamp: new Date(2026, 7, 13, 21, 18).toISOString(), loggedBy: 'Matthieu' },
+      ];
+
+      const predictions = calculatePredictions(
+        activities,
+        mockProfile,
+        refTime,
+        'Europe/Paris',
+        { bedtimeHour: 21.5, wakeupHour: 7.61, bedtimeStr: '21:30', wakeupStr: '07:37' }
+      );
+
+      expect(predictions.peeUrgency).toBe('safe');
+      expect(predictions.nextPeeExpectedAt).not.toBeNull();
+      // Target wakeup must be tomorrow at 07:37 AM (> refTime)
+      expect(predictions.nextPeeExpectedAt!.getTime()).toBeGreaterThan(refTime.getTime());
+      const diffMins = Math.round((predictions.nextPeeExpectedAt!.getTime() - refTime.getTime()) / 60000);
+      expect(diffMins).toBeGreaterThan(500); // ~615 mins away tomorrow morning
+    });
+
+    it('Bug 4: feeding 3 small 40g meals (totaling 120g / 240g goal) does NOT trigger goal_reached', () => {
+      const refTime = new Date(2026, 7, 13, 15, 0); // 15:00 PM afternoon
+      const smallMeals: Activity[] = [
+        { id: '1', puppyId: 'pup-1', type: 'food', timestamp: new Date(2026, 7, 13, 7, 0).toISOString(), quantityGrams: 40, loggedBy: 'Matthieu' },
+        { id: '2', puppyId: 'pup-1', type: 'food', timestamp: new Date(2026, 7, 13, 11, 0).toISOString(), quantityGrams: 40, loggedBy: 'Matthieu' },
+        { id: '3', puppyId: 'pup-1', type: 'food', timestamp: new Date(2026, 7, 13, 14, 0).toISOString(), quantityGrams: 40, loggedBy: 'Matthieu' },
+      ];
+
+      const predictions = calculatePredictions(
+        smallMeals,
+        mockProfile,
+        refTime,
+        'Europe/Paris',
+        { bedtimeHour: 22, wakeupHour: 7, bedtimeStr: '22:00', wakeupStr: '07:00' }
+      );
+
+      // Should still be in daytime schedule because 120g is only 50% of the 240g goal
+      expect(predictions.foodMode).toBe('daytime_schedule');
+    });
+
+    it('Bug 5: detectSleepSchedule adapts rapidly to shifted bedtime in recent days', () => {
+      const activities: Activity[] = [];
+      // Last 5 days: late bedtime pees at 23:00 PM
+      for (let d = 0; d < 5; d++) {
+        const date = new Date(2026, 7, 10 + d, 23, 0);
+        activities.push({ id: `p-${d}`, puppyId: 'pup-1', type: 'pee', timestamp: date.toISOString(), loggedBy: 'Matthieu' });
+        const wakeDate = new Date(2026, 7, 10 + d, 7, 0);
+        activities.push({ id: `w-${d}`, puppyId: 'pup-1', type: 'pee', timestamp: wakeDate.toISOString(), loggedBy: 'Matthieu' });
+      }
+
+      const schedule = detectSleepSchedule(activities, 'Europe/Paris');
+      expect(schedule.bedtimeHour).toBeGreaterThanOrEqual(22);
+    });
+  });
 });
