@@ -12,7 +12,8 @@ import {
   updateHealthRecord,
   deleteHealthRecord,
 } from '../services/api';
-import { calculateNextAntiparasiticDate, calculateNextVaccineBooster, getHealthProtocols } from '../utils/health';
+import { calculateNextAntiparasiticDate, calculateNextVaccineBooster, getHealthProtocols, getHealthRecordStatus } from '../utils/health';
+import { StatusBadge } from '../components/common/StatusBadge';
 import { getEffectivePuppyWeight } from '../utils/weight';
 import { getPuppyAge } from '../utils/predictions';
 import { WeightGrowthChart } from '../components/WeightGrowthChart';
@@ -59,70 +60,12 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({
 }) => {
   const { t, lang } = useI18n();
 
-  const getVaccineStatus = (
-    vaccine: VaccinationEntry,
-    allVaccines: VaccinationEntry[]
-  ): { label: string; color: "success" | "warning" | "danger" | "default" } => {
-    if (!vaccine.boosterDate) {
-      return { label: `✅ ${t.health.statusUpToDate}`, color: "success" };
-    }
-
-    const sorted = [...allVaccines].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-    const isLatest = sorted.length > 0 && sorted[0].id === vaccine.id;
-    const hasSubsequent = allVaccines.some(
-      (other) => other.id !== vaccine.id && new Date(other.date).getTime() >= new Date(vaccine.date).getTime()
-    );
-
-    if (!isLatest || hasSubsequent) {
-      return {
-        label: `✅ ${t.health.statusFulfilled}`,
-        color: "default",
-      };
-    }
-
-    const due = new Date(vaccine.boosterDate);
-    const now = new Date();
-    const daysUntilDue = Math.floor((due.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-
-    if (daysUntilDue < 0) {
-      return { label: '⚠️ Overdue', color: "danger" };
-    } else if (daysUntilDue <= 14) {
-      return { label: '⏰ Due Soon', color: "warning" };
-    }
-    return { label: `✅ ${t.health.statusUpToDate}`, color: "success" };
+  const getVaccineStatus = (vaccine: VaccinationEntry, allVaccines: VaccinationEntry[]) => {
+    return getHealthRecordStatus(vaccine, allVaccines, `✅ ${t.health.statusUpToDate}`, `✅ ${t.health.statusFulfilled}`);
   };
 
-  const getDewormingStatus = (
-    deworming: DewormingEntry,
-    allDewormings: DewormingEntry[]
-  ): { label: string; color: "success" | "warning" | "danger" | "default" } => {
-    if (!deworming.boosterDate) {
-      return { label: `✅ ${t.health.statusUpToDate}`, color: "success" };
-    }
-
-    const sorted = [...allDewormings].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-    const isLatest = sorted.length > 0 && sorted[0].id === deworming.id;
-    const hasSubsequent = allDewormings.some(
-      (other) => other.id !== deworming.id && new Date(other.date).getTime() >= new Date(deworming.date).getTime()
-    );
-
-    if (!isLatest || hasSubsequent) {
-      return {
-        label: `✅ ${t.health.statusFulfilled}`,
-        color: "default",
-      };
-    }
-
-    const due = new Date(deworming.boosterDate);
-    const now = new Date();
-    const daysUntilDue = Math.floor((due.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-
-    if (daysUntilDue < 0) {
-      return { label: '⚠️ Overdue', color: "danger" };
-    } else if (daysUntilDue <= 14) {
-      return { label: '⏰ Due Soon', color: "warning" };
-    }
-    return { label: `✅ ${t.health.statusUpToDate}`, color: "success" };
+  const getDewormingStatus = (deworming: DewormingEntry, allDewormings: DewormingEntry[]) => {
+    return getHealthRecordStatus(deworming, allDewormings, `✅ ${t.health.statusUpToDate}`, `✅ ${t.health.statusFulfilled}`);
   };
 
   const [vaccinations, setVaccinations] = useState<VaccinationEntry[]>([]);
@@ -604,9 +547,7 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({
                   <div className="flex items-center gap-3">
                     <div className="text-right">
                       <div className="text-xs font-bold text-amber-300">{t.health.booster}: {vaccine.boosterDate}</div>
-                      <Chip color={status.color} variant="soft" size="sm">
-                        {status.label}
-                      </Chip>
+                      <StatusBadge status={status.urgency} label={status.label} />
                     </div>
                     <div className="flex items-center gap-1.5">
                       <button
@@ -842,9 +783,7 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({
                   <div className="flex items-center gap-3">
                     <div className="text-right">
                       <div className="text-xs font-bold text-amber-300">{t.health.nextDeworming}: {deworming.boosterDate}</div>
-                      <Chip color={status.color} variant="soft" size="sm">
-                        {status.label}
-                      </Chip>
+                      <StatusBadge status={status.urgency} label={status.label} />
                     </div>
                     <div className="flex items-center gap-1.5">
                       <button

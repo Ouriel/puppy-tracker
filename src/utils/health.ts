@@ -47,6 +47,47 @@ export function calculateNextVaccineBooster(injectionDate: string, vaccineType: 
   return date.toISOString().slice(0, 10);
 }
 
+export interface HealthStatusResult {
+  urgency: 'overdue' | 'soon' | 'upToDate' | 'fulfilled';
+  label: string;
+  color: 'danger' | 'warning' | 'success' | 'default';
+}
+
+/**
+ * Evaluates health record booster status (fulfilled, overdue, due soon, or up-to-date)
+ */
+export function getHealthRecordStatus<T extends { id: string; date: string; boosterDate?: string }>(
+  record: T,
+  allRecords: T[],
+  upToDateLabel: string = 'Up to Date',
+  fulfilledLabel: string = 'Fulfilled'
+): HealthStatusResult {
+  if (!record.boosterDate) {
+    return { urgency: 'upToDate', label: upToDateLabel, color: 'success' };
+  }
+
+  const sorted = [...allRecords].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  const isLatest = sorted.length > 0 && sorted[0].id === record.id;
+  const hasSubsequent = allRecords.some(
+    (other) => other.id !== record.id && new Date(other.date).getTime() >= new Date(record.date).getTime()
+  );
+
+  if (!isLatest || hasSubsequent) {
+    return { urgency: 'fulfilled', label: fulfilledLabel, color: 'default' };
+  }
+
+  const due = new Date(record.boosterDate);
+  const now = new Date();
+  const daysUntilDue = Math.floor((due.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+
+  if (daysUntilDue < 0) {
+    return { urgency: 'overdue', label: 'Overdue', color: 'danger' };
+  } else if (daysUntilDue <= 14) {
+    return { urgency: 'soon', label: 'Due Soon', color: 'warning' };
+  }
+  return { urgency: 'upToDate', label: upToDateLabel, color: 'success' };
+}
+
 /**
  * Calculates the next deworming due date following ESCCAP France protocol dataset:
  * - Under 2 months: Every 2 weeks

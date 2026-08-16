@@ -1,10 +1,11 @@
 import React from 'react';
 import type { Activity, ActivityType, PottyLocation, PuppyProfile, PredictionResult } from '../types';
-import { Droplet, Footprints, Utensils, CheckCircle2, Clock, AlertTriangle } from 'lucide-react';
-import { Card, Chip } from '@heroui/react';
+import { Droplet, Footprints, Utensils, CheckCircle2 } from 'lucide-react';
+import { Card } from '@heroui/react';
 import { useI18n } from '../i18n';
 import { formatMinutesToXhXX, isSameLocalDate, parseIsoDate } from '../utils/date';
 import { calculateNextMealPortion } from '../utils/predictions';
+import { StatusBadge } from './common/StatusBadge';
 
 interface PredictorWidgetProps {
   predictions: PredictionResult;
@@ -75,27 +76,7 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = React.memo(({
   );
 
   const getUrgencyBadge = (urgency: 'safe' | 'soon' | 'overdue') => {
-    if (urgency === 'overdue') {
-      return (
-        <Chip color="danger" variant="soft" size="sm" className="font-bold flex items-center gap-1 animate-pulse">
-          <AlertTriangle className="w-3 h-3" />
-          <span>Overdue</span>
-        </Chip>
-      );
-    }
-    if (urgency === 'soon') {
-      return (
-        <Chip color="warning" variant="soft" size="sm" className="font-bold flex items-center gap-1">
-          <Clock className="w-3 h-3" />
-          <span>Due Soon</span>
-        </Chip>
-      );
-    }
-    return (
-      <Chip color="success" variant="soft" size="sm" className="font-semibold">
-        <span>Normal</span>
-      </Chip>
-    );
+    return <StatusBadge status={urgency} />;
   };
 
   const formatCountdown = (dateObj: Date | null) => {
