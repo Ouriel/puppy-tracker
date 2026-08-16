@@ -154,15 +154,16 @@ export function detectSleepSchedule(
   Object.values(byDate).forEach((logs) => {
     if (logs.length >= 2) {
       const sortedLogs = [...logs].sort((a, b) => a.getTime() - b.getTime());
-      const first = sortedLogs[0];
+      // First activity of the day after 05:00 AM (filters out mid-night potty breaks)
+      const firstMorning = sortedLogs.find((a) => getLocalHour(a, tz) >= 5) || sortedLogs[0];
       const last = sortedLogs[sortedLogs.length - 1];
 
-      const firstM = getLocalHour(first, tz) * 60 + first.getMinutes();
+      const firstM = getLocalHour(firstMorning, tz) * 60 + firstMorning.getMinutes();
       let lastM = getLocalHour(last, tz) * 60 + last.getMinutes();
 
-      // Exponential time decay (3-day half-life so recent days adapt as puppy grows)
+      // Exponential time decay (7-day half-life so full week sets the schedule smoothly)
       const daysAgo = Math.max(0, (nowTime - last.getTime()) / (1000 * 60 * 60 * 24));
-      const weight = Math.exp(-daysAgo / 3);
+      const weight = Math.exp(-daysAgo / 7);
 
       morningData.push({ mins: firstM, weight });
 
@@ -224,12 +225,14 @@ export function calculateMorningSequenceOffsets(
       (a, b) => parseIsoDate(a.timestamp).getTime() - parseIsoDate(b.timestamp).getTime()
     );
 
-    const firstPee = sorted.find((a) => a.type === 'pee');
+    const firstPee =
+      sorted.find((a) => a.type === 'pee' && getLocalHour(parseIsoDate(a.timestamp), tz) >= 5) ||
+      sorted.find((a) => a.type === 'pee');
     if (!firstPee) return;
 
     const firstPeeTime = parseIsoDate(firstPee.timestamp).getTime();
     const daysAgo = Math.max(0, (nowTime - firstPeeTime) / (1000 * 60 * 60 * 24));
-    const weight = Math.exp(-daysAgo / 3);
+    const weight = Math.exp(-daysAgo / 7);
 
     // Look for first poop within 2.5 hours of first pee
     const firstPoop = sorted.find((a) => a.type === 'poop');

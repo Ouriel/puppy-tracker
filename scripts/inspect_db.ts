@@ -150,11 +150,37 @@ async function runInspection() {
     console.log(`   • Food Card           : Mode=${predictions.foodMode} | Urgency=${predictions.foodUrgency} | Next=${predictions.nextFoodExpectedAt ? predictions.nextFoodExpectedAt.toLocaleTimeString() : 'N/A'}`);
     console.log(`     Reason              : "${predictions.foodReason}"`);
 
-    // 5. Recent Activity Trail (Last 20 entries)
+    // 5. Daily Breakdown (Last 14 days)
+    console.log('\n📅 Daily Breakdown (Last 14 days):');
+    const byDate: Record<string, typeof puppyActivities> = {};
+    puppyActivities.forEach((act) => {
+      const d = new Date(act.timestamp).toLocaleDateString('fr-CA', { timeZone: 'Europe/Paris' });
+      if (!byDate[d]) byDate[d] = [];
+      byDate[d].push(act);
+    });
+
+    const sortedDates = Object.keys(byDate).sort().reverse().slice(0, 14);
+    sortedDates.forEach((d) => {
+      const dayLogs = byDate[d].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+      const firstPee = dayLogs.find((a) => a.type === 'pee');
+      const firstPoop = dayLogs.find((a) => a.type === 'poop');
+      const firstFood = dayLogs.find((a) => a.type === 'food');
+      const lastAct = dayLogs[dayLogs.length - 1];
+
+      const fmt = (act?: typeof dayLogs[0]) => {
+        if (!act) return '--:--';
+        const dateObj = new Date(act.timestamp);
+        return dateObj.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Paris' });
+      };
+
+      console.log(`   • ${d} | FirstPee: ${fmt(firstPee)} | FirstPoop: ${fmt(firstPoop)} | FirstFood: ${fmt(firstFood)} | LastAct: ${fmt(lastAct)} (Logs: ${dayLogs.length})`);
+    });
+
+    // 6. Recent Activity Trail (Last 20 entries)
     console.log('\n📜 Recent Activity Trail (Last 20 entries):');
     const recentTrail = [...puppyActivities].reverse().slice(0, 20);
     recentTrail.forEach((a) => {
-      const time = new Date(a.timestamp).toLocaleString('fr-FR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+      const time = new Date(a.timestamp).toLocaleString('fr-FR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Paris' });
       const details = [
         a.pottyLocation ? `loc:${a.pottyLocation}` : '',
         a.stoolConsistency ? `stool:${a.stoolConsistency}` : '',
