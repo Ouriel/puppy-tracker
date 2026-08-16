@@ -1,4 +1,4 @@
-import crypto from 'node:crypto';
+import { createHmac, timingSafeEqual, randomUUID } from 'crypto';
 import { OAuth2Client } from 'google-auth-library';
 import { neon } from '@neondatabase/serverless';
 import { drizzle } from 'drizzle-orm/neon-http';
@@ -29,16 +29,15 @@ export interface AuthContext {
 /**
  * Generates a signed, long-lived PupPace App Session Token (default 90-day longevity)
  */
-export function signAppSessionToken(payload: AuthContext, expiresInDays = 90): string {
+export function signAppSessionToken(payload: Omit<AuthContext, 'exp' | 'iat'>, expiresInDays = 90): string {
   const header = { alg: 'HS256', typ: 'JWT' };
-  const exp = Math.floor(Date.now() / 1000) + expiresInDays * 24 * 60 * 60;
+  const exp = Math.floor(Date.now() / 1000) + (expiresInDays * 24 * 60 * 60);
   const fullPayload = { ...payload, exp, iat: Math.floor(Date.now() / 1000) };
 
   const encodedHeader = Buffer.from(JSON.stringify(header)).toString('base64url');
   const encodedPayload = Buffer.from(JSON.stringify(fullPayload)).toString('base64url');
 
-  const signature = crypto
-    .createHmac('sha256', getSessionSecret())
+  const signature = createHmac('sha256', getSessionSecret())
     .update(`${encodedHeader}.${encodedPayload}`)
     .digest('base64url');
 
@@ -54,13 +53,12 @@ export function verifyAppSessionToken(token: string): AuthContext | null {
     if (parts.length !== 3) return null;
 
     const [encodedHeader, encodedPayload, signature] = parts;
-    const expectedSignature = crypto
-      .createHmac('sha256', getSessionSecret())
+    const expectedSignature = createHmac('sha256', getSessionSecret())
       .update(`${encodedHeader}.${encodedPayload}`)
       .digest('base64url');
 
     if (signature.length !== expectedSignature.length) return null;
-    if (!crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expectedSignature))) {
+    if (!timingSafeEqual(Buffer.from(signature), Buffer.from(expectedSignature))) {
       return null;
     }
 
@@ -142,7 +140,7 @@ export async function verifyAuth(req: VercelRequest): Promise<AuthContext> {
   // Auto-register user in DB if logging in for the first time
   if (!user) {
     const isSuperAdmin = isSuperAdminEmail(userEmail);
-    const newHouseholdId = isSuperAdmin ? 'FAMILY-COCKER-2026' : `house-${Date.now()}-${crypto.randomUUID().slice(0, 8)}`;
+    const newHouseholdId = isSuperAdmin ? 'FAMILY-COCKER-2026' : `house-${Date.now()}-${randomUUID().slice(0, 8)}`;
     const [created] = await db
       .insert(usersTable)
       .values({

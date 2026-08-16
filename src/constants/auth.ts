@@ -1,15 +1,7 @@
 const getSuperAdminEmail = (): string => {
-  const globalObj = globalThis as Record<string, any>;
-  if (globalObj.process?.env?.SUPER_ADMIN_EMAIL) {
-    return globalObj.process.env.SUPER_ADMIN_EMAIL;
-  }
-  // Vite client-side env support
-  try {
-    if (typeof import.meta !== 'undefined' && (import.meta as any)?.env?.VITE_SUPER_ADMIN_EMAIL) {
-      return (import.meta as any).env.VITE_SUPER_ADMIN_EMAIL;
-    }
-  } catch {
-    // Ignore in non-Vite environments
+  const globalEnv = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env;
+  if (globalEnv?.SUPER_ADMIN_EMAIL) {
+    return globalEnv.SUPER_ADMIN_EMAIL;
   }
   return 'matthieu.jacquet@gmail.com';
 };

@@ -462,7 +462,7 @@ export function predictNextPee(
   const isCurrentlyNight = isNighttimeHour(currentHour, sleepSchedule.wakeupHour, sleepSchedule.bedtimeHour);
   const isNightTime = (isMorningWindow ? !hasAwokenToday : true) && (isCurrentlyNight || isApproaching);
 
-  let nextExpectedAt: Date;
+  let nextExpectedAt: Date = standardExpectedAt;
   let mode: ScheduleMode = 'daytime_baseline';
   let reason = '';
   const wakeH = Math.floor(sleepSchedule.wakeupHour);
@@ -591,7 +591,7 @@ export function predictNextPoop(
 
   const hoursSinceLastPoop = (now.getTime() - lastPoopTime) / (1000 * 60 * 60);
 
-  let nextExpectedAt: Date;
+  let nextExpectedAt: Date = standardExpectedAt;
   let mode: ScheduleMode = 'daytime_baseline';
   let reason = '';
 
@@ -716,7 +716,7 @@ export function predictNextFood(
 
   const lateEveningFoodHour = Math.max(20, Math.floor(sleepSchedule.bedtimeHour - 1));
 
-  let nextExpectedAt: Date;
+  let nextExpectedAt: Date = targetBreakfast;
   let mode: FoodScheduleMode = 'daytime_schedule';
   let urgency: 'safe' | 'soon' | 'overdue' = 'safe';
   let reason = '';
