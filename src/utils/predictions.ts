@@ -480,11 +480,11 @@ export function predictNextPee(
         reason = 'Night mode: Young puppy mid-night potty break';
       } else {
         nextExpectedAt = targetWakeup;
-        reason = `Night mode: Sleeping until ~${wakeupStr} morning wakeup`;
+        reason = `Night mode: Sleeping until morning wakeup (~${wakeupStr})`;
       }
     } else {
       nextExpectedAt = targetWakeup;
-      reason = `Night mode: Sleeping until ~${wakeupStr} morning wakeup`;
+      reason = `Night mode: Sleeping until morning wakeup (~${wakeupStr})`;
     }
   } else if (months < 8 && lastFood && parseIsoDate(lastFood.timestamp).getTime() > lastPeeTime) {
     const foodTime = parseIsoDate(lastFood.timestamp).getTime();
@@ -601,7 +601,7 @@ export function predictNextPoop(
     nextExpectedAt = new Date(targetWakeup.getTime() + offsets.morningPoopOffsetMins * 60 * 1000);
     const targetH = String(nextExpectedAt.getHours()).padStart(2, '0');
     const targetM = String(nextExpectedAt.getMinutes()).padStart(2, '0');
-    reason = `Night mode: Sleeping overnight. Expected during morning outing (~${targetH}:${targetM})`;
+    reason = `Night mode: Sleeping until morning outing (~${targetH}:${targetM})`;
   } else if (isLastPoopDiarrhea && hoursSinceLastPoop < 12) {
     mode = 'daytime_baseline';
     nextExpectedAt = new Date(lastPoopTime + 60 * 60 * 1000);
@@ -724,7 +724,7 @@ export function predictNextFood(
   if (isNightTime) {
     mode = 'night_sleep';
     nextExpectedAt = targetBreakfast;
-    reason = `Night mode: Puppy sleeping until breakfast at ~${bfastStr}`;
+    reason = `Night mode: Sleeping until morning breakfast (~${bfastStr})`;
   } else if (isGoalReached || currentHour >= lateEveningFoodHour) {
     mode = 'goal_reached';
     nextExpectedAt = targetBreakfast;

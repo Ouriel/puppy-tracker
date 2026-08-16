@@ -1,8 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import type { Activity, UserAccount, ActivityType, PottyLocation, FamilyRole } from './types';
-import {
-  getStoredUser,
-} from './utils/storage';
 import { getAuthToken, setAuthToken } from './utils/auth';
 import { isSuperAdminEmail } from './constants/auth';
 import {
@@ -32,7 +29,7 @@ export function App() {
   const { lang, changeLanguage, t } = useI18n();
 
   const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [user, setUser] = useState<UserAccount | null>(getStoredUser());
+  const [user, setUser] = useState<UserAccount | null>(null);
 
   // Domain state hooks
   const puppyState = usePuppies();
@@ -186,14 +183,41 @@ export function App() {
   }, []);
 
   const handleUnlockWithSSO = (email: string, name: string, token: string) => {
+    setAuthToken(token);
+    const isSuper = isSuperAdminEmail(email);
     const newUser: UserAccount = {
       id: `u-${Date.now()}`,
       email,
       name,
-      role: isSuperAdminEmail(email) ? 'SuperAdmin' : 'Member',
+      role: isSuper ? 'SuperAdmin' : 'Member',
     };
-    setAuthToken(token);
     setUser(newUser);
+
+    // Sync session and load dogs in background
+    exchangeSessionToken(token).then((sessionData) => {
+      if (sessionData?.user) {
+        setUser({
+          id: sessionData.user.id || `u-${Date.now()}`,
+          email: sessionData.user.email,
+          name: sessionData.user.name,
+          role: (['Husband', 'Wife', 'Partner', 'Child', 'Dog Walker', 'Sitter', 'Relative', 'Member', 'SuperAdmin'].includes(sessionData.user.role) ? sessionData.user.role : 'Member') as FamilyRole,
+        });
+      }
+      fetchDogs().then((remoteDogs) => {
+        if (remoteDogs && remoteDogs.length > 0) {
+          puppyState.setPuppies(remoteDogs);
+          if (!puppyState.activePuppyId || !remoteDogs.some((p) => p.id === puppyState.activePuppyId)) {
+            puppyState.selectPuppy(remoteDogs[0].id);
+          }
+        }
+      });
+      fetchHousehold().then((remoteHousehold) => {
+        if (remoteHousehold?.caretakers && remoteHousehold.caretakers.length > 0) {
+          caretakerState.setCaretakers(remoteHousehold.caretakers);
+        }
+      });
+    });
+
     return { success: true };
   };
 

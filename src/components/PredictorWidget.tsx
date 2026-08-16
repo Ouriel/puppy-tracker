@@ -157,7 +157,7 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = React.memo(({
             </div>
 
             {/* SECOND: Pee Recommendation Description (Calculation details) */}
-            <p className="text-xs text-slate-300 bg-slate-950/60 p-2.5 rounded-xl border border-slate-800/80 leading-relaxed">
+            <p className="text-xs text-slate-300 bg-slate-950/60 p-2.5 rounded-xl border border-slate-800/80 leading-relaxed min-h-[52px] flex items-center">
               {predictions.peeReason}
             </p>
           </div>
@@ -237,7 +237,7 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = React.memo(({
             </div>
 
             {/* SECOND: Poop Recommendation Description (Calculation details) */}
-            <p className="text-xs text-slate-300 bg-slate-950/60 p-2.5 rounded-xl border border-slate-800/80 leading-relaxed">
+            <p className="text-xs text-slate-300 bg-slate-950/60 p-2.5 rounded-xl border border-slate-800/80 leading-relaxed min-h-[52px] flex items-center">
               {predictions.poopReason}
             </p>
           </div>
@@ -312,7 +312,7 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = React.memo(({
             </div>
 
             {/* SECOND: Food Description (Calculation details) */}
-            <p className="text-xs text-slate-300 bg-slate-950/60 p-2.5 rounded-xl border border-slate-800/80 leading-relaxed">
+            <p className="text-xs text-slate-300 bg-slate-950/60 p-2.5 rounded-xl border border-slate-800/80 leading-relaxed min-h-[52px] flex items-center">
               {predictions.foodReason}
             </p>
           </div>
