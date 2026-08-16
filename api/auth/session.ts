@@ -1,4 +1,9 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { neon } from '@neondatabase/serverless';
+import { drizzle } from 'drizzle-orm/neon-http';
+import { eq } from 'drizzle-orm';
+import { usersTable } from '../../src/db/schema.js';
+import { isSuperAdminEmail } from '../../src/constants/auth.js';
 import { verifyAuth, signAppSessionToken } from '../_auth.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -13,7 +18,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     const auth = await verifyAuth(req);
-    const sessionToken = signAppSessionToken(auth, 90); // 90-day long-lived session
+
+    // Sync latest user details (householdId, role, status) directly from database
+    const dbUrl = process.env.POSTGRES_URL || process.env.DATABASE_URL || '';
+    if (dbUrl) {
+      const sql = neon(dbUrl);
+      const db = drizzle(sql);
+      const [dbUser] = await db
+        .select()
+        .from(usersTable)
+        .where(eq(usersTable.email, auth.email.toLowerCase()));
+
+      if (dbUser) {
+        if (dbUser.status !== 'ACTIVE' && !isSuperAdminEmail(auth.email)) {
+          return res.status(403).json({ error: 'Account pending activation by Super Admin.' });
+        }
+        auth.householdId = dbUser.householdId;
+        auth.name = dbUser.name || auth.name;
+        auth.role = isSuperAdminEmail(auth.email) ? 'SuperAdmin' : dbUser.role;
+      }
+    }
+
+    const sessionToken = signAppSessionToken(auth, 90); // freshly signed with updated householdId
 
     return res.status(200).json({
       user: {

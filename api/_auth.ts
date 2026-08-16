@@ -4,11 +4,12 @@ import { neon } from '@neondatabase/serverless';
 import { drizzle } from 'drizzle-orm/neon-http';
 import { eq } from 'drizzle-orm';
 import { usersTable } from '../src/db/schema.js';
+import { isSuperAdminEmail } from '../src/constants/auth.js';
 import type { VercelRequest } from '@vercel/node';
 
 const client = new OAuth2Client();
 function getSessionSecret(): string {
-  const secret = process.env.SESSION_SECRET || process.env.POSTGRES_URL || process.env.DATABASE_URL;
+  const secret = process.env.SESSION_SECRET;
   if (!secret) {
     if (process.env.NODE_ENV === 'production') {
       throw new Error('CRITICAL SECURITY CONFIGURATION ERROR: SESSION_SECRET environment variable is required in production.');
@@ -71,8 +72,8 @@ export function verifyAppSessionToken(token: string): AuthContext | null {
     if (!payload.email || !payload.householdId) return null;
 
     const userEmail = payload.email.toLowerCase();
-    const isSuperAdminEmail = userEmail === 'matthieu.jacquet@gmail.com';
-    const verifiedRole = isSuperAdminEmail
+    const isSuperAdmin = isSuperAdminEmail(userEmail);
+    const verifiedRole = isSuperAdmin
       ? 'SuperAdmin'
       : (payload.role === 'SuperAdmin' ? 'Member' : (payload.role || 'Member'));
 
@@ -140,12 +141,13 @@ export async function verifyAuth(req: VercelRequest): Promise<AuthContext> {
 
   // Auto-register user in DB if logging in for the first time
   if (!user) {
-    const isSuperAdmin = userEmail === 'matthieu.jacquet@gmail.com';
+    const isSuperAdmin = isSuperAdminEmail(userEmail);
+    const newHouseholdId = isSuperAdmin ? 'FAMILY-COCKER-2026' : `house-${Date.now()}-${crypto.randomUUID().slice(0, 8)}`;
     const [created] = await db
       .insert(usersTable)
       .values({
         id: `usr-${Date.now()}`,
-        householdId: 'FAMILY-COCKER-2026',
+        householdId: newHouseholdId,
         email: userEmail,
         name: payload.name || userEmail.split('@')[0],
         role: isSuperAdmin ? 'SuperAdmin' : 'Member',

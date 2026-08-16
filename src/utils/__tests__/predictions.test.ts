@@ -380,16 +380,16 @@ describe('predictions utility — comprehensive test suite', () => {
     // 5.4 Cross-Timezone Robustness
     describe('Cross-Timezone Robustness', () => {
       it('evaluates identical local predictions regardless of IANA timezone parameter', () => {
-        // 14:00 UTC = 16:00 CEST (France) = 10:00 EDT (New York) = 23:00 JST (Tokyo night)
+        // 14:00 UTC = 16:00 CEST (France, Day) = 10:00 EDT (New York, Day) = 04:00 HST (Honolulu, Night)
         const refUtc = new Date('2026-08-09T14:00:00.000Z');
 
         const predictionsParis = calculatePredictions(dataset, mockProfile, refUtc, 'Europe/Paris'); // 16:00 CEST (Day)
         const predictionsNY = calculatePredictions(dataset, mockProfile, refUtc, 'America/New_York'); // 10:00 EDT (Day)
-        const predictionsTokyo = calculatePredictions(dataset, mockProfile, refUtc, 'Asia/Tokyo'); // 23:00 JST (Night)
+        const predictionsHonolulu = calculatePredictions(dataset, mockProfile, refUtc, 'Pacific/Honolulu'); // 04:00 HST (Night)
 
         expect(predictionsParis.peeMode).toBe('daytime_baseline');
         expect(predictionsNY.peeMode).toBe('daytime_baseline');
-        expect(predictionsTokyo.peeMode).toBe('night_sleep');
+        expect(predictionsHonolulu.peeMode).toBe('night_sleep');
       });
     });
   });
@@ -544,6 +544,39 @@ describe('predictions utility — comprehensive test suite', () => {
       // Ensure morning sequence order
       expect(predictions.nextPeeExpectedAt!.getTime()).toBeLessThanOrEqual(predictions.nextPoopExpectedAt!.getTime());
       expect(predictions.nextPoopExpectedAt!.getTime()).toBeLessThanOrEqual(predictions.nextFoodExpectedAt!.getTime());
+    });
+
+    it('factors in pre-bedtime waking retention intervals spanning across midnight (e.g. 21:30 to 00:30)', () => {
+      const activities: Activity[] = [];
+      // 5 days of data where puppy pees at 21:30 and has a final pre-bedtime outing at 00:30 (3h gap across midnight)
+      for (let d = 0; d < 5; d++) {
+        const eveningDate = new Date(2026, 7, 10 + d, 21, 30);
+        activities.push({ id: `p-eve-${d}`, puppyId: 'pup-1', type: 'pee', timestamp: eveningDate.toISOString(), loggedBy: 'Matthieu' });
+        const midnightDate = new Date(2026, 7, 11 + d, 0, 30);
+        activities.push({ id: `p-mid-${d}`, puppyId: 'pup-1', type: 'pee', timestamp: midnightDate.toISOString(), loggedBy: 'Matthieu' });
+      }
+
+      const sleepSchedule = { bedtimeHour: 1, wakeupHour: 7, bedtimeStr: '01:00', wakeupStr: '07:00' };
+      const learned = calculateLearnedIntervalMinutes(activities, 'pee', 120, sleepSchedule, 'Europe/Paris');
+
+      expect(learned.isLearned).toBe(true);
+      expect(learned.sampleCount).toBeGreaterThanOrEqual(4);
+      expect(learned.intervalMins).toBe(180); // 3 hours (180 mins) exactly
+    });
+
+    it('calculates proper meal intervals when bedtime wraps past midnight', () => {
+      const activities: Activity[] = [
+        { id: 'f-1', puppyId: 'pup-1', type: 'food', timestamp: new Date(2026, 7, 10, 12, 0).toISOString(), quantityGrams: 80, loggedBy: 'Matthieu' },
+        { id: 'f-2', puppyId: 'pup-1', type: 'food', timestamp: new Date(2026, 7, 10, 18, 0).toISOString(), quantityGrams: 80, loggedBy: 'Matthieu' },
+      ];
+
+      const refTime = new Date(2026, 7, 10, 18, 15);
+      const sleepSchedule = { bedtimeHour: 1, wakeupHour: 7, bedtimeStr: '01:00', wakeupStr: '07:00' };
+      const foodPrediction = predictNextFood(activities, mockProfile, refTime, { sleepSchedule, timeZone: 'Europe/Paris' });
+
+      expect(foodPrediction.mode).toBe('daytime_schedule');
+      // From 18:00 to 01:00 (7 waking hours left) for 1 remaining meal -> 7 / 2 = 3.5h interval
+      expect(foodPrediction.reason).toContain('spaced ~3.5h');
     });
   });
 });

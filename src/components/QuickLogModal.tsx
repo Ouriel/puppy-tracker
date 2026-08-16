@@ -225,10 +225,11 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
                 {/* Food Quantity Input */}
                 {type === 'food' && (
                   <div className="pt-1">
-                    <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">
+                    <label htmlFor="quicklog-quantity-grams" className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">
                       {t.potty.quantity} (g)
                     </label>
                     <input
+                      id="quicklog-quantity-grams"
                       type="number"
                       className="w-full bg-slate-950 border border-slate-800 text-slate-100 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-indigo-500 transition-colors"
                       value={String(quantityGrams)}
@@ -244,10 +245,11 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
                 {/* Weight Input */}
                 {type === 'weight' && (
                   <div className="pt-1">
-                    <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">
+                    <label htmlFor="quicklog-weight-kg" className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">
                       {t.potty.weight} ({t.units.kg})
                     </label>
                     <input
+                      id="quicklog-weight-kg"
                       type="number"
                       step="0.1"
                       className="w-full bg-slate-950 border border-slate-800 text-slate-100 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-indigo-500 transition-colors"
@@ -260,10 +262,11 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
                 {/* Medication Input */}
                 {type === 'medication' && (
                   <div className="pt-1">
-                    <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">
+                    <label htmlFor="quicklog-medication-name" className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">
                       {t.potty.medication}
                     </label>
                     <input
+                      id="quicklog-medication-name"
                       type="text"
                       className="w-full bg-slate-950 border border-slate-800 text-slate-100 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-indigo-500 transition-colors"
                       value={medicationName}
@@ -274,11 +277,12 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
 
                 {/* Date & Time Input (Full Width, System Native Picker) */}
                 <div className="pt-1">
-                  <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+                  <label htmlFor="quicklog-timestamp" className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
                     <Calendar className="w-3.5 h-3.5 text-indigo-400" />
                     <span>{t.potty.dateAndTime}</span>
                   </label>
                   <input
+                    id="quicklog-timestamp"
                     type="datetime-local"
                     className="w-full bg-slate-950 border border-slate-800 text-slate-100 rounded-xl px-3.5 py-2.5 text-xs focus:outline-none focus:border-indigo-500 transition-colors [color-scheme:dark] cursor-pointer hover:bg-slate-900"
                     value={timestamp}
@@ -288,11 +292,12 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
 
                 {/* Notes Input */}
                 <div>
-                  <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+                  <label htmlFor="quicklog-notes" className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
                     <FileText className="w-3.5 h-3.5 text-indigo-400" />
                     <span>{t.potty.notes}</span>
                   </label>
                   <input
+                    id="quicklog-notes"
                     type="text"
                     className="w-full bg-slate-950 border border-slate-800 text-slate-100 rounded-xl px-3.5 py-2.5 text-xs focus:outline-none focus:border-indigo-500 transition-colors"
                     placeholder="e.g., Peed on grass after 15m walk"

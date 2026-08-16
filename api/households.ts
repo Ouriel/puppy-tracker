@@ -32,18 +32,31 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(200).end();
   }
 
-  const auth = verifyAuth(req);
-  if (!auth) {
-    return res.status(401).json({ error: 'Unauthorized' });
+  let auth;
+  try {
+    auth = await verifyAuth(req);
+  } catch (err: any) {
+    return res.status(err.status || 401).json({ error: err.message || 'Unauthorized' });
   }
 
-  const householdId = (auth as any).householdId || 'FAMILY-COCKER-2026';
+  const householdId = auth.householdId;
   const db = getDb();
 
   try {
-    // GET /api/households — Fetch household details & members
+    // GET /api/households — Fetch household details & members (or all households for SuperAdmin)
     if (req.method === 'GET') {
       res.setHeader('Cache-Control', 'private, max-age=10, stale-while-revalidate=60');
+      
+      if (req.query.all === 'true' && auth.role === 'SuperAdmin') {
+        const allHouseholds = await db.select().from(householdsTable);
+        // Ensure default household is in the list if not in DB yet
+        const hasMain = allHouseholds.some((h) => h.id === 'FAMILY-COCKER-2026');
+        const list = hasMain
+          ? allHouseholds
+          : [{ id: 'FAMILY-COCKER-2026', familyPackId: 'FAMILY-COCKER-2026', name: 'Family Pack (Main)' }, ...allHouseholds];
+        return res.status(200).json({ households: list });
+      }
+
       const [household] = await db
         .select()
         .from(householdsTable)
@@ -121,7 +134,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // DELETE /api/households?id=ct-xxx — Remove a caretaker
     if (req.method === 'DELETE') {
-      const id = req.query.id as string;
+      const id = (req.query.id || req.query.caretakerId) as string;
       if (!id) return res.status(400).json({ error: 'caretaker id is required' });
 
       await db

@@ -2,7 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { neon } from '@neondatabase/serverless';
 import { drizzle } from 'drizzle-orm/neon-http';
 import { eq, and, desc, gte } from 'drizzle-orm';
-import { activitiesTable } from '../src/db/schema.js';
+import { activitiesTable, puppiesTable } from '../src/db/schema.js';
 import { verifyAuth } from './_auth.js';
 import { z } from 'zod';
 
@@ -95,6 +95,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
 
       const body = parsed.data;
+
+      // Verify puppy belongs to this household
+      const [puppy] = await db
+        .select()
+        .from(puppiesTable)
+        .where(and(eq(puppiesTable.id, body.puppyId), eq(puppiesTable.householdId, householdId)));
+      if (!puppy) {
+        return res.status(403).json({ error: 'Puppy not found in your household' });
+      }
+
       const id = body.id || `act-${Date.now()}`;
 
       const [existing] = await db

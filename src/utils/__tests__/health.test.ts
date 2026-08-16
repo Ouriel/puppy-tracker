@@ -102,13 +102,13 @@ describe('Health Passport — French Veterinary Protocol & Dataset Test Suite', 
   ];
 
   it('calculates 1-month DHPP booster date for puppy primers', () => {
-    const nextDue = calculateNextVaccineBooster('2026-05-22', 'DHPP');
+    const nextDue = calculateNextVaccineBooster('2026-05-22', 'DHPP', 2);
     expect(nextDue).toBe('2026-06-22');
   });
 
-  it('calculates 6-month Leptospirose booster date', () => {
+  it('calculates 12-month Leptospirose booster date', () => {
     const nextDue = calculateNextVaccineBooster('2026-05-22', 'Leptospirose');
-    expect(nextDue).toBe('2026-11-22');
+    expect(nextDue).toBe('2027-05-22');
   });
 
   it('calculates 1-year Rabies (Rage) annual booster date', () => {

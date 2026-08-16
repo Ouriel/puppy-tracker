@@ -86,9 +86,9 @@ export const Navbar: React.FC<NavbarProps> = ({
             type="button"
             onClick={() => onLanguageChange(lang === 'en' ? 'fr' : 'en')}
             aria-label="Toggle language"
-            className="h-9 px-2.5 flex items-center justify-center gap-1.5 rounded-xl bg-slate-950/80 border border-slate-800 text-slate-300 hover:text-white hover:bg-slate-800 transition-colors shrink-0 text-xs font-bold"
+            className="h-10 min-h-[40px] px-3 flex items-center justify-center gap-1.5 rounded-xl bg-slate-950/80 border border-slate-800 text-slate-300 hover:text-white hover:bg-slate-800 transition-colors shrink-0 text-xs font-bold"
           >
-            <Globe className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+            <Globe className="w-4 h-4 text-indigo-400 shrink-0" />
             <span>{lang === 'en' ? '🇬🇧 EN' : '🇫🇷 FR'}</span>
           </button>
 
@@ -97,7 +97,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             type="button"
             onClick={onOpenSettings}
             aria-label="Settings & Administration"
-            className="h-9 w-9 flex items-center justify-center rounded-xl bg-slate-950/80 border border-slate-800 text-slate-300 hover:text-white hover:bg-slate-800 transition-colors shrink-0"
+            className="h-10 w-10 min-h-[40px] min-w-[40px] flex items-center justify-center rounded-xl bg-slate-950/80 border border-slate-800 text-slate-300 hover:text-white hover:bg-slate-800 transition-colors shrink-0"
           >
             <Settings className="w-4 h-4" />
           </button>
@@ -109,7 +109,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               size="sm"
               onPress={onOpenQuickLog}
               aria-label={t.nav.logEvent}
-              className="font-bold text-xs h-9 px-2.5 sm:px-3.5 shadow-md shrink-0"
+              className="font-bold text-xs h-10 min-h-[40px] px-3 sm:px-4 shadow-md shrink-0"
             >
               <Plus className="w-4 h-4 stroke-[3] sm:mr-1 inline" />
               <span className="hidden sm:inline">{t.nav.logEvent}</span>

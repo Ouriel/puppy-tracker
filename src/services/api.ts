@@ -196,6 +196,11 @@ export async function fetchHousehold(): Promise<{ caretakers: Caretaker[] } | nu
   return request<{ caretakers: Caretaker[] }>('/api/households');
 }
 
+export async function fetchAllHouseholds(): Promise<Array<{ id: string; name: string; familyPackId?: string }> | null> {
+  const res = await request<{ households: Array<{ id: string; name: string; familyPackId?: string }> }>('/api/households?all=true');
+  return res?.households || null;
+}
+
 export async function createCaretaker(caretaker: Partial<Caretaker>): Promise<Caretaker | null> {
   return request<Caretaker>('/api/households', {
     method: 'POST',
@@ -211,7 +216,7 @@ export async function updateCaretaker(caretaker: Partial<Caretaker> & { id: stri
 }
 
 export async function deleteCaretaker(id: string): Promise<boolean> {
-  const res = await request<{ success: boolean }>(`/api/households?caretakerId=${encodeURIComponent(id)}`, {
+  const res = await request<{ success: boolean }>(`/api/households?id=${encodeURIComponent(id)}`, {
     method: 'DELETE',
   });
   return !!res?.success;

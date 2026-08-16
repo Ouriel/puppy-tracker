@@ -6,31 +6,7 @@ import { useI18n } from '../i18n';
 import { formatRelativeTime } from '../utils/date';
 import { getPuppyAge } from '../utils/predictions';
 
-import {
-  getExpectedAdultWeight,
-  calculateProjectedAdultWeightRange,
-  estimateCurrentWeightFromLastLog,
-  getEffectivePuppyWeight,
-} from '../utils/weight';
-
-export {
-  getExpectedAdultWeight,
-  calculateProjectedAdultWeightRange,
-  estimateCurrentWeightFromLastLog,
-  getEffectivePuppyWeight,
-};
-
-
-export function scaleGrowthBenchmarks(adultWeightKg: number): Array<{ label: string; expectedKg: number; minKg: number; maxKg: number; weeks: number }> {
-  const scale = adultWeightKg / 13; // 13 kg is the Cocker reference
-  return [
-    { label: '8w', expectedKg: Math.round(2.5 * scale * 10) / 10, minKg: Math.round(2.0 * scale * 10) / 10, maxKg: Math.round(3.2 * scale * 10) / 10, weeks: 8 },
-    { label: '12w', expectedKg: Math.round(5.0 * scale * 10) / 10, minKg: Math.round(4.2 * scale * 10) / 10, maxKg: Math.round(6.0 * scale * 10) / 10, weeks: 12 },
-    { label: '16w', expectedKg: Math.round(7.2 * scale * 10) / 10, minKg: Math.round(6.0 * scale * 10) / 10, maxKg: Math.round(8.5 * scale * 10) / 10, weeks: 16 },
-    { label: '6m', expectedKg: Math.round(9.5 * scale * 10) / 10, minKg: Math.round(8.0 * scale * 10) / 10, maxKg: Math.round(11.0 * scale * 10) / 10, weeks: 26 },
-    { label: '12m', expectedKg: Math.round(adultWeightKg * 10) / 10, minKg: Math.round(adultWeightKg * 0.88 * 10) / 10, maxKg: Math.round(adultWeightKg * 1.15 * 10) / 10, weeks: 52 },
-  ];
-}
+import { calculateProjectedAdultWeightRange } from '../utils/weight';
 
 interface WeightGrowthChartProps {
   activities: Activity[];

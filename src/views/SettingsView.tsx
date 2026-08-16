@@ -6,6 +6,7 @@ import { PuppiesView } from './PuppiesView';
 import { HouseholdView } from './HouseholdView';
 import { AdminView } from './AdminView';
 import { useI18n } from '../i18n';
+import { isSuperAdminEmail } from '../constants/auth';
 
 interface SettingsViewProps {
   user: UserAccount;
@@ -20,7 +21,7 @@ interface SettingsViewProps {
   onAddCaretaker: (caretaker: Caretaker) => void;
   onUpdateCaretaker: (id: string, updatedFields: Partial<Caretaker>) => void;
   onDeleteCaretaker: (id: string) => void;
-  onBackToDashboard: () => void;
+  onBackToDashboard?: () => void;
 }
 
 export const SettingsView: React.FC<SettingsViewProps> = ({
@@ -39,7 +40,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   onBackToDashboard,
 }) => {
   const { t } = useI18n();
-  const isSuperAdmin = user.email.toLowerCase() === 'matthieu.jacquet@gmail.com';
+  const isSuperAdmin = isSuperAdminEmail(user.email);
   const [selectedTab, setSelectedTab] = useState<'dogs' | 'household' | 'admin'>('dogs');
 
   return (

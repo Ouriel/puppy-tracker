@@ -88,10 +88,10 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = React.memo(({
       const formattedOverdue = overdueMins < 60
         ? `${overdueMins}m`
         : `${Math.floor(overdueMins / 60)}h ${overdueMins % 60 > 0 ? (overdueMins % 60) + 'm' : ''}`.trim();
-      return `Overdue ~${formattedOverdue}`;
+      return `${t.dashboard.overduePrefix}${formattedOverdue}`;
     }
 
-    if (diffMins === 0) return 'Due now';
+    if (diffMins === 0) return t.dashboard.dueNowCount;
 
     if (diffMins < 60) return `~${diffMins}m`;
     const hours = Math.floor(diffMins / 60);
@@ -145,13 +145,13 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = React.memo(({
             {/* FIRST: Pee Stats Summary (Records of the day) */}
             <div className="bg-slate-950/60 p-2.5 rounded-xl border border-slate-800/80 text-[11px] space-y-1 text-slate-400">
               <div className="flex justify-between font-medium">
-                <span>Pees today:</span>
+                <span>{t.dashboard.peesToday}</span>
                 <span className="font-bold text-sky-300">{todayPeeLogs.length}</span>
               </div>
               <div className="flex justify-between font-medium">
-                <span>Last pee:</span>
+                <span>{t.dashboard.lastPee}</span>
                 <span className="font-bold text-slate-300">
-                  {lastPeeMinsAgo !== null ? `${formatMinutesToXhXX(lastPeeMinsAgo)} ago` : 'None logged today'}
+                  {lastPeeMinsAgo !== null ? `${formatMinutesToXhXX(lastPeeMinsAgo)} ${t.dashboard.agoText}` : t.dashboard.noneLoggedToday}
                 </span>
               </div>
             </div>
@@ -225,13 +225,13 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = React.memo(({
             {/* FIRST: Poop Stats Summary (Records of the day) */}
             <div className="bg-slate-950/60 p-2.5 rounded-xl border border-slate-800/80 text-[11px] space-y-1 text-slate-400">
               <div className="flex justify-between font-medium">
-                <span>Poops today:</span>
+                <span>{t.dashboard.poopsToday}</span>
                 <span className="font-bold text-amber-300">{todayPoopLogs.length}</span>
               </div>
               <div className="flex justify-between font-medium">
-                <span>Last poop:</span>
+                <span>{t.dashboard.lastPoop}</span>
                 <span className="font-bold text-slate-300">
-                  {lastPoopMinsAgo !== null ? `${formatMinutesToXhXX(lastPoopMinsAgo)} ago` : 'None logged today'}
+                  {lastPoopMinsAgo !== null ? `${formatMinutesToXhXX(lastPoopMinsAgo)} ${t.dashboard.agoText}` : t.dashboard.noneLoggedToday}
                 </span>
               </div>
             </div>
@@ -300,13 +300,13 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = React.memo(({
             {/* FIRST: Food Stats Summary (Records of the day) */}
             <div className="bg-slate-950/60 p-2.5 rounded-xl border border-slate-800/80 text-[11px] space-y-1 text-slate-400">
               <div className="flex justify-between font-medium">
-                <span>Ration intake today:</span>
-                <span className="font-bold text-purple-300">{todayFoodLoggedGrams}g / {dailyGoal}g (Meal {todayMealsCount}/{targetMeals})</span>
+                <span>{t.dashboard.rationIntakeToday}</span>
+                <span className="font-bold text-purple-300">{todayFoodLoggedGrams}g / {dailyGoal}g ({todayMealsCount}/{targetMeals})</span>
               </div>
               <div className="flex justify-between font-medium">
-                <span>Last meal:</span>
+                <span>{t.dashboard.lastMeal}</span>
                 <span className="font-bold text-slate-300">
-                  {lastFoodMinsAgo !== null ? `${formatMinutesToXhXX(lastFoodMinsAgo)} ago` : 'None logged today'}
+                  {lastFoodMinsAgo !== null ? `${formatMinutesToXhXX(lastFoodMinsAgo)} ${t.dashboard.agoText}` : t.dashboard.noneLoggedToday}
                 </span>
               </div>
             </div>

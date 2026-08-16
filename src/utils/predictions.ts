@@ -38,6 +38,20 @@ export function isNighttimeHour(hour: number, wakeupHour: number, bedtimeHour: n
 }
 
 /**
+ * Wrap-aware check: is the given hour approaching bedtime (within ~1 hour prior to sleep)?
+ */
+export function isApproachingBedtime(hour: number, wakeupHour: number, bedtimeHour: number): boolean {
+  const windowStart = Math.floor((bedtimeHour - 1 + 24) % 24);
+  if (bedtimeHour > wakeupHour) {
+    return hour >= windowStart && hour < bedtimeHour;
+  }
+  if (windowStart > bedtimeHour) {
+    return hour >= windowStart || hour < bedtimeHour;
+  }
+  return hour >= windowStart && hour < bedtimeHour;
+}
+
+/**
  * Calculates puppy age in weeks and months from birth date.
  */
 export function getPuppyAge(
@@ -143,7 +157,10 @@ export function detectSleepSchedule(
 
   targetLogs.forEach((activity) => {
     const d = parseIsoDate(activity.timestamp);
-    const dateStr = formatLocalDate(d, tz);
+    // Shift by -4 hours to create a logical day window (04:00 AM to 03:59 AM)
+    // This keeps post-midnight bedtime activities (e.g. 01:00 AM) grouped with the correct waking day
+    const shiftedDate = new Date(d.getTime() - 4 * 3600 * 1000);
+    const dateStr = formatLocalDate(shiftedDate, tz);
     if (!byDate[dateStr]) byDate[dateStr] = [];
     byDate[dateStr].push(d);
   });
@@ -340,7 +357,15 @@ export function calculateLearnedIntervalMinutes(
       const isPrevDay = isDaytimeHour(prevHour, sleepSchedule.wakeupHour, sleepSchedule.bedtimeHour);
       const isCurrDay = isDaytimeHour(currHour, sleepSchedule.wakeupHour, sleepSchedule.bedtimeHour);
 
-      if (isPrevDay && isCurrDay) {
+      // Check if interval spans across the overnight sleep period (from bedtime to morning wakeup)
+      const crossesNight = (
+        getLocalHour(currTime, timeZone) >= sleepSchedule.wakeupHour &&
+        (prevHour >= Math.floor(sleepSchedule.bedtimeHour - 3) || isNighttimeHour(prevHour, sleepSchedule.wakeupHour, sleepSchedule.bedtimeHour) || (prevHour < sleepSchedule.wakeupHour && prevHour <= Math.ceil(sleepSchedule.bedtimeHour))) &&
+        diffMinutes > 4 * 60
+      );
+
+      // Allow valid waking retention intervals (including pre-bedtime outings around midnight)
+      if (isPrevDay && isCurrDay && !crossesNight && diffMinutes <= 8 * 60) {
         // Exponential time decay: 3-day half-life so recent days count significantly more
         const daysAgo = Math.max(0, (nowTime - currTime.getTime()) / (1000 * 60 * 60 * 24));
         const weight = Math.exp(-daysAgo / 3);
@@ -430,12 +455,12 @@ export function predictNextPee(
   const isMorningWindow = currentHour >= (sleepSchedule.wakeupHour - 2) && currentHour < (sleepSchedule.wakeupHour + 3);
   const hasAwokenToday = sorted.some((a) => {
     const d = parseIsoDate(a.timestamp);
-    return isSameLocalDate(d, now) && getLocalHour(d, tz) >= (sleepSchedule.wakeupHour - 2);
+    return isSameLocalDate(d, now, tz) && getLocalHour(d, tz) >= (sleepSchedule.wakeupHour - 2);
   });
 
-  const isApproachingBedtime = currentHour >= Math.floor(sleepSchedule.bedtimeHour - 1);
+  const isApproaching = isApproachingBedtime(currentHour, sleepSchedule.wakeupHour, sleepSchedule.bedtimeHour);
   const isCurrentlyNight = isNighttimeHour(currentHour, sleepSchedule.wakeupHour, sleepSchedule.bedtimeHour);
-  const isNightTime = (isMorningWindow ? !hasAwokenToday : true) && (isCurrentlyNight || isApproachingBedtime);
+  const isNightTime = (isMorningWindow ? !hasAwokenToday : true) && (isCurrentlyNight || isApproaching);
 
   let nextExpectedAt: Date;
   let mode: ScheduleMode = 'daytime_baseline';
@@ -547,12 +572,12 @@ export function predictNextPoop(
   const isMorningWindow = currentHour >= (sleepSchedule.wakeupHour - 2) && currentHour < (sleepSchedule.wakeupHour + 3);
   const hasAwokenToday = sorted.some((a) => {
     const d = parseIsoDate(a.timestamp);
-    return isSameLocalDate(d, now) && getLocalHour(d, tz) >= (sleepSchedule.wakeupHour - 2);
+    return isSameLocalDate(d, now, tz) && getLocalHour(d, tz) >= (sleepSchedule.wakeupHour - 2);
   });
 
-  const isApproachingBedtime = currentHour >= Math.floor(sleepSchedule.bedtimeHour - 1);
+  const isApproaching = isApproachingBedtime(currentHour, sleepSchedule.wakeupHour, sleepSchedule.bedtimeHour);
   const isCurrentlyNight = isNighttimeHour(currentHour, sleepSchedule.wakeupHour, sleepSchedule.bedtimeHour);
-  const isNightTime = (isMorningWindow ? !hasAwokenToday : true) && (isCurrentlyNight || isApproachingBedtime);
+  const isNightTime = (isMorningWindow ? !hasAwokenToday : true) && (isCurrentlyNight || isApproaching);
 
   const isLastPoopConstipated =
     lastPoop.stoolConsistency === 'hard' ||
@@ -586,18 +611,24 @@ export function predictNextPoop(
     const refractoryMinutes = Math.max(learnedPoop.intervalMins * 1.4, 480);
     nextExpectedAt = new Date(lastPoopTime + refractoryMinutes * 60 * 1000);
     reason = 'Digestive system recovering from recent hard stool. Colon refilling after meals.';
-  } else if (months < 8 && lastFood && parseIsoDate(lastFood.timestamp).getTime() > lastPoopTime) {
-    const foodTime = parseIsoDate(lastFood.timestamp).getTime();
-    const minsSinceMeal = Math.round((now.getTime() - foodTime) / 60000);
-    const postMealPoopDelay = months < 3 ? 20 : months < 6 ? 35 : 50;
+  } else {
+    let postMealOverride = false;
+    if (months < 8 && lastFood && parseIsoDate(lastFood.timestamp).getTime() > lastPoopTime) {
+      const foodTime = parseIsoDate(lastFood.timestamp).getTime();
+      const minsSinceMeal = Math.round((now.getTime() - foodTime) / 60000);
+      const postMealPoopDelay = months < 3 ? 20 : months < 6 ? 35 : 50;
 
-    if (minsSinceMeal <= postMealPoopDelay + 45) {
-      mode = 'post_meal_override';
-      nextExpectedAt = new Date(foodTime + postMealPoopDelay * 60 * 1000);
-      reason = minsSinceMeal > postMealPoopDelay + 10
-        ? `Pup fed ${formatMinutesToXhXX(minsSinceMeal)} ago — post-meal poop break (gastrocolic reflex) is overdue!`
-        : `Pup fed recently (${formatMinutesToXhXX(minsSinceMeal)} ago). Gastrocolic reflex triggers poop ~${postMealPoopDelay}m post-meal (age ${months.toFixed(1)}mo).`;
-    } else {
+      if (minsSinceMeal <= postMealPoopDelay + 45) {
+        postMealOverride = true;
+        mode = 'post_meal_override';
+        nextExpectedAt = new Date(foodTime + postMealPoopDelay * 60 * 1000);
+        reason = minsSinceMeal > postMealPoopDelay + 10
+          ? `Pup fed ${formatMinutesToXhXX(minsSinceMeal)} ago — post-meal poop break (gastrocolic reflex) is overdue!`
+          : `Pup fed recently (${formatMinutesToXhXX(minsSinceMeal)} ago). Gastrocolic reflex triggers poop ~${postMealPoopDelay}m post-meal (age ${months.toFixed(1)}mo).`;
+      }
+    }
+
+    if (!postMealOverride) {
       const todayDateStr = formatLocalDate(now, tz);
       const todayMealsSorted = past
         .filter((a) => a.type === 'food' && formatLocalDate(parseIsoDate(a.timestamp), tz) === todayDateStr)
@@ -620,29 +651,6 @@ export function predictNextPoop(
           ? `Learned average: ~${formatMinutesToXhXX(learnedPoop.intervalMins)} digestive interval (30-day history)`
           : 'Standard digestive interval (~6h)';
       }
-    }
-  } else {
-    const todayDateStr = formatLocalDate(now, tz);
-    const todayMealsSorted = past
-      .filter((a) => a.type === 'food' && formatLocalDate(parseIsoDate(a.timestamp), tz) === todayDateStr)
-      .sort((a, b) => parseIsoDate(a.timestamp).getTime() - parseIsoDate(b.timestamp).getTime());
-
-    const todayPoops = past.filter(
-      (a) => a.type === 'poop' && formatLocalDate(parseIsoDate(a.timestamp), tz) === todayDateStr
-    );
-
-    if (todayMealsSorted.length > 0 && todayPoops.length === 0) {
-      mode = 'daytime_baseline';
-      const latestMealTime = parseIsoDate(todayMealsSorted[todayMealsSorted.length - 1].timestamp).getTime();
-      const digestiveTransitMins = Math.max(240, learnedPoop.intervalMins);
-      nextExpectedAt = new Date(latestMealTime + digestiveTransitMins * 60 * 1000);
-      reason = `Fed ${todayMealsSorted.length}× today, no poop yet. Expected ~${formatMinutesToXhXX(digestiveTransitMins)} after last meal.`;
-    } else {
-      mode = 'daytime_baseline';
-      nextExpectedAt = standardExpectedAt;
-      reason = learnedPoop.isLearned
-        ? `Learned average: ~${formatMinutesToXhXX(learnedPoop.intervalMins)} digestive interval (30-day history)`
-        : 'Standard digestive interval (~6h)';
     }
   }
 
@@ -695,12 +703,12 @@ export function predictNextFood(
   const isMorningWindow = currentHour >= (sleepSchedule.wakeupHour - 2) && currentHour < (sleepSchedule.wakeupHour + 3);
   const hasAwokenToday = past.some((a) => {
     const d = parseIsoDate(a.timestamp);
-    return isSameLocalDate(d, now) && getLocalHour(d, tz) >= (sleepSchedule.wakeupHour - 2);
+    return isSameLocalDate(d, now, tz) && getLocalHour(d, tz) >= (sleepSchedule.wakeupHour - 2);
   });
 
-  const isApproachingBedtime = currentHour >= Math.floor(sleepSchedule.bedtimeHour - 1);
+  const isApproaching = isApproachingBedtime(currentHour, sleepSchedule.wakeupHour, sleepSchedule.bedtimeHour);
   const isCurrentlyNight = isNighttimeHour(currentHour, sleepSchedule.wakeupHour, sleepSchedule.bedtimeHour);
-  const isNightTime = (isMorningWindow ? !hasAwokenToday : true) && (isCurrentlyNight || isApproachingBedtime);
+  const isNightTime = (isMorningWindow ? !hasAwokenToday : true) && (isCurrentlyNight || isApproaching);
 
   const targetWakeup = getNextOccurrenceOfClockTime(now, sleepSchedule.wakeupHour);
   const targetBreakfast = new Date(targetWakeup.getTime() + offsets.morningFoodOffsetMins * 60 * 1000);
@@ -743,7 +751,11 @@ export function predictNextFood(
     const lastMealTime = parseIsoDate(lastMealToday.timestamp).getTime();
 
     const remainingMealsCount = Math.max(1, targetMeals - todayMeals.length);
-    const wakingHoursLeft = Math.max(1, sleepSchedule.bedtimeHour - getLocalHour(new Date(lastMealTime), tz));
+    const effectiveBedtime = sleepSchedule.bedtimeHour < sleepSchedule.wakeupHour
+      ? sleepSchedule.bedtimeHour + 24
+      : sleepSchedule.bedtimeHour;
+    const lastMealHour = getLocalHour(new Date(lastMealTime), tz);
+    const wakingHoursLeft = Math.max(1, effectiveBedtime - lastMealHour);
     const idealIntervalHours = Math.max(2.5, Math.min(5.5, wakingHoursLeft / (remainingMealsCount + 1)));
 
     nextExpectedAt = new Date(lastMealTime + idealIntervalHours * 60 * 60 * 1000);

@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import type { Activity, UserAccount, ActivityType, PottyLocation } from './types';
+import type { Activity, UserAccount, ActivityType, PottyLocation, FamilyRole } from './types';
 import {
   getStoredUser,
 } from './utils/storage';
 import { getAuthToken, setAuthToken } from './utils/auth';
+import { isSuperAdminEmail } from './constants/auth';
 import {
   fetchDogs,
   fetchHousehold,
@@ -89,7 +90,7 @@ export function App() {
             id: sessionData.user.id || 'u-1',
             email: sessionData.user.email,
             name: sessionData.user.name,
-            role: sessionData.user.role as any,
+            role: (['Husband', 'Wife', 'Partner', 'Child', 'Dog Walker', 'Sitter', 'Relative', 'Member', 'SuperAdmin'].includes(sessionData.user.role) ? sessionData.user.role : 'Member') as FamilyRole,
           };
           setUser(userAccount);
         }
@@ -112,6 +113,7 @@ export function App() {
     }
 
     init();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const activePuppyActivities = useMemo(() => {
@@ -188,7 +190,7 @@ export function App() {
       id: `u-${Date.now()}`,
       email,
       name,
-      role: email.toLowerCase() === 'matthieu.jacquet@gmail.com' ? 'SuperAdmin' : 'Member',
+      role: isSuperAdminEmail(email) ? 'SuperAdmin' : 'Member',
     };
     setAuthToken(token);
     setUser(newUser);
@@ -200,7 +202,7 @@ export function App() {
       id: `u-${Date.now()}`,
       email,
       name: email.split('@')[0],
-      role: email.toLowerCase() === 'matthieu.jacquet@gmail.com' ? 'SuperAdmin' : 'Member',
+      role: isSuperAdminEmail(email) ? 'SuperAdmin' : 'Member',
     };
     setUser(newUser);
     return { success: true };
@@ -211,7 +213,7 @@ export function App() {
       id: `u-${Date.now()}`,
       email,
       name: name || email.split('@')[0],
-      role: (role as any) || 'Member',
+      role: (['Husband', 'Wife', 'Partner', 'Child', 'Dog Walker', 'Sitter', 'Relative', 'Member', 'SuperAdmin'].includes(role) ? role : 'Member') as FamilyRole,
     };
     setUser(newUser);
     return { success: true };

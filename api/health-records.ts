@@ -2,7 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { neon } from '@neondatabase/serverless';
 import { drizzle } from 'drizzle-orm/neon-http';
 import { eq, and, desc } from 'drizzle-orm';
-import { healthRecordsTable } from '../src/db/schema.js';
+import { healthRecordsTable, puppiesTable } from '../src/db/schema.js';
 import { verifyAuth } from './_auth.js';
 import { z } from 'zod';
 
@@ -74,6 +74,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(400).json({ error: 'Invalid health record payload', details: parsed.error.issues });
       }
       const body = parsed.data;
+
+      // Verify puppy belongs to this household
+      const [puppy] = await db
+        .select()
+        .from(puppiesTable)
+        .where(and(eq(puppiesTable.id, body.puppyId), eq(puppiesTable.householdId, householdId)));
+      if (!puppy) {
+        return res.status(403).json({ error: 'Puppy not found in your household' });
+      }
 
       const id = body.id || `hr-${Date.now()}`;
 

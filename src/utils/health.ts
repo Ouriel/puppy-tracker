@@ -32,7 +32,7 @@ export function getHealthProtocols(): HealthProtocolData {
 /**
  * Calculates the next booster due date based on vaccine type dataset.
  */
-export function calculateNextVaccineBooster(injectionDate: string, vaccineType: string): string {
+export function calculateNextVaccineBooster(injectionDate: string, vaccineType: string, ageMonths: number = 6): string {
   const date = new Date(injectionDate);
   const typeLower = vaccineType.toLowerCase();
   const matched = healthProtocols.vaccines.find(
@@ -42,7 +42,15 @@ export function calculateNextVaccineBooster(injectionDate: string, vaccineType: 
       (v.aliases && v.aliases.some((alias) => typeLower.includes(alias) || alias.includes(typeLower)))
   );
 
-  const months = matched ? matched.defaultBoosterMonths : 12;
+  let months = matched ? matched.defaultBoosterMonths : 12;
+
+  // WSAVA: After primovaccination (≥4 months age), core vaccines switch to annual boosters
+  if (matched && ['chppi_l4', 'chppi_sans_l4', 'vanguard_cpv'].includes(matched.id)) {
+    if (ageMonths >= 4) {
+      months = 12;
+    }
+  }
+
   date.setMonth(date.getMonth() + months);
   return date.toISOString().slice(0, 10);
 }

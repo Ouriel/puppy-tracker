@@ -85,10 +85,10 @@ export function parseIsoDate(timestamp: string | Date): Date {
 /**
  * Checks whether two Date objects (or ISO strings) fall on the exact same local calendar day
  */
-export function isSameLocalDate(dateA: Date | string, dateB: Date | string): boolean {
+export function isSameLocalDate(dateA: Date | string, dateB: Date | string, timeZone?: string): boolean {
   const dA = typeof dateA === 'string' ? parseIsoDate(dateA) : dateA;
   const dB = typeof dateB === 'string' ? parseIsoDate(dateB) : dateB;
-  return formatLocalDate(dA) === formatLocalDate(dB);
+  return formatLocalDate(dA, timeZone) === formatLocalDate(dB, timeZone);
 }
 
 /**
@@ -111,7 +111,7 @@ export function formatRelativeTime(
   const timeStr = date.toLocaleTimeString(locale, {
     hour: '2-digit',
     minute: '2-digit',
-    hour12: false,
+    hour12: lang !== 'fr',
   });
 
   const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();

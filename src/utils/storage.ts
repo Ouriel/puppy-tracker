@@ -1,4 +1,5 @@
 import type { Activity, Caretaker, PuppyProfile, UserAccount } from '../types';
+import { SUPER_ADMIN_EMAIL } from '../constants/auth';
 
 const STORAGE_KEY_ACTIVE_PUPPY = 'puppace_active_puppy';
 const STORAGE_KEY_OFFLINE_QUEUE = 'puppace_offline_queue';
@@ -8,7 +9,7 @@ export const DEFAULT_PUPPIES: PuppyProfile[] = [];
 export const DEFAULT_USER: UserAccount = {
   id: 'usr-default',
   name: 'Matthieu',
-  email: 'matthieu.jacquet@gmail.com',
+  email: SUPER_ADMIN_EMAIL,
   role: 'Member',
   avatarColor: '#6366F1',
   familyPackId: 'FAMILY-COCKER-2026',

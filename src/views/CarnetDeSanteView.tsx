@@ -17,31 +17,7 @@ import { StatusBadge } from '../components/common/StatusBadge';
 import { getEffectivePuppyWeight } from '../utils/weight';
 import { getPuppyAge } from '../utils/predictions';
 import { WeightGrowthChart } from '../components/WeightGrowthChart';
-import type { Activity } from '../types';
-
-interface VaccinationEntry {
-  id: string;
-  puppyId?: string;
-  type?: string;
-  name: string;
-  date: string;
-  boosterDate?: string;
-  vetClinic?: string;
-  batchNumber?: string;
-  notes?: string;
-}
-
-interface DewormingEntry {
-  id: string;
-  puppyId?: string;
-  type?: string;
-  name: string;
-  productName?: string;
-  date: string;
-  boosterDate?: string;
-  weightAtTime?: number;
-  notes?: string;
-}
+import type { Activity, HealthRecord } from '../types';
 
 interface CarnetDeSanteViewProps {
   activePuppy: PuppyProfile | null;
@@ -60,16 +36,16 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({
 }) => {
   const { t, lang } = useI18n();
 
-  const getVaccineStatus = (vaccine: VaccinationEntry, allVaccines: VaccinationEntry[]) => {
+  const getVaccineStatus = (vaccine: HealthRecord, allVaccines: HealthRecord[]) => {
     return getHealthRecordStatus(vaccine, allVaccines, `✅ ${t.health.statusUpToDate}`, `✅ ${t.health.statusFulfilled}`);
   };
 
-  const getDewormingStatus = (deworming: DewormingEntry, allDewormings: DewormingEntry[]) => {
+  const getDewormingStatus = (deworming: HealthRecord, allDewormings: HealthRecord[]) => {
     return getHealthRecordStatus(deworming, allDewormings, `✅ ${t.health.statusUpToDate}`, `✅ ${t.health.statusFulfilled}`);
   };
 
-  const [vaccinations, setVaccinations] = useState<VaccinationEntry[]>([]);
-  const [dewormingLogs, setDewormingLogs] = useState<DewormingEntry[]>([]);
+  const [vaccinations, setVaccinations] = useState<HealthRecord[]>([]);
+  const [dewormingLogs, setDewormingLogs] = useState<HealthRecord[]>([]);
 
   // Form toggles
   const [isAddingVaccine, setIsAddingVaccine] = useState(false);
@@ -78,29 +54,32 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({
   // New Vaccine Form
   const [vaccineType, setVaccineType] = useState<string>('CHPPi + L4');
   const [administeredDate, setAdministeredDate] = useState(() => formatLocalDate());
-  const [nextDueDate, setNextDueDate] = useState('');
+  const [customNextDueDate, setCustomNextDueDate] = useState<string | null>(null);
   const [vetClinic, setVetClinic] = useState('');
   const [batchNumber, setBatchNumber] = useState('');
 
-  // Auto-calculate next vaccine booster due date based on dataset rules
-  useEffect(() => {
-    if (!administeredDate) return;
-    const calculated = calculateNextVaccineBooster(administeredDate, vaccineType);
-    setNextDueDate(calculated);
-  }, [administeredDate, vaccineType]);
+  // Auto-calculate next vaccine booster due date declaratively (without useEffect)
+  const autoNextVaccineDate = React.useMemo(() => {
+    if (!administeredDate) return '';
+    const ageMonths = activePuppy?.birthDate ? getPuppyAge(activePuppy.birthDate).months : 6;
+    return calculateNextVaccineBooster(administeredDate, vaccineType, ageMonths);
+  }, [administeredDate, vaccineType, activePuppy?.birthDate]);
+
+  const nextDueDate = customNextDueDate !== null ? customNextDueDate : autoNextVaccineDate;
 
   // New Deworming Form
   const [productName, setProductName] = useState('Credelio Plus');
   const [dewormAdminDate, setDewormAdminDate] = useState(() => formatLocalDate());
-  const [dewormNextDate, setDewormNextDate] = useState('');
+  const [customDewormNextDate, setCustomDewormNextDate] = useState<string | null>(null);
 
-  // Auto-calculate next deworming / antiparasitic booster date based on product SPC & ESCCAP
-  useEffect(() => {
-    if (!dewormAdminDate) return;
+  // Auto-calculate next deworming / antiparasitic booster date declaratively (without useEffect)
+  const autoNextDewormDate = React.useMemo(() => {
+    if (!dewormAdminDate) return '';
     const ageMonths = activePuppy?.birthDate ? getPuppyAge(activePuppy.birthDate).months : 3;
-    const calculated = calculateNextAntiparasiticDate(dewormAdminDate, productName, ageMonths);
-    setDewormNextDate(calculated);
+    return calculateNextAntiparasiticDate(dewormAdminDate, productName, ageMonths);
   }, [dewormAdminDate, productName, activePuppy?.birthDate]);
+
+  const dewormNextDate = customDewormNextDate !== null ? customDewormNextDate : autoNextDewormDate;
 
   // Edit Vaccine state
   const [editingVaccineId, setEditingVaccineId] = useState<string | null>(null);
@@ -117,7 +96,7 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({
   const [editDewormingBoosterDate, setEditDewormingBoosterDate] = useState('');
   const [editDewormingWeight, setEditDewormingWeight] = useState('');
 
-  const startEditVaccine = (vaccine: VaccinationEntry) => {
+  const startEditVaccine = (vaccine: HealthRecord) => {
     setEditingVaccineId(vaccine.id);
     setEditVaccineName(vaccine.name);
     setEditVaccineDate(vaccine.date);
@@ -126,7 +105,7 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({
     setEditVaccineBatchNumber(vaccine.batchNumber || '');
   };
 
-  const startEditDeworming = (deworming: DewormingEntry) => {
+  const startEditDeworming = (deworming: HealthRecord) => {
     setEditingDewormingId(deworming.id);
     setEditDewormingName(deworming.productName || deworming.name);
     setEditDewormingDate(deworming.date);
@@ -220,6 +199,7 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({
     if (created) {
       setVaccinations((previous) => sortByDateDesc([created, ...previous]));
       setIsAddingVaccine(false);
+      setCustomNextDueDate(null);
       setVetClinic('');
       setBatchNumber('');
     }
@@ -252,6 +232,7 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({
     if (created) {
       setDewormingLogs((previous) => sortByDateDesc([created, ...previous]));
       setIsAddingDeworming(false);
+      setCustomDewormNextDate(null);
     }
   };
 
@@ -348,7 +329,13 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({
                   <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
                     <div className="sm:col-span-2 min-w-0">
                       <label className="block text-xs font-semibold text-slate-400 mb-1">{t.health.vaccineType}</label>
-                      <Select value={vaccineType} onChange={(val) => setVaccineType(val as string)}>
+                      <Select
+                        value={vaccineType}
+                        onChange={(val) => {
+                          setVaccineType(val as string);
+                          setCustomNextDueDate(null);
+                        }}
+                      >
                         <Select.Trigger className="w-full bg-slate-900 border-slate-700/80 text-slate-100 min-w-0 flex items-center justify-between">
                           <Select.Value className="truncate block text-left" />
                           <Select.Indicator />
@@ -371,7 +358,10 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({
                         type="date"
                         className="bg-slate-900 border-slate-700/80 text-slate-100"
                         value={administeredDate}
-                        onChange={(event) => setAdministeredDate(event.target.value)}
+                        onChange={(event) => {
+                          setAdministeredDate(event.target.value);
+                          setCustomNextDueDate(null);
+                        }}
                         required
                       />
                     </div>
@@ -382,7 +372,7 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({
                         type="date"
                         className="bg-slate-900 border-slate-700/80 text-slate-100"
                         value={nextDueDate}
-                        onChange={(event) => setNextDueDate(event.target.value)}
+                        onChange={(event) => setCustomNextDueDate(event.target.value)}
                         required
                       />
                     </div>
@@ -615,7 +605,13 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({
                   <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
                     <div className="sm:col-span-2 min-w-0">
                       <label className="block text-xs font-semibold text-slate-400 mb-1">{t.health.productName}</label>
-                      <Select value={productName} onChange={(val) => setProductName(val as string)}>
+                      <Select
+                        value={productName}
+                        onChange={(val) => {
+                          setProductName(val as string);
+                          setCustomDewormNextDate(null);
+                        }}
+                      >
                         <Select.Trigger className="w-full bg-slate-900 border-slate-700/80 text-slate-100 min-w-0 flex items-center justify-between">
                           <Select.Value className="truncate block text-left" />
                           <Select.Indicator />
@@ -638,7 +634,10 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({
                         type="date"
                         className="bg-slate-900 border-slate-700/80 text-slate-100"
                         value={dewormAdminDate}
-                        onChange={(event) => setDewormAdminDate(event.target.value)}
+                        onChange={(event) => {
+                          setDewormAdminDate(event.target.value);
+                          setCustomDewormNextDate(null);
+                        }}
                         required
                       />
                     </div>
@@ -649,7 +648,7 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({
                         type="date"
                         className="bg-slate-900 border-slate-700/80 text-slate-100"
                         value={dewormNextDate}
-                        onChange={(event) => setDewormNextDate(event.target.value)}
+                        onChange={(event) => setCustomDewormNextDate(event.target.value)}
                         required
                       />
                     </div>

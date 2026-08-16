@@ -2,10 +2,9 @@ import React, { useState, useEffect } from 'react';
 import type { PuppyProfile, Activity, HealthRecord } from '../types';
 import { Syringe, Pill, Dog, Scale, ExternalLink } from 'lucide-react';
 import { Card, Button, Chip } from '@heroui/react';
-import type { Language } from '../i18n';
+import { useI18n, type Language } from '../i18n';
 import { formatBreedName } from '../utils/breeds';
-import { calculateProjectedAdultWeightRange } from './WeightGrowthChart';
-import { getEffectivePuppyWeight } from '../utils/weight';
+import { calculateProjectedAdultWeightRange, getEffectivePuppyWeight } from '../utils/weight';
 import { getPuppyAge } from '../utils/predictions';
 import { fetchHealthRecords } from '../services/api';
 import { calculateNextVaccineBooster, calculateNextDewormingDate } from '../utils/health';
@@ -24,6 +23,7 @@ export const DogHealthSummary: React.FC<DogHealthSummaryProps> = ({
   onOpenHealthPassport,
   lang,
 }) => {
+  const { t } = useI18n();
 
   const [lastVaccine, setLastVaccine] = useState<HealthRecord | null>(null);
   const [lastDeworming, setLastDeworming] = useState<HealthRecord | null>(null);
@@ -37,15 +37,19 @@ export const DogHealthSummary: React.FC<DogHealthSummaryProps> = ({
       if (vRes && vRes.length > 0) {
         const sorted = [...vRes].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
         setLastVaccine(sorted[0]);
+      } else {
+        setLastVaccine(null);
       }
       if (dRes && dRes.length > 0) {
         const sorted = [...dRes].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
         setLastDeworming(sorted[0]);
+      } else {
+        setLastDeworming(null);
       }
     };
 
     loadHealth();
-  }, [profile.id]);
+  }, [profile.id, activities.length]);
 
   // Calculate puppy age in weeks & months
   const ageInfo = React.useMemo(() => {
@@ -74,12 +78,12 @@ export const DogHealthSummary: React.FC<DogHealthSummaryProps> = ({
       adultTargetKg: projectedWeight.projectedAdultKg,
       adultRangeStr: `${projectedWeight.minAdultKg}–${projectedWeight.maxAdultKg} kg`,
     };
-  }, [activities, profile.weightKg, profile.birthDate, profile.breed, ageInfo.weeks, lang]);
+  }, [activities, profile, ageInfo.weeks, lang]);
 
   const localizedBreed = formatBreedName(profile.breed, lang as Language);
 
   const nextVaccineDueDate = lastVaccine
-    ? lastVaccine.boosterDate || calculateNextVaccineBooster(lastVaccine.date, lastVaccine.name)
+    ? lastVaccine.boosterDate || calculateNextVaccineBooster(lastVaccine.date, lastVaccine.name, ageInfo.months)
     : null;
 
   const nextDewormingDueDate = lastDeworming
@@ -93,7 +97,7 @@ export const DogHealthSummary: React.FC<DogHealthSummaryProps> = ({
         <div className="flex items-center justify-between">
           <h2 className="text-base font-extrabold text-slate-100 flex items-center gap-2">
             <Dog className="w-5 h-5 text-indigo-400" />
-            <span>Dog & Health Summary</span>
+            <span>{t.health?.healthPassportFor ? t.health.healthPassportFor.replace(' — {name}', '') : 'Dog & Health Summary'}</span>
           </h2>
         </div>
 

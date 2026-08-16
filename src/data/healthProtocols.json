@@ -21,7 +21,7 @@
       "name": "L4 (Leptospirose 4 souches)",
       "fullName": "L4 (Leptospirose 4 souches - Eurican L4 / Nobivac L4 / Versican L4)",
       "aliases": ["leptospirose", "l4", "eurican l4", "nobivac l4"],
-      "defaultBoosterMonths": 6,
+      "defaultBoosterMonths": 12,
       "description": "Protection contre les 4 souches de Leptospirose (rappel semestriel/annuel)"
     },
     {

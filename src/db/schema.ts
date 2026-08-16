@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, date, doublePrecision, integer } from 'drizzle-orm/pg-core';
+import { pgTable, text, timestamp, date, doublePrecision, integer, index } from 'drizzle-orm/pg-core';
 
 export const householdsTable = pgTable('households', {
   id: text('id').primaryKey(),
@@ -20,7 +20,9 @@ export const puppiesTable = pgTable('puppies', {
   notes: text('notes'),
   createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true, mode: 'date' }).defaultNow(),
-});
+}, (table) => [
+  index('idx_puppies_household').on(table.householdId),
+]);
 
 export const activitiesTable = pgTable('activities', {
   id: text('id').primaryKey(),
@@ -39,7 +41,9 @@ export const activitiesTable = pgTable('activities', {
   medicationName: text('medication_name'),
   notes: text('notes'),
   createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).defaultNow(),
-});
+}, (table) => [
+  index('idx_activities_tenant_pup_time').on(table.householdId, table.puppyId, table.timestamp.desc()),
+]);
 
 export const caretakersTable = pgTable('caretakers', {
   id: text('id').primaryKey(),
@@ -49,7 +53,9 @@ export const caretakersTable = pgTable('caretakers', {
   color: text('color').notNull(),
   email: text('email'),
   createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).defaultNow(),
-});
+}, (table) => [
+  index('idx_caretakers_household').on(table.householdId),
+]);
 
 export const usersTable = pgTable('users', {
   id: text('id').primaryKey(),
@@ -59,7 +65,9 @@ export const usersTable = pgTable('users', {
   role: text('role').notNull(),
   status: text('status').notNull().default('ACTIVE'),
   createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).defaultNow(),
-});
+}, (table) => [
+  index('idx_users_household').on(table.householdId),
+]);
 
 export const healthRecordsTable = pgTable('health_records', {
   id: text('id').primaryKey(),
@@ -75,4 +83,6 @@ export const healthRecordsTable = pgTable('health_records', {
   weightAtTime: doublePrecision('weight_at_time'),
   notes: text('notes'),
   createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).defaultNow(),
-});
+}, (table) => [
+  index('idx_health_records_tenant_pup_date').on(table.householdId, table.puppyId, table.date.desc()),
+]);

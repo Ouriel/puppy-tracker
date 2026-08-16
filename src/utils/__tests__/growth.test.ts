@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getExpectedAdultWeight, scaleGrowthBenchmarks } from '../../components/WeightGrowthChart';
+import { getExpectedAdultWeight, scaleGrowthBenchmarks } from '../weight';
 
 describe('breed-scalable weight growth chart — comprehensive test suite', () => {
   it('returns exact adult target weights for various small, medium, and large dog breeds', () => {

@@ -62,10 +62,18 @@ export interface Caretaker {
 
 export interface RegisteredUserItem {
   id: string;
+  householdId?: string;
   email: string;
   name: string;
   role: string;
   status: 'ACTIVE' | 'PENDING_APPROVAL';
+}
+
+export interface HouseholdItem {
+  id: string;
+  familyPackId: string;
+  name: string;
+  createdAt?: string;
 }
 
 export type ScheduleMode = 'daytime_baseline' | 'post_meal_override' | 'night_sleep';

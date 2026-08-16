@@ -1,7 +1,7 @@
 import { useState, useCallback, useTransition } from 'react';
 import type { PuppyProfile } from '../types';
 import { getActivePuppyId, setActivePuppyId as saveActivePuppyId } from '../utils/storage';
-import { createDog, deleteDog } from '../services/api';
+import { createDog, updateDog, deleteDog } from '../services/api';
 import { showToast } from '../utils/toast';
 import { useI18n } from '../i18n';
 
@@ -36,7 +36,7 @@ export function usePuppies(initialPuppies: PuppyProfile[] = []) {
   const updatePuppy = useCallback(
     async (updatedPup: PuppyProfile) => {
       setPuppies((prev) => prev.map((p) => (p.id === updatedPup.id ? updatedPup : p)));
-      await createDog(updatedPup);
+      await updateDog(updatedPup);
       showToast(t.toasts.dogUpdated, 'success');
     },
     [t.toasts.dogUpdated]

@@ -7,7 +7,7 @@ import {
   calculateVetFoodGramGoal,
 } from '../predictions';
 import { parseIsoDate, formatRelativeTime } from '../date';
-import { scaleGrowthBenchmarks, getExpectedAdultWeight } from '../../components/WeightGrowthChart';
+import { scaleGrowthBenchmarks, getExpectedAdultWeight } from '../weight';
 import type { Activity, PuppyProfile, HealthRecord } from '../../types';
 
 describe('Comprehensive 30-Day Realistic Dataset Test Suite', () => {

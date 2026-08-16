@@ -1,14 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { Shield, Send, Users, AlertCircle, UserCheck, UserX, Trash2, RefreshCw } from 'lucide-react';
+import { Shield, Send, Users, AlertCircle, UserCheck, UserX, Trash2, RefreshCw, Home } from 'lucide-react';
 import {
   fetchUsers,
   createUser,
   updateUser,
   deleteUser,
+  fetchAllHouseholds,
 } from '../services/api';
 import type { RegisteredUserItem } from '../types';
 import { useI18n } from '../i18n';
 import { Button, Input, Card, Chip, Modal } from '@heroui/react';
+import { SUPER_ADMIN_EMAIL, isSuperAdminEmail } from '../constants/auth';
 
 interface AdminViewProps {
   currentUserEmail: string;
@@ -16,40 +18,61 @@ interface AdminViewProps {
 
 export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail }) => {
   const { t } = useI18n();
-  const isSuperAdmin = currentUserEmail.toLowerCase() === 'matthieu.jacquet@gmail.com';
+  const isSuperAdmin = isSuperAdminEmail(currentUserEmail);
 
   const [users, setUsers] = useState<RegisteredUserItem[]>([]);
+  const [households, setHouseholds] = useState<Array<{ id: string; name: string }>>([
+    { id: 'FAMILY-COCKER-2026', name: 'Family Pack (Main)' },
+  ]);
+  const [targetHouseholds, setTargetHouseholds] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(false);
   const [newInviteEmail, setNewInviteEmail] = useState('');
+  const [newInviteHousehold, setNewInviteHousehold] = useState('FAMILY-COCKER-2026');
   const [statusMessage, setStatusMessage] = useState('');
   const [userToDelete, setUserToDelete] = useState<RegisteredUserItem | null>(null);
 
   useEffect(() => {
     if (isSuperAdmin) {
-      loadUsers();
+      loadData();
     }
   }, [isSuperAdmin]);
 
-  const loadUsers = async () => {
+  const loadData = async () => {
     setIsLoading(true);
     try {
-      const remoteUsers = await fetchUsers();
+      const [remoteUsers, remoteHouseholds] = await Promise.all([
+        fetchUsers(),
+        fetchAllHouseholds(),
+      ]);
+
       if (Array.isArray(remoteUsers)) {
         setUsers(remoteUsers);
       }
+      if (Array.isArray(remoteHouseholds) && remoteHouseholds.length > 0) {
+        setHouseholds(remoteHouseholds);
+      }
     } catch (err) {
-      console.error('Failed to load users', err);
+      console.error('Failed to load admin data', err);
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleActivate = async (email: string) => {
+    const targetHouseholdId = targetHouseholds[email] || 'FAMILY-COCKER-2026';
     try {
-      const res = await updateUser({ email, status: 'ACTIVE' });
+      const res = await updateUser({ email, status: 'ACTIVE', householdId: targetHouseholdId });
       if (res) {
-        setUsers((previous) => previous.map((registeredUser) => (registeredUser.email === email ? { ...registeredUser, status: 'ACTIVE' as const } : registeredUser)));
-        setStatusMessage(t.admin.activatedAccount ? t.admin.activatedAccount.replace('{email}', email) : `Activated ${email}`);
+        setUsers((previous) =>
+          previous.map((registeredUser) =>
+            registeredUser.email === email
+              ? { ...registeredUser, status: 'ACTIVE' as const, householdId: targetHouseholdId }
+              : registeredUser
+          )
+        );
+        setStatusMessage(
+          `Activated ${email} in household "${households.find((h) => h.id === targetHouseholdId)?.name || targetHouseholdId}"`
+        );
         setTimeout(() => setStatusMessage(''), 3500);
       }
     } catch (err) {
@@ -57,12 +80,39 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail }) => {
     }
   };
 
+  const handleMoveHousehold = async (email: string, newHouseholdId: string) => {
+    try {
+      const res = await updateUser({ email, householdId: newHouseholdId });
+      if (res) {
+        setUsers((previous) =>
+          previous.map((registeredUser) =>
+            registeredUser.email === email
+              ? { ...registeredUser, householdId: newHouseholdId }
+              : registeredUser
+          )
+        );
+        setStatusMessage(
+          `Moved ${email} to household "${households.find((h) => h.id === newHouseholdId)?.name || newHouseholdId}"`
+        );
+        setTimeout(() => setStatusMessage(''), 3500);
+      }
+    } catch (err) {
+      console.error('Failed to move user household', err);
+    }
+  };
+
   const handleDeactivate = async (email: string) => {
-    if (email.toLowerCase() === 'matthieu.jacquet@gmail.com') return;
+    if (isSuperAdminEmail(email)) return;
     try {
       const res = await updateUser({ email, status: 'PENDING_APPROVAL' });
       if (res) {
-        setUsers((previous) => previous.map((registeredUser) => (registeredUser.email === email ? { ...registeredUser, status: 'PENDING_APPROVAL' as const } : registeredUser)));
+        setUsers((previous) =>
+          previous.map((registeredUser) =>
+            registeredUser.email === email
+              ? { ...registeredUser, status: 'PENDING_APPROVAL' as const }
+              : registeredUser
+          )
+        );
         setStatusMessage(t.admin.revokedAccess ? t.admin.revokedAccess.replace('{email}', email) : `Revoked ${email}`);
         setTimeout(() => setStatusMessage(''), 3500);
       }
@@ -73,7 +123,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail }) => {
 
   const confirmDeleteUser = async () => {
     if (!userToDelete) return;
-    if (userToDelete.email.toLowerCase() === 'matthieu.jacquet@gmail.com') {
+    if (isSuperAdminEmail(userToDelete.email)) {
       setUserToDelete(null);
       return;
     }
@@ -103,12 +153,13 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail }) => {
         name: email.split('@')[0],
         role: 'Member',
         status: 'ACTIVE',
+        householdId: newInviteHousehold,
       });
 
       if (res) {
-        await loadUsers();
+        await loadData();
         setNewInviteEmail('');
-        setStatusMessage(t.admin.preApprovedAccount ? t.admin.preApprovedAccount.replace('{email}', email) : `Pre-approved ${email}`);
+        setStatusMessage(`Pre-approved ${email} in household "${newInviteHousehold}"`);
         setTimeout(() => setStatusMessage(''), 3500);
       }
     } catch (err) {
@@ -129,7 +180,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail }) => {
           </h2>
           <p className="text-xs text-slate-400">
             {t.admin.onlySuperAdmin}
-            <strong className="text-white">matthieu.jacquet@gmail.com</strong>
+            <strong className="text-white">{SUPER_ADMIN_EMAIL}</strong>
             {t.admin.canAccessCenter}
           </p>
         </Card.Content>
@@ -158,7 +209,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail }) => {
 
           <Button
             size="sm"
-            onPress={loadUsers}
+            onPress={loadData}
             isDisabled={isLoading}
             className="bg-slate-950 border border-slate-800 text-slate-300 font-bold hover:bg-slate-800 flex items-center gap-1.5 shrink-0"
           >
@@ -209,7 +260,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail }) => {
           <Card.Title className="flex items-center justify-between text-amber-300">
             <span>Pending Account Activations ({pendingUsers.length})</span>
             <span className="text-[10px] text-slate-500 font-mono font-normal">
-              Requires Approval
+              Requires Approval & Household Assignment
             </span>
           </Card.Title>
         </Card.Header>
@@ -219,39 +270,68 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail }) => {
               No pending activations. All user accounts are processed!
             </p>
           ) : (
-            <div className="space-y-2">
-              {pendingUsers.map((userItem) => (
-                <div
-                  key={userItem.id}
-                  className="flex items-center justify-between p-3.5 bg-slate-950/40 rounded-xl border border-slate-800"
-                >
-                  <div>
-                    <div className="text-xs font-bold text-slate-100">
-                      {userItem.name}
-                    </div>
-                    <div className="text-[11px] text-slate-400 font-mono mt-0.5">{userItem.email}</div>
-                  </div>
+            <div className="space-y-3">
+              {pendingUsers.map((userItem) => {
+                const currentSelectedHousehold = targetHouseholds[userItem.email] || 'FAMILY-COCKER-2026';
+                return (
+                  <div
+                    key={userItem.id}
+                    className="p-4 bg-slate-950/40 rounded-xl border border-slate-800 space-y-3"
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div>
+                        <div className="text-xs font-bold text-slate-100">
+                          {userItem.name}
+                        </div>
+                        <div className="text-[11px] text-slate-400 font-mono mt-0.5">{userItem.email}</div>
+                      </div>
 
-                  <div className="flex items-center gap-2">
-                    <Button
-                      size="sm"
-                      onPress={() => handleActivate(userItem.email)}
-                      className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold"
-                    >
-                      <UserCheck className="w-3.5 h-3.5 mr-1 inline" />
-                      Activate
-                    </Button>
-                    <button
-                      type="button"
-                      onClick={() => setUserToDelete(userItem)}
-                      aria-label="Delete User Account"
-                      className="p-2 text-slate-400 hover:text-red-400 hover:bg-slate-800 rounded-xl border border-slate-800 bg-slate-950 transition-colors"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                      <div className="flex items-center gap-1.5 text-[11px] text-slate-400 bg-slate-900 px-2.5 py-1 rounded-lg border border-slate-800">
+                        <Home className="w-3.5 h-3.5 text-indigo-400" />
+                        <span>Current ID: <span className="font-mono text-slate-300">{userItem.householdId || 'isolated'}</span></span>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-900">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[11px] text-slate-400">Assign to:</span>
+                        <select
+                          value={currentSelectedHousehold}
+                          onChange={(e) =>
+                            setTargetHouseholds({ ...targetHouseholds, [userItem.email]: e.target.value })
+                          }
+                          className="bg-slate-900 border border-slate-700 text-slate-200 text-xs rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-indigo-500"
+                        >
+                          {households.map((h) => (
+                            <option key={h.id} value={h.id}>
+                              {h.name} ({h.id})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <Button
+                          size="sm"
+                          onPress={() => handleActivate(userItem.email)}
+                          className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold"
+                        >
+                          <UserCheck className="w-3.5 h-3.5 mr-1 inline" />
+                          Approve & Assign
+                        </Button>
+                        <button
+                          type="button"
+                          onClick={() => setUserToDelete(userItem)}
+                          aria-label="Delete User Account"
+                          className="p-2 text-slate-400 hover:text-red-400 hover:bg-slate-800 rounded-xl border border-slate-800 bg-slate-950 transition-colors"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </Card.Content>
@@ -263,9 +343,9 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail }) => {
           <Card.Header>
             <Card.Title className="text-white font-bold">{t.admin.preApproveTitle}</Card.Title>
           </Card.Header>
-          <Card.Content className="p-4">
-            <div className="flex gap-2 items-center">
-              <div className="flex-1">
+          <Card.Content className="p-4 space-y-3">
+            <div className="flex flex-wrap gap-2 items-center">
+              <div className="flex-1 min-w-[200px]">
                 <Input
                   type="email"
                   placeholder="e.g. partner@family.com"
@@ -275,13 +355,28 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail }) => {
                   required
                 />
               </div>
-              <Button
-                type="submit"
-                className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold"
-              >
-                <Send className="w-3.5 h-3.5 mr-1.5 inline" />
-                Pre-Approve
-              </Button>
+
+              <div className="flex items-center gap-2">
+                <select
+                  value={newInviteHousehold}
+                  onChange={(e) => setNewInviteHousehold(e.target.value)}
+                  className="bg-slate-950 border border-slate-800 text-slate-200 text-xs rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-500"
+                >
+                  {households.map((h) => (
+                    <option key={h.id} value={h.id}>
+                      {h.name}
+                    </option>
+                  ))}
+                </select>
+
+                <Button
+                  type="submit"
+                  className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold"
+                >
+                  <Send className="w-3.5 h-3.5 mr-1.5 inline" />
+                  Pre-Approve
+                </Button>
+              </div>
             </div>
           </Card.Content>
         </form>
@@ -301,41 +396,65 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail }) => {
           ) : activeUsers.length === 0 ? (
             <div className="p-4 text-center text-xs text-slate-400">No active accounts registered yet.</div>
           ) : (
-            <div className="space-y-2">
+            <div className="space-y-3">
               {activeUsers.map((userItem) => (
                 <div
                   key={userItem.id}
-                  className="flex items-center justify-between p-3.5 bg-slate-950/60 rounded-xl border border-slate-800"
+                  className="flex flex-wrap items-center justify-between gap-3 p-3.5 bg-slate-950/60 rounded-xl border border-slate-800"
                 >
                   <div>
-                    <div className="text-xs font-bold text-slate-100">{userItem.name}</div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold text-slate-100">{userItem.name}</span>
+                      <Chip color="default" size="sm" variant="soft" className="text-[10px]">
+                        {userItem.role}
+                      </Chip>
+                    </div>
                     <div className="text-[11px] text-slate-400 font-mono mt-0.5">{userItem.email}</div>
                   </div>
 
-                  <div>
-                    {userItem.email.toLowerCase() === 'matthieu.jacquet@gmail.com' ? (
+                  <div className="flex flex-wrap items-center gap-3">
+                    {/* Household badge / mover */}
+                    {isSuperAdminEmail(userItem.email) ? (
                       <Chip color="accent" size="sm" variant="soft" className="font-bold">
                         Super Admin Owner
                       </Chip>
                     ) : (
-                      <div className="flex items-center gap-2">
-                        <Button
-                          size="sm"
-                          onPress={() => handleDeactivate(userItem.email)}
-                          className="bg-slate-950 border border-slate-800 text-amber-300 font-bold hover:bg-slate-800"
-                        >
-                          <UserX className="w-3.5 h-3.5 mr-1 inline" />
-                          Revoke
-                        </Button>
-                        <button
-                          type="button"
-                          onClick={() => setUserToDelete(userItem)}
-                          aria-label="Delete User Account"
-                          className="p-2 text-slate-400 hover:text-red-400 hover:bg-slate-800 rounded-xl border border-slate-800 bg-slate-950 transition-colors"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
+                      <>
+                        <div className="flex items-center gap-1.5">
+                          <Home className="w-3.5 h-3.5 text-indigo-400" />
+                          <select
+                            value={userItem.householdId || 'FAMILY-COCKER-2026'}
+                            onChange={(e) => handleMoveHousehold(userItem.email, e.target.value)}
+                            aria-label={`Household for ${userItem.name}`}
+                            className="bg-slate-900 border border-slate-700 text-slate-200 text-xs rounded-lg px-2.5 py-1 focus:outline-none focus:border-indigo-500"
+                          >
+                            {households.map((h) => (
+                              <option key={h.id} value={h.id}>
+                                {h.name} ({h.id})
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <Button
+                            size="sm"
+                            onPress={() => handleDeactivate(userItem.email)}
+                            className="bg-slate-950 border border-slate-800 text-amber-300 font-bold hover:bg-slate-800"
+                          >
+                            <UserX className="w-3.5 h-3.5 mr-1 inline" />
+                            Revoke
+                          </Button>
+                          <button
+                            type="button"
+                            onClick={() => setUserToDelete(userItem)}
+                            aria-label="Delete User Account"
+                            className="p-2 text-slate-400 hover:text-red-400 hover:bg-slate-800 rounded-xl border border-slate-800 bg-slate-950 transition-colors"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </>
                     )}
                   </div>
                 </div>
