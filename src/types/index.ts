@@ -71,6 +71,36 @@ export interface RegisteredUserItem {
 export type ScheduleMode = 'daytime_baseline' | 'post_meal_override' | 'night_sleep';
 export type FoodScheduleMode = 'daytime_schedule' | 'goal_reached' | 'night_sleep';
 
+export interface SleepSchedule {
+  bedtimeHour: number;
+  wakeupHour: number;
+  bedtimeStr?: string;
+  wakeupStr?: string;
+}
+
+export interface PredictorOptions {
+  timeZone?: string;
+  sleepSchedule?: SleepSchedule;
+}
+
+export interface SinglePredictionResult {
+  nextExpectedAt: Date | null;
+  standardExpectedAt?: Date | null;
+  deltaMins: number;
+  mode: ScheduleMode;
+  urgency: 'safe' | 'soon' | 'overdue';
+  reason: string;
+}
+
+export interface FoodPredictionResult {
+  nextExpectedAt: Date | null;
+  deltaMins: number;
+  mode: FoodScheduleMode;
+  urgency: 'safe' | 'soon' | 'overdue';
+  reason: string;
+  portionGrams?: number;
+}
+
 export interface PredictionResult {
   nextPeeExpectedAt: Date | null;
   standardPeeExpectedAt?: Date | null;

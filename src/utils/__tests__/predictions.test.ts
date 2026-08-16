@@ -4,6 +4,10 @@ import {
   calculateVetFoodGramGoal,
   detectSleepSchedule,
   calculateLearnedIntervalMinutes,
+  calculateMorningSequenceOffsets,
+  predictNextPee,
+  predictNextPoop,
+  predictNextFood,
   calculatePredictions,
 } from '../predictions';
 import type { Activity, PuppyProfile } from '../../types';
@@ -284,7 +288,7 @@ describe('predictions utility — comprehensive test suite', () => {
         const predictions = calculatePredictions(dataset, mockProfile, referenceTime, 'Europe/Paris');
 
         expect(predictions.poopMode).toBe('night_sleep');
-        expect(predictions.poopReason).toContain('post-breakfast');
+        expect(predictions.poopReason).toMatch(/morning outing|post-breakfast/i);
       });
 
       it('disables post-meal poop trigger for older puppies (age >= 8 months)', () => {
@@ -467,6 +471,79 @@ describe('predictions utility — comprehensive test suite', () => {
 
       const schedule = detectSleepSchedule(activities, 'Europe/Paris');
       expect(schedule.bedtimeHour).toBeGreaterThanOrEqual(22);
+    });
+  });
+
+  // 7. Decoupled Predictors & Empirical Morning Sequence Tests
+  describe('Decoupled Predictors & Empirical Morning Sequence', () => {
+    it('predictNextPee executes independently and returns valid SinglePredictionResult', () => {
+      const dataset = generateRealisticMultiDayDataset();
+      const refTime = new Date(2026, 7, 7, 14, 0);
+      const peeResult = predictNextPee(dataset, mockProfile, refTime, { timeZone: 'Europe/Paris' });
+
+      expect(peeResult.mode).toBe('daytime_baseline');
+      expect(peeResult.nextExpectedAt).not.toBeNull();
+      expect(peeResult.deltaMins).toBeGreaterThan(0);
+      expect(peeResult.urgency).toBe('safe');
+    });
+
+    it('predictNextPoop executes independently and returns valid SinglePredictionResult', () => {
+      const dataset = generateRealisticMultiDayDataset();
+      const refTime = new Date(2026, 7, 7, 14, 0);
+      const poopResult = predictNextPoop(dataset, mockProfile, refTime, { timeZone: 'Europe/Paris' });
+
+      expect(poopResult.mode).toBe('daytime_baseline');
+      expect(poopResult.nextExpectedAt).not.toBeNull();
+      expect(poopResult.deltaMins).toBeGreaterThan(0);
+    });
+
+    it('predictNextFood executes independently and returns valid FoodPredictionResult with portionGrams', () => {
+      const dataset = generateRealisticMultiDayDataset();
+      const refTime = new Date(2026, 7, 7, 14, 0);
+      const foodResult = predictNextFood(dataset, mockProfile, refTime, { timeZone: 'Europe/Paris' });
+
+      expect(foodResult.mode).toBe('daytime_schedule');
+      expect(foodResult.portionGrams).toBeGreaterThan(0);
+    });
+
+    it('calculateMorningSequenceOffsets calculates empirical offsets from historical morning logs', () => {
+      const activities: Activity[] = [];
+      // 5 days of data: Pee at 07:00, Poop at 07:07 (+7m), Breakfast at 07:18 (+18m)
+      for (let d = 0; d < 5; d++) {
+        const date = new Date(2026, 7, 10 + d, 7, 0);
+        activities.push({ id: `p-${d}`, puppyId: 'pup-1', type: 'pee', timestamp: date.toISOString(), loggedBy: 'Matthieu' });
+        const poopDate = new Date(2026, 7, 10 + d, 7, 7);
+        activities.push({ id: `po-${d}`, puppyId: 'pup-1', type: 'poop', timestamp: poopDate.toISOString(), loggedBy: 'Matthieu' });
+        const foodDate = new Date(2026, 7, 10 + d, 7, 18);
+        activities.push({ id: `f-${d}`, puppyId: 'pup-1', type: 'food', timestamp: foodDate.toISOString(), quantityGrams: 80, loggedBy: 'Matthieu' });
+      }
+
+      const offsets = calculateMorningSequenceOffsets(activities, 'Europe/Paris');
+      expect(offsets.morningPoopOffsetMins).toBe(7);
+      expect(offsets.morningFoodOffsetMins).toBe(18);
+    });
+
+    it('adapts morning sequence ordering: nextPee <= nextPoop <= nextFood during night mode', () => {
+      const activities: Activity[] = [];
+      for (let d = 0; d < 5; d++) {
+        const pDate = new Date(2026, 7, 10 + d, 7, 20);
+        activities.push({ id: `p-${d}`, puppyId: 'pup-1', type: 'pee', timestamp: pDate.toISOString(), loggedBy: 'Matthieu' });
+        const poDate = new Date(2026, 7, 10 + d, 7, 28);
+        activities.push({ id: `po-${d}`, puppyId: 'pup-1', type: 'poop', timestamp: poDate.toISOString(), loggedBy: 'Matthieu' });
+        const fDate = new Date(2026, 7, 10 + d, 7, 42);
+        activities.push({ id: `f-${d}`, puppyId: 'pup-1', type: 'food', timestamp: fDate.toISOString(), quantityGrams: 80, loggedBy: 'Matthieu' });
+      }
+
+      const nightRefTime = new Date(2026, 7, 15, 2, 0); // 02:00 AM
+      const predictions = calculatePredictions(activities, mockProfile, nightRefTime, 'Europe/Paris');
+
+      expect(predictions.nextPeeExpectedAt).not.toBeNull();
+      expect(predictions.nextPoopExpectedAt).not.toBeNull();
+      expect(predictions.nextFoodExpectedAt).not.toBeNull();
+
+      // Ensure morning sequence order
+      expect(predictions.nextPeeExpectedAt!.getTime()).toBeLessThanOrEqual(predictions.nextPoopExpectedAt!.getTime());
+      expect(predictions.nextPoopExpectedAt!.getTime()).toBeLessThanOrEqual(predictions.nextFoodExpectedAt!.getTime());
     });
   });
 });
