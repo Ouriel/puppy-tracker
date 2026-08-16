@@ -24,47 +24,73 @@ export const AuthLockScreen: React.FC<AuthLockScreenProps> = ({
   
   const googleBtnRef = useRef<HTMLDivElement>(null);
 
-  // Google OAuth Client ID — fixed setting from environment variable (configured in Vercel)
-  const googleClientId = (import.meta.env.VITE_GOOGLE_CLIENT_ID as string) || '';
+  // Google OAuth Client ID — environment variable with default project fallback
+  const googleClientId =
+    (import.meta.env.VITE_GOOGLE_CLIENT_ID as string) ||
+    '8924902082-52mf1l272khij6ac2racnh4p34h7fh08.apps.googleusercontent.com';
 
   useEffect(() => {
-    if (googleClientId && window.google) {
-      try {
-        window.google.accounts.id.initialize({
-          client_id: googleClientId,
-          callback: (response: any) => {
-            const credential = response.credential;
-            try {
-              const base64Url = credential.split('.')[1];
-              const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-              const jsonPayload = decodeURIComponent(
-                window
-                  .atob(base64)
-                  .split('')
-                  .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
-                  .join('')
-              );
-              const decoded = JSON.parse(jsonPayload);
-              
-              const res = onUnlockWithSSO(decoded.email, decoded.name, credential);
-              if (!res.success) {
-                setError(res.message || t.auth.pendingActivation);
-              }
-            } catch {
-              setError(t.auth.ssoFailed);
-            }
-          },
-        });
+    if (!googleClientId) return;
 
-        window.google.accounts.id.renderButton(googleBtnRef.current, {
-          theme: 'outline',
-          size: 'large',
-          width: '100%',
-        });
-      } catch (err) {
-        console.error('Google accounts ID initialization error', err);
+    let isMounted = true;
+    let timerId: ReturnType<typeof setTimeout> | null = null;
+    let attempts = 0;
+    const maxAttempts = 50; // Poll up to 5 seconds for async script load
+
+    const initGoogleSignIn = () => {
+      if (!isMounted || !googleBtnRef.current) return;
+
+      if (window.google?.accounts?.id) {
+        try {
+          window.google.accounts.id.initialize({
+            client_id: googleClientId,
+            callback: (response: any) => {
+              const credential = response.credential;
+              try {
+                const base64Url = credential.split('.')[1];
+                const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+                const jsonPayload = decodeURIComponent(
+                  window
+                    .atob(base64)
+                    .split('')
+                    .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+                    .join('')
+                );
+                const decoded = JSON.parse(jsonPayload);
+
+                const res = onUnlockWithSSO(decoded.email, decoded.name, credential);
+                if (!res.success) {
+                  setError(res.message || t.auth.pendingActivation);
+                }
+              } catch {
+                setError(t.auth.ssoFailed);
+              }
+            },
+          });
+
+          if (googleBtnRef.current) {
+            googleBtnRef.current.innerHTML = '';
+            window.google.accounts.id.renderButton(googleBtnRef.current, {
+              theme: 'outline',
+              size: 'large',
+              width: '100%',
+            });
+          }
+        } catch (err) {
+          console.error('Google accounts ID initialization error', err);
+        }
+      } else if (attempts < maxAttempts) {
+        attempts++;
+        timerId = setTimeout(initGoogleSignIn, 100);
       }
-    }
+    };
+
+    initGoogleSignIn();
+
+    return () => {
+      isMounted = false;
+      if (timerId) clearTimeout(timerId);
+    };
   }, [onUnlockWithSSO, googleClientId, t]);
 
   return (
