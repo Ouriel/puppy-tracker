@@ -421,6 +421,73 @@ export function calculateLearnedIntervalMinutes(
 }
 
 /**
+ * Calculates adaptive learned delay between eating a meal and subsequent potty event (pee / poop).
+ * Uses exponential recency weighting and semi-IQR tolerance, falling back to age baselines when < 3 samples exist.
+ */
+export function calculateLearnedPostMealDelayMinutes(
+  activities: Activity[],
+  pottyType: 'pee' | 'poop',
+  fallbackMinutes: number,
+  fallbackDeltaMinutes: number = pottyType === 'pee' ? 10 : 15
+): { delayMins: number; deltaMins: number; sampleCount: number; isLearned: boolean } {
+  const maxLogTime = activities.reduce((max, act) => Math.max(max, parseIsoDate(act.timestamp).getTime()), 0);
+  const nowTime = maxLogTime > 0 ? maxLogTime : Date.now();
+  const thirtyDaysAgo = new Date(nowTime - 30 * 24 * 60 * 60 * 1000);
+  const recentActivities = activities.filter((a) => parseIsoDate(a.timestamp) >= thirtyDaysAgo);
+
+  const sortedActivities = [...recentActivities].sort(
+    (a, b) => parseIsoDate(a.timestamp).getTime() - parseIsoDate(b.timestamp).getTime()
+  );
+
+  const foodLogs = sortedActivities.filter((a) => a.type === 'food');
+  const pottyLogs = sortedActivities.filter((a) => a.type === pottyType);
+
+  const minDelay = pottyType === 'pee' ? 5 : 10;
+  const maxDelay = pottyType === 'pee' ? 60 : 150;
+  const defaultDelta = fallbackDeltaMinutes;
+
+  const samples: { diffMinutes: number; weight: number }[] = [];
+
+  for (const food of foodLogs) {
+    const foodTime = parseIsoDate(food.timestamp).getTime();
+    // Find earliest subsequent potty event within the plausible window
+    const subsequentPotty = pottyLogs.find((p) => {
+      const pTime = parseIsoDate(p.timestamp).getTime();
+      return pTime > foodTime && (pTime - foodTime) <= maxDelay * 60 * 1000;
+    });
+
+    if (subsequentPotty) {
+      const pTime = parseIsoDate(subsequentPotty.timestamp).getTime();
+      const diffMins = Math.round((pTime - foodTime) / 60000);
+      if (diffMins >= minDelay && diffMins <= maxDelay) {
+        const daysAgo = Math.max(0, (nowTime - foodTime) / (1000 * 60 * 60 * 24));
+        const weight = Math.exp(-daysAgo / 7);
+        samples.push({ diffMinutes: diffMins, weight });
+      }
+    }
+  }
+
+  if (samples.length < 3) {
+    return { delayMins: fallbackMinutes, deltaMins: defaultDelta, sampleCount: samples.length, isLearned: false };
+  }
+
+  const delayMins = Math.round(
+    calculateWeightedMedian(
+      samples.map((s) => ({ mins: s.diffMinutes, weight: s.weight })),
+      fallbackMinutes
+    )
+  );
+
+  // Semi-IQR for dynamic tolerance
+  const values = samples.map((s) => s.diffMinutes).sort((a, b) => a - b);
+  const q1 = values[Math.floor(values.length * 0.25)];
+  const q3 = values[Math.floor(values.length * 0.75)];
+  const semiIqr = Math.round(Math.max(5, Math.min(25, (q3 - q1) / 2 || defaultDelta)));
+
+  return { delayMins, deltaMins: semiIqr, sampleCount: samples.length, isLearned: true };
+}
+
+/**
  * Predicts the next expected Pee event using the decoupled Pee Pipeline.
  */
 export function predictNextPee(
@@ -443,6 +510,11 @@ export function predictNextPee(
   const baseBladderHours = Math.max(1, Math.min(months, 4));
   const fallbackPeeIntervalMins = baseBladderHours * 60;
   const learnedPee = calculateLearnedIntervalMinutes(past, 'pee', fallbackPeeIntervalMins, sleepSchedule, tz);
+
+  const ageFallbackPeeDelay = months < 3 ? 15 : months < 6 ? 20 : 30;
+  const ageFallbackPeeDelta = months < 3 ? 8 : months < 6 ? 10 : 15;
+  const learnedPostMealPee = calculateLearnedPostMealDelayMinutes(past, 'pee', ageFallbackPeeDelay, ageFallbackPeeDelta);
+  const postMealPeeDelay = learnedPostMealPee.delayMins;
 
   if (!lastPee) {
     return {
@@ -496,10 +568,17 @@ export function predictNextPee(
     }
   } else if (months < 8 && lastFood && parseIsoDate(lastFood.timestamp).getTime() > lastPeeTime) {
     const foodTime = parseIsoDate(lastFood.timestamp).getTime();
+    const minsBetweenPeeAndMeal = Math.round((foodTime - lastPeeTime) / 60000);
     const minsSinceMeal = Math.round((now.getTime() - foodTime) / 60000);
-    const postMealPeeDelay = months < 3 ? 15 : months < 6 ? 20 : 30;
 
-    if (minsSinceMeal <= postMealPeeDelay + 40) {
+    // If puppy emptied bladder shortly before meal (<= 30m before eating on a walk)
+    const peedRightBeforeMeal = minsBetweenPeeAndMeal <= 30;
+
+    if (peedRightBeforeMeal) {
+      mode = 'daytime_baseline';
+      nextExpectedAt = standardExpectedAt;
+      reason = `Bladder emptied before meal (${formatMinutesToXhXX(minsBetweenPeeAndMeal)} ago). Next break during daytime cycle.`;
+    } else if (minsSinceMeal <= postMealPeeDelay + 40) {
       mode = 'post_meal_override';
       nextExpectedAt = new Date(foodTime + postMealPeeDelay * 60 * 1000);
       reason = `Pup fed recently (${formatMinutesToXhXX(minsSinceMeal)} ago). Potty break expected ~${postMealPeeDelay}m post-meal.`;
@@ -525,7 +604,7 @@ export function predictNextPee(
     else if (diffMins <= 20) urgency = 'soon';
   }
 
-  const deltaMins = mode === 'post_meal_override' ? (months < 3 ? 8 : months < 6 ? 10 : 15) : learnedPee.deltaMins;
+  const deltaMins = mode === 'post_meal_override' ? learnedPostMealPee.deltaMins : learnedPee.deltaMins;
 
   return {
     nextExpectedAt,
@@ -559,6 +638,11 @@ export function predictNextPoop(
 
   const { months } = getPuppyAge(profile.birthDate, now);
   const learnedPoop = calculateLearnedIntervalMinutes(past, 'poop', 360, sleepSchedule, tz);
+
+  const ageFallbackPoopDelay = months < 3 ? 20 : months < 6 ? 35 : 50;
+  const ageFallbackPoopDelta = months < 3 ? 10 : months < 6 ? 15 : 20;
+  const learnedPostMealPoop = calculateLearnedPostMealDelayMinutes(past, 'poop', ageFallbackPoopDelay, ageFallbackPoopDelta);
+  const postMealPoopDelay = learnedPostMealPoop.delayMins;
 
   if (!lastPoop) {
     return {
@@ -621,10 +705,13 @@ export function predictNextPoop(
     let postMealOverride = false;
     if (months < 8 && lastFood && parseIsoDate(lastFood.timestamp).getTime() > lastPoopTime) {
       const foodTime = parseIsoDate(lastFood.timestamp).getTime();
+      const minsBetweenPoopAndMeal = Math.round((foodTime - lastPoopTime) / 60000);
       const minsSinceMeal = Math.round((now.getTime() - foodTime) / 60000);
-      const postMealPoopDelay = months < 3 ? 20 : months < 6 ? 35 : 50;
 
-      if (minsSinceMeal <= postMealPoopDelay + 45) {
+      // If puppy emptied bowels right before eating (<= 30m before meal on a walk)
+      const poopedRightBeforeMeal = minsBetweenPoopAndMeal <= 30;
+
+      if (!poopedRightBeforeMeal && minsSinceMeal <= postMealPoopDelay + 45) {
         postMealOverride = true;
         mode = 'post_meal_override';
         nextExpectedAt = new Date(foodTime + postMealPoopDelay * 60 * 1000);
@@ -667,7 +754,7 @@ export function predictNextPoop(
     else if (diffMins <= 30) urgency = 'soon';
   }
 
-  const deltaMins = mode === 'post_meal_override' ? (months < 3 ? 10 : months < 6 ? 15 : 20) : learnedPoop.deltaMins;
+  const deltaMins = mode === 'post_meal_override' ? learnedPostMealPoop.deltaMins : learnedPoop.deltaMins;
 
   return {
     nextExpectedAt,

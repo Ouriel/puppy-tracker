@@ -4,6 +4,7 @@ import {
   calculateVetFoodGramGoal,
   detectSleepSchedule,
   calculateLearnedIntervalMinutes,
+  calculateLearnedPostMealDelayMinutes,
   calculateMorningSequenceOffsets,
   predictNextPee,
   predictNextPoop,
@@ -620,6 +621,64 @@ describe('predictions utility — comprehensive test suite', () => {
       expect(foodPrediction.nextExpectedAt!.getDate()).toBe(10);
       expect(foodPrediction.nextExpectedAt!.getHours()).toBe(7);
       expect((refTime.getTime() - foodPrediction.nextExpectedAt!.getTime()) / 60000).toBeGreaterThan(60);
+    });
+
+    it('learns custom post-meal pee delay from historical meal-to-pee sequences', () => {
+      const activities: Activity[] = [];
+      // 5 consecutive days of meals with post-meal pees occurring at ~25 min
+      for (let d = 0; d < 5; d++) {
+        const mealDate = new Date(2026, 7, 10 + d, 12, 0);
+        const peeDate = new Date(2026, 7, 10 + d, 12, 25);
+        activities.push({ id: `food-${d}`, puppyId: 'pup-1', type: 'food', timestamp: mealDate.toISOString(), loggedBy: 'Matthieu' });
+        activities.push({ id: `pee-${d}`, puppyId: 'pup-1', type: 'pee', timestamp: peeDate.toISOString(), loggedBy: 'Matthieu' });
+      }
+
+      const learned = calculateLearnedPostMealDelayMinutes(activities, 'pee', 20);
+      expect(learned.isLearned).toBe(true);
+      expect(learned.sampleCount).toBe(5);
+      expect(learned.delayMins).toBe(25);
+    });
+
+    it('falls back to age baseline when fewer than 3 post-meal sequences exist', () => {
+      const activities: Activity[] = [
+        { id: 'f-1', puppyId: 'pup-1', type: 'food', timestamp: new Date(2026, 7, 10, 12, 0).toISOString(), loggedBy: 'Matthieu' },
+        { id: 'p-1', puppyId: 'pup-1', type: 'pee', timestamp: new Date(2026, 7, 10, 12, 25).toISOString(), loggedBy: 'Matthieu' },
+      ];
+
+      const learned = calculateLearnedPostMealDelayMinutes(activities, 'pee', 20);
+      expect(learned.isLearned).toBe(false);
+      expect(learned.sampleCount).toBe(1);
+      expect(learned.delayMins).toBe(20);
+    });
+
+    it('recognizes pre-meal pee break (<= 30m before eating) and maintains daytime baseline', () => {
+      const preMealPee = new Date('2026-08-10T11:45:00Z'); // 15m before meal
+      const meal = new Date('2026-08-10T12:00:00Z');
+      const now = new Date('2026-08-10T12:15:00Z'); // 15m after meal
+
+      const activities: Activity[] = [
+        { id: '1', puppyId: 'pup-1', type: 'pee', timestamp: preMealPee.toISOString(), loggedBy: 'Matthieu' },
+        { id: '2', puppyId: 'pup-1', type: 'food', timestamp: meal.toISOString(), loggedBy: 'Matthieu' },
+      ];
+
+      const pred = predictNextPee(activities, mockProfile, now, { timeZone: 'UTC' });
+      expect(pred.mode).toBe('daytime_baseline');
+      expect(pred.reason).toContain('Bladder emptied before meal');
+    });
+
+    it('triggers post-meal pee override when pee was NOT recent (> 30m before eating)', () => {
+      const pastPee = new Date('2026-08-10T10:30:00Z'); // 90m before meal
+      const meal = new Date('2026-08-10T12:00:00Z');
+      const now = new Date('2026-08-10T12:15:00Z'); // 15m after meal
+
+      const activities: Activity[] = [
+        { id: '1', puppyId: 'pup-1', type: 'pee', timestamp: pastPee.toISOString(), loggedBy: 'Matthieu' },
+        { id: '2', puppyId: 'pup-1', type: 'food', timestamp: meal.toISOString(), loggedBy: 'Matthieu' },
+      ];
+
+      const pred = predictNextPee(activities, mockProfile, now, { timeZone: 'UTC' });
+      expect(pred.mode).toBe('post_meal_override');
+      expect(pred.reason).toContain('Pup fed recently');
     });
   });
 });
