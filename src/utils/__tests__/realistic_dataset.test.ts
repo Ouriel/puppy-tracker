@@ -177,11 +177,39 @@ describe('Comprehensive 30-Day Realistic Dataset Test Suite', () => {
     expect(meals.dinnerMins).toBe(19 * 60 + 15);   // 19:15 PM = 1155 mins
   });
 
-  it('computes next potty and meal predictions from dataset', () => {
+  it('computes next potty and meal predictions with attached schedule metadata from dataset', () => {
     const predictions = calculatePredictions(dataset, puppyProfile, new Date(2026, 7, 9, 14, 0));
     expect(predictions.nextPeeExpectedAt instanceof Date).toBe(true);
     expect(predictions.nextPoopExpectedAt instanceof Date).toBe(true);
     expect(predictions.nextFoodExpectedAt instanceof Date).toBe(true);
+
+    // Verify attached sleep schedule metadata
+    expect(predictions.sleepSchedule).toBeDefined();
+    expect(predictions.sleepSchedule?.wakeupHour).toBeGreaterThanOrEqual(8);
+    expect(predictions.sleepSchedule?.bedtimeHour).toBeGreaterThanOrEqual(22);
+    expect(typeof predictions.sleepSchedule?.wakeupStr).toBe('string');
+    expect(typeof predictions.sleepSchedule?.bedtimeStr).toBe('string');
+
+    // Verify attached meal schedule metadata
+    expect(predictions.mealSchedule).toBeDefined();
+    expect(predictions.mealSchedule?.breakfastMins).toBe(8 * 60 + 30); // 08:30 AM
+    expect(predictions.mealSchedule?.lunchMins).toBe(13 * 60 + 30);    // 13:30 PM
+    expect(predictions.mealSchedule?.dinnerMins).toBe(19 * 60 + 15);   // 19:15 PM
+
+    // Verify attached portion calculation (240g / 3 meals = 80g per meal)
+    expect(predictions.portionGrams).toBe(80);
+  });
+
+  it('correctly adapts portion sizes when puppy transitions between 2, 3, and 4 meals per day', () => {
+    // 2 meals per day (e.g. adolescent dog: 240g / 2 = 120g)
+    const twoMealsProfile: PuppyProfile = { ...puppyProfile, targetMealsPerDay: 2 };
+    const twoMealsPred = calculatePredictions(dataset, twoMealsProfile, new Date(2026, 7, 9, 14, 0));
+    expect(twoMealsPred.portionGrams).toBe(120);
+
+    // 4 meals per day (e.g. young puppy: 240g / 4 = 60g)
+    const fourMealsProfile: PuppyProfile = { ...puppyProfile, targetMealsPerDay: 4 };
+    const fourMealsPred = calculatePredictions(dataset, fourMealsProfile, new Date(2026, 7, 9, 14, 0));
+    expect(fourMealsPred.portionGrams).toBe(60);
   });
 
   it('calculates puppy age and veterinary food goal', () => {
