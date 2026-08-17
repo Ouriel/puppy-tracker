@@ -192,7 +192,7 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
                       <label className="block text-xs font-semibold text-slate-400 mb-1">{t.household.memberName}</label>
                       <Input
                         type="text"
-                        placeholder="e.g. Alex"
+                        placeholder={t.household.namePlaceholder}
                         value={name}
                         onChange={(event) => setName(event.target.value)}
                         required
@@ -247,7 +247,7 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
                         type="text"
                         value={editName}
                         onChange={(e) => setEditName(e.target.value)}
-                        placeholder="Member Name"
+                        placeholder={t.household.memberName}
                         autoFocus
                       />
                     </div>
@@ -267,7 +267,7 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
                         }}
                       >
                         <Check className="w-3.5 h-3.5 mr-1 inline" />
-                        Save
+                        {t.potty.saveChanges}
                       </Button>
 
                       <Button
@@ -306,7 +306,7 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
                         setEditName(caretaker.name);
                         setEditColor(caretaker.color);
                       }}
-                      aria-label="Edit Member Name & Color"
+                      aria-label={t.household.editMemberName}
                       className="p-2 text-slate-400 hover:text-indigo-300 hover:bg-slate-800 rounded-xl border border-slate-800 bg-slate-950 transition-colors"
                     >
                       <Pencil className="w-4 h-4" />

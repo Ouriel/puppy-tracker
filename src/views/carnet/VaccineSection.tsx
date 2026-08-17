@@ -106,7 +106,7 @@ export const VaccineSection: React.FC<VaccineSectionProps> = ({
         sortByDateDesc(previous.map((vaccine) => (vaccine.id === id ? { ...vaccine, ...updated } : vaccine)))
       );
       setEditingVaccineId(null);
-      showToast('Vaccination entry updated.', 'success');
+      showToast(t.toasts.vaccineUpdated, 'success');
     }
   };
 
@@ -196,7 +196,7 @@ export const VaccineSection: React.FC<VaccineSectionProps> = ({
                     <label className="block text-xs font-semibold text-slate-400 mb-1">{t.health.vetClinic}</label>
                     <Input
                       type="text"
-                      placeholder="e.g. Clinique Vétérinaire Saint-Roch"
+                      placeholder={t.health.vetClinicPlaceholder}
                       className="bg-slate-900 border-slate-700/80 text-slate-100"
                       value={vetClinic}
                       onChange={(event) => setVetClinic(event.target.value)}
@@ -207,7 +207,7 @@ export const VaccineSection: React.FC<VaccineSectionProps> = ({
                     <label className="block text-xs font-semibold text-slate-400 mb-1">{t.health.batchNumber}</label>
                     <Input
                       type="text"
-                      placeholder="e.g. BATCH-01 / BATCH-02"
+                      placeholder={t.health.batchPlaceholder}
                       className="bg-slate-900 border-slate-700/80 text-slate-100"
                       value={batchNumber}
                       onChange={(event) => setBatchNumber(event.target.value)}
@@ -239,7 +239,7 @@ export const VaccineSection: React.FC<VaccineSectionProps> = ({
                   <Card.Content className="p-3.5 space-y-3">
                     <div className="grid grid-cols-1 sm:grid-cols-4 gap-2">
                       <div className="sm:col-span-2 min-w-0">
-                        <label className="block text-[10px] text-slate-400 font-semibold mb-1">Vaccine Name</label>
+                        <label className="block text-[10px] text-slate-400 font-semibold mb-1">{t.health.vaccineName}</label>
                         <Select value={editVaccineName} onChange={(val) => setEditVaccineName(val as string)}>
                           <Select.Trigger className="w-full bg-slate-900 border-slate-700/80 text-slate-100 min-w-0 flex items-center justify-between">
                             <Select.Value className="truncate block text-left" />
@@ -264,7 +264,7 @@ export const VaccineSection: React.FC<VaccineSectionProps> = ({
                         </Select>
                       </div>
                       <div className="sm:col-span-1 min-w-0">
-                        <label className="block text-[10px] text-slate-400 font-semibold mb-1">Injected Date</label>
+                        <label className="block text-[10px] text-slate-400 font-semibold mb-1">{t.health.injectedOn}</label>
                         <Input
                           type="date"
                           className="bg-slate-900 border-slate-700/80 text-slate-100"
@@ -273,7 +273,7 @@ export const VaccineSection: React.FC<VaccineSectionProps> = ({
                         />
                       </div>
                       <div className="sm:col-span-1 min-w-0">
-                        <label className="block text-[10px] text-slate-400 font-semibold mb-1">Booster Due Date</label>
+                        <label className="block text-[10px] text-slate-400 font-semibold mb-1">{t.health.boosterDue}</label>
                         <Input
                           type="date"
                           className="bg-slate-900 border-slate-700/80 text-slate-100"
@@ -284,7 +284,7 @@ export const VaccineSection: React.FC<VaccineSectionProps> = ({
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       <div>
-                        <label className="block text-[10px] text-slate-400 font-semibold mb-1">Vet Clinic</label>
+                        <label className="block text-[10px] text-slate-400 font-semibold mb-1">{t.health.vetClinic}</label>
                         <Input
                           type="text"
                           className="bg-slate-900 border-slate-700/80 text-slate-100"
@@ -293,7 +293,7 @@ export const VaccineSection: React.FC<VaccineSectionProps> = ({
                         />
                       </div>
                       <div>
-                        <label className="block text-[10px] text-slate-400 font-semibold mb-1">Batch / Lot N°</label>
+                        <label className="block text-[10px] text-slate-400 font-semibold mb-1">{t.health.batchNumber}</label>
                         <Input
                           type="text"
                           className="bg-slate-900 border-slate-700/80 text-slate-100"
@@ -308,7 +308,7 @@ export const VaccineSection: React.FC<VaccineSectionProps> = ({
                         onPress={() => setEditingVaccineId(null)}
                         className="bg-slate-900 border border-slate-800 text-slate-300 font-bold hover:bg-slate-800 hover:text-white"
                       >
-                        Cancel
+                        {t.potty.cancel}
                       </Button>
                       <Button
                         variant="primary"
@@ -316,7 +316,7 @@ export const VaccineSection: React.FC<VaccineSectionProps> = ({
                         onPress={() => handleUpdateVaccineSubmit(vaccine.id)}
                       >
                         <Check className="w-3.5 h-3.5 mr-1 inline" />
-                        Save
+                        {t.potty.saveChanges}
                       </Button>
                     </div>
                   </Card.Content>
@@ -337,7 +337,7 @@ export const VaccineSection: React.FC<VaccineSectionProps> = ({
                       <span>{vaccine.name}</span>
                       {vaccine.batchNumber && (
                         <Chip size="sm" variant="soft">
-                          Lot: {vaccine.batchNumber}
+                          {t.health.lotPrefix}: {vaccine.batchNumber}
                         </Chip>
                       )}
                     </div>
@@ -356,7 +356,7 @@ export const VaccineSection: React.FC<VaccineSectionProps> = ({
                     <button
                       type="button"
                       onClick={() => startEditVaccine(vaccine)}
-                      aria-label="Edit vaccine entry"
+                      aria-label={t.health.editVaccineEntry}
                       className="p-2.5 min-h-[44px] min-w-[44px] flex items-center justify-center text-slate-400 hover:text-indigo-300 hover:bg-slate-800 rounded-lg border border-slate-800 bg-slate-950 transition-colors"
                     >
                       <Pencil className="w-3.5 h-3.5" />
@@ -381,7 +381,7 @@ export const VaccineSection: React.FC<VaccineSectionProps> = ({
           <summary className="cursor-pointer font-bold text-teal-400 flex items-center gap-1.5 hover:text-teal-300 transition-colors list-none">
             <ShieldCheck className="w-4 h-4 shrink-0" />
             <span>{t.health.frenchVaccineGuidelines}</span>
-            <span className="text-[10px] font-normal text-slate-500 ml-auto group-open:hidden">(click to view schedule)</span>
+            <span className="text-[10px] font-normal text-slate-500 ml-auto group-open:hidden">{t.health.clickToViewSchedule}</span>
           </summary>
           <ul className="mt-2.5 pl-5 text-[11px] text-slate-300 space-y-1 list-disc">
             <li>{t.health.week8Initial}</li>
@@ -397,7 +397,7 @@ export const VaccineSection: React.FC<VaccineSectionProps> = ({
           onConfirm={() => {
             if (confirmDelete) handleDeleteVaccine(confirmDelete.id);
           }}
-          title="Delete Vaccine"
+          title={t.health.deleteVaccineTitle}
           message={t.health.deleteVaccineConfirm}
         />
       </Card.Content>

@@ -54,7 +54,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-white text-xs font-bold transition-all shadow-sm group"
           >
             <ArrowLeft className="w-4 h-4 text-indigo-400 group-hover:-translate-x-0.5 transition-transform" />
-            <span>Back to Dashboard</span>
+            <span>{t.nav.backToDashboard}</span>
           </button>
         </div>
       )}
@@ -90,7 +90,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           }`}
         >
           <Dog className="w-4 h-4 text-indigo-400" />
-          <span>Dog Profiles ({puppies.length})</span>
+          <span>{t.settings.dogProfiles} ({puppies.length})</span>
         </button>
 
         <button
@@ -103,7 +103,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           }`}
         >
           <Users className="w-4 h-4 text-purple-400" />
-          <span>Household Members ({caretakers.length})</span>
+          <span>{t.settings.householdMembers} ({caretakers.length})</span>
         </button>
 
         {isSuperAdmin && (
@@ -117,7 +117,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             }`}
           >
             <Shield className="w-4 h-4 text-red-400" />
-            <span>Super-Admin Panel</span>
+            <span>{t.settings.superAdminPanel}</span>
           </button>
         )}
       </div>

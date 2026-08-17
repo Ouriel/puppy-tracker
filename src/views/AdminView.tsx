@@ -246,7 +246,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail }) => {
                   {t.potty.cancel}
                 </Button>
                 <Button onPress={confirmDeleteUser} className="bg-rose-600 hover:bg-rose-500 text-white font-bold">
-                  Delete User
+                  {t.admin.deleteUserBtn}
                 </Button>
               </Modal.Footer>
             </Modal.Dialog>
@@ -258,16 +258,16 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail }) => {
       <Card className="bg-slate-900 border-slate-800 text-slate-100">
         <Card.Header>
           <Card.Title className="flex items-center justify-between text-amber-300">
-            <span>Pending Account Activations ({pendingUsers.length})</span>
+            <span>{t.admin.pendingActivations.replace('{count}', String(pendingUsers.length))}</span>
             <span className="text-[10px] text-slate-500 font-mono font-normal">
-              Requires Approval & Household Assignment
+              {t.admin.requiresApprovalAndHousehold}
             </span>
           </Card.Title>
         </Card.Header>
         <Card.Content>
           {pendingUsers.length === 0 ? (
             <p className="text-xs text-slate-500 bg-slate-950/40 p-4 rounded-xl border border-slate-800 text-center">
-              No pending activations. All user accounts are processed!
+              {t.admin.noPendingActivations}
             </p>
           ) : (
             <div className="space-y-3">
@@ -288,7 +288,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail }) => {
 
                       <div className="flex items-center gap-1.5 text-[11px] text-slate-400 bg-slate-900 px-2.5 py-1 rounded-lg border border-slate-800">
                         <Home className="w-3.5 h-3.5 text-indigo-400" />
-                        <span>{t.admin.currentId} <span className="font-mono text-slate-300">{userItem.householdId || 'isolated'}</span></span>
+                        <span>{t.admin.currentId} <span className="font-mono text-slate-300">{userItem.householdId || t.admin.isolated}</span></span>
                       </div>
                     </div>
 
@@ -322,7 +322,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail }) => {
                         <button
                           type="button"
                           onClick={() => setUserToDelete(userItem)}
-                          aria-label="Delete User Account"
+                          aria-label={t.admin.deleteUserAccount}
                           className="p-2 text-slate-400 hover:text-red-400 hover:bg-slate-800 rounded-xl border border-slate-800 bg-slate-950 transition-colors"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -374,7 +374,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail }) => {
                   className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold"
                 >
                   <Send className="w-3.5 h-3.5 mr-1.5 inline" />
-                  Pre-Approve
+                  {t.admin.preApprove}
                 </Button>
               </div>
             </div>
@@ -387,7 +387,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail }) => {
         <Card.Header>
           <Card.Title className="flex items-center gap-2">
             <Users className="w-4 h-4 text-indigo-400" />
-            <span>Active Registered Accounts ({activeUsers.length})</span>
+            <span>{t.admin.activeAccounts.replace('{count}', String(activeUsers.length))}</span>
           </Card.Title>
         </Card.Header>
         <Card.Content className="p-4">
@@ -425,7 +425,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail }) => {
                           <select
                             value={userItem.householdId || 'FAMILY-COCKER-2026'}
                             onChange={(e) => handleMoveHousehold(userItem.email, e.target.value)}
-                            aria-label={`Household for ${userItem.name}`}
+                            aria-label={t.admin.householdFor.replace('{name}', userItem.name)}
                             className="bg-slate-900 border border-slate-700 text-slate-200 text-xs rounded-lg px-2.5 py-1 focus:outline-none focus:border-indigo-500"
                           >
                             {households.map((h) => (
@@ -443,12 +443,12 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail }) => {
                             className="bg-slate-950 border border-slate-800 text-amber-300 font-bold hover:bg-slate-800"
                           >
                             <UserX className="w-3.5 h-3.5 mr-1 inline" />
-                            Revoke
+                            {t.admin.revoke}
                           </Button>
                           <button
                             type="button"
                             onClick={() => setUserToDelete(userItem)}
-                            aria-label="Delete User Account"
+                            aria-label={t.admin.deleteUserAccount}
                             className="p-2 text-slate-400 hover:text-red-400 hover:bg-slate-800 rounded-xl border border-slate-800 bg-slate-950 transition-colors"
                           >
                             <Trash2 className="w-4 h-4" />

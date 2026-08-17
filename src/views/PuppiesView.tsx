@@ -51,7 +51,7 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
     event.preventDefault();
     if (!name.trim()) return;
 
-    const finalBreed = breed === 'Other' ? customBreed.trim() || 'Custom Breed' : breed;
+    const finalBreed = breed === 'Other' ? customBreed.trim() || t.puppies.customBreed : breed;
 
     const newPup: PuppyProfile = {
       id: `pup-${Date.now()}`,
@@ -89,7 +89,7 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
     event.preventDefault();
     if (!editingPuppy || !editName.trim()) return;
 
-    const finalBreed = editBreed === 'Other' ? editCustomBreed.trim() || 'Custom Breed' : editBreed;
+    const finalBreed = editBreed === 'Other' ? editCustomBreed.trim() || t.puppies.customBreed : editBreed;
 
     const updatedPup: PuppyProfile = {
       ...editingPuppy,
@@ -145,7 +145,7 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
                   </label>
                   <Input
                     type="text"
-                    placeholder="e.g. Cookie"
+                    placeholder={t.puppies.namePlaceholder}
                     className="bg-slate-950 border-slate-800 text-slate-100"
                     value={name}
                     onChange={(event) => setName(event.target.value)}
@@ -218,7 +218,7 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
                   <label className="block text-xs font-semibold text-slate-400 mb-1">{t.potty.notes}</label>
                   <Input
                     type="text"
-                    placeholder="e.g. Microchip #9810981"
+                    placeholder={t.puppies.notesPlaceholder}
                     className="bg-slate-950 border-slate-800 text-slate-100"
                     value={notes}
                     onChange={(event) => setNotes(event.target.value)}
@@ -271,7 +271,7 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
                     <div className="flex items-center justify-between border-b border-slate-800 pb-3">
                       <h3 className="text-sm font-bold text-white flex items-center gap-2">
                         <Edit3 className="w-4 h-4 text-indigo-400" />
-                        <span>{t.puppies.editProfileTitle} ({pup.name})</span>
+                        <span>{t.puppies.editProfileTitle.replace('{name}', pup.name)}</span>
                       </h3>
                     </div>
 
@@ -425,7 +425,7 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
                       <button
                         type="button"
                         onClick={() => handleStartEdit(pup)}
-                        aria-label="Edit Profile"
+                        aria-label={t.puppies.editProfileBtn}
                         className="p-2.5 min-h-[44px] min-w-[44px] flex items-center justify-center text-slate-400 hover:text-indigo-300 hover:bg-slate-800 rounded-xl border border-slate-800 bg-slate-950 transition-colors"
                       >
                         <Edit3 className="w-4 h-4" />
@@ -434,7 +434,7 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
                       <button
                         type="button"
                         onClick={() => setConfirmDelete({ id: pup.id, type: 'dog' })}
-                        aria-label="Delete Dog"
+                        aria-label={t.puppies.deleteDogBtn}
                         className="p-2.5 min-h-[44px] min-w-[44px] flex items-center justify-center text-slate-400 hover:text-red-400 hover:bg-slate-800 rounded-xl border border-slate-800 bg-slate-950 transition-colors"
                       >
                         <Trash2 className="w-4 h-4" />
@@ -447,7 +447,7 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
                       <Utensils className="w-4 h-4 text-purple-400 shrink-0" />
                       <div>
                         <div className="text-[10px] text-slate-500 font-semibold">{t.puppies.foodGramGoal}</div>
-                        <div className="font-bold text-slate-200">{pup.dailyFoodGramGoal || 200}{t.units.grams} ({pup.targetMealsPerDay || 3} meals)</div>
+                        <div className="font-bold text-slate-200">{pup.dailyFoodGramGoal || 200}{t.units.grams} ({pup.targetMealsPerDay || 3} {t.puppies.meals})</div>
                       </div>
                     </div>
 
@@ -455,7 +455,7 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
                       <Calendar className="w-4 h-4 text-indigo-400 shrink-0" />
                       <div>
                         <div className="text-[10px] text-slate-500 font-semibold">{t.puppies.birthDate}</div>
-                        <div className="font-bold text-slate-200">{pup.birthDate || 'Unknown'}</div>
+                        <div className="font-bold text-slate-200">{pup.birthDate || t.puppies.unknownDate}</div>
                       </div>
                     </div>
                   </div>
@@ -478,8 +478,8 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
         onConfirm={() => {
           if (confirmDelete) onDeletePuppy(confirmDelete.id);
         }}
-        title="Delete Dog Profile"
-        message="Are you sure you want to delete this dog's profile? This action cannot be undone."
+        title={t.puppies.deleteDogTitle}
+        message={t.puppies.deleteDogMessage}
       />
     </div>
   );

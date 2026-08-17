@@ -103,7 +103,7 @@ export const DewormingSection: React.FC<DewormingSectionProps> = ({
         sortByDateDesc(previous.map((deworming) => (deworming.id === id ? { ...deworming, ...updated } : deworming)))
       );
       setEditingDewormingId(null);
-      showToast('Deworming entry updated.', 'success');
+      showToast(t.toasts.dewormingUpdated, 'success');
     }
   };
 
@@ -212,7 +212,7 @@ export const DewormingSection: React.FC<DewormingSectionProps> = ({
                   <Card.Content className="p-3.5 space-y-3">
                     <div className="grid grid-cols-1 sm:grid-cols-4 gap-2">
                       <div className="sm:col-span-2 min-w-0">
-                        <label className="block text-[10px] text-slate-400 font-semibold mb-1">Product Name</label>
+                        <label className="block text-[10px] text-slate-400 font-semibold mb-1">{t.health.productName}</label>
                         <Select value={editDewormingName} onChange={(val) => setEditDewormingName(val as string)}>
                           <Select.Trigger className="w-full bg-slate-900 border-slate-700/80 text-slate-100 min-w-0 flex items-center justify-between">
                             <Select.Value className="truncate block text-left" />
@@ -237,11 +237,11 @@ export const DewormingSection: React.FC<DewormingSectionProps> = ({
                         </Select>
                       </div>
                       <div className="sm:col-span-2 min-w-0">
-                        <label className="block text-[10px] text-slate-400 font-semibold mb-1">Weight at time (kg)</label>
+                        <label className="block text-[10px] text-slate-400 font-semibold mb-1">{t.health.weightAtTime}</label>
                         <Input
                           type="number"
                           step="0.1"
-                          placeholder="e.g. 7.5"
+                          placeholder={t.health.weightPlaceholder}
                           className="bg-slate-900 border-slate-700/80 text-slate-100"
                           value={editDewormingWeight}
                           onChange={(event) => setEditDewormingWeight(event.target.value)}
@@ -250,7 +250,7 @@ export const DewormingSection: React.FC<DewormingSectionProps> = ({
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       <div className="sm:col-span-1 min-w-0">
-                        <label className="block text-[10px] text-slate-400 font-semibold mb-1">Given Date</label>
+                        <label className="block text-[10px] text-slate-400 font-semibold mb-1">{t.health.administeredDate}</label>
                         <Input
                           type="date"
                           className="bg-slate-900 border-slate-700/80 text-slate-100"
@@ -259,7 +259,7 @@ export const DewormingSection: React.FC<DewormingSectionProps> = ({
                         />
                       </div>
                       <div className="sm:col-span-1 min-w-0">
-                        <label className="block text-[10px] text-slate-400 font-semibold mb-1">Next Due Date</label>
+                        <label className="block text-[10px] text-slate-400 font-semibold mb-1">{t.health.boosterDue}</label>
                         <Input
                           type="date"
                           className="bg-slate-900 border-slate-700/80 text-slate-100"
@@ -274,7 +274,7 @@ export const DewormingSection: React.FC<DewormingSectionProps> = ({
                         onPress={() => setEditingDewormingId(null)}
                         className="bg-slate-900 border border-slate-800 text-slate-300 font-bold hover:bg-slate-800 hover:text-white"
                       >
-                        Cancel
+                        {t.potty.cancel}
                       </Button>
                       <Button
                         variant="primary"
@@ -282,7 +282,7 @@ export const DewormingSection: React.FC<DewormingSectionProps> = ({
                         onPress={() => handleUpdateDewormingSubmit(deworming.id)}
                       >
                         <Check className="w-3.5 h-3.5 mr-1 inline" />
-                        Save
+                        {t.potty.saveChanges}
                       </Button>
                     </div>
                   </Card.Content>
@@ -303,7 +303,7 @@ export const DewormingSection: React.FC<DewormingSectionProps> = ({
                       <span>{deworming.productName || deworming.name}</span>
                       {deworming.weightAtTime && (
                         <Chip color="warning" variant="soft" size="sm">
-                          Poids: {deworming.weightAtTime} kg
+                          {t.health.weightPrefix}: {deworming.weightAtTime} {t.units.kg}
                         </Chip>
                       )}
                     </div>
@@ -322,7 +322,7 @@ export const DewormingSection: React.FC<DewormingSectionProps> = ({
                     <button
                       type="button"
                       onClick={() => startEditDeworming(deworming)}
-                      aria-label="Edit deworming entry"
+                      aria-label={t.health.editDewormingEntry}
                       className="p-2.5 min-h-[44px] min-w-[44px] flex items-center justify-center text-slate-400 hover:text-indigo-300 hover:bg-slate-800 rounded-lg border border-slate-800 bg-slate-950 transition-colors"
                     >
                       <Pencil className="w-3.5 h-3.5" />
@@ -347,7 +347,7 @@ export const DewormingSection: React.FC<DewormingSectionProps> = ({
           <summary className="cursor-pointer font-bold text-amber-400 flex items-center gap-1.5 hover:text-amber-300 transition-colors list-none">
             <Pill className="w-4 h-4 shrink-0" />
             <span>{t.health.esccapDewormingProtocol}</span>
-            <span className="text-[10px] font-normal text-slate-500 ml-auto group-open:hidden">(click to view protocol)</span>
+            <span className="text-[10px] font-normal text-slate-500 ml-auto group-open:hidden">{t.health.clickToViewProtocol}</span>
           </summary>
           <ul className="mt-2.5 pl-5 text-[11px] text-slate-300 space-y-1 list-disc">
             <li>{t.health.dewormSchedule1}</li>
@@ -363,7 +363,7 @@ export const DewormingSection: React.FC<DewormingSectionProps> = ({
           onConfirm={() => {
             if (confirmDelete) handleDeleteDeworming(confirmDelete.id);
           }}
-          title="Delete Deworming Record"
+          title={t.health.deleteDewormingTitle}
           message={t.health.deleteDewormingConfirm}
         />
       </Card.Content>
