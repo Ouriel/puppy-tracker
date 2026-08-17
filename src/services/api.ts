@@ -1,7 +1,6 @@
 import type { Activity, PuppyProfile, Caretaker, RegisteredUserItem, HealthRecord } from '../types';
 import { getAuthToken, setAuthToken, clearAuthToken } from '../utils/auth';
 import { showToast } from '../utils/toast';
-import { saveToOfflineQueue } from '../utils/storage';
 
 export type { RegisteredUserItem };
 
@@ -126,24 +125,10 @@ export async function createActivity(activity: Omit<Activity, 'id'> & { id?: str
     id: activity.id || `act-${Date.now()}`,
   };
 
-  if (typeof navigator !== 'undefined' && !navigator.onLine) {
-    saveToOfflineQueue(prepared);
-    showToast('Saved offline. Will sync when reconnected.', 'info');
-    return prepared;
-  }
-
-  const created = await request<Activity>('/api/activities', {
+  return request<Activity>('/api/activities', {
     method: 'POST',
     body: JSON.stringify(prepared),
   });
-
-  if (!created) {
-    saveToOfflineQueue(prepared);
-    showToast('Saved offline. Will sync when reconnected.', 'info');
-    return prepared;
-  }
-
-  return created;
 }
 
 export async function updateActivity(activity: Partial<Activity> & { id: string }): Promise<Activity | null> {
