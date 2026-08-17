@@ -616,9 +616,10 @@ describe('predictions utility — comprehensive test suite', () => {
       expect(foodPrediction.urgency).toBe('overdue');
       expect(foodPrediction.reason).toContain('Breakfast overdue');
       // Next expected should be this morning (07:xx AM today), NOT tomorrow morning (+21h)
-      expect(foodPrediction.nextExpectedAt.getDate()).toBe(10);
-      expect(foodPrediction.nextExpectedAt.getHours()).toBe(7);
-      expect((refTime.getTime() - foodPrediction.nextExpectedAt.getTime()) / 60000).toBeGreaterThan(60);
+      expect(foodPrediction.nextExpectedAt).not.toBeNull();
+      expect(foodPrediction.nextExpectedAt!.getDate()).toBe(10);
+      expect(foodPrediction.nextExpectedAt!.getHours()).toBe(7);
+      expect((refTime.getTime() - foodPrediction.nextExpectedAt!.getTime()) / 60000).toBeGreaterThan(60);
     });
   });
 });
