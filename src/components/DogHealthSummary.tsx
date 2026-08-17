@@ -49,7 +49,7 @@ export const DogHealthSummary: React.FC<DogHealthSummaryProps> = ({
     };
 
     loadHealth();
-  }, [profile.id, activities.length]);
+  }, [profile.id]);
 
   // Calculate puppy age in weeks & months
   const ageInfo = React.useMemo(() => {

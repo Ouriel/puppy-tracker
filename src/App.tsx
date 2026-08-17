@@ -1,10 +1,12 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import type { Activity, UserAccount, ActivityType, PottyLocation, FamilyRole } from './types';
 import { getAuthToken, setAuthToken, getStoredAuthUser, setStoredAuthUser } from './utils/auth';
+import { getActivePuppyId } from './utils/storage';
 import { isSuperAdminEmail } from './constants/auth';
 import {
   fetchDogs,
   fetchHousehold,
+  fetchActivities,
   exchangeSessionToken,
 } from './services/api';
 import { calculatePredictions, calculateNextMealPortion } from './utils/predictions';
@@ -70,10 +72,9 @@ export function App() {
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
-  // Initial Auth & Data Load
+  // Initial Auth & Parallel Coordinated Data Load
   useEffect(() => {
     async function init() {
-      setIsLoading(true);
       const urlParams = new URLSearchParams(window.location.search);
       const tokenFromUrl = urlParams.get('session_token');
 
@@ -85,48 +86,57 @@ export function App() {
       const currentToken = getAuthToken();
       const storedUser = getStoredAuthUser();
 
-      // Immediate 0ms local unlock if credentials exist in localStorage
       if (currentToken && storedUser) {
         setUser(storedUser);
-      }
-
-      if (currentToken) {
-        // Refresh rolling 90-day session token in background
-        const sessionData = await exchangeSessionToken(currentToken);
-        if (sessionData && sessionData.user) {
-          const userAccount: UserAccount = {
-            id: sessionData.user.id || 'u-1',
-            email: sessionData.user.email,
-            name: sessionData.user.name,
-            role: (['Husband', 'Wife', 'Partner', 'Child', 'Dog Walker', 'Sitter', 'Relative', 'Member', 'SuperAdmin'].includes(sessionData.user.role) ? sessionData.user.role : 'Member') as FamilyRole,
-          };
-          setUser(userAccount);
-          setStoredAuthUser(userAccount);
-        } else if (!storedUser) {
-          setUser(null);
-        }
-      } else {
+        // Non-blocking background 90-day session extension
+        exchangeSessionToken(currentToken).then((sessionData) => {
+          if (sessionData?.user) {
+            const userAccount: UserAccount = {
+              id: sessionData.user.id || 'u-1',
+              email: sessionData.user.email,
+              name: sessionData.user.name,
+              role: (['Husband', 'Wife', 'Partner', 'Child', 'Dog Walker', 'Sitter', 'Relative', 'Member', 'SuperAdmin'].includes(sessionData.user.role) ? sessionData.user.role : 'Member') as FamilyRole,
+            };
+            setUser(userAccount);
+            setStoredAuthUser(userAccount);
+          }
+        }).catch(() => {});
+      } else if (!currentToken) {
         setUser(null);
         setStoredAuthUser(null);
+        setIsLoading(false);
+        return;
       }
 
-      const [remoteDogs, remoteHousehold] = await Promise.all([
-        fetchDogs(),
-        fetchHousehold(),
-      ]);
+      const activePupId = getActivePuppyId() || 'dog-balma-2026';
 
-      if (remoteDogs && remoteDogs.length > 0) {
-        puppyState.setPuppies(remoteDogs);
-        if (!puppyState.activePuppyId || !remoteDogs.some((puppy) => puppy.id === puppyState.activePuppyId)) {
-          puppyState.selectPuppy(remoteDogs[0].id);
+      try {
+        // Parallel data loading: dogs, household, and initial activities in 1 concurrent roundtrip
+        const [remoteDogs, remoteHousehold, initialActivities] = await Promise.all([
+          fetchDogs(),
+          fetchHousehold(),
+          fetchActivities(activePupId, { days: 90, limit: 100 }),
+        ]);
+
+        if (remoteDogs && remoteDogs.length > 0) {
+          puppyState.setPuppies(remoteDogs);
+          if (!puppyState.activePuppyId || !remoteDogs.some((puppy) => puppy.id === puppyState.activePuppyId)) {
+            puppyState.selectPuppy(remoteDogs[0].id);
+          }
         }
-      }
 
-      if (remoteHousehold?.caretakers && remoteHousehold.caretakers.length > 0) {
-        caretakerState.setCaretakers(remoteHousehold.caretakers);
-      }
+        if (remoteHousehold?.caretakers && remoteHousehold.caretakers.length > 0) {
+          caretakerState.setCaretakers(remoteHousehold.caretakers);
+        }
 
-      setIsLoading(false);
+        if (initialActivities && initialActivities.length > 0) {
+          activityState.setActivities(initialActivities);
+        }
+      } catch (err) {
+        console.error('Failed to load initial PupPace data', err);
+      } finally {
+        setIsLoading(false);
+      }
     }
 
     init();

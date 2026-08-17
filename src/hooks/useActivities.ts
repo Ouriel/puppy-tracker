@@ -15,14 +15,10 @@ export function useActivities(activePuppy: PuppyProfile | null) {
     if (!activePuppy?.id) return;
 
     async function loadActivities() {
-      const remoteLogs = await fetchActivities(activePuppy!.id, { days: 180, limit: 250, offset: 0 });
+      const remoteLogs = await fetchActivities(activePuppy!.id, { days: 90, limit: 100, offset: 0 });
       if (remoteLogs) {
-        setActivities((prev) => {
-          const remoteIds = new Set(remoteLogs.map((a) => a.id));
-          const localPending = prev.filter((a) => a.puppyId === activePuppy!.id && !remoteIds.has(a.id) && a.id.startsWith('act-'));
-          return [...localPending, ...remoteLogs];
-        });
-        setHasMoreRemote(remoteLogs.length >= 250);
+        setActivities(remoteLogs);
+        setHasMoreRemote(remoteLogs.length >= 100);
       }
     }
 
@@ -32,7 +28,7 @@ export function useActivities(activePuppy: PuppyProfile | null) {
   const loadMoreActivities = useCallback(async () => {
     if (!activePuppy?.id || isFetchingMore) return;
     setIsFetchingMore(true);
-    const currentPuppyLogs = activities.filter((a) => a.puppyId === activePuppy.id);
+    const currentPuppyLogs = activities.filter((activity) => activity.puppyId === activePuppy.id);
     const olderLogs = await fetchActivities(activePuppy.id, {
       days: 365,
       limit: 100,
@@ -41,8 +37,8 @@ export function useActivities(activePuppy: PuppyProfile | null) {
 
     if (olderLogs && olderLogs.length > 0) {
       setActivities((prev) => {
-        const existingIds = new Set(prev.map((a) => a.id));
-        const newUnique = olderLogs.filter((a) => !existingIds.has(a.id));
+        const existingIds = new Set(prev.map((activity) => activity.id));
+        const newUnique = olderLogs.filter((activity) => !existingIds.has(activity.id));
         return [...prev, ...newUnique];
       });
       setHasMoreRemote(olderLogs.length >= 100);
@@ -69,21 +65,25 @@ export function useActivities(activePuppy: PuppyProfile | null) {
 
       const created = await createActivity(newActivity);
       if (created) {
-        setActivities((prev) => prev.map((a) => (a.id === newActivity.id ? created : a)));
+        setActivities((prev) => prev.map((activity) => (activity.id === newActivity.id ? created : activity)));
+        showToast(t.toasts.activityLogged, 'success');
+      } else {
+        // Rollback optimistic addition if server rejected
+        setActivities((prev) => prev.filter((activity) => activity.id !== newActivity.id));
+        showToast('Failed to save activity', 'error');
       }
-      showToast(t.toasts.activityLogged, 'success');
     },
     [activePuppy, t.toasts.activityLogged, t.toasts.selectPuppyFirst]
   );
 
   const updateActivity = useCallback(async (updatedFields: Partial<Activity> & { id: string }) => {
-    setActivities((prev) => prev.map((a) => (a.id === updatedFields.id ? { ...a, ...updatedFields } : a)));
+    setActivities((prev) => prev.map((activity) => (activity.id === updatedFields.id ? { ...activity, ...updatedFields } : activity)));
     await apiUpdateActivity(updatedFields);
   }, []);
 
   const deleteActivity = useCallback(
     async (id: string) => {
-      setActivities((prev) => prev.filter((a) => a.id !== id));
+      setActivities((prev) => prev.filter((activity) => activity.id !== id));
       await apiDeleteActivity(id);
       showToast(t.toasts.activityDeleted, 'info');
     },

@@ -53,8 +53,35 @@ createRoot(document.getElementById('root')!).render(
     <ErrorBoundary>
       <ToastProvider placement="bottom" />
       <App />
-      <SpeedInsights />
-      <Analytics />
+      <SpeedInsights
+        beforeSend={(event) => {
+          const path = window.location.pathname.toLowerCase();
+          const route = path.includes('health-passport') || path.includes('passport') || path.includes('carnetdesante')
+            ? '/health-passport'
+            : path.includes('settings')
+            ? '/settings'
+            : '/dashboard';
+          return {
+            ...event,
+            route,
+          };
+        }}
+      />
+      <Analytics
+        beforeSend={(event) => {
+          const path = window.location.pathname.toLowerCase();
+          const route = path.includes('health-passport') || path.includes('passport') || path.includes('carnetdesante')
+            ? '/health-passport'
+            : path.includes('settings')
+            ? '/settings'
+            : '/dashboard';
+          return {
+            ...event,
+            url: window.location.origin + route,
+          };
+        }}
+      />
     </ErrorBoundary>
   </StrictMode>,
 );
+
