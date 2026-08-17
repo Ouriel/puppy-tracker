@@ -19,7 +19,7 @@ interface ActivityTimelineProps {
   hasMoreRemote?: boolean;
 }
 
-export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
+export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
   activities,
   caretakers,
   onDeleteActivity,
@@ -291,4 +291,4 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
       </Card.Content>
     </Card>
   );
-});
+};

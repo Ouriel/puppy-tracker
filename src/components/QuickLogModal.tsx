@@ -134,7 +134,28 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
                   <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2.5">
                     {t.potty.activityType}
                   </label>
-                  <div className="grid grid-cols-5 gap-2" role="radiogroup">
+                  <div 
+                    className="grid grid-cols-5 gap-2" 
+                    role="radiogroup"
+                    onKeyDown={(e) => {
+                      if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+                        e.preventDefault();
+                        const idx = activityTypes.findIndex(i => i.type === type);
+                        const next = activityTypes[(idx + 1) % activityTypes.length];
+                        setType(next.type);
+                        const nextBtn = e.currentTarget.querySelectorAll('[role="radio"]')[((idx + 1) % activityTypes.length)] as HTMLElement;
+                        nextBtn?.focus();
+                      } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+                        e.preventDefault();
+                        const idx = activityTypes.findIndex(i => i.type === type);
+                        const prevIdx = (idx - 1 + activityTypes.length) % activityTypes.length;
+                        const prev = activityTypes[prevIdx];
+                        setType(prev.type);
+                        const prevBtn = e.currentTarget.querySelectorAll('[role="radio"]')[prevIdx] as HTMLElement;
+                        prevBtn?.focus();
+                      }
+                    }}
+                  >
                     {activityTypes.map((item) => {
                       const isSelected = type === item.type;
                       return (
@@ -143,6 +164,7 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
                           type="button"
                           role="radio"
                           aria-checked={isSelected}
+                          tabIndex={isSelected ? 0 : -1}
                           onClick={() => setType(item.type)}
                           className={`flex flex-col items-center justify-center p-3 rounded-xl border transition-all duration-150 ${
                             isSelected
@@ -165,15 +187,28 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
                       <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">
                         {t.potty.location}
                       </label>
-                      <div className="grid grid-cols-2 gap-3" role="radiogroup">
+                      <div 
+                        className="grid grid-cols-2 gap-3" 
+                        role="radiogroup"
+                        onKeyDown={(e) => {
+                          if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+                            e.preventDefault();
+                            const nextLoc = pottyLocation === 'outside' ? 'indoor_accident' : 'outside';
+                            setPottyLocation(nextLoc);
+                            const idx = nextLoc === 'outside' ? 0 : 1;
+                            (e.currentTarget.querySelectorAll('[role="radio"]')[idx] as HTMLElement)?.focus();
+                          }
+                        }}
+                      >
                         <button
                           type="button"
                           role="radio"
                           aria-checked={pottyLocation === 'outside'}
+                          tabIndex={pottyLocation === 'outside' ? 0 : -1}
                           onClick={() => setPottyLocation('outside')}
                           className={`flex items-center justify-center gap-2 py-3 px-4 rounded-xl border font-bold text-xs transition-all ${
                             pottyLocation === 'outside'
-                              ? 'bg-emerald-600 border-emerald-500 text-white shadow-md ring-2 ring-emerald-400/30'
+                              ? 'bg-emerald-700 border-emerald-500 text-white shadow-md ring-2 ring-emerald-400/30'
                               : 'bg-slate-950 border-slate-800 text-slate-300 hover:bg-slate-800'
                           }`}
                         >
@@ -185,6 +220,7 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
                           type="button"
                           role="radio"
                           aria-checked={pottyLocation === 'indoor_accident'}
+                          tabIndex={pottyLocation === 'indoor_accident' ? 0 : -1}
                           onClick={() => setPottyLocation('indoor_accident')}
                           className={`flex items-center justify-center gap-2 py-3 px-4 rounded-xl border font-bold text-xs transition-all ${
                             pottyLocation === 'indoor_accident'
@@ -204,7 +240,25 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
                         <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">
                           {t.potty.stoolConsistency}
                         </label>
-                        <div className="grid grid-cols-3 gap-2" role="radiogroup">
+                        <div 
+                          className="grid grid-cols-3 gap-2" 
+                          role="radiogroup"
+                          onKeyDown={(e) => {
+                            const options: StoolConsistency[] = ['hard', 'normal', 'diarrhea'];
+                            const idx = options.indexOf(stoolConsistency);
+                            if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+                              e.preventDefault();
+                              const nextIdx = (idx + 1) % options.length;
+                              setStoolConsistency(options[nextIdx]);
+                              (e.currentTarget.querySelectorAll('[role="radio"]')[nextIdx] as HTMLElement)?.focus();
+                            } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+                              e.preventDefault();
+                              const prevIdx = (idx - 1 + options.length) % options.length;
+                              setStoolConsistency(options[prevIdx]);
+                              (e.currentTarget.querySelectorAll('[role="radio"]')[prevIdx] as HTMLElement)?.focus();
+                            }
+                          }}
+                        >
                           {(['hard', 'normal', 'diarrhea'] as StoolConsistency[]).map((c) => {
                             const isSelected = stoolConsistency === c;
                             return (
@@ -213,6 +267,7 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
                                 type="button"
                                 role="radio"
                                 aria-checked={isSelected}
+                                tabIndex={isSelected ? 0 : -1}
                                 onClick={() => setStoolConsistency(c)}
                                 className={`py-2.5 px-2 rounded-xl text-xs font-bold border transition-all text-center capitalize ${
                                   isSelected
@@ -238,11 +293,14 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
                     </label>
                     <input
                       id="quicklog-quantity-grams"
-                      type="number"
+                      type="text"
+                      inputMode="decimal"
+                      pattern="[0-9]*[.,]?[0-9]*"
                       className="w-full bg-slate-950 border border-slate-800 text-slate-100 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-indigo-500 transition-colors"
                       value={String(quantityGrams)}
                       onChange={(event) => {
-                        const grams = Number(event.target.value);
+                        const normalized = event.target.value.replace(',', '.');
+                        const grams = Number(normalized);
                         setQuantityGrams(grams);
                         setQuantityCups(Math.round((grams / 110) * 100) / 100);
                       }}
@@ -258,11 +316,15 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
                     </label>
                     <input
                       id="quicklog-weight-kg"
-                      type="number"
-                      step="0.1"
+                      type="text"
+                      inputMode="decimal"
+                      pattern="[0-9]*[.,]?[0-9]*"
                       className="w-full bg-slate-950 border border-slate-800 text-slate-100 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-indigo-500 transition-colors"
                       value={String(weightKg)}
-                      onChange={(event) => setWeightKg(Number(event.target.value))}
+                      onChange={(event) => {
+                        const normalized = event.target.value.replace(',', '.');
+                        setWeightKg(Number(normalized));
+                      }}
                     />
                   </div>
                 )}
