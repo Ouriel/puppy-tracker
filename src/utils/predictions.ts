@@ -504,7 +504,7 @@ export function predictNextPee(
       nextExpectedAt = new Date(foodTime + postMealPeeDelay * 60 * 1000);
       reason = minsSinceMeal > postMealPeeDelay + 5
         ? `Pup fed ${formatMinutesToXhXX(minsSinceMeal)} ago — post-meal potty break is overdue!`
-        : `Pup fed recently (${formatMinutesToXhXX(minsSinceMeal)} ago). Age ${months.toFixed(1)}mo pees ~${postMealPeeDelay}m post-meal.`;
+        : `Pup fed recently (${formatMinutesToXhXX(minsSinceMeal)} ago). Potty break expected ~${postMealPeeDelay}m post-meal.`;
     } else {
       mode = 'daytime_baseline';
       nextExpectedAt = standardExpectedAt;
@@ -632,7 +632,7 @@ export function predictNextPoop(
         nextExpectedAt = new Date(foodTime + postMealPoopDelay * 60 * 1000);
         reason = minsSinceMeal > postMealPoopDelay + 10
           ? `Pup fed ${formatMinutesToXhXX(minsSinceMeal)} ago — post-meal poop break (gastrocolic reflex) is overdue!`
-          : `Pup fed recently (${formatMinutesToXhXX(minsSinceMeal)} ago). Gastrocolic reflex triggers poop ~${postMealPoopDelay}m post-meal (age ${months.toFixed(1)}mo).`;
+          : `Pup fed recently (${formatMinutesToXhXX(minsSinceMeal)} ago). Gastrocolic reflex triggers poop ~${postMealPoopDelay}m post-meal.`;
       }
     }
 
