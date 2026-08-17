@@ -48,7 +48,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       sessionToken,
       expiresInDays: 90,
     });
-  } catch (err: any) {
-    return res.status(err.status || 401).json({ error: err.message || 'Unauthorized' });
+  } catch (err: unknown) {
+    const status = (err && typeof err === 'object' && 'status' in err) ? (err as { status: number }).status : 500;
+    const message = (err && typeof err === 'object' && 'message' in err) ? (err as { message: string }).message : 'Internal server error';
+    return res.status(status).json({ error: message });
   }
 }

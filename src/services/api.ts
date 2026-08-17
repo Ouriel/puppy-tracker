@@ -68,8 +68,9 @@ async function request<T>(url: string, options: RequestInit = {}): Promise<T | n
     const body = await res.json().catch(() => ({}));
     showToast(body.error || `Server error (${res.status})`, 'error');
     return null;
-  } catch (err: any) {
-    console.error(`API request error on ${url}:`, err);
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error(`API request error on ${url}:`, message);
     showToast('Network error connecting to server.', 'error');
     return null;
   }

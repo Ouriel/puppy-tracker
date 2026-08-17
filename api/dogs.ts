@@ -6,6 +6,8 @@ import { puppiesTable } from '../src/db/schema.js';
 import { verifyAuth, setCorsHeaders } from './_auth.js';
 import { z } from 'zod';
 
+const DeleteSchema = z.object({ id: z.string().min(1) });
+
 const DogSchema = z.object({
   id: z.string().optional(),
   name: z.string().min(1, 'Name is required'),
@@ -31,8 +33,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   let auth;
   try {
     auth = await verifyAuth(req);
-  } catch (err: any) {
-    return res.status(err.status || 401).json({ error: err.message || 'Unauthorized' });
+  } catch (err: unknown) {
+    const status = (err && typeof err === 'object' && 'status' in err) ? (err as { status: number }).status : 500;
+    const message = (err && typeof err === 'object' && 'message' in err) ? (err as { message: string }).message : 'Internal server error';
+    return res.status(status).json({ error: message });
   }
 
   const householdId = auth.householdId;
@@ -60,6 +64,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // POST /api/dogs
     if (req.method === 'POST') {
+      if (auth.role !== 'Admin' && auth.role !== 'SuperAdmin') {
+        return res.status(403).json({ error: 'Only admins can manage dog profiles' });
+      }
       const parsed = DogSchema.safeParse(req.body);
       if (!parsed.success) {
         return res.status(400).json({ error: 'Invalid dog payload', details: parsed.error.issues });
@@ -111,6 +118,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // PUT /api/dogs
     if (req.method === 'PUT') {
+      if (auth.role !== 'Admin' && auth.role !== 'SuperAdmin') {
+        return res.status(403).json({ error: 'Only admins can manage dog profiles' });
+      }
       const parsed = DogSchema.partial().safeParse(req.body);
       if (!parsed.success) {
         return res.status(400).json({ error: 'Invalid dog payload', details: parsed.error.issues });
@@ -145,13 +155,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(403).json({ error: 'Only admins can delete dogs' });
       }
 
-      const dogId = (req.query.id as string) || req.body?.id;
-      if (!dogId) return res.status(400).json({ error: 'id is required' });
+      const deleteBody = req.body && typeof req.body === 'object' ? req.body : { id: req.query.id };
+      const deleteParsed = DeleteSchema.safeParse(deleteBody);
+      if (!deleteParsed.success) return res.status(400).json({ error: 'Valid id is required' });
+      const deleteId = deleteParsed.data.id;
 
       await db
         .delete(puppiesTable)
-        .where(and(eq(puppiesTable.id, dogId), eq(puppiesTable.householdId, householdId)));
-      return res.status(200).json({ success: true, deletedId: dogId });
+        .where(and(eq(puppiesTable.id, deleteId), eq(puppiesTable.householdId, householdId)));
+      return res.status(200).json({ success: true, deletedId: deleteId });
     }
 
     return res.status(405).json({ error: 'Method not allowed' });

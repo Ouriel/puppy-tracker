@@ -27,11 +27,14 @@ export function setCorsHeaders(req: VercelRequest, res: VercelResponse, methods 
 
 const client = new OAuth2Client();
 function getSessionSecret(): string {
-  const secret =
-    process.env.SESSION_SECRET ||
-    process.env.AUTH_SECRET ||
-    (process.env.POSTGRES_URL ? createHmac('sha256', 'puppace-salt-2026').update(process.env.POSTGRES_URL).digest('hex') : null) ||
-    'puppace-app-session-secret-production-2026';
+  const secret = process.env.SESSION_SECRET || process.env.AUTH_SECRET;
+  if (!secret) {
+    // In development, derive from POSTGRES_URL if available
+    if (process.env.POSTGRES_URL) {
+      return createHmac('sha256', 'puppace-salt-2026').update(process.env.POSTGRES_URL).digest('hex');
+    }
+    throw new Error('FATAL: SESSION_SECRET or AUTH_SECRET environment variable is required in production');
+  }
   return secret;
 }
 
@@ -133,11 +136,12 @@ export async function verifyAuth(req: VercelRequest): Promise<AuthContext> {
       audience: googleClientId,
     });
     payload = ticket.getPayload();
-  } catch (err: any) {
-    throw { status: 401, message: `Invalid authentication token: ${err?.message || err}` };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    throw { status: 401, message: `Invalid authentication token: ${message}` };
   }
 
-  if (!payload || !payload.email) {
+  if (!payload || !payload.email || !payload.email_verified) {
     throw { status: 401, message: 'Invalid token payload' };
   }
 

@@ -6,6 +6,8 @@ import { healthRecordsTable, puppiesTable } from '../src/db/schema.js';
 import { verifyAuth, setCorsHeaders } from './_auth.js';
 import { z } from 'zod';
 
+const DeleteSchema = z.object({ id: z.string().min(1) });
+
 const HealthRecordSchema = z.object({
   id: z.string().optional(),
   puppyId: z.string().min(1, 'puppyId is required'),
@@ -34,8 +36,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   let auth;
   try {
     auth = await verifyAuth(req);
-  } catch (err: any) {
-    return res.status(err.status || 401).json({ error: err.message || 'Unauthorized' });
+  } catch (err: unknown) {
+    const status = (err && typeof err === 'object' && 'status' in err) ? (err as { status: number }).status : 500;
+    const message = (err && typeof err === 'object' && 'message' in err) ? (err as { message: string }).message : 'Internal server error';
+    return res.status(status).json({ error: message });
   }
 
   const householdId = auth.householdId;
@@ -131,13 +135,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // DELETE /api/health-records?id=xxx
     if (req.method === 'DELETE') {
-      const id = (req.query.id as string) || req.body?.id;
-      if (!id) return res.status(400).json({ error: 'id is required' });
+      const deleteBody = req.body && typeof req.body === 'object' ? req.body : { id: req.query.id };
+      const deleteParsed = DeleteSchema.safeParse(deleteBody);
+      if (!deleteParsed.success) return res.status(400).json({ error: 'Valid id is required' });
+      const deleteId = deleteParsed.data.id;
 
       await db
         .delete(healthRecordsTable)
-        .where(and(eq(healthRecordsTable.id, id), eq(healthRecordsTable.householdId, householdId)));
-      return res.status(200).json({ success: true, deletedId: id });
+        .where(and(eq(healthRecordsTable.id, deleteId), eq(healthRecordsTable.householdId, householdId)));
+      return res.status(200).json({ success: true, deletedId: deleteId });
     }
 
     return res.status(405).json({ error: 'Method not allowed' });
