@@ -4,6 +4,11 @@ import {
   PuppyProfileSchema,
   CaretakerSchema,
   UserAccountSchema,
+  HealthRecordSchema,
+  ActivityInputSchema,
+  DogInputSchema,
+  HealthRecordInputSchema,
+  CaretakerInputSchema,
 } from '../schemas';
 
 describe('Zod Schemas Validation', () => {
@@ -76,4 +81,60 @@ describe('Zod Schemas Validation', () => {
     const parsed = UserAccountSchema.safeParse(validUser);
     expect(parsed.success).toBe(true);
   });
+
+  it('should validate health record schema', () => {
+    const validVaccine = {
+      id: 'hr-1',
+      householdId: 'hh-1',
+      puppyId: 'pup-1',
+      type: 'vaccination' as const,
+      name: 'CHPPi + L4',
+      date: '2026-07-01',
+      boosterDate: '2027-07-01',
+      vetClinic: 'Saint-Roch',
+      batchNumber: 'LOT-99',
+    };
+
+    const parsed = HealthRecordSchema.safeParse(validVaccine);
+    expect(parsed.success).toBe(true);
+  });
+
+  it('should validate activity input mutation schema with string numbers', () => {
+    const inputActivity = {
+      puppyId: 'pup-1',
+      type: 'food' as const,
+      quantityGrams: '85',
+      foodType: 'kibble',
+    };
+
+    const parsed = ActivityInputSchema.safeParse(inputActivity);
+    expect(parsed.success).toBe(true);
+  });
+
+  it('should validate dog and health record input schemas', () => {
+    const inputDog = {
+      name: 'Balma',
+      breed: 'English Cocker Spaniel',
+      weightKg: '7.8',
+      dailyFoodGramGoal: 240,
+    };
+    expect(DogInputSchema.safeParse(inputDog).success).toBe(true);
+
+    const inputHealth = {
+      puppyId: 'pup-1',
+      type: 'deworming' as const,
+      name: 'Credelio Plus',
+      date: '2026-08-01',
+      weightAtTime: '7.8',
+    };
+    expect(HealthRecordInputSchema.safeParse(inputHealth).success).toBe(true);
+
+    const inputCaretaker = {
+      name: 'Matthieu',
+      role: 'Husband',
+      email: 'matthieu@example.com',
+    };
+    expect(CaretakerInputSchema.safeParse(inputCaretaker).success).toBe(true);
+  });
 });
+

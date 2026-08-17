@@ -6,7 +6,7 @@ import { TermsOfServiceModal } from './TermsOfServiceModal';
 import { useI18n } from '../i18n';
 
 interface AuthLockScreenProps {
-  onUnlockWithSSO: (email: string, name: string, token: string) => { success: boolean; message?: string };
+  onUnlockWithSSO: (email: string, name: string, token: string) => Promise<{ success: boolean; message?: string }> | { success: boolean; message?: string };
   onUnlockWithPassword: (email: string, pass: string) => { success: boolean; message?: string };
   onRegisterAccount: (email: string, pass: string, name: string, role: string) => { success: boolean; message?: string; isPending?: boolean };
 }
@@ -44,7 +44,8 @@ export const AuthLockScreen: React.FC<AuthLockScreenProps> = ({
         try {
           window.google.accounts.id.initialize({
             client_id: googleClientId,
-            callback: (response: any) => {
+            auto_select: true,
+            callback: async (response: any) => {
               const credential = response.credential;
               try {
                 const base64Url = credential.split('.')[1];
@@ -53,12 +54,12 @@ export const AuthLockScreen: React.FC<AuthLockScreenProps> = ({
                   window
                     .atob(base64)
                     .split('')
-                    .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+                    .map((char) => '%' + ('00' + char.charCodeAt(0).toString(16)).slice(-2))
                     .join('')
                 );
                 const decoded = JSON.parse(jsonPayload);
 
-                const res = onUnlockWithSSO(decoded.email, decoded.name, credential);
+                const res = await onUnlockWithSSO(decoded.email, decoded.name, credential);
                 if (!res.success) {
                   setError(res.message || t.auth.pendingActivation);
                 }
@@ -75,6 +76,13 @@ export const AuthLockScreen: React.FC<AuthLockScreenProps> = ({
               size: 'large',
               width: '100%',
             });
+          }
+
+          // Trigger Google One-Tap seamless auto-sign-in
+          try {
+            window.google.accounts.id.prompt();
+          } catch {
+            // One-Tap prompt is optional/fallback
           }
         } catch (err) {
           console.error('Google accounts ID initialization error', err);

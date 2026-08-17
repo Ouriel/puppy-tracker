@@ -116,6 +116,21 @@ describe('Health Passport — French Veterinary Protocol & Dataset Test Suite', 
     expect(nextDue).toBe('2027-07-22');
   });
 
+  it('calculates 36-month (3-year) triennial booster for viral-only vaccines (CHPPi sans L4, Vanguard CPV) for dogs over 16 months', () => {
+    // CHPPi sans L4 at age 18 months -> 36 months
+    const nextDueViral = calculateNextVaccineBooster('2026-07-22', 'chppi_sans_l4', 18);
+    expect(nextDueViral).toBe('2029-07-22');
+
+    // Vanguard CPV at age 24 months -> 36 months
+    const nextDueCpv = calculateNextVaccineBooster('2026-07-22', 'vanguard_cpv', 24);
+    expect(nextDueCpv).toBe('2029-07-22');
+  });
+
+  it('calculates 12-month annual booster for combined CHPPi + L4 even for adult dogs (L4 drives annual cadence)', () => {
+    const nextDueCombined = calculateNextVaccineBooster('2026-07-22', 'chppi_l4', 18);
+    expect(nextDueCombined).toBe('2027-07-22');
+  });
+
   it('calculates Credelio Plus, Nexgard Spectra, and Simparica Trio as strictly monthly (+1 month)', () => {
     expect(calculateNextAntiparasiticDate('2026-06-15', 'Credelio Plus', 4)).toBe('2026-07-15');
     expect(calculateNextAntiparasiticDate('2026-06-15', 'Nexgard Spectra', 8)).toBe('2026-07-15');

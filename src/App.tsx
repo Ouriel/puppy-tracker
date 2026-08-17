@@ -83,7 +83,15 @@ export function App() {
       }
 
       const currentToken = getAuthToken();
+      const storedUser = getStoredAuthUser();
+
+      // Immediate 0ms local unlock if credentials exist in localStorage
+      if (currentToken && storedUser) {
+        setUser(storedUser);
+      }
+
       if (currentToken) {
+        // Refresh rolling 90-day session token in background
         const sessionData = await exchangeSessionToken(currentToken);
         if (sessionData && sessionData.user) {
           const userAccount: UserAccount = {
@@ -94,7 +102,7 @@ export function App() {
           };
           setUser(userAccount);
           setStoredAuthUser(userAccount);
-        } else if (!getStoredAuthUser()) {
+        } else if (!storedUser) {
           setUser(null);
         }
       } else {
@@ -102,15 +110,18 @@ export function App() {
         setStoredAuthUser(null);
       }
 
-      const remoteDogs = await fetchDogs();
+      const [remoteDogs, remoteHousehold] = await Promise.all([
+        fetchDogs(),
+        fetchHousehold(),
+      ]);
+
       if (remoteDogs && remoteDogs.length > 0) {
         puppyState.setPuppies(remoteDogs);
-        if (!puppyState.activePuppyId || !remoteDogs.some((p) => p.id === puppyState.activePuppyId)) {
+        if (!puppyState.activePuppyId || !remoteDogs.some((puppy) => puppy.id === puppyState.activePuppyId)) {
           puppyState.selectPuppy(remoteDogs[0].id);
         }
       }
 
-      const remoteHousehold = await fetchHousehold();
       if (remoteHousehold?.caretakers && remoteHousehold.caretakers.length > 0) {
         caretakerState.setCaretakers(remoteHousehold.caretakers);
       }
@@ -184,53 +195,64 @@ export function App() {
     }
 
     activityState.addActivity(newAct);
-  }, [puppyState.activePuppy, caretakerState.currentUser, activityState.addActivity, nextMealPortionGrams]);
+  }, [puppyState.activePuppy, caretakerState.currentUser, activityState, nextMealPortionGrams]);
 
   const handleOpenQuickLogModal = useCallback((type?: ActivityType) => {
     setQuickLogType(type || 'pee');
     setIsQuickLogOpen(true);
   }, []);
 
-  const handleUnlockWithSSO = (email: string, name: string, token: string) => {
-    setAuthToken(token);
-    const isSuper = isSuperAdminEmail(email);
-    const newUser: UserAccount = {
-      id: `u-${Date.now()}`,
-      email,
-      name,
-      role: isSuper ? 'SuperAdmin' : 'Member',
-    };
-    setUser(newUser);
-    setStoredAuthUser(newUser);
+  const handleUnlockWithSSO = async (email: string, name: string, token: string) => {
+    setIsLoading(true);
+    const sessionData = await exchangeSessionToken(token);
+    if (sessionData && sessionData.user && sessionData.sessionToken) {
+      setAuthToken(sessionData.sessionToken);
+      const userAccount: UserAccount = {
+        id: sessionData.user.id || `u-${Date.now()}`,
+        email: sessionData.user.email,
+        name: sessionData.user.name,
+        role: (['Husband', 'Wife', 'Partner', 'Child', 'Dog Walker', 'Sitter', 'Relative', 'Member', 'SuperAdmin'].includes(sessionData.user.role) ? sessionData.user.role : 'Member') as FamilyRole,
+      };
+      setUser(userAccount);
+      setStoredAuthUser(userAccount);
 
-    // Sync session and load dogs in background
-    exchangeSessionToken(token).then((sessionData) => {
-      if (sessionData?.user) {
-        const updatedUser: UserAccount = {
-          id: sessionData.user.id || `u-${Date.now()}`,
-          email: sessionData.user.email,
-          name: sessionData.user.name,
-          role: (['Husband', 'Wife', 'Partner', 'Child', 'Dog Walker', 'Sitter', 'Relative', 'Member', 'SuperAdmin'].includes(sessionData.user.role) ? sessionData.user.role : 'Member') as FamilyRole,
-        };
-        setUser(updatedUser);
-        setStoredAuthUser(updatedUser);
+      const [remoteDogs, remoteHousehold] = await Promise.all([
+        fetchDogs(),
+        fetchHousehold(),
+      ]);
+
+      if (remoteDogs && remoteDogs.length > 0) {
+        puppyState.setPuppies(remoteDogs);
+        if (!puppyState.activePuppyId || !remoteDogs.some((puppy) => puppy.id === puppyState.activePuppyId)) {
+          puppyState.selectPuppy(remoteDogs[0].id);
+        }
       }
-      fetchDogs().then((remoteDogs) => {
-        if (remoteDogs && remoteDogs.length > 0) {
-          puppyState.setPuppies(remoteDogs);
-          if (!puppyState.activePuppyId || !remoteDogs.some((p) => p.id === puppyState.activePuppyId)) {
-            puppyState.selectPuppy(remoteDogs[0].id);
-          }
-        }
-      });
-      fetchHousehold().then((remoteHousehold) => {
-        if (remoteHousehold?.caretakers && remoteHousehold.caretakers.length > 0) {
-          caretakerState.setCaretakers(remoteHousehold.caretakers);
-        }
-      });
-    });
 
-    return { success: true };
+      if (remoteHousehold?.caretakers && remoteHousehold.caretakers.length > 0) {
+        caretakerState.setCaretakers(remoteHousehold.caretakers);
+      }
+
+      setIsLoading(false);
+      return { success: true };
+    }
+
+    // Fallback for Super Admin on initial cold setup
+    if (isSuperAdminEmail(email)) {
+      const superUser: UserAccount = {
+        id: `u-${Date.now()}`,
+        email,
+        name,
+        role: 'SuperAdmin',
+      };
+      setAuthToken(token);
+      setUser(superUser);
+      setStoredAuthUser(superUser);
+      setIsLoading(false);
+      return { success: true };
+    }
+
+    setIsLoading(false);
+    return { success: false, message: 'Account pending activation by Super Admin.' };
   };
 
   const handleUnlockWithPassword = (email: string) => {

@@ -88,3 +88,58 @@ export const HealthRecordSchema: z.ZodType<HealthRecord> = z.object({
   weightAtTime: z.number().optional(),
   notes: z.string().optional(),
 });
+
+// ── API Input Mutation Schemas ──
+
+export const ActivityInputSchema = z.object({
+  id: z.string().optional(),
+  puppyId: z.string().min(1, 'puppyId is required'),
+  type: z.enum(['pee', 'poop', 'food', 'walk', 'weight', 'medication']),
+  timestamp: z.string().optional(),
+  loggedBy: z.string().optional(),
+  pottyLocation: z.string().nullable().optional(),
+  stoolConsistency: z.string().nullable().optional(),
+  foodType: z.string().nullable().optional(),
+  quantityGrams: z.number().or(z.string()).nullable().optional(),
+  quantityCups: z.number().or(z.string()).nullable().optional(),
+  durationMinutes: z.number().or(z.string()).nullable().optional(),
+  weightKg: z.number().or(z.string()).nullable().optional(),
+  medicationName: z.string().nullable().optional(),
+  notes: z.string().nullable().optional(),
+});
+
+export const DogInputSchema = z.object({
+  id: z.string().optional(),
+  name: z.string().min(1, 'Name is required'),
+  breed: z.string().optional(),
+  birthDate: z.string().nullable().optional(),
+  weightKg: z.number().or(z.string()).nullable().optional(),
+  dailyFoodGramGoal: z.number().or(z.string()).nullable().optional(),
+  targetMealsPerDay: z.number().or(z.string()).nullable().optional(),
+  careInstructions: z.string().nullable().optional(),
+  avatarUrl: z.string().nullable().optional(),
+  notes: z.string().nullable().optional(),
+});
+
+export const HealthRecordInputSchema = z.object({
+  id: z.string().optional(),
+  puppyId: z.string().min(1, 'puppyId is required'),
+  type: z.enum(['vaccination', 'deworming']),
+  name: z.string().min(1, 'Name is required'),
+  date: z.string().min(1, 'Date is required'),
+  boosterDate: z.string().nullable().optional(),
+  batchNumber: z.string().nullable().optional(),
+  vetClinic: z.string().nullable().optional(),
+  productName: z.string().nullable().optional(),
+  weightAtTime: z.number().or(z.string()).nullable().optional(),
+  notes: z.string().nullable().optional(),
+});
+
+export const CaretakerInputSchema = z.object({
+  id: z.string().optional(),
+  name: z.string().min(1, 'Name is required'),
+  color: z.string().optional(),
+  role: z.string().optional(),
+  email: z.string().email().optional(),
+});
+

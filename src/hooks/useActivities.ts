@@ -17,7 +17,11 @@ export function useActivities(activePuppy: PuppyProfile | null) {
     async function loadActivities() {
       const remoteLogs = await fetchActivities(activePuppy!.id, { days: 180, limit: 250, offset: 0 });
       if (remoteLogs) {
-        setActivities(remoteLogs);
+        setActivities((prev) => {
+          const remoteIds = new Set(remoteLogs.map((a) => a.id));
+          const localPending = prev.filter((a) => a.puppyId === activePuppy!.id && !remoteIds.has(a.id) && a.id.startsWith('act-'));
+          return [...localPending, ...remoteLogs];
+        });
         setHasMoreRemote(remoteLogs.length >= 250);
       }
     }

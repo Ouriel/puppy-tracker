@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import type { PuppyProfile, Activity, HealthRecord } from '../types';
-import { Syringe, ArrowLeft } from 'lucide-react';
+import { Syringe, ArrowLeft, Printer } from 'lucide-react';
 import { useI18n } from '../i18n';
 import { formatBreedName } from '../utils/breeds';
-import { Card } from '@heroui/react';
+import { Card, Button } from '@heroui/react';
 import { fetchHealthRecords } from '../services/api';
 import { WeightGrowthChart } from '../components/WeightGrowthChart';
 import { VaccineSection } from './carnet/VaccineSection';
 import { DewormingSection } from './carnet/DewormingSection';
+import { printHealthPassportReport } from '../utils/export';
 
 interface CarnetDeSanteViewProps {
   activePuppy: PuppyProfile | null;
@@ -87,7 +88,7 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({
         </div>
       )}
 
-      {/* Header Card */}
+      {/* Header Card with Passport Details & Print Export Action */}
       <Card className="bg-slate-900 border-slate-800">
         <Card.Content className="flex flex-wrap items-center justify-between gap-4 p-6">
           <div className="flex items-center gap-3">
@@ -103,6 +104,16 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({
               </p>
             </div>
           </div>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onPress={() => printHealthPassportReport(activePuppy, vaccinations, dewormingLogs, activities, lang, t)}
+            className="border-slate-700 bg-slate-950/80 hover:bg-slate-800 text-slate-200 font-bold text-xs"
+          >
+            <Printer className="w-4 h-4 mr-1.5 inline text-teal-400" />
+            <span>{t.nav.exportPdf}</span>
+          </Button>
         </Card.Content>
       </Card>
 

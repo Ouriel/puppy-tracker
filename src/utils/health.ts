@@ -35,12 +35,18 @@ export function getHealthProtocols(): HealthProtocolData {
 export function calculateNextVaccineBooster(injectionDate: string, vaccineType: string, ageMonths: number = 6): string {
   const date = new Date(injectionDate);
   const typeLower = vaccineType.toLowerCase();
-  const matched = healthProtocols.vaccines.find(
-    (v) =>
-      v.name.toLowerCase().includes(typeLower) ||
-      v.id === typeLower ||
-      (v.aliases && v.aliases.some((alias) => typeLower.includes(alias) || alias.includes(typeLower)))
-  );
+  const matched =
+    healthProtocols.vaccines.find((v) => v.id === typeLower) ||
+    healthProtocols.vaccines.find((v) => v.aliases && v.aliases.some((alias) => alias.toLowerCase() === typeLower)) ||
+    healthProtocols.vaccines.find((v) => v.name.toLowerCase().includes(typeLower)) ||
+    healthProtocols.vaccines.find(
+      (v) =>
+        v.aliases &&
+        v.aliases.some((alias) => {
+          const a = alias.toLowerCase();
+          return typeLower.includes(a) || a.includes(typeLower);
+        })
+    );
 
   let months = matched ? matched.defaultBoosterMonths : 12;
 

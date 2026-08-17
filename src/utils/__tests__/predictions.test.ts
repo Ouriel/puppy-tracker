@@ -680,5 +680,29 @@ describe('predictions utility — comprehensive test suite', () => {
       expect(pred.mode).toBe('post_meal_override');
       expect(pred.reason).toContain('Pup fed recently');
     });
+
+    it('overrides night sleep mode when last poop is diarrhea during night hours', () => {
+      const nightTime = new Date('2026-08-10T02:00:00Z'); // 2:00 AM (night)
+      const recentDiarrhea = new Date('2026-08-10T01:30:00Z'); // 30m ago
+
+      const activities: Activity[] = [
+        {
+          id: 'poop-diarrhea-night',
+          puppyId: 'pup-1',
+          type: 'poop',
+          timestamp: recentDiarrhea.toISOString(),
+          stoolConsistency: 'diarrhea',
+          loggedBy: 'Matthieu',
+        },
+      ];
+
+      const pred = predictNextPoop(activities, mockProfile, nightTime, { timeZone: 'UTC' });
+      // Should NOT be 'night_sleep'
+      expect(pred.mode).toBe('daytime_baseline');
+      expect(pred.reason).toContain('GI Upset Alert');
+      expect(pred.nextExpectedAt).toBeDefined();
+      // Should be 60m after the diarrhea stool (02:30 UTC)
+      expect(pred.nextExpectedAt?.toISOString()).toBe(new Date(recentDiarrhea.getTime() + 60 * 60 * 1000).toISOString());
+    });
   });
 });

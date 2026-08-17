@@ -75,7 +75,8 @@ export function getPuppyAge(
 }
 
 /**
- * Calculates veterinary recommended daily food gram intake based on weight and growth stage (RER / MER)
+ * Calculates veterinary recommended daily food gram intake based on NRC/AAFCO RER / MER equations.
+ * @internal Utility calculation for estimations & tests; production uses user-configured `PuppyProfile.dailyFoodGramGoal`.
  */
 export function calculateVetFoodGramGoal(weightKg: number, ageMonths: number): number {
   if (!weightKg || weightKg <= 0) return 240;
