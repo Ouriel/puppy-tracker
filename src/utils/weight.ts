@@ -49,21 +49,63 @@ export function calculateProjectedAdultWeightRange(
   }
 
   // Logistic growth model expected completion percentage by week
+  // Forked by breed size category per Waltham Puppy Growth Charts:
+  // Small breeds (<10kg) mature faster, large breeds (>25kg) mature slower
   let expectedFraction = 0.20;
-  if (ageWeeks <= 8) {
-    expectedFraction = Math.max(0.15, 0.20 * (ageWeeks / 8));
-  } else if (ageWeeks <= 12) {
-    expectedFraction = 0.20 + (0.18 * ((ageWeeks - 8) / 4));
-  } else if (ageWeeks <= 16) {
-    expectedFraction = 0.38 + (0.17 * ((ageWeeks - 12) / 4));
-  } else if (ageWeeks <= 26) {
-    expectedFraction = 0.55 + (0.20 * ((ageWeeks - 16) / 10));
-  } else if (ageWeeks <= 36) {
-    expectedFraction = 0.75 + (0.15 * ((ageWeeks - 26) / 10));
-  } else if (ageWeeks <= 52) {
-    expectedFraction = 0.90 + (0.10 * ((ageWeeks - 36) / 16));
+
+  if (breedBaselineKg < 10) {
+    // Small breeds: reach 90% by ~30 weeks, 100% by ~40 weeks
+    if (ageWeeks <= 8) {
+      expectedFraction = Math.max(0.18, 0.25 * (ageWeeks / 8));
+    } else if (ageWeeks <= 12) {
+      expectedFraction = 0.25 + (0.20 * ((ageWeeks - 8) / 4));
+    } else if (ageWeeks <= 16) {
+      expectedFraction = 0.45 + (0.18 * ((ageWeeks - 12) / 4));
+    } else if (ageWeeks <= 22) {
+      expectedFraction = 0.63 + (0.17 * ((ageWeeks - 16) / 6));
+    } else if (ageWeeks <= 30) {
+      expectedFraction = 0.80 + (0.10 * ((ageWeeks - 22) / 8));
+    } else if (ageWeeks <= 40) {
+      expectedFraction = 0.90 + (0.10 * ((ageWeeks - 30) / 10));
+    } else {
+      expectedFraction = 1.0;
+    }
+  } else if (breedBaselineKg > 25) {
+    // Large breeds: reach 90% by ~42 weeks, 100% by ~65 weeks
+    if (ageWeeks <= 8) {
+      expectedFraction = Math.max(0.12, 0.16 * (ageWeeks / 8));
+    } else if (ageWeeks <= 12) {
+      expectedFraction = 0.16 + (0.14 * ((ageWeeks - 8) / 4));
+    } else if (ageWeeks <= 16) {
+      expectedFraction = 0.30 + (0.12 * ((ageWeeks - 12) / 4));
+    } else if (ageWeeks <= 26) {
+      expectedFraction = 0.42 + (0.18 * ((ageWeeks - 16) / 10));
+    } else if (ageWeeks <= 42) {
+      expectedFraction = 0.60 + (0.20 * ((ageWeeks - 26) / 16));
+    } else if (ageWeeks <= 52) {
+      expectedFraction = 0.80 + (0.10 * ((ageWeeks - 42) / 10));
+    } else if (ageWeeks <= 65) {
+      expectedFraction = 0.90 + (0.10 * ((ageWeeks - 52) / 13));
+    } else {
+      expectedFraction = 1.0;
+    }
   } else {
-    expectedFraction = 1.0;
+    // Medium breeds (10-25kg): original curve
+    if (ageWeeks <= 8) {
+      expectedFraction = Math.max(0.15, 0.20 * (ageWeeks / 8));
+    } else if (ageWeeks <= 12) {
+      expectedFraction = 0.20 + (0.18 * ((ageWeeks - 8) / 4));
+    } else if (ageWeeks <= 16) {
+      expectedFraction = 0.38 + (0.17 * ((ageWeeks - 12) / 4));
+    } else if (ageWeeks <= 26) {
+      expectedFraction = 0.55 + (0.20 * ((ageWeeks - 16) / 10));
+    } else if (ageWeeks <= 36) {
+      expectedFraction = 0.75 + (0.15 * ((ageWeeks - 26) / 10));
+    } else if (ageWeeks <= 52) {
+      expectedFraction = 0.90 + (0.10 * ((ageWeeks - 36) / 16));
+    } else {
+      expectedFraction = 1.0;
+    }
   }
 
   const empiricalAdultKg = Math.max(lastWeightKg, lastWeightKg / expectedFraction);

@@ -28,6 +28,7 @@ class ErrorBoundary extends Component<{ children: ReactNode }, ErrorBoundaryStat
         <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center">
           <div className="text-center space-y-4 px-6">
             <div className="text-5xl">🐾</div>
+            {/* These strings remain hardcoded as ErrorBoundary renders before I18nProvider */}
             <h1 className="text-xl font-bold">Something went wrong</h1>
             <p className="text-sm text-slate-400">PupPace encountered an unexpected error.</p>
             <button

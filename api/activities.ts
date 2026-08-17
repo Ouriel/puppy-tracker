@@ -68,7 +68,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         .orderBy(desc(activitiesTable.timestamp));
 
       if (limit && !isNaN(limit)) {
-        baseQuery = baseQuery.limit(limit) as typeof baseQuery;
+        baseQuery = baseQuery.limit(Math.min(limit, 200)) as typeof baseQuery;
       }
       if (offset && !isNaN(offset)) {
         baseQuery = baseQuery.offset(offset) as typeof baseQuery;

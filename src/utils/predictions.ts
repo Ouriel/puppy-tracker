@@ -685,17 +685,17 @@ export function predictNextPoop(
   let mode: ScheduleMode = 'daytime_baseline';
   let reason = '';
 
-  if (isNightTime) {
+  if (isLastPoopDiarrhea && hoursSinceLastPoop < 12) {
+    mode = 'daytime_baseline';
+    nextExpectedAt = new Date(lastPoopTime + 60 * 60 * 1000);
+    reason = 'GI Upset Alert: Liquid/diarrhea stool recorded. Frequent potty checks recommended (60m window).';
+  } else if (isNightTime) {
     mode = 'night_sleep';
     const targetWakeup = getNextOccurrenceOfClockTime(now, sleepSchedule.wakeupHour);
     nextExpectedAt = new Date(targetWakeup.getTime() + offsets.morningPoopOffsetMins * 60 * 1000);
     const targetH = String(nextExpectedAt.getHours()).padStart(2, '0');
     const targetM = String(nextExpectedAt.getMinutes()).padStart(2, '0');
     reason = `Night mode: Sleeping until morning outing (~${targetH}:${targetM})`;
-  } else if (isLastPoopDiarrhea && hoursSinceLastPoop < 12) {
-    mode = 'daytime_baseline';
-    nextExpectedAt = new Date(lastPoopTime + 60 * 60 * 1000);
-    reason = 'GI Upset Alert: Liquid/diarrhea stool recorded. Frequent potty checks recommended (60m window).';
   } else if (isLastPoopConstipated && hoursSinceLastPoop < 16) {
     mode = 'daytime_baseline';
     const refractoryMinutes = Math.max(learnedPoop.intervalMins * 1.4, 480);
@@ -902,9 +902,10 @@ export function calculatePredictions(
 ): PredictionResult {
   const now = referenceTime || new Date();
   const tz = timeZone || getUserTimezone();
+  const sleepSchedule = customSleepSchedule || detectSleepSchedule(activities, tz);
   const options: PredictorOptions = {
     timeZone: tz,
-    sleepSchedule: customSleepSchedule,
+    sleepSchedule,
   };
 
   const peeResult = predictNextPee(activities, profile, now, options);

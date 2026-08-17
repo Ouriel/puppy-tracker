@@ -112,7 +112,7 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
                     {isEditMode ? t.potty.editActivity : t.potty.logActivity}
                   </h3>
                   <p className="text-xs text-slate-400">
-                    Record care event for your puppy
+                    {t.potty.recordCareEvent}
                   </p>
                 </div>
               </div>
@@ -134,13 +134,15 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
                   <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2.5">
                     {t.potty.activityType}
                   </label>
-                  <div className="grid grid-cols-5 gap-2">
+                  <div className="grid grid-cols-5 gap-2" role="radiogroup">
                     {activityTypes.map((item) => {
                       const isSelected = type === item.type;
                       return (
                         <button
                           key={item.type}
                           type="button"
+                          role="radio"
+                          aria-checked={isSelected}
                           onClick={() => setType(item.type)}
                           className={`flex flex-col items-center justify-center p-3 rounded-xl border transition-all duration-150 ${
                             isSelected
@@ -163,9 +165,11 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
                       <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">
                         {t.potty.location}
                       </label>
-                      <div className="grid grid-cols-2 gap-3">
+                      <div className="grid grid-cols-2 gap-3" role="radiogroup">
                         <button
                           type="button"
+                          role="radio"
+                          aria-checked={pottyLocation === 'outside'}
                           onClick={() => setPottyLocation('outside')}
                           className={`flex items-center justify-center gap-2 py-3 px-4 rounded-xl border font-bold text-xs transition-all ${
                             pottyLocation === 'outside'
@@ -179,6 +183,8 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
 
                         <button
                           type="button"
+                          role="radio"
+                          aria-checked={pottyLocation === 'indoor_accident'}
                           onClick={() => setPottyLocation('indoor_accident')}
                           className={`flex items-center justify-center gap-2 py-3 px-4 rounded-xl border font-bold text-xs transition-all ${
                             pottyLocation === 'indoor_accident'
@@ -198,13 +204,15 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
                         <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">
                           {t.potty.stoolConsistency}
                         </label>
-                        <div className="grid grid-cols-3 gap-2">
+                        <div className="grid grid-cols-3 gap-2" role="radiogroup">
                           {(['hard', 'normal', 'diarrhea'] as StoolConsistency[]).map((c) => {
                             const isSelected = stoolConsistency === c;
                             return (
                               <button
                                 key={c}
                                 type="button"
+                                role="radio"
+                                aria-checked={isSelected}
                                 onClick={() => setStoolConsistency(c)}
                                 className={`py-2.5 px-2 rounded-xl text-xs font-bold border transition-all text-center capitalize ${
                                   isSelected
@@ -322,7 +330,7 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
                 form="quicklog-form"
                 className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-lg shadow-indigo-600/30 transition-all"
               >
-                {isEditMode ? 'Save Changes' : t.potty.saveLog}
+                {isEditMode ? t.potty.saveChanges : t.potty.saveLog}
               </button>
             </div>
           </Modal.Dialog>

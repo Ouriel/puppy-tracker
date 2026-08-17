@@ -214,7 +214,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail }) => {
             className="bg-slate-950 border border-slate-800 text-slate-300 font-bold hover:bg-slate-800 flex items-center gap-1.5 shrink-0"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
-            <span>Refresh User List</span>
+            <span>{t.admin.refreshUserList}</span>
           </Button>
         </Card.Content>
       </Card>
@@ -235,11 +235,11 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail }) => {
               <Modal.Header>
                 <Modal.Heading className="flex items-center gap-3">
                   <AlertCircle className="w-5 h-5 text-red-400" />
-                  <span>Confirm deletion for {userToDelete?.email}?</span>
+                  <span>{t.admin.confirmDeletionFor.replace('{email}', String(userToDelete?.email))}</span>
                 </Modal.Heading>
               </Modal.Header>
               <Modal.Body className="p-4">
-                <p className="text-sm text-slate-400">This action will revoke access and remove records for this email address.</p>
+                <p className="text-sm text-slate-400">{t.admin.deleteConfirmBody}</p>
               </Modal.Body>
               <Modal.Footer className="border-t border-slate-800 pt-3">
                 <Button onPress={() => setUserToDelete(null)} className="bg-slate-950 border border-slate-800 text-slate-300 font-bold hover:bg-slate-800">
@@ -288,13 +288,13 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail }) => {
 
                       <div className="flex items-center gap-1.5 text-[11px] text-slate-400 bg-slate-900 px-2.5 py-1 rounded-lg border border-slate-800">
                         <Home className="w-3.5 h-3.5 text-indigo-400" />
-                        <span>Current ID: <span className="font-mono text-slate-300">{userItem.householdId || 'isolated'}</span></span>
+                        <span>{t.admin.currentId} <span className="font-mono text-slate-300">{userItem.householdId || 'isolated'}</span></span>
                       </div>
                     </div>
 
                     <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-900">
                       <div className="flex items-center gap-2">
-                        <span className="text-[11px] text-slate-400">Assign to:</span>
+                        <span className="text-[11px] text-slate-400">{t.admin.assignTo}</span>
                         <select
                           value={currentSelectedHousehold}
                           onChange={(e) =>
@@ -317,7 +317,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail }) => {
                           className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold"
                         >
                           <UserCheck className="w-3.5 h-3.5 mr-1 inline" />
-                          Approve & Assign
+                          {t.admin.approveAndAssign}
                         </Button>
                         <button
                           type="button"
@@ -392,9 +392,9 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail }) => {
         </Card.Header>
         <Card.Content className="p-4">
           {isLoading ? (
-            <div className="p-4 text-center text-xs text-slate-400">Loading accounts...</div>
+            <div className="p-4 text-center text-xs text-slate-400">{t.admin.loadingAccounts}</div>
           ) : activeUsers.length === 0 ? (
-            <div className="p-4 text-center text-xs text-slate-400">No active accounts registered yet.</div>
+            <div className="p-4 text-center text-xs text-slate-400">{t.admin.noActiveAccounts}</div>
           ) : (
             <div className="space-y-3">
               {activeUsers.map((userItem) => (
@@ -416,7 +416,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail }) => {
                     {/* Household badge / mover */}
                     {isSuperAdminEmail(userItem.email) ? (
                       <Chip color="accent" size="sm" variant="soft" className="font-bold">
-                        Super Admin Owner
+                        {t.admin.superAdminOwner}
                       </Chip>
                     ) : (
                       <>

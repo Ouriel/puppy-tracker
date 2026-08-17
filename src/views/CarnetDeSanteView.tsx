@@ -1,23 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import type { PuppyProfile } from '../types';
-import { Syringe, ShieldCheck, Plus, Pill, Trash2, Pencil, Check, ArrowLeft } from 'lucide-react';
+import type { PuppyProfile, Activity, HealthRecord } from '../types';
+import { Syringe, ArrowLeft } from 'lucide-react';
 import { useI18n } from '../i18n';
-import { formatLocalDate } from '../utils/date';
-import { showToast } from '../utils/toast';
 import { formatBreedName } from '../utils/breeds';
-import { Card, Button, Input, Select, ListBox, ListBoxItem, Chip } from '@heroui/react';
-import {
-  fetchHealthRecords,
-  createHealthRecord,
-  updateHealthRecord,
-  deleteHealthRecord,
-} from '../services/api';
-import { calculateNextAntiparasiticDate, calculateNextVaccineBooster, getHealthProtocols, getHealthRecordStatus } from '../utils/health';
-import { StatusBadge } from '../components/common/StatusBadge';
-import { getEffectivePuppyWeight } from '../utils/weight';
-import { getPuppyAge } from '../utils/predictions';
+import { Card } from '@heroui/react';
+import { fetchHealthRecords } from '../services/api';
 import { WeightGrowthChart } from '../components/WeightGrowthChart';
-import type { Activity, HealthRecord } from '../types';
+import { VaccineSection } from './carnet/VaccineSection';
+import { DewormingSection } from './carnet/DewormingSection';
 
 interface CarnetDeSanteViewProps {
   activePuppy: PuppyProfile | null;
@@ -36,142 +26,26 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({
 }) => {
   const { t, lang } = useI18n();
 
-  const getVaccineStatus = (vaccine: HealthRecord, allVaccines: HealthRecord[]) => {
-    return getHealthRecordStatus(vaccine, allVaccines, `✅ ${t.health.statusUpToDate}`, `✅ ${t.health.statusFulfilled}`);
-  };
-
-  const getDewormingStatus = (deworming: HealthRecord, allDewormings: HealthRecord[]) => {
-    return getHealthRecordStatus(deworming, allDewormings, `✅ ${t.health.statusUpToDate}`, `✅ ${t.health.statusFulfilled}`);
-  };
-
   const [vaccinations, setVaccinations] = useState<HealthRecord[]>([]);
   const [dewormingLogs, setDewormingLogs] = useState<HealthRecord[]>([]);
 
-  // Form toggles
-  const [isAddingVaccine, setIsAddingVaccine] = useState(false);
-  const [isAddingDeworming, setIsAddingDeworming] = useState(false);
-
-  // New Vaccine Form
-  const [vaccineType, setVaccineType] = useState<string>('CHPPi + L4');
-  const [administeredDate, setAdministeredDate] = useState(() => formatLocalDate());
-  const [customNextDueDate, setCustomNextDueDate] = useState<string | null>(null);
-  const [vetClinic, setVetClinic] = useState('');
-  const [batchNumber, setBatchNumber] = useState('');
-
-  // Auto-calculate next vaccine booster due date declaratively (without useEffect)
-  const autoNextVaccineDate = React.useMemo(() => {
-    if (!administeredDate) return '';
-    const ageMonths = activePuppy?.birthDate ? getPuppyAge(activePuppy.birthDate).months : 6;
-    return calculateNextVaccineBooster(administeredDate, vaccineType, ageMonths);
-  }, [administeredDate, vaccineType, activePuppy?.birthDate]);
-
-  const nextDueDate = customNextDueDate !== null ? customNextDueDate : autoNextVaccineDate;
-
-  // New Deworming Form
-  const [productName, setProductName] = useState('Credelio Plus');
-  const [dewormAdminDate, setDewormAdminDate] = useState(() => formatLocalDate());
-  const [customDewormNextDate, setCustomDewormNextDate] = useState<string | null>(null);
-
-  // Auto-calculate next deworming / antiparasitic booster date declaratively (without useEffect)
-  const autoNextDewormDate = React.useMemo(() => {
-    if (!dewormAdminDate) return '';
-    const ageMonths = activePuppy?.birthDate ? getPuppyAge(activePuppy.birthDate).months : 3;
-    return calculateNextAntiparasiticDate(dewormAdminDate, productName, ageMonths);
-  }, [dewormAdminDate, productName, activePuppy?.birthDate]);
-
-  const dewormNextDate = customDewormNextDate !== null ? customDewormNextDate : autoNextDewormDate;
-
-  // Edit Vaccine state
-  const [editingVaccineId, setEditingVaccineId] = useState<string | null>(null);
-  const [editVaccineName, setEditVaccineName] = useState('');
-  const [editVaccineDate, setEditVaccineDate] = useState('');
-  const [editVaccineBoosterDate, setEditVaccineBoosterDate] = useState('');
-  const [editVaccineVetClinic, setEditVaccineVetClinic] = useState('');
-  const [editVaccineBatchNumber, setEditVaccineBatchNumber] = useState('');
-
-  // Edit Deworming state
-  const [editingDewormingId, setEditingDewormingId] = useState<string | null>(null);
-  const [editDewormingName, setEditDewormingName] = useState('');
-  const [editDewormingDate, setEditDewormingDate] = useState('');
-  const [editDewormingBoosterDate, setEditDewormingBoosterDate] = useState('');
-  const [editDewormingWeight, setEditDewormingWeight] = useState('');
-
-  const startEditVaccine = (vaccine: HealthRecord) => {
-    setEditingVaccineId(vaccine.id);
-    setEditVaccineName(vaccine.name);
-    setEditVaccineDate(vaccine.date);
-    setEditVaccineBoosterDate(vaccine.boosterDate || '');
-    setEditVaccineVetClinic(vaccine.vetClinic || '');
-    setEditVaccineBatchNumber(vaccine.batchNumber || '');
-  };
-
-  const startEditDeworming = (deworming: HealthRecord) => {
-    setEditingDewormingId(deworming.id);
-    setEditDewormingName(deworming.productName || deworming.name);
-    setEditDewormingDate(deworming.date);
-    setEditDewormingBoosterDate(deworming.boosterDate || '');
-    setEditDewormingWeight(deworming.weightAtTime ? String(deworming.weightAtTime) : '');
-  };
-
-  const handleUpdateVaccineSubmit = async (id: string) => {
-    if (!editVaccineDate || !activePuppy) return;
-    const updated = await updateHealthRecord({
-      id,
-      puppyId: activePuppy.id,
-      type: 'vaccination',
-      name: editVaccineName,
-      date: editVaccineDate,
-      boosterDate: editVaccineBoosterDate || undefined,
-      vetClinic: editVaccineVetClinic || undefined,
-      batchNumber: editVaccineBatchNumber || undefined,
-    });
-
-    if (updated) {
-      setVaccinations((prev) =>
-        sortByDateDesc(prev.map((v) => (v.id === id ? { ...v, ...updated } : v)))
-      );
-      setEditingVaccineId(null);
-      showToast('Vaccination entry updated.', 'success');
-    }
-  };
-
-  const handleUpdateDewormingSubmit = async (id: string) => {
-    if (!editDewormingDate || !activePuppy) return;
-    const updated = await updateHealthRecord({
-      id,
-      puppyId: activePuppy.id,
-      type: 'deworming',
-      name: editDewormingName,
-      productName: editDewormingName,
-      date: editDewormingDate,
-      boosterDate: editDewormingBoosterDate || undefined,
-      weightAtTime: editDewormingWeight ? Number(editDewormingWeight) : undefined,
-    });
-
-    if (updated) {
-      setDewormingLogs((prev) =>
-        sortByDateDesc(prev.map((d) => (d.id === id ? { ...d, ...updated } : d)))
-      );
-      setEditingDewormingId(null);
-      showToast('Deworming entry updated.', 'success');
-    }
-  };
-
-  const sortByDateDesc = <T extends { date: string }>(arr: T[]): T[] => {
-    return [...arr].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  const sortByDateDesc = <T extends { date: string }>(records: T[]): T[] => {
+    return [...records].sort(
+      (recordA, recordB) => new Date(recordB.date).getTime() - new Date(recordA.date).getTime()
+    );
   };
 
   const loadHealthRecords = React.useCallback(async () => {
     if (!activePuppy?.id) return;
-    const [vRes, dRes] = await Promise.all([
+    const [vaccineResponse, dewormingResponse] = await Promise.all([
       fetchHealthRecords(activePuppy.id, 'vaccination'),
       fetchHealthRecords(activePuppy.id, 'deworming'),
     ]);
-    if (vRes) {
-      setVaccinations(sortByDateDesc(vRes));
+    if (vaccineResponse) {
+      setVaccinations(sortByDateDesc(vaccineResponse));
     }
-    if (dRes) {
-      setDewormingLogs(sortByDateDesc(dRes));
+    if (dewormingResponse) {
+      setDewormingLogs(sortByDateDesc(dewormingResponse));
     }
   }, [activePuppy?.id]);
 
@@ -180,70 +54,6 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({
       loadHealthRecords();
     }
   }, [activePuppy?.id, loadHealthRecords]);
-
-  const handleAddVaccineSubmit = async (event: React.FormEvent) => {
-    event.preventDefault();
-    if (!administeredDate || !nextDueDate || !activePuppy) return;
-
-    const newEntry = {
-      puppyId: activePuppy.id,
-      type: 'vaccination' as const,
-      name: vaccineType,
-      date: administeredDate,
-      boosterDate: nextDueDate,
-      vetClinic: vetClinic.trim() || undefined,
-      batchNumber: batchNumber.trim() || undefined,
-    };
-
-    const created = await createHealthRecord(newEntry);
-    if (created) {
-      setVaccinations((previous) => sortByDateDesc([created, ...previous]));
-      setIsAddingVaccine(false);
-      setCustomNextDueDate(null);
-      setVetClinic('');
-      setBatchNumber('');
-    }
-  };
-
-  const handleDeleteVaccine = async (id: string) => {
-    if (window.confirm(t.health.deleteVaccineConfirm)) {
-      const ok = await deleteHealthRecord(id);
-      if (ok) {
-        setVaccinations((previous) => previous.filter((vaccine) => vaccine.id !== id));
-      }
-    }
-  };
-
-  const handleAddDewormingSubmit = async (event: React.FormEvent) => {
-    event.preventDefault();
-    if (!dewormAdminDate || !dewormNextDate || !activePuppy) return;
-
-    const newEntry = {
-      puppyId: activePuppy.id,
-      type: 'deworming' as const,
-      name: productName.trim() || 'Credelio Plus',
-      productName: productName.trim() || 'Credelio Plus',
-      date: dewormAdminDate,
-      boosterDate: dewormNextDate,
-      weightAtTime: getEffectivePuppyWeight(activePuppy, activities).estimatedCurrentWeight,
-    };
-
-    const created = await createHealthRecord(newEntry);
-    if (created) {
-      setDewormingLogs((previous) => sortByDateDesc([created, ...previous]));
-      setIsAddingDeworming(false);
-      setCustomDewormNextDate(null);
-    }
-  };
-
-  const handleDeleteDeworming = async (id: string) => {
-    if (window.confirm(t.health.deleteDewormingConfirm)) {
-      const ok = await deleteHealthRecord(id);
-      if (ok) {
-        setDewormingLogs((previous) => previous.filter((deworming) => deworming.id !== id));
-      }
-    }
-  };
 
   if (!activePuppy) {
     return (
@@ -272,7 +82,7 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({
             className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-white text-xs font-bold transition-all shadow-sm group"
           >
             <ArrowLeft className="w-4 h-4 text-indigo-400 group-hover:-translate-x-0.5 transition-transform" />
-            <span>Back to Dashboard</span>
+            <span>{t.nav.backToDashboard}</span>
           </button>
         </div>
       )}
@@ -289,7 +99,7 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({
                 <span>{t.health.healthPassportFor.replace('{name}', activePuppy.name)}</span>
               </h2>
               <p className="text-xs text-slate-400">
-                Medical records, vaccination schedule, deworming tracking & weight growth curve &bull; {activePuppy.name} ({formatBreedName(activePuppy.breed, lang)})
+                {t.health.carnetSubtitle} &bull; {activePuppy.name} ({formatBreedName(activePuppy.breed, lang)})
               </p>
             </div>
           </div>
@@ -304,526 +114,22 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({
         onDeleteActivity={onDeleteActivity}
       />
 
-      {/* Vaccinations Section */}
-      <Card className="bg-slate-900 border border-slate-800 text-slate-100">
-        <Card.Content className="p-6 space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-bold text-slate-100 flex items-center gap-2">
-              <Syringe className="w-4 h-4 text-teal-400" />
-              <span>{t.health.vaccinations} ({vaccinations.length})</span>
-            </h3>
-            <Button
-              variant="primary"
-              size="sm"
-              onPress={() => setIsAddingVaccine(!isAddingVaccine)}
-            >
-              <Plus className="w-4 h-4 mr-1 inline" />
-              {isAddingVaccine ? t.potty.cancel : t.health.addVaccine}
-            </Button>
-          </div>
+      {/* Modular Vaccinations Section */}
+      <VaccineSection
+        activePuppy={activePuppy}
+        vaccinations={vaccinations}
+        setVaccinations={setVaccinations}
+        t={t}
+      />
 
-          {isAddingVaccine && (
-            <Card variant="default" className="bg-slate-950/90 border border-slate-800">
-              <form onSubmit={handleAddVaccineSubmit}>
-                <Card.Content className="p-4 space-y-3">
-                  <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
-                    <div className="sm:col-span-2 min-w-0">
-                      <label className="block text-xs font-semibold text-slate-400 mb-1">{t.health.vaccineType}</label>
-                      <Select
-                        value={vaccineType}
-                        onChange={(val) => {
-                          setVaccineType(val as string);
-                          setCustomNextDueDate(null);
-                        }}
-                      >
-                        <Select.Trigger className="w-full bg-slate-900 border-slate-700/80 text-slate-100 min-w-0 flex items-center justify-between">
-                          <Select.Value className="truncate block text-left" />
-                          <Select.Indicator />
-                        </Select.Trigger>
-                        <Select.Popover className="bg-slate-900 border border-slate-800 text-slate-100 max-w-xl w-full">
-                          <ListBox>
-                            {getHealthProtocols().vaccines.map((v) => (
-                              <ListBoxItem key={v.id} id={v.name} textValue={v.fullName} className="truncate whitespace-nowrap overflow-hidden">
-                                <span className="truncate block text-xs">{v.fullName}</span>
-                              </ListBoxItem>
-                            ))}
-                          </ListBox>
-                        </Select.Popover>
-                      </Select>
-                    </div>
-
-                    <div className="sm:col-span-1 min-w-0">
-                      <label className="block text-xs font-semibold text-slate-400 mb-1">{t.health.administeredDate}</label>
-                      <Input
-                        type="date"
-                        className="bg-slate-900 border-slate-700/80 text-slate-100"
-                        value={administeredDate}
-                        onChange={(event) => {
-                          setAdministeredDate(event.target.value);
-                          setCustomNextDueDate(null);
-                        }}
-                        required
-                      />
-                    </div>
-
-                    <div className="sm:col-span-1 min-w-0">
-                      <label className="block text-xs font-semibold text-slate-400 mb-1">{t.health.boosterDue}</label>
-                      <Input
-                        type="date"
-                        className="bg-slate-900 border-slate-700/80 text-slate-100"
-                        value={nextDueDate}
-                        onChange={(event) => setCustomNextDueDate(event.target.value)}
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-xs font-semibold text-slate-400 mb-1">{t.health.vetClinic}</label>
-                      <Input
-                        type="text"
-                        placeholder="e.g. Clinique Vétérinaire Saint-Roch"
-                        className="bg-slate-900 border-slate-700/80 text-slate-100"
-                        value={vetClinic}
-                        onChange={(event) => setVetClinic(event.target.value)}
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-semibold text-slate-400 mb-1">{t.health.batchNumber}</label>
-                      <Input
-                        type="text"
-                        placeholder="e.g. BATCH-01 / BATCH-02"
-                        className="bg-slate-900 border-slate-700/80 text-slate-100"
-                        value={batchNumber}
-                        onChange={(event) => setBatchNumber(event.target.value)}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="flex justify-end">
-                    <Button
-                      type="submit"
-                      variant="primary"
-                      size="sm"
-                    >
-                      {t.health.saveVaccine}
-                    </Button>
-                  </div>
-                </Card.Content>
-              </form>
-            </Card>
-          )}
-
-          <div className="space-y-2">
-            {vaccinations.map((vaccine) => {
-              const isEditing = editingVaccineId === vaccine.id;
-
-              if (isEditing) {
-                return (
-                  <Card key={vaccine.id} variant="default" className="bg-slate-950/90 border border-teal-500/60">
-                    <Card.Content className="p-3.5 space-y-3">
-                      <div className="grid grid-cols-1 sm:grid-cols-4 gap-2">
-                        <div className="sm:col-span-2 min-w-0">
-                          <label className="block text-[10px] text-slate-400 font-semibold mb-1">Vaccine Name</label>
-                          <Select value={editVaccineName} onChange={(val) => setEditVaccineName(val as string)}>
-                            <Select.Trigger className="w-full bg-slate-900 border-slate-700/80 text-slate-100 min-w-0 flex items-center justify-between">
-                              <Select.Value className="truncate block text-left" />
-                              <Select.Indicator />
-                            </Select.Trigger>
-                            <Select.Popover className="bg-slate-900 border border-slate-800 text-slate-100 max-w-xl w-full">
-                              <ListBox>
-                                {(() => {
-                                  const options = getHealthProtocols().vaccines;
-                                  const hasMatch = options.some((v) => v.name === editVaccineName);
-                                  const list = hasMatch || !editVaccineName
-                                    ? options
-                                    : [{ id: editVaccineName, name: editVaccineName, fullName: editVaccineName }, ...options];
-                                  return list.map((v) => (
-                                    <ListBoxItem key={v.id} id={v.name} textValue={v.fullName} className="truncate whitespace-nowrap overflow-hidden">
-                                      <span className="truncate block text-xs">{v.fullName}</span>
-                                    </ListBoxItem>
-                                  ));
-                                })()}
-                              </ListBox>
-                            </Select.Popover>
-                          </Select>
-                        </div>
-                        <div className="sm:col-span-1 min-w-0">
-                          <label className="block text-[10px] text-slate-400 font-semibold mb-1">Injected Date</label>
-                          <Input
-                            type="date"
-                            className="bg-slate-900 border-slate-700/80 text-slate-100"
-                            value={editVaccineDate}
-                            onChange={(e) => setEditVaccineDate(e.target.value)}
-                          />
-                        </div>
-                        <div className="sm:col-span-1 min-w-0">
-                          <label className="block text-[10px] text-slate-400 font-semibold mb-1">Booster Due Date</label>
-                          <Input
-                            type="date"
-                            className="bg-slate-900 border-slate-700/80 text-slate-100"
-                            value={editVaccineBoosterDate}
-                            onChange={(e) => setEditVaccineBoosterDate(e.target.value)}
-                          />
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        <div>
-                          <label className="block text-[10px] text-slate-400 font-semibold mb-1">Vet Clinic</label>
-                          <Input
-                            type="text"
-                            className="bg-slate-900 border-slate-700/80 text-slate-100"
-                            value={editVaccineVetClinic}
-                            onChange={(e) => setEditVaccineVetClinic(e.target.value)}
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-[10px] text-slate-400 font-semibold mb-1">Batch / Lot N°</label>
-                          <Input
-                            type="text"
-                            className="bg-slate-900 border-slate-700/80 text-slate-100"
-                            value={editVaccineBatchNumber}
-                            onChange={(e) => setEditVaccineBatchNumber(e.target.value)}
-                          />
-                        </div>
-                      </div>
-                      <div className="flex justify-end gap-2 pt-1">
-                        <Button
-                          size="sm"
-                          onPress={() => setEditingVaccineId(null)}
-                          className="bg-slate-900 border border-slate-800 text-slate-300 font-bold hover:bg-slate-800 hover:text-white"
-                        >
-                          Cancel
-                        </Button>
-                        <Button
-                          variant="primary"
-                          size="sm"
-                          onPress={() => handleUpdateVaccineSubmit(vaccine.id)}
-                        >
-                          <Check className="w-3.5 h-3.5 mr-1 inline" />
-                          Save
-                        </Button>
-                      </div>
-                    </Card.Content>
-                  </Card>
-                );
-              }
-
-              const status = getVaccineStatus(vaccine, vaccinations);
-
-              return (
-                <div key={vaccine.id} className="flex items-center justify-between p-3.5 bg-slate-950/40 rounded-xl border border-slate-800">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-teal-500/20 text-teal-400 rounded-lg">
-                      <Syringe className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <div className="text-xs font-bold text-white flex items-center gap-2">
-                        <span>{vaccine.name}</span>
-                        {vaccine.batchNumber && (
-                          <Chip size="sm" variant="soft">
-                            Lot: {vaccine.batchNumber}
-                          </Chip>
-                        )}
-                      </div>
-                      <div className="text-[11px] text-slate-400">
-                        {t.health.injectedOn} {vaccine.date} &bull; {t.health.clinic}: {vaccine.vetClinic || t.health.veterinary}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-3">
-                    <div className="text-right">
-                      <div className="text-xs font-bold text-amber-300">{t.health.booster}: {vaccine.boosterDate}</div>
-                      <StatusBadge status={status.urgency} label={status.label} />
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <button
-                        type="button"
-                        onClick={() => startEditVaccine(vaccine)}
-                        aria-label="Edit vaccine entry"
-                        className="p-1.5 text-slate-400 hover:text-indigo-300 hover:bg-slate-800 rounded-lg border border-slate-800 bg-slate-950 transition-colors"
-                      >
-                        <Pencil className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteVaccine(vaccine.id)}
-                        aria-label={t.health.deleteVaccineConfirm}
-                        className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-slate-800 rounded-lg border border-slate-800 bg-slate-950 transition-colors"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
-          {/* Collapsible Vaccine Recommendation Drawer */}
-          <details className="mt-4 pt-3 border-t border-slate-800/80 text-xs text-slate-400 group">
-            <summary className="cursor-pointer font-bold text-teal-400 flex items-center gap-1.5 hover:text-teal-300 transition-colors list-none">
-              <ShieldCheck className="w-4 h-4 shrink-0" />
-              <span>{t.health.frenchVaccineGuidelines}</span>
-              <span className="text-[10px] font-normal text-slate-500 ml-auto group-open:hidden">(click to view schedule)</span>
-            </summary>
-            <ul className="mt-2.5 pl-5 text-[11px] text-slate-300 space-y-1 list-disc">
-              <li>{t.health.week8Initial}</li>
-              <li>{t.health.week12Booster1}</li>
-              <li>{t.health.week16Booster2}</li>
-              <li>{t.health.year1Booster}</li>
-            </ul>
-          </details>
-        </Card.Content>
-      </Card>
-
-      {/* Deworming / Vermifuge Section */}
-      <Card className="bg-slate-900 border border-slate-800 text-slate-100">
-        <Card.Content className="p-6 space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-bold text-slate-100 flex items-center gap-2">
-              <Pill className="w-4 h-4 text-amber-400" />
-              <span>{t.health.deworming} ({dewormingLogs.length})</span>
-            </h3>
-            <Button
-              variant="primary"
-              size="sm"
-              onPress={() => setIsAddingDeworming(!isAddingDeworming)}
-            >
-              <Plus className="w-4 h-4 mr-1 inline" />
-              {isAddingDeworming ? t.potty.cancel : t.health.addDeworming}
-            </Button>
-          </div>
-
-          {isAddingDeworming && (
-            <Card variant="default" className="bg-slate-950/90 border border-slate-800">
-              <form onSubmit={handleAddDewormingSubmit}>
-                <Card.Content className="p-4 space-y-3">
-                  <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
-                    <div className="sm:col-span-2 min-w-0">
-                      <label className="block text-xs font-semibold text-slate-400 mb-1">{t.health.productName}</label>
-                      <Select
-                        value={productName}
-                        onChange={(val) => {
-                          setProductName(val as string);
-                          setCustomDewormNextDate(null);
-                        }}
-                      >
-                        <Select.Trigger className="w-full bg-slate-900 border-slate-700/80 text-slate-100 min-w-0 flex items-center justify-between">
-                          <Select.Value className="truncate block text-left" />
-                          <Select.Indicator />
-                        </Select.Trigger>
-                        <Select.Popover className="bg-slate-900 border border-slate-800 text-slate-100 max-w-xl w-full">
-                          <ListBox>
-                            {getHealthProtocols().antiparasitics.map((p) => (
-                              <ListBoxItem key={p.id} id={p.name} textValue={p.label} className="truncate whitespace-nowrap overflow-hidden">
-                                <span className="truncate block text-xs">{p.label}</span>
-                              </ListBoxItem>
-                            ))}
-                          </ListBox>
-                        </Select.Popover>
-                      </Select>
-                    </div>
-
-                    <div className="sm:col-span-1 min-w-0">
-                      <label className="block text-xs font-semibold text-slate-400 mb-1">{t.health.administeredDate}</label>
-                      <Input
-                        type="date"
-                        className="bg-slate-900 border-slate-700/80 text-slate-100"
-                        value={dewormAdminDate}
-                        onChange={(event) => {
-                          setDewormAdminDate(event.target.value);
-                          setCustomDewormNextDate(null);
-                        }}
-                        required
-                      />
-                    </div>
-
-                    <div className="sm:col-span-1 min-w-0">
-                      <label className="block text-xs font-semibold text-slate-400 mb-1">{t.health.boosterDue}</label>
-                      <Input
-                        type="date"
-                        className="bg-slate-900 border-slate-700/80 text-slate-100"
-                        value={dewormNextDate}
-                        onChange={(event) => setCustomDewormNextDate(event.target.value)}
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  <div className="flex justify-end">
-                    <Button
-                      type="submit"
-                      variant="primary"
-                      size="sm"
-                    >
-                      {t.health.saveDeworming}
-                    </Button>
-                  </div>
-                </Card.Content>
-              </form>
-            </Card>
-          )}
-
-          <div className="space-y-2">
-            {dewormingLogs.map((deworming) => {
-              const isEditing = editingDewormingId === deworming.id;
-
-              if (isEditing) {
-                return (
-                  <Card key={deworming.id} variant="default" className="bg-slate-950/90 border border-amber-500/60">
-                    <Card.Content className="p-3.5 space-y-3">
-                      <div className="grid grid-cols-1 sm:grid-cols-4 gap-2">
-                        <div className="sm:col-span-2 min-w-0">
-                          <label className="block text-[10px] text-slate-400 font-semibold mb-1">Product Name</label>
-                          <Select value={editDewormingName} onChange={(val) => setEditDewormingName(val as string)}>
-                            <Select.Trigger className="w-full bg-slate-900 border-slate-700/80 text-slate-100 min-w-0 flex items-center justify-between">
-                              <Select.Value className="truncate block text-left" />
-                              <Select.Indicator />
-                            </Select.Trigger>
-                            <Select.Popover className="bg-slate-900 border border-slate-800 text-slate-100 max-w-xl w-full">
-                              <ListBox>
-                                {(() => {
-                                  const options = getHealthProtocols().antiparasitics;
-                                  const hasMatch = options.some((p) => p.name === editDewormingName);
-                                  const list = hasMatch || !editDewormingName
-                                    ? options
-                                    : [{ id: editDewormingName, name: editDewormingName, label: editDewormingName }, ...options];
-                                  return list.map((p) => (
-                                    <ListBoxItem key={p.id} id={p.name} textValue={p.label} className="truncate whitespace-nowrap overflow-hidden">
-                                      <span className="truncate block text-xs">{p.label}</span>
-                                    </ListBoxItem>
-                                  ));
-                                })()}
-                              </ListBox>
-                            </Select.Popover>
-                          </Select>
-                        </div>
-                        <div className="sm:col-span-2 min-w-0">
-                          <label className="block text-[10px] text-slate-400 font-semibold mb-1">Weight at time (kg)</label>
-                          <Input
-                            type="number"
-                            step="0.1"
-                            placeholder="e.g. 7.5"
-                            className="bg-slate-900 border-slate-700/80 text-slate-100"
-                            value={editDewormingWeight}
-                            onChange={(e) => setEditDewormingWeight(e.target.value)}
-                          />
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        <div className="sm:col-span-1 min-w-0">
-                          <label className="block text-[10px] text-slate-400 font-semibold mb-1">Given Date</label>
-                          <Input
-                            type="date"
-                            className="bg-slate-900 border-slate-700/80 text-slate-100"
-                            value={editDewormingDate}
-                            onChange={(e) => setEditDewormingDate(e.target.value)}
-                          />
-                        </div>
-                        <div className="sm:col-span-1 min-w-0">
-                          <label className="block text-[10px] text-slate-400 font-semibold mb-1">Next Due Date</label>
-                          <Input
-                            type="date"
-                            className="bg-slate-900 border-slate-700/80 text-slate-100"
-                            value={editDewormingBoosterDate}
-                            onChange={(e) => setEditDewormingBoosterDate(e.target.value)}
-                          />
-                        </div>
-                      </div>
-                      <div className="flex justify-end gap-2 pt-1">
-                        <Button
-                          size="sm"
-                          onPress={() => setEditingDewormingId(null)}
-                          className="bg-slate-900 border border-slate-800 text-slate-300 font-bold hover:bg-slate-800 hover:text-white"
-                        >
-                          Cancel
-                        </Button>
-                        <Button
-                          variant="primary"
-                          size="sm"
-                          onPress={() => handleUpdateDewormingSubmit(deworming.id)}
-                        >
-                          <Check className="w-3.5 h-3.5 mr-1 inline" />
-                          Save
-                        </Button>
-                      </div>
-                    </Card.Content>
-                  </Card>
-                );
-              }
-
-              const status = getDewormingStatus(deworming, dewormingLogs);
-
-              return (
-                <div key={deworming.id} className="flex items-center justify-between p-3.5 bg-slate-950/40 rounded-xl border border-slate-800">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-amber-500/20 text-amber-400 rounded-lg">
-                      <Pill className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <div className="text-xs font-bold text-white flex items-center gap-2">
-                        <span>{deworming.productName || deworming.name}</span>
-                        {deworming.weightAtTime && (
-                          <Chip color="warning" variant="soft" size="sm">
-                            Poids: {deworming.weightAtTime} kg
-                          </Chip>
-                        )}
-                      </div>
-                      <div className="text-[11px] text-slate-400">
-                        {t.health.givenOn} {deworming.date}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-3">
-                    <div className="text-right">
-                      <div className="text-xs font-bold text-amber-300">{t.health.nextDeworming}: {deworming.boosterDate}</div>
-                      <StatusBadge status={status.urgency} label={status.label} />
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <button
-                        type="button"
-                        onClick={() => startEditDeworming(deworming)}
-                        aria-label="Edit deworming entry"
-                        className="p-1.5 text-slate-400 hover:text-indigo-300 hover:bg-slate-800 rounded-lg border border-slate-800 bg-slate-950 transition-colors"
-                      >
-                        <Pencil className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteDeworming(deworming.id)}
-                        aria-label={t.health.deleteDewormingConfirm}
-                        className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-slate-800 rounded-lg border border-slate-800 bg-slate-950 transition-colors"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
-          {/* Collapsible Deworming Recommendation Drawer */}
-          <details className="mt-4 pt-3 border-t border-slate-800/80 text-xs text-slate-400 group">
-            <summary className="cursor-pointer font-bold text-amber-400 flex items-center gap-1.5 hover:text-amber-300 transition-colors list-none">
-              <Pill className="w-4 h-4 shrink-0" />
-              <span>{t.health.esccapDewormingProtocol}</span>
-              <span className="text-[10px] font-normal text-slate-500 ml-auto group-open:hidden">(click to view protocol)</span>
-            </summary>
-            <ul className="mt-2.5 pl-5 text-[11px] text-slate-300 space-y-1 list-disc">
-              <li>{t.health.dewormSchedule1}</li>
-              <li>{t.health.dewormSchedule2}</li>
-              <li>{t.health.dewormSchedule3}</li>
-              <li>{t.health.dewormSchedule4}</li>
-            </ul>
-          </details>
-        </Card.Content>
-      </Card>
+      {/* Modular Deworming / Parasitology Section */}
+      <DewormingSection
+        activePuppy={activePuppy}
+        activities={activities}
+        dewormingLogs={dewormingLogs}
+        setDewormingLogs={setDewormingLogs}
+        t={t}
+      />
     </div>
   );
 };

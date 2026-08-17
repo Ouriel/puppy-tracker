@@ -31,6 +31,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         auth.householdId = dbUser.householdId;
         auth.name = dbUser.name || auth.name;
         auth.role = isSuperAdminEmail(auth.email) ? 'SuperAdmin' : dbUser.role;
+      } else {
+        return res.status(401).json({ error: 'User account not found' });
       }
     }
 

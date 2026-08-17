@@ -97,7 +97,7 @@ export const DogHealthSummary: React.FC<DogHealthSummaryProps> = ({
         <div className="flex items-center justify-between">
           <h2 className="text-base font-extrabold text-slate-100 flex items-center gap-2">
             <Dog className="w-5 h-5 text-indigo-400" />
-            <span>{t.health?.healthPassportFor ? t.health.healthPassportFor.replace(' — {name}', '') : 'Dog & Health Summary'}</span>
+            <span>{t.health.summaryTitle}</span>
           </h2>
         </div>
 
@@ -114,27 +114,27 @@ export const DogHealthSummary: React.FC<DogHealthSummaryProps> = ({
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Scale className="w-4 h-4 text-pink-400 shrink-0" />
-                <span className="text-xs font-bold text-slate-200">Weight Summary</span>
+                <span className="text-xs font-bold text-slate-200">{t.health.weightSummary}</span>
               </div>
-              <span className="text-[10px] font-bold text-indigo-300 bg-indigo-950/60 border border-indigo-800/60 px-2 py-0.5 rounded-md">
-                Est. Adult: {weightData.adultRangeStr}
+              <span className="text-xs font-bold text-indigo-300 bg-indigo-950/60 border border-indigo-800/60 px-2 py-0.5 rounded-md">
+                {t.health.estAdult} {weightData.adultRangeStr}
               </span>
             </div>
 
             <div className="grid grid-cols-2 gap-2 text-xs pt-1">
               <div className="bg-slate-950/60 p-2.5 rounded-lg border border-slate-800/80">
-                <div className="text-[10px] text-slate-400 font-semibold">Last Logged</div>
+                <div className="text-xs text-slate-400 font-semibold">{t.health.lastLogged}</div>
                 <div className="font-extrabold text-slate-100">{weightData.lastWeightKg} kg</div>
-                <div className="text-[10px] text-slate-400 mt-0.5 truncate">
-                  {weightData.lastLogDateStr ? `${weightData.lastLogDateStr} ${weightData.lastLogAgeWeeks ? `(${weightData.lastLogAgeWeeks}w)` : ''}` : 'No logs yet'}
+                <div className="text-xs text-slate-400 mt-0.5 truncate">
+                  {weightData.lastLogDateStr ? `${weightData.lastLogDateStr} ${weightData.lastLogAgeWeeks ? `(${weightData.lastLogAgeWeeks}w)` : ''}` : t.health.noLogsYet}
                 </div>
               </div>
 
               <div className="bg-slate-950/60 p-2.5 rounded-lg border border-slate-800/80">
-                <div className="text-[10px] text-slate-400 font-semibold">Assumed Current</div>
+                <div className="text-xs text-slate-400 font-semibold">{t.health.assumedCurrent}</div>
                 <div className="font-extrabold text-pink-400">~{weightData.assumedCurrentKg} kg</div>
-                <div className="text-[10px] text-slate-400 mt-0.5 truncate">
-                  Today ({ageInfo.weeks}w)
+                <div className="text-xs text-slate-400 mt-0.5 truncate">
+                  {t.dashboard.today} ({ageInfo.weeks}w)
                 </div>
               </div>
             </div>
@@ -151,13 +151,13 @@ export const DogHealthSummary: React.FC<DogHealthSummaryProps> = ({
               </div>
               <div>
                 <div className="text-xs font-bold text-slate-200">
-                  {lastVaccine ? lastVaccine.name : 'Last Vaccination'}
+                  {lastVaccine ? lastVaccine.name : t.health.lastVaccination}
                 </div>
-                <div className="text-[11px] text-slate-400">
+                <div className="text-xs text-slate-400">
                   {lastVaccine ? (
-                    <>Given: {lastVaccine.date} &bull; Next due: <strong className="text-teal-300">{nextVaccineDueDate}</strong></>
+                    <>{t.health.given} {lastVaccine.date} &bull; {t.health.nextDue} <strong className="text-teal-300">{nextVaccineDueDate}</strong></>
                   ) : (
-                    'No vaccine records logged yet.'
+                    t.health.noVaccineRecords
                   )}
                 </div>
               </div>
@@ -172,13 +172,13 @@ export const DogHealthSummary: React.FC<DogHealthSummaryProps> = ({
               </div>
               <div>
                 <div className="text-xs font-bold text-slate-200">
-                  {lastDeworming ? (lastDeworming.productName || lastDeworming.name) : 'Last Deworming'}
+                  {lastDeworming ? (lastDeworming.productName || lastDeworming.name) : t.health.lastDeworming}
                 </div>
-                <div className="text-[11px] text-slate-400">
+                <div className="text-xs text-slate-400">
                   {lastDeworming ? (
-                    <>Given: {lastDeworming.date} &bull; Next due: <strong className="text-amber-300">{nextDewormingDueDate}</strong></>
+                    <>{t.health.given} {lastDeworming.date} &bull; {t.health.nextDue} <strong className="text-amber-300">{nextDewormingDueDate}</strong></>
                   ) : (
-                    'No deworming records logged yet.'
+                    t.health.noDewormingRecords
                   )}
                 </div>
               </div>
@@ -194,7 +194,7 @@ export const DogHealthSummary: React.FC<DogHealthSummaryProps> = ({
           className="w-full font-bold text-xs py-2 shadow bg-indigo-600 hover:bg-indigo-500 text-white border-0"
         >
           <ExternalLink className="w-3.5 h-3.5 mr-1.5 inline" />
-          <span>View Full Health Passport</span>
+          <span>{t.health.viewFullHealthPassport}</span>
         </Button>
       </Card.Content>
     </Card>

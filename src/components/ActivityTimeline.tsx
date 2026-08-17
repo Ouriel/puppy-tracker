@@ -6,6 +6,8 @@ import { useI18n } from '../i18n';
 import { formatRelativeTime, parseIsoDate } from '../utils/date';
 import { EditActivityModal } from './EditActivityModal';
 import { resolveCaretakerName } from '../utils/caretakers';
+import { sortByTimestampDesc } from '../utils/activities';
+import { ConfirmationModal } from './common/ConfirmationModal';
 
 interface ActivityTimelineProps {
   activities: Activity[];
@@ -29,6 +31,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
   const { t, lang } = useI18n();
   const [filter, setFilter] = useState<'all' | 'potty' | 'food'>('all');
   const [editingActivity, setEditingActivity] = useState<Activity | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<{id: string; type: string} | null>(null);
   const [daysLimit, setDaysLimit] = useState<number>(180); // 180-day initial window
 
   const getIcon = (type: ActivityType) => {
@@ -52,15 +55,15 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
 
   // Filter to Pee, Poop, Food logs sorted chronologically descending
   const sortedCoreActivities = useMemo(() => {
-    return activities
+    const filtered = activities
       .filter((act) => {
         const isCoreType = act.type === 'pee' || act.type === 'poop' || act.type === 'food';
         if (!isCoreType) return false;
         if (filter === 'potty') return act.type === 'pee' || act.type === 'poop';
         if (filter === 'food') return act.type === 'food';
         return true;
-      })
-      .sort((a, b) => parseIsoDate(b.timestamp).getTime() - parseIsoDate(a.timestamp).getTime());
+      });
+    return sortByTimestampDesc(filtered);
   }, [activities, filter]);
 
   // Filter by time window
@@ -100,7 +103,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
               </span>
             </h2>
             <p className="text-xs text-slate-400">
-              Showing logs from last {daysLimit} days ({sortedCoreActivities.length} total)
+              {t.dashboard.showingLogs.replace('{days}', String(daysLimit)).replace('{total}', String(sortedCoreActivities.length))}
             </p>
           </div>
 
@@ -191,7 +194,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
                         {/* Stool consistency */}
                         {item.stoolConsistency && (
                           <Chip color="default" variant="soft" size="sm">
-                            Stool: {t.potty[item.stoolConsistency as keyof typeof t.potty] || item.stoolConsistency}
+                            {t.potty.stoolConsistencyPrefix} {t.potty[item.stoolConsistency as keyof typeof t.potty] || item.stoolConsistency}
                           </Chip>
                         )}
 
@@ -210,7 +213,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
                       )}
 
                       {/* Caretaker Name & Timestamp Line (Clean: just caretaker name, no "Logged by") */}
-                      <div className="flex items-center gap-2 text-[11px] text-slate-400 pt-0.5">
+                      <div className="flex items-center gap-2 text-xs text-slate-400 pt-0.5">
                         <span className="font-medium text-slate-300">{formatTime(item.timestamp)}</span>
                         <span>•</span>
                         <span className="inline-flex items-center gap-1 font-bold px-2 py-0.5 rounded-full bg-slate-900 border border-slate-800" style={{ color }}>
@@ -228,7 +231,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
                         type="button"
                         onClick={() => setEditingActivity(item)}
                         aria-label="Edit activity log"
-                        className="p-2 text-slate-400 hover:text-indigo-300 hover:bg-slate-800 rounded-lg border border-slate-800 bg-slate-950 transition-colors"
+                        className="p-2.5 min-h-[44px] min-w-[44px] flex items-center justify-center text-slate-400 hover:text-indigo-300 hover:bg-slate-800 rounded-lg border border-slate-800 bg-slate-950 transition-colors"
                       >
                         <Pencil className="w-4 h-4" />
                       </button>
@@ -236,13 +239,9 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
 
                     <button
                       type="button"
-                      onClick={() => {
-                        if (window.confirm('Delete this activity log?')) {
-                          onDeleteActivity(item.id);
-                        }
-                      }}
+                      onClick={() => setConfirmDelete({ id: item.id, type: 'activity' })}
                       aria-label="Delete log"
-                      className="p-2 text-slate-400 hover:text-red-400 hover:bg-slate-800 rounded-lg border border-slate-800 bg-slate-950 transition-colors"
+                      className="p-2.5 min-h-[44px] min-w-[44px] flex items-center justify-center text-slate-400 hover:text-red-400 hover:bg-slate-800 rounded-lg border border-slate-800 bg-slate-950 transition-colors"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
@@ -262,7 +261,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
                   className="w-full text-xs font-bold text-slate-300 border-slate-800 hover:bg-slate-950"
                 >
                   <ChevronDown className={`w-4 h-4 mr-1 inline ${isLoadingMore ? 'animate-spin' : ''}`} />
-                  <span>{isLoadingMore ? 'Loading Earlier Activities...' : `Load Earlier Logs (Past ${daysLimit} Days)`}</span>
+                  <span>{isLoadingMore ? t.dashboard.loadingEarlier : t.dashboard.loadEarlier.replace('{days}', String(daysLimit))}</span>
                 </Button>
               </div>
             )}
@@ -279,6 +278,16 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
             onClose={() => setEditingActivity(null)}
           />
         )}
+
+        <ConfirmationModal
+          isOpen={!!confirmDelete}
+          onClose={() => setConfirmDelete(null)}
+          onConfirm={() => {
+            if (confirmDelete) onDeleteActivity(confirmDelete.id);
+          }}
+          title={t.potty.deleteActivityTitle}
+          message={t.potty.deleteActivityMessage}
+        />
       </Card.Content>
     </Card>
   );

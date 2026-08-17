@@ -5,6 +5,7 @@ import { useI18n } from '../i18n';
 import { formatBreedName } from '../utils/breeds';
 import { Card, Button, Input, Select, ListBox, ListBoxItem, Chip } from '@heroui/react';
 import { DOG_BREEDS } from '../constants/breeds';
+import { ConfirmationModal } from '../components/common/ConfirmationModal';
 
 interface PuppiesViewProps {
   puppies: PuppyProfile[];
@@ -26,6 +27,7 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
   const { t, lang } = useI18n();
   const [isAdding, setIsAdding] = useState(false);
   const [editingPuppy, setEditingPuppy] = useState<PuppyProfile | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<{id: string; type: string} | null>(null);
 
   // New Puppy Form State
   const [name, setName] = useState('');
@@ -424,20 +426,16 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
                         type="button"
                         onClick={() => handleStartEdit(pup)}
                         aria-label="Edit Profile"
-                        className="p-2 text-slate-400 hover:text-indigo-300 hover:bg-slate-800 rounded-xl border border-slate-800 bg-slate-950 transition-colors"
+                        className="p-2.5 min-h-[44px] min-w-[44px] flex items-center justify-center text-slate-400 hover:text-indigo-300 hover:bg-slate-800 rounded-xl border border-slate-800 bg-slate-950 transition-colors"
                       >
                         <Edit3 className="w-4 h-4" />
                       </button>
 
                       <button
                         type="button"
-                        onClick={() => {
-                          if (window.confirm(`Delete profile for ${pup.name}?`)) {
-                            onDeletePuppy(pup.id);
-                          }
-                        }}
+                        onClick={() => setConfirmDelete({ id: pup.id, type: 'dog' })}
                         aria-label="Delete Dog"
-                        className="p-2 text-slate-400 hover:text-red-400 hover:bg-slate-800 rounded-xl border border-slate-800 bg-slate-950 transition-colors"
+                        className="p-2.5 min-h-[44px] min-w-[44px] flex items-center justify-center text-slate-400 hover:text-red-400 hover:bg-slate-800 rounded-xl border border-slate-800 bg-slate-950 transition-colors"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -473,6 +471,16 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
           })}
         </div>
       )}
+
+      <ConfirmationModal
+        isOpen={!!confirmDelete}
+        onClose={() => setConfirmDelete(null)}
+        onConfirm={() => {
+          if (confirmDelete) onDeletePuppy(confirmDelete.id);
+        }}
+        title="Delete Dog Profile"
+        message="Are you sure you want to delete this dog's profile? This action cannot be undone."
+      />
     </div>
   );
 };

@@ -184,7 +184,7 @@ export function App() {
     }
 
     activityState.addActivity(newAct);
-  }, [puppyState.activePuppy, caretakerState.currentUser, activityState, nextMealPortionGrams]);
+  }, [puppyState.activePuppy, caretakerState.currentUser, activityState.addActivity, nextMealPortionGrams]);
 
   const handleOpenQuickLogModal = useCallback((type?: ActivityType) => {
     setQuickLogType(type || 'pee');

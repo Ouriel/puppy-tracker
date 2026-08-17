@@ -44,9 +44,13 @@ export function calculateNextVaccineBooster(injectionDate: string, vaccineType: 
 
   let months = matched ? matched.defaultBoosterMonths : 12;
 
-  // WSAVA: After primovaccination (≥4 months age), core vaccines switch to annual boosters
+  // WSAVA / French vet practice:
+  // - CHPPi+L4: Annual recall (L4 Leptospirose drives the cadence)
+  // - CHPPi sans L4 / Vanguard CPV (viral-only): Triennial (36 months) after the 1-year booster
   if (matched && ['chppi_l4', 'chppi_sans_l4', 'vanguard_cpv'].includes(matched.id)) {
-    if (ageMonths >= 4) {
+    if ((matched.id === 'chppi_sans_l4' || matched.id === 'vanguard_cpv') && ageMonths >= 16) {
+      months = 36; // Triennial for viral-only post-first-booster (CDV/CAV/CPV immunity lasts 3+ years)
+    } else if (ageMonths >= 4) {
       months = 12;
     }
   }

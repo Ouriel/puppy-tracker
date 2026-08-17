@@ -166,7 +166,7 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = React.memo(({
             <button
               type="button"
               onClick={() => onQuickAction('pee', 'outside')}
-              className="w-full h-9 flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs rounded-xl shadow transition-colors px-2"
+              className="w-full h-11 flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs rounded-xl shadow transition-colors px-2"
             >
               <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
               <span className="truncate">{t.potty.peedOutside}</span>
@@ -174,7 +174,7 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = React.memo(({
             <button
               type="button"
               onClick={() => onQuickAction('pee', 'indoor_accident')}
-              className="w-full h-9 flex items-center justify-center gap-1.5 bg-rose-950/70 border border-rose-700/70 text-rose-300 hover:bg-rose-900/80 font-bold text-xs rounded-xl transition-colors px-2"
+              className="w-full h-11 flex items-center justify-center gap-1.5 bg-rose-950/70 border border-rose-700/70 text-rose-300 hover:bg-rose-900/80 font-bold text-xs rounded-xl transition-colors px-2"
             >
               <span className="truncate">{t.potty.accident}</span>
             </button>
@@ -246,7 +246,7 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = React.memo(({
             <button
               type="button"
               onClick={() => onQuickAction('poop', 'outside')}
-              className="w-full h-9 flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs rounded-xl shadow transition-colors px-2"
+              className="w-full h-11 flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs rounded-xl shadow transition-colors px-2"
             >
               <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
               <span className="truncate">{t.potty.poopedOutside}</span>
@@ -254,7 +254,7 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = React.memo(({
             <button
               type="button"
               onClick={() => onQuickAction('poop', 'indoor_accident')}
-              className="w-full h-9 flex items-center justify-center gap-1.5 bg-rose-950/70 border border-rose-700/70 text-rose-300 hover:bg-rose-900/80 font-bold text-xs rounded-xl transition-colors px-2"
+              className="w-full h-11 flex items-center justify-center gap-1.5 bg-rose-950/70 border border-rose-700/70 text-rose-300 hover:bg-rose-900/80 font-bold text-xs rounded-xl transition-colors px-2"
             >
               <span className="truncate">{t.potty.accident}</span>
             </button>
@@ -321,7 +321,7 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = React.memo(({
             <button
               type="button"
               onClick={() => onOpenQuickLogModal('food')}
-              className="w-full h-9 flex items-center justify-center gap-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold text-xs rounded-xl shadow transition-colors px-3"
+              className="w-full h-11 flex items-center justify-center gap-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold text-xs rounded-xl shadow transition-colors px-3"
             >
               <Utensils className="w-3.5 h-3.5 shrink-0" />
               <span className="truncate">{t.dashboard.feedMealNow} ({portionLeftForNextMeal}g)</span>

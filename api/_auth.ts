@@ -13,8 +13,8 @@ export function setCorsHeaders(req: VercelRequest, res: VercelResponse, methods 
     !origin ||
     origin.startsWith('http://localhost:') ||
     origin.startsWith('http://127.0.0.1:') ||
-    origin.endsWith('.vercel.app') ||
-    origin === 'https://puppace.vercel.app';
+    origin === 'https://puppace.vercel.app' ||
+    /^https:\/\/puppy-tracker-[a-z0-9-]+-matthieus-projects\.vercel\.app$/.test(origin);
 
   if (isAllowed && origin) {
     res.setHeader('Access-Control-Allow-Origin', origin);
@@ -29,10 +29,7 @@ const client = new OAuth2Client();
 function getSessionSecret(): string {
   const secret = process.env.SESSION_SECRET;
   if (!secret) {
-    if (process.env.NODE_ENV === 'production') {
-      throw new Error('CRITICAL SECURITY CONFIGURATION ERROR: SESSION_SECRET environment variable is required in production.');
-    }
-    return 'puppace-app-session-secret-dev-2026';
+    throw new Error('SESSION_SECRET environment variable is required. Set it in .env.local or Vercel environment settings.');
   }
   return secret;
 }
