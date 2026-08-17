@@ -254,7 +254,7 @@ describe('predictions utility — comprehensive test suite', () => {
 
         const predictions = calculatePredictions(simplePostMealDataset, mockProfile, referenceTime, 'Europe/Paris');
         expect(predictions.poopMode).toBe('post_meal_override');
-        expect(predictions.poopReason).toContain('Gastrocolic reflex');
+        expect(predictions.poopReason).toContain('Poop break expected');
       });
 
       it('predicts feeding-linked poop when puppy ate today but has not pooped yet', () => {
