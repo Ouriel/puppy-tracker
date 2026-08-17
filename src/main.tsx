@@ -48,33 +48,31 @@ class ErrorBoundary extends Component<{ children: ReactNode }, ErrorBoundaryStat
   }
 }
 
+function getAppRoute(): string {
+  if (typeof window === 'undefined') return '/dashboard';
+  const path = window.location.pathname.toLowerCase();
+  if (path.includes('health-passport') || path.includes('passport') || path.includes('carnetdesante')) return '/health-passport';
+  if (path.includes('settings')) return '/settings';
+  return '/dashboard';
+}
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ErrorBoundary>
       <ToastProvider placement="bottom" />
       <App />
       <SpeedInsights
+        route={getAppRoute()}
         beforeSend={(event) => {
-          const path = window.location.pathname.toLowerCase();
-          const route = path.includes('health-passport') || path.includes('passport') || path.includes('carnetdesante')
-            ? '/health-passport'
-            : path.includes('settings')
-            ? '/settings'
-            : '/dashboard';
           return {
             ...event,
-            route,
+            route: getAppRoute(),
           };
         }}
       />
       <Analytics
         beforeSend={(event) => {
-          const path = window.location.pathname.toLowerCase();
-          const route = path.includes('health-passport') || path.includes('passport') || path.includes('carnetdesante')
-            ? '/health-passport'
-            : path.includes('settings')
-            ? '/settings'
-            : '/dashboard';
+          const route = getAppRoute();
           return {
             ...event,
             url: window.location.origin + route,
