@@ -578,5 +578,47 @@ describe('predictions utility — comprehensive test suite', () => {
       // From 18:00 to 01:00 (7 waking hours left) for 1 remaining meal -> 7 / 2 = 3.5h interval
       expect(foodPrediction.reason).toContain('spaced ~3.5h');
     });
+
+    it('accurately learns ~9h45m digestive intervals for 2x/day pooping patterns without 8h cutoff suppression', () => {
+      const activities: Activity[] = [];
+      // 5 days of data: morning poop at 07:30, evening poop at 17:15 (585 min / 9h45m gap)
+      for (let d = 0; d < 5; d++) {
+        const morningDate = new Date(2026, 7, 10 + d, 7, 30);
+        activities.push({ id: `po-m-${d}`, puppyId: 'pup-1', type: 'poop', timestamp: morningDate.toISOString(), loggedBy: 'Matthieu' });
+        const eveningDate = new Date(2026, 7, 10 + d, 17, 15);
+        activities.push({ id: `po-e-${d}`, puppyId: 'pup-1', type: 'poop', timestamp: eveningDate.toISOString(), loggedBy: 'Matthieu' });
+      }
+
+      const sleepSchedule = { bedtimeHour: 22, wakeupHour: 7, bedtimeStr: '22:00', wakeupStr: '07:00' };
+      const learned = calculateLearnedIntervalMinutes(activities, 'poop', 300, sleepSchedule, 'Europe/Paris');
+
+      expect(learned.isLearned).toBe(true);
+      expect(learned.sampleCount).toBeGreaterThanOrEqual(4);
+      // Learned interval should be ~585 mins (9h45m), NOT compressed to <5h
+      expect(learned.intervalMins).toBeGreaterThanOrEqual(580);
+      expect(learned.intervalMins).toBeLessThanOrEqual(860);
+    });
+
+    it('correctly marks breakfast as overdue during morning hours (e.g. 09:30 AM) when no breakfast is logged', () => {
+      const activities: Activity[] = [
+        // Yesterday's activities
+        { id: 'f-prev', puppyId: 'pup-1', type: 'food', timestamp: new Date(2026, 7, 9, 19, 0).toISOString(), quantityGrams: 100, loggedBy: 'Matthieu' },
+        // Wakeup activity recorded this morning at 07:15 AM
+        { id: 'p-today', puppyId: 'pup-1', type: 'pee', timestamp: new Date(2026, 7, 10, 7, 15).toISOString(), loggedBy: 'Matthieu' },
+      ];
+
+      // Current time is 09:30 AM on Aug 10, 2026
+      const refTime = new Date(2026, 7, 10, 9, 30);
+      const sleepSchedule = { bedtimeHour: 22, wakeupHour: 7, bedtimeStr: '22:00', wakeupStr: '07:00' };
+      const foodPrediction = predictNextFood(activities, mockProfile, refTime, { sleepSchedule, timeZone: 'Europe/Paris' });
+
+      expect(foodPrediction.mode).toBe('daytime_schedule');
+      expect(foodPrediction.urgency).toBe('overdue');
+      expect(foodPrediction.reason).toContain('Breakfast overdue');
+      // Next expected should be this morning (07:xx AM today), NOT tomorrow morning (+21h)
+      expect(foodPrediction.nextExpectedAt.getDate()).toBe(10);
+      expect(foodPrediction.nextExpectedAt.getHours()).toBe(7);
+      expect((refTime.getTime() - foodPrediction.nextExpectedAt.getTime()) / 60000).toBeGreaterThan(60);
+    });
   });
 });

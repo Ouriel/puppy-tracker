@@ -341,8 +341,9 @@ export function calculateLearnedIntervalMinutes(
     return { intervalMins: fallbackMinutes, deltaMins: defaultDelta, sampleCount: sortedLogs.length, isLearned: false };
   }
 
-  // Filter daytime gaps occurring between morning wakeup and bedtime
+  // Filter gaps: for pee, daytime waking intervals; for poop, 24/7 digestive transit intervals
   const minThresholdMins = type === 'pee' ? 45 : 90; // Exclude short double-void walk pees (<45m) and same-walk poops (<90m)
+  const maxThresholdMins = type === 'pee' ? 8 * 60 : 24 * 60;
   const intervals: { diffMinutes: number; weight: number }[] = [];
 
   for (let i = 1; i < sortedLogs.length; i++) {
@@ -350,26 +351,33 @@ export function calculateLearnedIntervalMinutes(
     const currTime = parseIsoDate(sortedLogs[i].timestamp);
     const diffMinutes = (currTime.getTime() - prevTime.getTime()) / (1000 * 60);
 
-    if (diffMinutes >= minThresholdMins && diffMinutes <= 14 * 60) {
-      const prevHour = getLocalHour(prevTime, timeZone);
-      const currHour = getLocalHour(currTime, timeZone);
-
-      const isPrevDay = isDaytimeHour(prevHour, sleepSchedule.wakeupHour, sleepSchedule.bedtimeHour);
-      const isCurrDay = isDaytimeHour(currHour, sleepSchedule.wakeupHour, sleepSchedule.bedtimeHour);
-
-      // Check if interval spans across the overnight sleep period (from bedtime to morning wakeup)
-      const crossesNight = (
-        getLocalHour(currTime, timeZone) >= sleepSchedule.wakeupHour &&
-        (prevHour >= Math.floor(sleepSchedule.bedtimeHour - 3) || isNighttimeHour(prevHour, sleepSchedule.wakeupHour, sleepSchedule.bedtimeHour) || (prevHour < sleepSchedule.wakeupHour && prevHour <= Math.ceil(sleepSchedule.bedtimeHour))) &&
-        diffMinutes > 4 * 60
-      );
-
-      // Allow valid waking retention intervals (including pre-bedtime outings around midnight)
-      if (isPrevDay && isCurrDay && !crossesNight && diffMinutes <= 8 * 60) {
-        // Exponential time decay: 3-day half-life so recent days count significantly more
+    if (diffMinutes >= minThresholdMins && diffMinutes <= maxThresholdMins) {
+      if (type === 'poop') {
+        // Gastrointestinal transit operates continuously 24/7 across consecutive bowel movements
         const daysAgo = Math.max(0, (nowTime - currTime.getTime()) / (1000 * 60 * 60 * 24));
         const weight = Math.exp(-daysAgo / 3);
         intervals.push({ diffMinutes, weight });
+      } else {
+        const prevHour = getLocalHour(prevTime, timeZone);
+        const currHour = getLocalHour(currTime, timeZone);
+
+        const isPrevDay = isDaytimeHour(prevHour, sleepSchedule.wakeupHour, sleepSchedule.bedtimeHour);
+        const isCurrDay = isDaytimeHour(currHour, sleepSchedule.wakeupHour, sleepSchedule.bedtimeHour);
+
+        // Check if interval spans across the overnight sleep period (from bedtime to morning wakeup)
+        const crossesNight = (
+          getLocalHour(currTime, timeZone) >= sleepSchedule.wakeupHour &&
+          (prevHour >= Math.floor(sleepSchedule.bedtimeHour - 3) || isNighttimeHour(prevHour, sleepSchedule.wakeupHour, sleepSchedule.bedtimeHour) || (prevHour < sleepSchedule.wakeupHour && prevHour <= Math.ceil(sleepSchedule.bedtimeHour))) &&
+          diffMinutes > 4 * 60
+        );
+
+        // Allow valid waking retention intervals (including pre-bedtime outings around midnight)
+        if (isPrevDay && isCurrDay && !crossesNight && diffMinutes <= 8 * 60) {
+          // Exponential time decay: 3-day half-life so recent days count significantly more
+          const daysAgo = Math.max(0, (nowTime - currTime.getTime()) / (1000 * 60 * 60 * 24));
+          const weight = Math.exp(-daysAgo / 3);
+          intervals.push({ diffMinutes, weight });
+        }
       }
     }
   }
@@ -402,7 +410,7 @@ export function calculateLearnedIntervalMinutes(
   const deltaMins = Math.max(minDelta, Math.min(rawDelta, maxDelta));
 
   const minInterval = type === 'pee' ? 30 : 180;
-  const maxInterval = type === 'pee' ? 360 : 720;
+  const maxInterval = type === 'pee' ? 360 : 1440;
 
   return {
     intervalMins: Math.max(minInterval, Math.min(medianMinutes, maxInterval)),
@@ -710,38 +718,47 @@ export function predictNextFood(
   const isCurrentlyNight = isNighttimeHour(currentHour, sleepSchedule.wakeupHour, sleepSchedule.bedtimeHour);
   const isNightTime = (isMorningWindow ? !hasAwokenToday : true) && (isCurrentlyNight || isApproaching);
 
-  const targetWakeup = getNextOccurrenceOfClockTime(now, sleepSchedule.wakeupHour);
-  const targetBreakfast = new Date(targetWakeup.getTime() + offsets.morningFoodOffsetMins * 60 * 1000);
-  const bfastStr = `${String(targetBreakfast.getHours()).padStart(2, '0')}:${String(targetBreakfast.getMinutes()).padStart(2, '0')}`;
+  // Today's scheduled breakfast time (for overdue checks during daytime)
+  const wakeH = Math.floor(sleepSchedule.wakeupHour);
+  const wakeM = Math.round((sleepSchedule.wakeupHour - wakeH) * 60);
+  const todayWakeup = new Date(now);
+  todayWakeup.setHours(wakeH, wakeM, 0, 0);
+  const todayBreakfast = new Date(todayWakeup.getTime() + offsets.morningFoodOffsetMins * 60 * 1000);
+  const todayBfastStr = `${String(todayBreakfast.getHours()).padStart(2, '0')}:${String(todayBreakfast.getMinutes()).padStart(2, '0')}`;
+
+  // Next upcoming morning breakfast (for night sleep or goal reached)
+  const tomorrowWakeup = getNextOccurrenceOfClockTime(now, sleepSchedule.wakeupHour);
+  const tomorrowBreakfast = new Date(tomorrowWakeup.getTime() + offsets.morningFoodOffsetMins * 60 * 1000);
+  const tomorrowBfastStr = `${String(tomorrowBreakfast.getHours()).padStart(2, '0')}:${String(tomorrowBreakfast.getMinutes()).padStart(2, '0')}`;
 
   const lateEveningFoodHour = Math.max(20, Math.floor(sleepSchedule.bedtimeHour - 1));
 
-  let nextExpectedAt: Date = targetBreakfast;
+  let nextExpectedAt: Date = todayBreakfast;
   let mode: FoodScheduleMode = 'daytime_schedule';
   let urgency: 'safe' | 'soon' | 'overdue' = 'safe';
   let reason = '';
 
   if (isNightTime) {
     mode = 'night_sleep';
-    nextExpectedAt = targetBreakfast;
-    reason = `Night mode: Sleeping until morning breakfast (~${bfastStr})`;
+    nextExpectedAt = tomorrowBreakfast;
+    reason = `Night mode: Sleeping until morning breakfast (~${tomorrowBfastStr})`;
   } else if (isGoalReached || currentHour >= lateEveningFoodHour) {
     mode = 'goal_reached';
-    nextExpectedAt = targetBreakfast;
+    nextExpectedAt = tomorrowBreakfast;
     reason = isGoalReached
-      ? `Today's food goal reached (${todayGramTotal}g logged). Next: Breakfast tomorrow ~${bfastStr}`
-      : `Evening mode: Next meal is breakfast tomorrow ~${bfastStr}`;
+      ? `Today's food goal reached (${todayGramTotal}g logged). Next: Breakfast tomorrow ~${tomorrowBfastStr}`
+      : `Evening mode: Next meal is breakfast tomorrow ~${tomorrowBfastStr}`;
   } else if (todayMeals.length === 0) {
-    nextExpectedAt = targetBreakfast;
-    const minsUntilBreakfast = (targetBreakfast.getTime() - now.getTime()) / 60000;
+    nextExpectedAt = todayBreakfast;
+    const minsUntilBreakfast = (todayBreakfast.getTime() - now.getTime()) / 60000;
     if (minsUntilBreakfast > 30) {
-      reason = `Puppy resting. Breakfast scheduled at ~${bfastStr} (Meal 1 of ${targetMeals})`;
+      reason = `Puppy resting. Breakfast scheduled at ~${todayBfastStr} (Meal 1 of ${targetMeals})`;
     } else if (minsUntilBreakfast >= -60) {
       urgency = minsUntilBreakfast <= 15 ? 'soon' : 'safe';
-      reason = `Morning breakfast due (~${bfastStr}, Meal 1 of ${targetMeals})`;
+      reason = `Morning breakfast due (~${todayBfastStr}, Meal 1 of ${targetMeals})`;
     } else {
       urgency = 'overdue';
-      reason = `Breakfast overdue (expected ~${bfastStr}, Meal 1 of ${targetMeals})`;
+      reason = `Breakfast overdue (expected ~${todayBfastStr}, Meal 1 of ${targetMeals})`;
     }
   } else {
     // Spaced daytime schedule for remaining meals
