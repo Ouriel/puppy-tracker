@@ -129,6 +129,10 @@ export interface PredictionResult {
   foodMode: FoodScheduleMode;
   foodUrgency: 'safe' | 'soon' | 'overdue';
   foodReason: string;
+
+  sleepSchedule?: SleepSchedule;
+  mealSchedule?: { breakfastMins: number; lunchMins: number; dinnerMins: number };
+  portionGrams?: number;
 }
 
 export interface PottyStats {

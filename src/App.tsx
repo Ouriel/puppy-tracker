@@ -387,6 +387,7 @@ export function App() {
               <DogHealthSummary
                 profile={puppyState.activePuppy}
                 activities={activePuppyActivities}
+                predictions={predictions}
                 onOpenHealthPassport={() => handleNavigate('carnetdesante')}
                 lang={lang}
               />

@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import type { PuppyProfile, Activity, HealthRecord } from '../types';
+import type { PuppyProfile, Activity, HealthRecord, PredictionResult } from '../types';
 import { Syringe, Pill, Dog, Scale, ExternalLink, Moon, Sunrise, Utensils, Clock, Sparkles } from 'lucide-react';
 import { Card, Button, Chip } from '@heroui/react';
 import { useI18n, type Language } from '../i18n';
 import { formatBreedName } from '../utils/breeds';
 import { calculateProjectedAdultWeightRange, getEffectivePuppyWeight } from '../utils/weight';
-import { getPuppyAge, detectSleepSchedule, detectMealSchedule } from '../utils/predictions';
+import { getPuppyAge } from '../utils/predictions';
 import { fetchHealthRecords } from '../services/api';
 import { calculateNextVaccineBooster, calculateNextDewormingDate } from '../utils/health';
 import { formatShortDate } from '../utils/date';
@@ -13,6 +13,7 @@ import { formatShortDate } from '../utils/date';
 interface DogHealthSummaryProps {
   profile: PuppyProfile;
   activities: Activity[];
+  predictions?: PredictionResult | null;
   onOpenHealthPassport: () => void;
   lang: string;
 }
@@ -20,6 +21,7 @@ interface DogHealthSummaryProps {
 export const DogHealthSummary: React.FC<DogHealthSummaryProps> = ({
   profile,
   activities,
+  predictions,
   onOpenHealthPassport,
   lang,
 }) => {
@@ -80,10 +82,14 @@ export const DogHealthSummary: React.FC<DogHealthSummaryProps> = ({
     };
   }, [activities, profile, ageInfo.weeks, lang]);
 
-  // Calculate learned/predicted sleep and meal schedule
+  // Reuses the core prediction metadata (sleep schedule & meal schedule) calculated for the main 3 cards
   const scheduleData = useMemo(() => {
-    const sleep = detectSleepSchedule(activities);
-    const meals = detectMealSchedule(activities);
+    if (!predictions || !predictions.sleepSchedule || !predictions.mealSchedule) {
+      return null;
+    }
+
+    const sleep = predictions.sleepSchedule;
+    const meals = predictions.mealSchedule;
 
     const formatMinsToClock = (totalMins: number): string => {
       const h = Math.floor(totalMins / 60) % 24;
@@ -101,7 +107,7 @@ export const DogHealthSummary: React.FC<DogHealthSummaryProps> = ({
 
     const targetMeals = profile.targetMealsPerDay || 3;
     const dailyGrams = profile.dailyFoodGramGoal || 200;
-    const portionGrams = Math.round(dailyGrams / targetMeals);
+    const portionGrams = predictions.portionGrams || Math.round(dailyGrams / targetMeals);
 
     // Build meal items list based on targetMealsPerDay
     const mealItems: { name: string; timeStr: string; grams: number }[] = [];
@@ -119,7 +125,6 @@ export const DogHealthSummary: React.FC<DogHealthSummaryProps> = ({
       mealItems.push({ name: t.health.afternoonSnack, timeStr: formatMinsToClock(snackMins), grams: portionGrams });
       mealItems.push({ name: t.health.dinner, timeStr: formatMinsToClock(meals.dinnerMins), grams: portionGrams });
     } else {
-      // Fallback
       mealItems.push({ name: t.health.breakfast, timeStr: formatMinsToClock(meals.breakfastMins), grams: portionGrams });
       if (targetMeals > 1) {
         mealItems.push({ name: t.health.dinner, timeStr: formatMinsToClock(meals.dinnerMins), grams: portionGrams });
@@ -130,15 +135,15 @@ export const DogHealthSummary: React.FC<DogHealthSummaryProps> = ({
     const isLearned = activities.length >= 5 || foodLogsCount >= 3;
 
     return {
-      bedtimeStr: sleep.bedtimeStr,
-      wakeupStr: sleep.wakeupStr,
+      bedtimeStr: sleep.bedtimeStr || '22:00',
+      wakeupStr: sleep.wakeupStr || '07:00',
       sleepDurationStr,
       mealItems,
       targetMeals,
       dailyGrams,
       isLearned,
     };
-  }, [activities, profile.targetMealsPerDay, profile.dailyFoodGramGoal, t]);
+  }, [predictions, activities, profile.targetMealsPerDay, profile.dailyFoodGramGoal, t]);
 
   const localizedBreed = formatBreedName(profile.breed, lang as Language);
 
@@ -202,76 +207,78 @@ export const DogHealthSummary: React.FC<DogHealthSummaryProps> = ({
         </div>
 
         {/* Calculated Daily Routine (Night Sleep & Meals) Card */}
-        <div className="bg-slate-950/60 p-4 rounded-xl border border-slate-800 space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Clock className="w-4 h-4 text-amber-400 shrink-0" />
-              <span className="text-xs font-bold text-slate-200">{t.health.dailySchedule}</span>
-            </div>
-            <span className="text-[10px] font-semibold text-slate-400 bg-slate-900 border border-slate-800 px-2 py-0.5 rounded-full flex items-center gap-1">
-              <Sparkles className="w-3 h-3 text-amber-400" />
-              {scheduleData.isLearned ? t.health.learnedFromLogs : t.health.defaultRoutine}
-            </span>
-          </div>
-
-          {/* Night Sleep / Wakeup Row */}
-          <div className="bg-slate-900/80 p-3 rounded-xl border border-slate-800/90 space-y-2">
-            <div className="flex items-center justify-between text-xs">
-              <div className="flex items-center gap-1.5 font-bold text-slate-300">
-                <Moon className="w-3.5 h-3.5 text-indigo-400" />
-                <span>{t.health.nightSleep}</span>
+        {scheduleData && (
+          <div className="bg-slate-950/60 p-4 rounded-xl border border-slate-800 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Clock className="w-4 h-4 text-amber-400 shrink-0" />
+                <span className="text-xs font-bold text-slate-200">{t.health.dailySchedule}</span>
               </div>
-              <span className="text-[11px] font-semibold text-indigo-300/90 bg-indigo-950/50 border border-indigo-800/40 px-2 py-0.5 rounded">
-                ~{scheduleData.sleepDurationStr}
+              <span className="text-[10px] font-semibold text-slate-400 bg-slate-900 border border-slate-800 px-2 py-0.5 rounded-full flex items-center gap-1">
+                <Sparkles className="w-3 h-3 text-amber-400" />
+                {scheduleData.isLearned ? t.health.learnedFromLogs : t.health.defaultRoutine}
               </span>
             </div>
 
-            <div className="grid grid-cols-2 gap-2 text-xs pt-0.5">
-              <div className="bg-slate-950/70 p-2.5 rounded-lg border border-slate-800/70">
-                <div className="flex items-center gap-1.5 text-slate-400 font-medium text-[11px]">
-                  <Moon className="w-3 h-3 text-indigo-400" />
-                  <span>{t.health.bedtime}</span>
+            {/* Night Sleep / Wakeup Row */}
+            <div className="bg-slate-900/80 p-3 rounded-xl border border-slate-800/90 space-y-2">
+              <div className="flex items-center justify-between text-xs">
+                <div className="flex items-center gap-1.5 font-bold text-slate-300">
+                  <Moon className="w-3.5 h-3.5 text-indigo-400" />
+                  <span>{t.health.nightSleep}</span>
                 </div>
-                <div className="font-extrabold text-indigo-300 text-sm mt-0.5">
-                  ~{scheduleData.bedtimeStr}
-                </div>
+                <span className="text-[11px] font-semibold text-indigo-300/90 bg-indigo-950/50 border border-indigo-800/40 px-2 py-0.5 rounded">
+                  ~{scheduleData.sleepDurationStr}
+                </span>
               </div>
 
-              <div className="bg-slate-950/70 p-2.5 rounded-lg border border-slate-800/70">
-                <div className="flex items-center gap-1.5 text-slate-400 font-medium text-[11px]">
-                  <Sunrise className="w-3 h-3 text-amber-400" />
-                  <span>{t.health.wakeup}</span>
+              <div className="grid grid-cols-2 gap-2 text-xs pt-0.5">
+                <div className="bg-slate-950/70 p-2.5 rounded-lg border border-slate-800/70">
+                  <div className="flex items-center gap-1.5 text-slate-400 font-medium text-[11px]">
+                    <Moon className="w-3 h-3 text-indigo-400" />
+                    <span>{t.health.bedtime}</span>
+                  </div>
+                  <div className="font-extrabold text-indigo-300 text-sm mt-0.5">
+                    ~{scheduleData.bedtimeStr}
+                  </div>
                 </div>
-                <div className="font-extrabold text-amber-300 text-sm mt-0.5">
-                  ~{scheduleData.wakeupStr}
+
+                <div className="bg-slate-950/70 p-2.5 rounded-lg border border-slate-800/70">
+                  <div className="flex items-center gap-1.5 text-slate-400 font-medium text-[11px]">
+                    <Sunrise className="w-3 h-3 text-amber-400" />
+                    <span>{t.health.wakeup}</span>
+                  </div>
+                  <div className="font-extrabold text-amber-300 text-sm mt-0.5">
+                    ~{scheduleData.wakeupStr}
+                  </div>
                 </div>
+              </div>
+            </div>
+
+            {/* Meals Schedule Row */}
+            <div className="bg-slate-900/80 p-3 rounded-xl border border-slate-800/90 space-y-2">
+              <div className="flex items-center justify-between text-xs">
+                <div className="flex items-center gap-1.5 font-bold text-slate-300">
+                  <Utensils className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>{t.health.mealSchedule}</span>
+                </div>
+                <span className="text-[11px] font-semibold text-emerald-300/90 bg-emerald-950/50 border border-emerald-800/40 px-2 py-0.5 rounded">
+                  {t.health.mealsPerDay.replace('{count}', String(scheduleData.targetMeals))} ({scheduleData.dailyGrams}g)
+                </span>
+              </div>
+
+              <div className={`grid gap-2 text-xs pt-0.5 ${scheduleData.mealItems.length === 2 ? 'grid-cols-2' : scheduleData.mealItems.length === 4 ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-3'}`}>
+                {scheduleData.mealItems.map((item, index) => (
+                  <div key={index} className="bg-slate-950/70 p-2.5 rounded-lg border border-slate-800/70">
+                    <div className="text-[11px] text-slate-400 font-medium truncate">{item.name}</div>
+                    <div className="font-extrabold text-emerald-300 text-sm mt-0.5">~{item.timeStr}</div>
+                    <div className="text-[10px] text-slate-400 mt-0.5 font-medium">~{item.grams}g</div>
+                  </div>
+                ))}
               </div>
             </div>
           </div>
-
-          {/* Meals Schedule Row */}
-          <div className="bg-slate-900/80 p-3 rounded-xl border border-slate-800/90 space-y-2">
-            <div className="flex items-center justify-between text-xs">
-              <div className="flex items-center gap-1.5 font-bold text-slate-300">
-                <Utensils className="w-3.5 h-3.5 text-emerald-400" />
-                <span>{t.health.mealSchedule}</span>
-              </div>
-              <span className="text-[11px] font-semibold text-emerald-300/90 bg-emerald-950/50 border border-emerald-800/40 px-2 py-0.5 rounded">
-                {t.health.mealsPerDay.replace('{count}', String(scheduleData.targetMeals))} ({scheduleData.dailyGrams}g)
-              </span>
-            </div>
-
-            <div className={`grid gap-2 text-xs pt-0.5 ${scheduleData.mealItems.length === 2 ? 'grid-cols-2' : scheduleData.mealItems.length === 4 ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-3'}`}>
-              {scheduleData.mealItems.map((item, index) => (
-                <div key={index} className="bg-slate-950/70 p-2.5 rounded-lg border border-slate-800/70">
-                  <div className="text-[11px] text-slate-400 font-medium truncate">{item.name}</div>
-                  <div className="font-extrabold text-emerald-300 text-sm mt-0.5">~{item.timeStr}</div>
-                  <div className="text-[10px] text-slate-400 mt-0.5 font-medium">~{item.grams}g</div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
+        )}
 
         {/* Dynamic Health Overview (Vaccine & Deworming) */}
         <div className="space-y-2.5">

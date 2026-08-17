@@ -940,5 +940,9 @@ export function calculatePredictions(
     foodMode: foodResult.mode,
     foodUrgency: foodResult.urgency,
     foodReason: foodResult.reason,
+
+    sleepSchedule,
+    mealSchedule: detectMealSchedule(activities, tz),
+    portionGrams: foodResult.portionGrams,
   };
 }
