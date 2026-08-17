@@ -647,7 +647,9 @@ export function predictNextPoop(
         const latestMealTime = parseIsoDate(todayMealsSorted[todayMealsSorted.length - 1].timestamp).getTime();
         const digestiveTransitMins = Math.max(240, learnedPoop.intervalMins);
         nextExpectedAt = new Date(latestMealTime + digestiveTransitMins * 60 * 1000);
-        reason = `Fed ${todayMealsSorted.length}× today, no poop yet. Expected ~${formatMinutesToXhXX(digestiveTransitMins)} after last meal.`;
+        reason = learnedPoop.isLearned
+          ? `Learned average: ~${formatMinutesToXhXX(digestiveTransitMins)} digestive interval (30-day history)`
+          : `Standard digestive interval (~${formatMinutesToXhXX(digestiveTransitMins)})`;
       } else {
         mode = 'daytime_baseline';
         nextExpectedAt = standardExpectedAt;
@@ -662,7 +664,7 @@ export function predictNextPoop(
   let urgency: 'safe' | 'soon' | 'overdue' = 'safe';
   if (mode !== 'night_sleep' && !isLastPoopConstipated) {
     if (diffMins <= 0) urgency = 'overdue';
-    else if (diffMins <= 25) urgency = 'soon';
+    else if (diffMins <= 30) urgency = 'soon';
   }
 
   const deltaMins = mode === 'post_meal_override' ? (months < 3 ? 10 : months < 6 ? 15 : 20) : learnedPoop.deltaMins;
@@ -678,7 +680,7 @@ export function predictNextPoop(
 }
 
 /**
- * Predicts the next expected Food event using the decoupled Food Pipeline.
+ * Predicts the next expected Food event using the decoupled Feeding Schedule Pipeline.
  */
 export function predictNextFood(
   activities: Activity[],
@@ -692,6 +694,8 @@ export function predictNextFood(
   const offsets = calculateMorningSequenceOffsets(activities, tz);
 
   const past = activities.filter((a) => parseIsoDate(a.timestamp).getTime() <= now.getTime());
+  const sorted = [...past].sort((a, b) => parseIsoDate(b.timestamp).getTime() - parseIsoDate(a.timestamp).getTime());
+
   const { months } = getPuppyAge(profile.birthDate, now);
   const vetRecommendedMeals = months < 3 ? 4 : months < 6 ? 3 : 2;
   const targetMeals = Math.max(1, profile.targetMealsPerDay || vetRecommendedMeals);
@@ -700,12 +704,13 @@ export function predictNextFood(
   const todayMeals = past.filter(
     (a) => a.type === 'food' && formatLocalDate(parseIsoDate(a.timestamp), tz) === todayDateStr
   );
-  const todayGramTotal = todayMeals.reduce((sum, a) => sum + (a.quantityGrams ?? 80), 0);
+  const todayGramTotal = todayMeals.reduce((sum, a) => sum + (a.quantityGrams || 0), 0);
   const isGramGoalMet = profile.dailyFoodGramGoal > 0 && todayGramTotal >= profile.dailyFoodGramGoal * 0.90;
   const isGoalReached = isGramGoalMet || (profile.dailyFoodGramGoal === 0 && todayMeals.length >= targetMeals);
 
+  // Dynamic morning awakening window
   const isMorningWindow = currentHour >= (sleepSchedule.wakeupHour - 2) && currentHour < (sleepSchedule.wakeupHour + 3);
-  const hasAwokenToday = past.some((a) => {
+  const hasAwokenToday = sorted.some((a) => {
     const d = parseIsoDate(a.timestamp);
     return isSameLocalDate(d, now, tz) && getLocalHour(d, tz) >= (sleepSchedule.wakeupHour - 2);
   });
@@ -714,7 +719,7 @@ export function predictNextFood(
   const isCurrentlyNight = isNighttimeHour(currentHour, sleepSchedule.wakeupHour, sleepSchedule.bedtimeHour);
   const isNightTime = (isMorningWindow ? !hasAwokenToday : true) && (isCurrentlyNight || isApproaching);
 
-  // Today's scheduled breakfast time (for overdue checks during daytime)
+  // Today's scheduled breakfast time (for daytime schedule)
   const wakeH = Math.floor(sleepSchedule.wakeupHour);
   const wakeM = Math.round((sleepSchedule.wakeupHour - wakeH) * 60);
   const todayWakeup = new Date(now);
@@ -748,7 +753,7 @@ export function predictNextFood(
     nextExpectedAt = todayBreakfast;
     const minsUntilBreakfast = (todayBreakfast.getTime() - now.getTime()) / 60000;
     if (minsUntilBreakfast > 30) {
-      reason = `Puppy resting. Breakfast scheduled at ~${todayBfastStr} (Meal 1 of ${targetMeals})`;
+      reason = `Breakfast scheduled at ~${todayBfastStr} (Meal 1 of ${targetMeals})`;
     } else if (minsUntilBreakfast >= -60) {
       urgency = minsUntilBreakfast <= 15 ? 'soon' : 'safe';
       reason = `Morning breakfast due (~${todayBfastStr}, Meal 1 of ${targetMeals})`;

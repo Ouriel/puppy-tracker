@@ -257,7 +257,7 @@ describe('predictions utility — comprehensive test suite', () => {
         expect(predictions.poopReason).toContain('Poop break expected');
       });
 
-      it('predicts feeding-linked poop when puppy ate today but has not pooped yet', () => {
+      it('predicts daytime baseline poop based on learned interval when puppy ate today', () => {
         const referenceTime = new Date(2026, 7, 7, 14, 0); // 14:00 PM
         const simpleFeedingDataset: Activity[] = [
           { id: '1', puppyId: 'pup-1', type: 'poop', timestamp: new Date(2026, 7, 6, 19, 0).toISOString(), loggedBy: 'Matthieu' },
@@ -266,7 +266,7 @@ describe('predictions utility — comprehensive test suite', () => {
         ];
 
         const predictions = calculatePredictions(simpleFeedingDataset, mockProfile, referenceTime, 'Europe/Paris');
-        expect(predictions.poopReason).toContain('no poop yet');
+        expect(predictions.poopMode).toBe('daytime_baseline');
         expect(predictions.nextPoopExpectedAt).not.toBeNull();
       });
 
