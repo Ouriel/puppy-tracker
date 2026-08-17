@@ -35,27 +35,39 @@ export function usePuppies(initialPuppies: PuppyProfile[] = []) {
 
   const updatePuppy = useCallback(
     async (updatedPup: PuppyProfile) => {
+      const previousPuppies = puppies;
       setPuppies((prev) => prev.map((p) => (p.id === updatedPup.id ? updatedPup : p)));
-      await updateDog(updatedPup);
-      showToast(t.toasts.dogUpdated, 'success');
+      try {
+        await updateDog(updatedPup);
+        showToast(t.toasts.dogUpdated, 'success');
+      } catch {
+        setPuppies(previousPuppies);
+        showToast(t.toasts.errorGeneric || 'Update failed — changes reverted', 'error');
+      }
     },
-    [t.toasts.dogUpdated]
+    [puppies, t.toasts.dogUpdated, t.toasts.errorGeneric]
   );
 
   const deletePuppy = useCallback(
     async (id: string) => {
+      const previousPuppies = puppies;
       setPuppies((prev) => prev.filter((p) => p.id !== id));
-      await deleteDog(id);
-      if (activePuppyId === id) {
-        const remaining = puppies.filter((p) => p.id !== id);
-        if (remaining.length > 0) {
-          setActivePuppyIdState(remaining[0].id);
-          saveActivePuppyId(remaining[0].id);
+      try {
+        await deleteDog(id);
+        if (activePuppyId === id) {
+          const remaining = puppies.filter((p) => p.id !== id);
+          if (remaining.length > 0) {
+            setActivePuppyIdState(remaining[0].id);
+            saveActivePuppyId(remaining[0].id);
+          }
         }
+        showToast(t.toasts.dogDeleted, 'info');
+      } catch {
+        setPuppies(previousPuppies);
+        showToast(t.toasts.errorGeneric || 'Delete failed — changes reverted', 'error');
       }
-      showToast(t.toasts.dogDeleted, 'info');
     },
-    [activePuppyId, puppies, t.toasts.dogDeleted]
+    [activePuppyId, puppies, t.toasts.dogDeleted, t.toasts.errorGeneric]
   );
 
   return {

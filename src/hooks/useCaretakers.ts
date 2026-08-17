@@ -25,25 +25,43 @@ export function useCaretakers(
 
   const addCaretaker = useCallback(
     async (caretaker: Caretaker) => {
+      const previousCaretakers = caretakers;
       setCaretakers((prev) => [...prev, caretaker]);
-      await createCaretaker(caretaker);
-      showToast(t.toasts.memberAdded, 'success');
+      try {
+        await createCaretaker(caretaker);
+        showToast(t.toasts.memberAdded, 'success');
+      } catch {
+        setCaretakers(previousCaretakers);
+        showToast(t.toasts.errorGeneric || 'Failed to add — changes reverted', 'error');
+      }
     },
-    [t.toasts.memberAdded]
+    [caretakers, t.toasts.memberAdded, t.toasts.errorGeneric]
   );
 
   const updateCaretaker = useCallback(async (id: string, updatedFields: Partial<Caretaker>) => {
+    const previousCaretakers = caretakers;
     setCaretakers((prev) => prev.map((c) => (c.id === id ? { ...c, ...updatedFields } : c)));
-    await apiUpdateCaretaker({ id, ...updatedFields });
-  }, []);
+    try {
+      await apiUpdateCaretaker({ id, ...updatedFields });
+    } catch {
+      setCaretakers(previousCaretakers);
+      showToast(t.toasts.errorGeneric || 'Update failed — changes reverted', 'error');
+    }
+  }, [caretakers, t.toasts.errorGeneric]);
 
   const deleteCaretaker = useCallback(
     async (id: string) => {
+      const previousCaretakers = caretakers;
       setCaretakers((prev) => prev.filter((c) => c.id !== id));
-      await apiDeleteCaretaker(id);
-      showToast(t.toasts.memberRemoved, 'info');
+      try {
+        await apiDeleteCaretaker(id);
+        showToast(t.toasts.memberRemoved, 'info');
+      } catch {
+        setCaretakers(previousCaretakers);
+        showToast(t.toasts.errorGeneric || 'Delete failed — changes reverted', 'error');
+      }
     },
-    [t.toasts.memberRemoved]
+    [caretakers, t.toasts.memberRemoved, t.toasts.errorGeneric]
   );
 
   return {
