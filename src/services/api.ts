@@ -1,5 +1,5 @@
 import type { Activity, PuppyProfile, Caretaker, RegisteredUserItem, HealthRecord } from '../types';
-import { getAuthToken, clearAuthToken } from '../utils/auth';
+import { getAuthToken, setAuthToken, clearAuthToken } from '../utils/auth';
 import { showToast } from '../utils/toast';
 import { saveToOfflineQueue } from '../utils/storage';
 
@@ -264,6 +264,9 @@ export async function exchangeSessionToken(rawToken?: string): Promise<{ session
 
     if (res.ok) {
       const data = await res.json();
+      if (data?.sessionToken) {
+        setAuthToken(data.sessionToken);
+      }
       return data;
     }
   } catch (err) {

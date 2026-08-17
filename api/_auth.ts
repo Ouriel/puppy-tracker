@@ -5,7 +5,25 @@ import { drizzle } from 'drizzle-orm/neon-http';
 import { eq } from 'drizzle-orm';
 import { usersTable } from '../src/db/schema.js';
 import { isSuperAdminEmail } from '../src/constants/auth.js';
-import type { VercelRequest } from '@vercel/node';
+import type { VercelRequest, VercelResponse } from '@vercel/node';
+
+export function setCorsHeaders(req: VercelRequest, res: VercelResponse, methods = 'GET, POST, PUT, DELETE, OPTIONS') {
+  const origin = (req.headers.origin as string) || '';
+  const isAllowed =
+    !origin ||
+    origin.startsWith('http://localhost:') ||
+    origin.startsWith('http://127.0.0.1:') ||
+    origin.endsWith('.vercel.app') ||
+    origin === 'https://puppace.vercel.app';
+
+  if (isAllowed && origin) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+  } else if (!origin) {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+  }
+  res.setHeader('Access-Control-Allow-Methods', methods);
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+}
 
 const client = new OAuth2Client();
 function getSessionSecret(): string {
@@ -106,12 +124,15 @@ export async function verifyAuth(req: VercelRequest): Promise<AuthContext> {
   }
 
   // 2. Fallback: Verify as Google OAuth ID Token (Google SSO initial login)
-  const googleClientId = process.env.VITE_GOOGLE_CLIENT_ID || process.env.GOOGLE_CLIENT_ID;
+  const googleClientId =
+    process.env.VITE_GOOGLE_CLIENT_ID ||
+    process.env.GOOGLE_CLIENT_ID ||
+    '8924902082-52mf1l272khij6ac2racnh4p34h7fh08.apps.googleusercontent.com';
   let payload;
   try {
     const ticket = await client.verifyIdToken({
       idToken: token,
-      ...(googleClientId ? { audience: googleClientId } : {}),
+      audience: googleClientId,
     });
     payload = ticket.getPayload();
   } catch (err: any) {

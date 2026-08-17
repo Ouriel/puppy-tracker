@@ -1,4 +1,7 @@
+import type { UserAccount } from '../types';
+
 const TOKEN_KEY = 'puppace_auth_token';
+const USER_KEY = 'puppace_auth_user';
 
 let _authToken: string | null = typeof localStorage !== 'undefined' ? localStorage.getItem(TOKEN_KEY) : null;
 
@@ -20,10 +23,30 @@ export function setAuthToken(token: string | null): void {
   }
 }
 
+export function getStoredAuthUser(): UserAccount | null {
+  if (typeof localStorage === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem(USER_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function setStoredAuthUser(user: UserAccount | null): void {
+  if (typeof localStorage === 'undefined') return;
+  if (user) {
+    localStorage.setItem(USER_KEY, JSON.stringify(user));
+  } else {
+    localStorage.removeItem(USER_KEY);
+  }
+}
+
 export function clearAuthToken(): void {
   _authToken = null;
   if (typeof localStorage !== 'undefined') {
     localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(USER_KEY);
     localStorage.removeItem('puppace_unlocked_v4');
   }
 }

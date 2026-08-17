@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import type { Activity, UserAccount, ActivityType, PottyLocation, FamilyRole } from './types';
-import { getAuthToken, setAuthToken } from './utils/auth';
+import { getAuthToken, setAuthToken, getStoredAuthUser, setStoredAuthUser } from './utils/auth';
 import { isSuperAdminEmail } from './constants/auth';
 import {
   fetchDogs,
@@ -29,7 +29,10 @@ export function App() {
   const { lang, changeLanguage, t } = useI18n();
 
   const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [user, setUser] = useState<UserAccount | null>(null);
+  const [user, setUser] = useState<UserAccount | null>(() => {
+    const token = getAuthToken();
+    return token ? getStoredAuthUser() : null;
+  });
 
   // Domain state hooks
   const puppyState = usePuppies();
@@ -90,7 +93,13 @@ export function App() {
             role: (['Husband', 'Wife', 'Partner', 'Child', 'Dog Walker', 'Sitter', 'Relative', 'Member', 'SuperAdmin'].includes(sessionData.user.role) ? sessionData.user.role : 'Member') as FamilyRole,
           };
           setUser(userAccount);
+          setStoredAuthUser(userAccount);
+        } else if (!getStoredAuthUser()) {
+          setUser(null);
         }
+      } else {
+        setUser(null);
+        setStoredAuthUser(null);
       }
 
       const remoteDogs = await fetchDogs();
@@ -192,16 +201,19 @@ export function App() {
       role: isSuper ? 'SuperAdmin' : 'Member',
     };
     setUser(newUser);
+    setStoredAuthUser(newUser);
 
     // Sync session and load dogs in background
     exchangeSessionToken(token).then((sessionData) => {
       if (sessionData?.user) {
-        setUser({
+        const updatedUser: UserAccount = {
           id: sessionData.user.id || `u-${Date.now()}`,
           email: sessionData.user.email,
           name: sessionData.user.name,
           role: (['Husband', 'Wife', 'Partner', 'Child', 'Dog Walker', 'Sitter', 'Relative', 'Member', 'SuperAdmin'].includes(sessionData.user.role) ? sessionData.user.role : 'Member') as FamilyRole,
-        });
+        };
+        setUser(updatedUser);
+        setStoredAuthUser(updatedUser);
       }
       fetchDogs().then((remoteDogs) => {
         if (remoteDogs && remoteDogs.length > 0) {

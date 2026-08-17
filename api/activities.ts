@@ -3,7 +3,7 @@ import { neon } from '@neondatabase/serverless';
 import { drizzle } from 'drizzle-orm/neon-http';
 import { eq, and, desc, gte } from 'drizzle-orm';
 import { activitiesTable, puppiesTable } from '../src/db/schema.js';
-import { verifyAuth } from './_auth.js';
+import { verifyAuth, setCorsHeaders } from './_auth.js';
 import { z } from 'zod';
 
 const ActivitySchema = z.object({
@@ -29,12 +29,7 @@ function getDb() {
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  const allowedOrigin = process.env.NODE_ENV === 'development'
-    ? 'http://localhost:5173'
-    : 'https://puppace.vercel.app';
-  res.setHeader('Access-Control-Allow-Origin', allowedOrigin);
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  setCorsHeaders(req, res, 'GET, POST, PUT, DELETE, OPTIONS');
 
   if (req.method === 'OPTIONS') return res.status(200).end();
 
