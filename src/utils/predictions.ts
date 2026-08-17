@@ -631,7 +631,7 @@ export function predictNextPoop(
         mode = 'post_meal_override';
         nextExpectedAt = new Date(foodTime + postMealPoopDelay * 60 * 1000);
         reason = minsSinceMeal > postMealPoopDelay + 10
-          ? `Pup fed ${formatMinutesToXhXX(minsSinceMeal)} ago — post-meal poop break is overdue!`
+          ? `Pup fed ${formatMinutesToXhXX(minsSinceMeal)} ago — post-meal poop break (gastrocolic reflex) is overdue!`
           : `Pup fed recently (${formatMinutesToXhXX(minsSinceMeal)} ago). Poop break expected ~${postMealPoopDelay}m post-meal.`;
       }
     }
