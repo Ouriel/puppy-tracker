@@ -101,7 +101,8 @@ export function calculateNextMealPortion(
   const targetMeals = targetMealsPerDay || 3;
   const remainingGrams = Math.max(0, goal - loggedGramsToday);
   const remainingMeals = Math.max(1, targetMeals - loggedMealsCountToday);
-  return Math.round(remainingGrams / remainingMeals) || Math.round(goal / targetMeals);
+  const portion = Math.round(remainingGrams / remainingMeals);
+  return Number.isNaN(portion) ? Math.round(goal / targetMeals) : portion;
 }
 
 /**
@@ -274,7 +275,12 @@ export function calculateMorningSequenceOffsets(
   });
 
   const morningPoopOffsetMins = Math.round(calculateWeightedMedian(poopOffsets, defaultOffsets.morningPoopOffsetMins));
-  const morningFoodOffsetMins = Math.round(calculateWeightedMedian(foodOffsets, defaultOffsets.morningFoodOffsetMins));
+  let morningFoodOffsetMins = Math.round(calculateWeightedMedian(foodOffsets, defaultOffsets.morningFoodOffsetMins));
+
+  // Enforce morning sequence: Pee ≤ Poop ≤ Breakfast
+  if (morningFoodOffsetMins <= morningPoopOffsetMins) {
+    morningFoodOffsetMins = morningPoopOffsetMins + 5;
+  }
 
   return { morningPoopOffsetMins, morningFoodOffsetMins };
 }
@@ -688,7 +694,8 @@ export function predictNextPoop(
 
   if (isLastPoopDiarrhea && hoursSinceLastPoop < 12) {
     mode = 'daytime_baseline';
-    nextExpectedAt = new Date(lastPoopTime + 60 * 60 * 1000);
+    const elapsedHours = Math.floor((now.getTime() - lastPoopTime) / (60 * 60 * 1000));
+    nextExpectedAt = new Date(lastPoopTime + (elapsedHours + 1) * 60 * 60 * 1000);
     reason = 'GI Upset Alert: Liquid/diarrhea stool recorded. Frequent potty checks recommended (60m window).';
   } else if (isNightTime) {
     mode = 'night_sleep';

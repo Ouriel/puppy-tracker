@@ -55,8 +55,9 @@ describe('Veterinary & Behavioral Scenario Test Suite (Classic Rules)', () => {
 
   it('3. Diarrhea Emergency Spikes: Frequent 60m check-in window and GI upset alert', () => {
     const lastPoopTime = new Date('2026-08-10T10:00:00Z');
-    const refTime = new Date('2026-08-10T11:15:00Z');
 
+    // Within first hour: window should be at 60m mark
+    const earlyRef = new Date('2026-08-10T10:30:00Z');
     const activities: Activity[] = [
       {
         id: 'diarrhea-1',
@@ -69,11 +70,17 @@ describe('Veterinary & Behavioral Scenario Test Suite (Classic Rules)', () => {
       },
     ];
 
-    const pred = calculatePredictions(activities, profile, refTime, 'UTC');
+    const earlyPred = calculatePredictions(activities, profile, earlyRef, 'UTC');
+    expect(earlyPred.poopReason).toContain('GI Upset Alert');
+    const earlyMinutes = (earlyPred.nextPoopExpectedAt!.getTime() - lastPoopTime.getTime()) / 60000;
+    expect(earlyMinutes).toBe(60);
 
-    expect(pred.poopReason).toContain('GI Upset Alert');
-    const expectedMinutes = (pred.nextPoopExpectedAt!.getTime() - lastPoopTime.getTime()) / 60000;
-    expect(expectedMinutes).toBe(60);
+    // After first hour: sliding window advances to next hourly boundary
+    const lateRef = new Date('2026-08-10T11:15:00Z');
+    const latePred = calculatePredictions(activities, profile, lateRef, 'UTC');
+    expect(latePred.poopReason).toContain('GI Upset Alert');
+    const lateMinutes = (latePred.nextPoopExpectedAt!.getTime() - lastPoopTime.getTime()) / 60000;
+    expect(lateMinutes).toBe(120);
   });
 
   it('4. Constipation Refractory Window: Stool recovery keeps poop urgency safe', () => {
