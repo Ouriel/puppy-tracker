@@ -12,6 +12,7 @@ import type {
 import {
   parseIsoDate,
   formatLocalDate,
+  formatLogicalDate,
   formatMinutesToXhXX,
   getLocalHour,
   getUserTimezone,
@@ -159,10 +160,7 @@ export function detectSleepSchedule(
 
   targetLogs.forEach((activity) => {
     const d = parseIsoDate(activity.timestamp);
-    // Shift by -4 hours to create a logical day window (04:00 AM to 03:59 AM)
-    // This keeps post-midnight bedtime activities (e.g. 01:00 AM) grouped with the correct waking day
-    const shiftedDate = new Date(d.getTime() - 4 * 3600 * 1000);
-    const dateStr = formatLocalDate(shiftedDate, tz);
+    const dateStr = formatLogicalDate(d, tz);
     if (!byDate[dateStr]) byDate[dateStr] = [];
     byDate[dateStr].push(d);
   });

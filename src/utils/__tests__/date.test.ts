@@ -1,8 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import {
   formatLocalDate,
-  getLocalDatetimeString,
+  formatLogicalDate,
   isSameLocalDate,
+  isSameLogicalDate,
+  getLocalDatetimeString,
   formatRelativeTime,
   formatMinutesToXhXX,
   parseIsoDate,
@@ -65,13 +67,43 @@ describe('date utility module — comprehensive test suite', () => {
     expect(resEn).not.toContain('Invalid');
   });
 
-  it('formatMinutesToXhXX formats minutes < 60 as minutes and >= 60 as XhXX', () => {
+  it('formatMinutesToXhXX formats minutes into XhXX format when >= 60', () => {
     expect(formatMinutesToXhXX(45)).toBe('45m');
     expect(formatMinutesToXhXX(60)).toBe('1h');
     expect(formatMinutesToXhXX(75)).toBe('1h15');
     expect(formatMinutesToXhXX(120)).toBe('2h');
     expect(formatMinutesToXhXX(125)).toBe('2h05');
     expect(formatMinutesToXhXX(150)).toBe('2h30');
+  });
+
+  describe('Logical Day Boundary (4:00 AM cutoff)', () => {
+    it('formatLogicalDate attributes post-midnight activities (00:00 to 03:59 AM) to previous calendar day', () => {
+      // 01:30 AM on Tuesday August 11 -> logical day is Monday August 10
+      const nightDate = new Date(2026, 7, 11, 1, 30);
+      expect(formatLogicalDate(nightDate)).toBe('2026-08-10');
+
+      // 03:55 AM on Tuesday August 11 -> logical day is Monday August 10
+      const lateNightDate = new Date(2026, 7, 11, 3, 55);
+      expect(formatLogicalDate(lateNightDate)).toBe('2026-08-10');
+
+      // 04:00 AM on Tuesday August 11 -> logical day is Tuesday August 11
+      const morningDate = new Date(2026, 7, 11, 4, 0);
+      expect(formatLogicalDate(morningDate)).toBe('2026-08-11');
+
+      // 10:00 AM on Tuesday August 11 -> logical day is Tuesday August 11
+      const middayDate = new Date(2026, 7, 11, 10, 0);
+      expect(formatLogicalDate(middayDate)).toBe('2026-08-11');
+    });
+
+    it('isSameLogicalDate correctly groups evening and post-midnight outings together', () => {
+      const eveningWalk = new Date(2026, 7, 10, 22, 30); // 22:30 Monday
+      const bedtimePee = new Date(2026, 7, 11, 0, 45); // 00:45 Tuesday morning (post-midnight)
+      const nextMorningPee = new Date(2026, 7, 11, 7, 30); // 07:30 Tuesday morning (new waking day)
+
+      expect(isSameLogicalDate(eveningWalk, bedtimePee)).toBe(true);
+      expect(isSameLogicalDate(eveningWalk, nextMorningPee)).toBe(false);
+      expect(isSameLogicalDate(bedtimePee, nextMorningPee)).toBe(false);
+    });
   });
 
   it('parseIsoDate safely parses ISO strings, Date objects, and date-only strings', () => {

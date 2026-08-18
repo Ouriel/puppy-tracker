@@ -83,12 +83,49 @@ export function parseIsoDate(timestamp: string | Date): Date {
 }
 
 /**
+ * Default hour cutoff for puppy waking/night cycles (04:00 AM)
+ * Activities between 00:00 AM and 03:59 AM belong to previous waking day.
+ */
+export const LOGICAL_DAY_CUTOFF_HOURS = 4;
+
+/**
+ * Returns a Date shifted back by cutoff hours to compute logical waking day
+ */
+export function getLogicalDate(date: Date | string = new Date(), cutoffHours: number = LOGICAL_DAY_CUTOFF_HOURS): Date {
+  const d = typeof date === 'string' ? parseIsoDate(date) : date;
+  return new Date(d.getTime() - cutoffHours * 3600 * 1000);
+}
+
+/**
+ * Returns YYYY-MM-DD for the logical waking day of a timestamp
+ */
+export function formatLogicalDate(
+  date: Date | string = new Date(),
+  timeZone?: string,
+  cutoffHours: number = LOGICAL_DAY_CUTOFF_HOURS
+): string {
+  return formatLocalDate(getLogicalDate(date, cutoffHours), timeZone);
+}
+
+/**
  * Checks whether two Date objects (or ISO strings) fall on the exact same local calendar day
  */
 export function isSameLocalDate(dateA: Date | string, dateB: Date | string, timeZone?: string): boolean {
   const dA = typeof dateA === 'string' ? parseIsoDate(dateA) : dateA;
   const dB = typeof dateB === 'string' ? parseIsoDate(dateB) : dateB;
   return formatLocalDate(dA, timeZone) === formatLocalDate(dB, timeZone);
+}
+
+/**
+ * Checks whether two Date objects (or ISO strings) fall on the exact same logical waking day (4:00 AM cutoff)
+ */
+export function isSameLogicalDate(
+  dateA: Date | string,
+  dateB: Date | string,
+  timeZone?: string,
+  cutoffHours: number = LOGICAL_DAY_CUTOFF_HOURS
+): boolean {
+  return formatLogicalDate(dateA, timeZone, cutoffHours) === formatLogicalDate(dateB, timeZone, cutoffHours);
 }
 
 /**
