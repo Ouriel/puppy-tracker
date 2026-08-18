@@ -270,6 +270,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
 
         {editingActivity && onUpdateActivity && (
           <EditActivityModal
+            key={`edit-${editingActivity.id}`}
             activity={editingActivity}
             onSave={(updated) => {
               onUpdateActivity(updated);

@@ -148,22 +148,43 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const body = parsed.data;
       if (!body.id) return res.status(400).json({ error: 'id is required' });
 
+      const type = body.type;
+      const isPotty = type === 'pee' || type === 'poop';
+      const isFood = type === 'food';
+      const isWeight = type === 'weight';
+      const isMedication = type === 'medication';
+      const isWalk = type === 'walk';
+
+      const updateValues: Record<string, any> = {
+        ...(type ? { type } : {}),
+        ...(body.timestamp ? { timestamp: new Date(body.timestamp) } : {}),
+        ...(body.loggedBy ? { loggedBy: body.loggedBy } : {}),
+        ...(body.notes !== undefined ? { notes: body.notes || null } : {}),
+      };
+
+      if (type) {
+        updateValues.pottyLocation = isPotty ? (body.pottyLocation || null) : null;
+        updateValues.stoolConsistency = type === 'poop' ? (body.stoolConsistency || null) : null;
+        updateValues.foodType = isFood ? (body.foodType || null) : null;
+        updateValues.quantityGrams = isFood && body.quantityGrams != null ? Number(body.quantityGrams) : null;
+        updateValues.quantityCups = isFood && body.quantityCups != null ? Number(body.quantityCups) : null;
+        updateValues.durationMinutes = isWalk && body.durationMinutes != null ? Number(body.durationMinutes) : null;
+        updateValues.weightKg = isWeight && body.weightKg != null ? Number(body.weightKg) : null;
+        updateValues.medicationName = isMedication ? (body.medicationName || null) : null;
+      } else {
+        if (body.pottyLocation !== undefined) updateValues.pottyLocation = body.pottyLocation || null;
+        if (body.stoolConsistency !== undefined) updateValues.stoolConsistency = body.stoolConsistency || null;
+        if (body.foodType !== undefined) updateValues.foodType = body.foodType || null;
+        if (body.quantityGrams !== undefined) updateValues.quantityGrams = body.quantityGrams != null ? Number(body.quantityGrams) : null;
+        if (body.quantityCups !== undefined) updateValues.quantityCups = body.quantityCups != null ? Number(body.quantityCups) : null;
+        if (body.durationMinutes !== undefined) updateValues.durationMinutes = body.durationMinutes != null ? Number(body.durationMinutes) : null;
+        if (body.weightKg !== undefined) updateValues.weightKg = body.weightKg != null ? Number(body.weightKg) : null;
+        if (body.medicationName !== undefined) updateValues.medicationName = body.medicationName || null;
+      }
+
       const [updated] = await db
         .update(activitiesTable)
-        .set({
-          type: body.type,
-          ...(body.timestamp ? { timestamp: new Date(body.timestamp) } : {}),
-          ...(body.loggedBy ? { loggedBy: body.loggedBy } : {}),
-          pottyLocation: body.pottyLocation || null,
-          stoolConsistency: body.stoolConsistency || null,
-          foodType: body.foodType || null,
-          quantityGrams: body.quantityGrams ? Number(body.quantityGrams) : null,
-          quantityCups: body.quantityCups ? Number(body.quantityCups) : null,
-          durationMinutes: body.durationMinutes ? Number(body.durationMinutes) : null,
-          weightKg: body.weightKg ? Number(body.weightKg) : null,
-          medicationName: body.medicationName || null,
-          notes: body.notes || null,
-        })
+        .set(updateValues)
         .where(and(eq(activitiesTable.id, body.id), eq(activitiesTable.householdId, householdId)))
         .returning();
 
@@ -178,8 +199,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // DELETE /api/activities
     if (req.method === 'DELETE') {
-      const deleteBody = req.body && typeof req.body === 'object' ? req.body : { id: req.query.id };
-      const deleteParsed = DeleteSchema.safeParse(deleteBody);
+      const rawId = (typeof req.query.id === 'string' && req.query.id) || (req.body && typeof req.body === 'object' && req.body.id);
+      const deleteParsed = DeleteSchema.safeParse({ id: rawId });
       if (!deleteParsed.success) return res.status(400).json({ error: 'Valid id is required' });
       const deleteId = deleteParsed.data.id;
 

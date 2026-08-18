@@ -143,3 +143,8 @@ export const CaretakerInputSchema = z.object({
   email: z.string().email().optional(),
 });
 
+export const DeleteSchema = z.object({
+  id: z.string().min(1, 'id is required'),
+});
+
+

@@ -155,8 +155,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(403).json({ error: 'Only admins can delete dogs' });
       }
 
-      const deleteBody = req.body && typeof req.body === 'object' ? req.body : { id: req.query.id };
-      const deleteParsed = DeleteSchema.safeParse(deleteBody);
+      const rawId = (typeof req.query.id === 'string' && req.query.id) || (req.body && typeof req.body === 'object' && req.body.id);
+      const deleteParsed = DeleteSchema.safeParse({ id: rawId });
       if (!deleteParsed.success) return res.status(400).json({ error: 'Valid id is required' });
       const deleteId = deleteParsed.data.id;
 
