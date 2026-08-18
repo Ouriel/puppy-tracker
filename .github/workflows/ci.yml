@@ -17,17 +17,14 @@ jobs:
           node-version: 22
           cache: npm
 
-      - name: Install Frontend Dependencies
+      - name: Install Dependencies
         run: npm ci
 
-      - name: Typecheck & Build Frontend
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck & Build
         run: npm run build
 
-      - name: Run Frontend Tests (Vitest)
+      - name: Run Tests (Vitest)
         run: npm test
-
-      - name: Install & Build Server
-        run: |
-          cd server
-          npm ci
-          npm run build
