@@ -13,10 +13,12 @@ import {
   parseIsoDate,
   formatLocalDate,
   formatLogicalDate,
+  formatLocalTime,
   formatMinutesToXhXX,
   getLocalHour,
   getUserTimezone,
   isSameLocalDate,
+  getOccurrenceOfClockTimeInTimezone,
 } from './date';
 
 /**
@@ -556,7 +558,10 @@ export function predictNextPee(
 
   if (isNightTime) {
     mode = 'night_sleep';
-    const targetWakeup = getNextOccurrenceOfClockTime(now, sleepSchedule.wakeupHour);
+    let targetWakeup = getOccurrenceOfClockTimeInTimezone(now, sleepSchedule.wakeupHour, tz, 0);
+    if (targetWakeup.getTime() <= now.getTime()) {
+      targetWakeup = getOccurrenceOfClockTimeInTimezone(now, sleepSchedule.wakeupHour, tz, 1);
+    }
 
     if (months < 2.5) {
       const midNightPee = new Date(lastPeeTime + 4 * 60 * 60 * 1000);
@@ -697,9 +702,12 @@ export function predictNextPoop(
     reason = 'GI Upset Alert: Liquid/diarrhea stool recorded. Frequent potty checks recommended (60m window).';
   } else if (isNightTime) {
     mode = 'night_sleep';
-    const targetWakeup = getNextOccurrenceOfClockTime(now, sleepSchedule.wakeupHour);
+    let targetWakeup = getOccurrenceOfClockTimeInTimezone(now, sleepSchedule.wakeupHour, tz, 0);
+    if (targetWakeup.getTime() <= now.getTime()) {
+      targetWakeup = getOccurrenceOfClockTimeInTimezone(now, sleepSchedule.wakeupHour, tz, 1);
+    }
     nextExpectedAt = new Date(targetWakeup.getTime() + offsets.morningPoopOffsetMins * 60 * 1000);
-    const targetH = String(nextExpectedAt.getHours()).padStart(2, '0');
+    const targetH = String(getLocalHour(nextExpectedAt, tz)).padStart(2, '0');
     const targetM = String(nextExpectedAt.getMinutes()).padStart(2, '0');
     reason = `Night mode: Sleeping until morning outing (~${targetH}:${targetM})`;
   } else if (isLastPoopConstipated && hoursSinceLastPoop < 16) {
@@ -813,19 +821,23 @@ export function predictNextFood(
   const isNightTime = (isMorningWindow ? !hasAwokenToday : true) && (isCurrentlyNight || isApproaching);
 
   // Today's scheduled breakfast time (for daytime schedule)
-  const wakeH = Math.floor(sleepSchedule.wakeupHour);
-  const wakeM = Math.round((sleepSchedule.wakeupHour - wakeH) * 60);
-  const todayWakeup = new Date(now);
-  todayWakeup.setHours(wakeH, wakeM, 0, 0);
+  const todayWakeup = getOccurrenceOfClockTimeInTimezone(now, sleepSchedule.wakeupHour, tz, 0);
   const todayBreakfast = new Date(todayWakeup.getTime() + offsets.morningFoodOffsetMins * 60 * 1000);
-  const todayBfastStr = `${String(todayBreakfast.getHours()).padStart(2, '0')}:${String(todayBreakfast.getMinutes()).padStart(2, '0')}`;
+  const todayBfastStr = formatLocalTime(todayBreakfast, tz);
 
   // Next upcoming morning breakfast (for night sleep or goal reached)
-  const tomorrowWakeup = getNextOccurrenceOfClockTime(now, sleepSchedule.wakeupHour);
+  const tomorrowWakeup = getOccurrenceOfClockTimeInTimezone(now, sleepSchedule.wakeupHour, tz, 1);
   const tomorrowBreakfast = new Date(tomorrowWakeup.getTime() + offsets.morningFoodOffsetMins * 60 * 1000);
-  const tomorrowBfastStr = `${String(tomorrowBreakfast.getHours()).padStart(2, '0')}:${String(tomorrowBreakfast.getMinutes()).padStart(2, '0')}`;
+  const tomorrowBfastStr = formatLocalTime(tomorrowBreakfast, tz);
 
-  const lateEveningFoodHour = Math.max(20, Math.floor(sleepSchedule.bedtimeHour - 1));
+  const effectiveBedtimeHour = sleepSchedule.bedtimeHour < sleepSchedule.wakeupHour
+    ? sleepSchedule.bedtimeHour + 24
+    : sleepSchedule.bedtimeHour;
+  const lateEveningThresholdHour = Math.max(20, Math.floor(effectiveBedtimeHour - 1));
+  const effectiveCurrentHour = (sleepSchedule.bedtimeHour < sleepSchedule.wakeupHour && currentHour < sleepSchedule.wakeupHour)
+    ? currentHour + 24
+    : currentHour;
+  const isLateEveningCutoff = effectiveCurrentHour >= lateEveningThresholdHour;
 
   let nextExpectedAt: Date = todayBreakfast;
   let mode: FoodScheduleMode = 'daytime_schedule';
@@ -836,7 +848,7 @@ export function predictNextFood(
     mode = 'night_sleep';
     nextExpectedAt = tomorrowBreakfast;
     reason = `Night mode: Sleeping until morning breakfast (~${tomorrowBfastStr})`;
-  } else if (isGoalReached || currentHour >= lateEveningFoodHour) {
+  } else if (isGoalReached || isLateEveningCutoff) {
     mode = 'goal_reached';
     nextExpectedAt = tomorrowBreakfast;
     reason = isGoalReached

@@ -75,6 +75,67 @@ export function formatLocalTime(date: Date, timeZone?: string): string {
 }
 
 /**
+ * Creates a Date object for a specific YYYY-MM-DD and HH:mm in a specified IANA timezone
+ */
+export function createDateInTimezone(dateStr: string, timeStr: string, timeZone?: string): Date {
+  const tz = timeZone || getUserTimezone();
+  const [year, month, day] = dateStr.split('-').map(Number);
+  const [hours, minutes] = timeStr.split(':').map(Number);
+
+  const utcDate = new Date(Date.UTC(year, (month || 1) - 1, day || 1, hours || 0, minutes || 0, 0));
+
+  try {
+    const formatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: tz,
+      year: 'numeric',
+      month: 'numeric',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: 'numeric',
+      second: 'numeric',
+      hour12: false,
+    });
+
+    const parts = formatter.formatToParts(utcDate);
+    const getPart = (type: string) => parseInt(parts.find((p) => p.type === type)?.value || '0', 10);
+
+    let formattedHour = getPart('hour');
+    if (formattedHour === 24) formattedHour = 0;
+    const targetTimeInTz = Date.UTC(
+      getPart('year'),
+      getPart('month') - 1,
+      getPart('day'),
+      formattedHour,
+      getPart('minute'),
+      getPart('second')
+    );
+
+    const offsetMs = targetTimeInTz - utcDate.getTime();
+    return new Date(utcDate.getTime() - offsetMs);
+  } catch {
+    return new Date(year, (month || 1) - 1, day || 1, hours || 0, minutes || 0);
+  }
+}
+
+/**
+ * Calculates a specific occurrence of a clock hour (e.g. 7.3 -> 07:18) in target timezone
+ */
+export function getOccurrenceOfClockTimeInTimezone(
+  referenceDate: Date,
+  targetHourDecimal: number,
+  timeZone?: string,
+  daysOffset: number = 0
+): Date {
+  const tz = timeZone || getUserTimezone();
+  const targetDay = new Date(referenceDate.getTime() + daysOffset * 24 * 3600 * 1000);
+  const dateStr = formatLocalDate(targetDay, tz);
+  const h = Math.floor(targetHourDecimal);
+  const m = Math.round((targetHourDecimal - h) * 60);
+  const timeStr = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+  return createDateInTimezone(dateStr, timeStr, tz);
+}
+
+/**
  * Parses ISO timestamp string or Date object into a JavaScript Date object
  */
 export function parseIsoDate(timestamp: string | Date): Date {

@@ -61,7 +61,7 @@ describe('SOTA Prediction Engine & Age-Decay Test Suite', () => {
     // Days 30 to 14 ago: Puppy was younger, pee interval = 120m (2 hours)
     for (let day = 30; day >= 14; day--) {
       const baseDate = new Date(now.getTime() - day * 86400000);
-      const d1 = new Date(baseDate.getFullYear(), baseDate.getMonth(), baseDate.getDate(), 8, 0);
+      const d1 = new Date(Date.UTC(baseDate.getUTCFullYear(), baseDate.getUTCMonth(), baseDate.getUTCDate(), 8, 0));
       const d2 = new Date(d1.getTime() + 120 * 60000); // 10:00 AM
       const d3 = new Date(d2.getTime() + 120 * 60000); // 12:00 PM
 
@@ -73,7 +73,7 @@ describe('SOTA Prediction Engine & Age-Decay Test Suite', () => {
     // Days 7 to 0 ago: Puppy grew older, pee interval = 210m (3.5 hours)
     for (let day = 7; day >= 0; day--) {
       const baseDate = new Date(now.getTime() - day * 86400000);
-      const d1 = new Date(baseDate.getFullYear(), baseDate.getMonth(), baseDate.getDate(), 8, 0);
+      const d1 = new Date(Date.UTC(baseDate.getUTCFullYear(), baseDate.getUTCMonth(), baseDate.getUTCDate(), 8, 0));
       const d2 = new Date(d1.getTime() + 210 * 60000); // 11:30 AM
       const d3 = new Date(d2.getTime() + 210 * 60000); // 15:00 PM
 
@@ -97,7 +97,7 @@ describe('SOTA Prediction Engine & Age-Decay Test Suite', () => {
     // 10 days of normal logging (every 180 mins)
     for (let day = 15; day >= 5; day--) {
       const baseDate = new Date(now.getTime() - day * 86400000);
-      const d1 = new Date(baseDate.getFullYear(), baseDate.getMonth(), baseDate.getDate(), 8, 0);
+      const d1 = new Date(Date.UTC(baseDate.getUTCFullYear(), baseDate.getUTCMonth(), baseDate.getUTCDate(), 8, 0));
       const d2 = new Date(d1.getTime() + 180 * 60000);
 
       activities.push({ id: `n1-${day}`, puppyId: 'pup-mid', type: 'pee', timestamp: d1.toISOString(), loggedBy: 'Matthieu' });
@@ -107,7 +107,7 @@ describe('SOTA Prediction Engine & Age-Decay Test Suite', () => {
     // Days 4 to 0: Single event per day (logged at 09:00 AM)
     for (let day = 4; day >= 0; day--) {
       const baseDate = new Date(now.getTime() - day * 86400000);
-      const d1 = new Date(baseDate.getFullYear(), baseDate.getMonth(), baseDate.getDate(), 9, 0);
+      const d1 = new Date(Date.UTC(baseDate.getUTCFullYear(), baseDate.getUTCMonth(), baseDate.getUTCDate(), 9, 0));
       activities.push({ id: `s-${day}`, puppyId: 'pup-mid', type: 'pee', timestamp: d1.toISOString(), loggedBy: 'Matthieu' });
     }
 
