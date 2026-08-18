@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import type { Activity, ActivityType, Caretaker, PuppyProfile } from '../types';
-import { Droplet, Footprints, Utensils, Trash2, Pencil, User, ChevronDown, Calendar, CheckCircle2, ChevronsUpDown } from 'lucide-react';
+import { Droplet, Utensils, Trash2, Pencil, User, ChevronDown, Calendar, CheckCircle2, ChevronsUpDown } from 'lucide-react';
+import { PoopIcon } from './common/PoopIcon';
 import { Button, Card, Chip } from '@heroui/react';
 import { useI18n } from '../i18n';
 import { formatRelativeTime, parseIsoDate, formatLogicalDate, getUserTimezone } from '../utils/date';
@@ -83,7 +84,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
       case 'pee':
         return <Droplet className="w-4 h-4 text-sky-400" />;
       case 'poop':
-        return <Footprints className="w-4 h-4 text-amber-400" />;
+        return <PoopIcon className="w-4 h-4 text-amber-400" />;
       case 'food':
         return <Utensils className="w-4 h-4 text-purple-400" />;
       default:
@@ -327,7 +328,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
                         className="inline-flex items-center gap-1 px-2 py-1 rounded-xl text-xs font-bold bg-amber-950/60 border border-amber-800/50 text-amber-300"
                         title={t.dashboard.poopsCount.replace('{count}', String(group.poopCount))}
                       >
-                        <Footprints className="w-3.5 h-3.5 shrink-0" />
+                        <PoopIcon className="w-3.5 h-3.5 shrink-0" />
                         <span>{group.poopCount}</span>
                       </div>
 

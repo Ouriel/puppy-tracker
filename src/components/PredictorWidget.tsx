@@ -1,6 +1,7 @@
 import React from 'react';
 import type { Activity, ActivityType, PottyLocation, PuppyProfile, PredictionResult } from '../types';
-import { Droplet, Footprints, Utensils, CheckCircle2 } from 'lucide-react';
+import { Droplet, Utensils, CheckCircle2 } from 'lucide-react';
+import { PoopIcon } from './common/PoopIcon';
 import { Card } from '@heroui/react';
 import { useI18n } from '../i18n';
 import { formatMinutesToXhXX, isSameLogicalDate, parseIsoDate } from '../utils/date';
@@ -183,7 +184,7 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = React.memo(({
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2">
                 <div className="p-1.5 bg-amber-600/20 text-amber-400 rounded-lg shrink-0 border border-amber-500/30">
-                  <Footprints className="w-4 h-4" />
+                  <PoopIcon className="w-4 h-4" />
                 </div>
                 <div className="text-xs font-bold text-slate-300">{t.potty.nextPoop}</div>
               </div>

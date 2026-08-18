@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import type { Activity, ActivityType, PottyLocation, StoolConsistency } from '../types';
-import { Droplet, Footprints, Utensils, Scale, Pill, X, Calendar, FileText } from 'lucide-react';
+import { Droplet, Utensils, Scale, Pill, X, Calendar, FileText } from 'lucide-react';
+import { PoopIcon } from './common/PoopIcon';
 import { Modal } from '@heroui/react';
 import { useI18n } from '../i18n';
 import { getLocalDatetimeString } from '../utils/date';
@@ -90,7 +91,7 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
 
   const activityTypes: { type: ActivityType; label: string; icon: React.ReactNode; color: string }[] = [
     { type: 'pee', label: t.potty.pee, icon: <Droplet className="w-5 h-5" />, color: 'text-amber-400' },
-    { type: 'poop', label: t.potty.poop, icon: <Footprints className="w-5 h-5" />, color: 'text-amber-600' },
+    { type: 'poop', label: t.potty.poop, icon: <PoopIcon className="w-5 h-5" />, color: 'text-amber-600' },
     { type: 'food', label: t.potty.food, icon: <Utensils className="w-5 h-5" />, color: 'text-purple-400' },
     { type: 'weight', label: t.potty.weight, icon: <Scale className="w-5 h-5" />, color: 'text-pink-400' },
     { type: 'medication', label: t.potty.medication, icon: <Pill className="w-5 h-5" />, color: 'text-teal-400' },
