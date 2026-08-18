@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import type { PuppyProfile } from '../types';
-import { Dog, Plus, Trash2, Edit3, Utensils, Calendar } from 'lucide-react';
+import { Dog, Plus, Trash2, Pencil, Utensils, Calendar } from 'lucide-react';
 import { useI18n } from '../i18n';
 import { formatBreedName } from '../utils/breeds';
 import { Card, Button, Input, Select, ListBox, ListBoxItem, Chip } from '@heroui/react';
@@ -108,21 +108,23 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
   return (
     <div className="space-y-6 w-full">
       {/* Header */}
-      <Card className="bg-slate-900 border-slate-800 text-slate-100">
-        <Card.Content className="flex flex-wrap items-center justify-between gap-4 p-6">
-          <div className="flex items-center gap-3">
-            <div className="p-3 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl shadow-md">
-              <Dog className="w-6 h-6 text-white" />
+      <Card className="bg-slate-900 border-slate-800 text-slate-100 shadow-xl">
+        <Card.Content className="flex flex-wrap items-center justify-between gap-3 p-3.5 sm:p-5">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="p-2.5 sm:p-3 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl shadow-md shrink-0">
+              <Dog className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
             </div>
-            <div>
-              <h2 className="text-xl font-bold text-slate-100">{t.puppies.title}</h2>
-              <p className="text-xs text-slate-400">{t.puppies.subtitle}</p>
+            <div className="min-w-0">
+              <h2 className="text-base sm:text-lg font-black text-slate-100 truncate">{t.puppies.title}</h2>
+              <p className="text-xs text-slate-400 truncate">{t.puppies.subtitle}</p>
             </div>
           </div>
 
           <Button
             variant="primary"
+            size="sm"
             onPress={() => setIsAdding(!isAdding)}
+            className="bg-indigo-600 hover:bg-indigo-500 font-bold text-xs shadow-sm"
           >
             <Plus className="w-4 h-4 mr-1 inline" />
             {isAdding ? t.potty.cancel : t.puppies.addDog}
@@ -134,10 +136,10 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
       {isAdding && (
         <Card className="bg-slate-900 border-slate-800 text-slate-100">
           <form onSubmit={handleCreateSubmit}>
-            <Card.Header>
-              <Card.Title className="text-white font-bold">{t.puppies.registerNewDog}</Card.Title>
+            <Card.Header className="p-4 sm:p-6 pb-0">
+              <Card.Title className="text-white font-bold text-sm sm:text-base">{t.puppies.registerNewDog}</Card.Title>
             </Card.Header>
-            <Card.Content className="p-6 space-y-4">
+            <Card.Content className="p-4 sm:p-6 space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-semibold text-slate-400 mb-1">
@@ -270,7 +272,7 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
                   <Card.Content className="p-5 space-y-4">
                     <div className="flex items-center justify-between border-b border-slate-800 pb-3">
                       <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                        <Edit3 className="w-4 h-4 text-indigo-400" />
+                        <Pencil className="w-4 h-4 text-indigo-400" />
                         <span>{t.puppies.editProfileTitle.replace('{name}', pup.name)}</span>
                       </h3>
                     </div>
@@ -390,33 +392,34 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
                   isActive ? 'border-indigo-500/80 ring-2 ring-indigo-500/20' : ''
                 }`}
               >
-                <Card.Content className="p-5 space-y-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex items-center gap-3">
+                <Card.Content className="p-3.5 sm:p-5 space-y-4">
+                  <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
                       <img
                         src={pup.avatarUrl || '/cocker_spaniel_mascot.jpg'}
                         alt={pup.name}
-                        className="w-14 h-14 rounded-full object-cover ring-2 ring-indigo-500/50 shadow"
+                        className="w-12 h-12 sm:w-14 sm:h-14 rounded-full object-cover ring-2 ring-indigo-500/50 shadow shrink-0"
                       />
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <h3 className="text-lg font-bold text-white">{pup.name}</h3>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h3 className="text-base sm:text-lg font-bold text-white truncate">{pup.name}</h3>
                           {isActive && (
                             <Chip color="success" variant="soft" size="sm">
                               {t.puppies.active}
                             </Chip>
                           )}
                         </div>
-                        <p className="text-xs text-slate-400">{formatBreedName(pup.breed, lang)}</p>
+                        <p className="text-xs text-slate-400 truncate">{formatBreedName(pup.breed, lang)}</p>
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center justify-end gap-1.5 pt-2 sm:pt-0 border-t border-slate-800/60 sm:border-t-0 shrink-0">
                       {!isActive && (
                         <Button
                           size="sm"
                           variant="secondary"
                           onPress={() => onSelectPuppy(pup.id)}
+                          className="font-bold text-xs"
                         >
                           {t.puppies.select}
                         </Button>
@@ -426,23 +429,23 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
                         type="button"
                         onClick={() => handleStartEdit(pup)}
                         aria-label={t.puppies.editProfileBtn}
-                        className="p-2.5 min-h-[44px] min-w-[44px] flex items-center justify-center text-slate-400 hover:text-indigo-300 hover:bg-slate-800 rounded-xl border border-slate-800 bg-slate-950 transition-colors"
+                        className="p-2 min-h-[38px] min-w-[38px] flex items-center justify-center text-slate-400 hover:text-indigo-300 hover:bg-slate-800 rounded-xl border border-slate-800 bg-slate-950 transition-colors"
                       >
-                        <Edit3 className="w-4 h-4" />
+                        <Pencil className="w-4 h-4" />
                       </button>
 
                       <button
                         type="button"
                         onClick={() => setConfirmDelete({ id: pup.id, type: 'dog' })}
                         aria-label={t.puppies.deleteDogBtn}
-                        className="p-2.5 min-h-[44px] min-w-[44px] flex items-center justify-center text-slate-400 hover:text-red-400 hover:bg-slate-800 rounded-xl border border-slate-800 bg-slate-950 transition-colors"
+                        className="p-2 min-h-[38px] min-w-[38px] flex items-center justify-center text-slate-400 hover:text-red-400 hover:bg-slate-800 rounded-xl border border-slate-800 bg-slate-950 transition-colors"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-2 text-xs bg-slate-950/60 p-3 rounded-xl border border-slate-800">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs bg-slate-950/60 p-2.5 sm:p-3 rounded-xl border border-slate-800">
                     <div className="flex items-center gap-2">
                       <Utensils className="w-4 h-4 text-purple-400 shrink-0" />
                       <div>

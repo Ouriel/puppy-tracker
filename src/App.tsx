@@ -11,7 +11,7 @@ import {
 } from './services/api';
 import { calculatePredictions, calculateNextMealPortion } from './utils/predictions';
 import { getEffectivePuppyWeight } from './utils/weight';
-import { isSameLocalDate } from './utils/date';
+import { isSameLogicalDate } from './utils/date';
 import { Navbar } from './components/Navbar';
 import { QuickLogModal } from './components/QuickLogModal';
 import { PredictorWidget } from './components/PredictorWidget';
@@ -156,14 +156,14 @@ export function App() {
   const todayFoodLoggedGrams = useMemo(() => {
     const today = new Date();
     return activePuppyActivities
-      .filter((act) => act.type === 'food' && isSameLocalDate(act.timestamp, today))
-      .reduce((sum, act) => sum + (act.quantityGrams || 0), 0);
+      .filter((activity) => activity.type === 'food' && isSameLogicalDate(activity.timestamp, today))
+      .reduce((sum, activity) => sum + (activity.quantityGrams || 0), 0);
   }, [activePuppyActivities]);
 
   const todayMealsCount = useMemo(() => {
     const today = new Date();
     return activePuppyActivities.filter(
-      (act) => act.type === 'food' && isSameLocalDate(act.timestamp, today)
+      (activity) => activity.type === 'food' && isSameLogicalDate(activity.timestamp, today)
     ).length;
   }, [activePuppyActivities]);
 
@@ -397,6 +397,7 @@ export function App() {
             <ActivityTimeline
               activities={activePuppyActivities}
               caretakers={caretakerState.caretakers}
+              activePuppy={puppyState.activePuppy}
               onDeleteActivity={activityState.deleteActivity}
               onUpdateActivity={activityState.updateActivity}
               hasMoreRemote={activityState.hasMoreRemoteActivities}

@@ -11,6 +11,7 @@ import {
   predictNextFood,
   calculatePredictions,
 } from '../predictions';
+import { getLocalHour, formatLocalDate } from '../date';
 import type { Activity, PuppyProfile } from '../../types';
 
 describe('predictions utility — comprehensive test suite', () => {
@@ -25,55 +26,53 @@ describe('predictions utility — comprehensive test suite', () => {
   };
 
   /**
+   * Helper to format deterministic ISO strings for Europe/Paris (UTC+2 in August)
+   */
+  function makeParisIso(day: number, hour: number, minute: number = 0): string {
+    const dStr = String(day).padStart(2, '0');
+    const hStr = String(hour).padStart(2, '0');
+    const mStr = String(minute).padStart(2, '0');
+    return `2026-08-${dStr}T${hStr}:${mStr}:00+02:00`;
+  }
+
+  /**
    * Helper to generate a realistic 7-day multi-day activity dataset (modeled after real puppy logs)
    */
   function generateRealisticMultiDayDataset(): Activity[] {
     const activities: Activity[] = [];
-    const baseDate = new Date(2026, 7, 1); // Aug 1 2026
 
     for (let dayOffset = 0; dayOffset < 7; dayOffset++) {
-      const day = new Date(baseDate);
-      day.setDate(day.getDate() + dayOffset);
+      const dayNum = 1 + dayOffset;
 
       // Breakfast 07:00 AM
-      const bfast = new Date(day); bfast.setHours(7, 0, 0, 0);
-      activities.push({ id: `f1-${dayOffset}`, puppyId: 'pup-1', type: 'food', timestamp: bfast.toISOString(), quantityGrams: 80, loggedBy: 'Matthieu' });
+      activities.push({ id: `f1-${dayOffset}`, puppyId: 'pup-1', type: 'food', timestamp: makeParisIso(dayNum, 7, 0), quantityGrams: 80, loggedBy: 'Matthieu' });
 
       // First-morning pee 07:15 AM
-      const mPee = new Date(day); mPee.setHours(7, 15, 0, 0);
-      activities.push({ id: `p1-${dayOffset}`, puppyId: 'pup-1', type: 'pee', timestamp: mPee.toISOString(), loggedBy: 'Matthieu' });
+      activities.push({ id: `p1-${dayOffset}`, puppyId: 'pup-1', type: 'pee', timestamp: makeParisIso(dayNum, 7, 15), loggedBy: 'Matthieu' });
 
       // Morning post-breakfast poop 07:45 AM
-      const mPoop = new Date(day); mPoop.setHours(7, 45, 0, 0);
-      activities.push({ id: `po1-${dayOffset}`, puppyId: 'pup-1', type: 'poop', timestamp: mPoop.toISOString(), loggedBy: 'Matthieu' });
+      activities.push({ id: `po1-${dayOffset}`, puppyId: 'pup-1', type: 'poop', timestamp: makeParisIso(dayNum, 7, 45), loggedBy: 'Matthieu' });
 
       // Mid-morning pee 10:00 AM
-      const mmPee = new Date(day); mmPee.setHours(10, 0, 0, 0);
-      activities.push({ id: `p2-${dayOffset}`, puppyId: 'pup-1', type: 'pee', timestamp: mmPee.toISOString(), loggedBy: 'Matthieu' });
+      activities.push({ id: `p2-${dayOffset}`, puppyId: 'pup-1', type: 'pee', timestamp: makeParisIso(dayNum, 10, 0), loggedBy: 'Matthieu' });
 
       // Lunch 12:00 PM
-      const lunch = new Date(day); lunch.setHours(12, 0, 0, 0);
-      activities.push({ id: `f2-${dayOffset}`, puppyId: 'pup-1', type: 'food', timestamp: lunch.toISOString(), quantityGrams: 80, loggedBy: 'Matthieu' });
+      activities.push({ id: `f2-${dayOffset}`, puppyId: 'pup-1', type: 'food', timestamp: makeParisIso(dayNum, 12, 0), quantityGrams: 80, loggedBy: 'Matthieu' });
 
       // Post-lunch pee 12:20 PM
-      const lPee = new Date(day); lPee.setHours(12, 20, 0, 0);
-      activities.push({ id: `p3-${dayOffset}`, puppyId: 'pup-1', type: 'pee', timestamp: lPee.toISOString(), loggedBy: 'Matthieu' });
+      activities.push({ id: `p3-${dayOffset}`, puppyId: 'pup-1', type: 'pee', timestamp: makeParisIso(dayNum, 12, 20), loggedBy: 'Matthieu' });
 
       // Afternoon pee 15:30 PM
-      const aPee = new Date(day); aPee.setHours(15, 30, 0, 0);
-      activities.push({ id: `p4-${dayOffset}`, puppyId: 'pup-1', type: 'pee', timestamp: aPee.toISOString(), loggedBy: 'Matthieu' });
+      activities.push({ id: `p4-${dayOffset}`, puppyId: 'pup-1', type: 'pee', timestamp: makeParisIso(dayNum, 15, 30), loggedBy: 'Matthieu' });
 
       // Dinner 19:00 PM
-      const dinner = new Date(day); dinner.setHours(19, 0, 0, 0);
-      activities.push({ id: `f3-${dayOffset}`, puppyId: 'pup-1', type: 'food', timestamp: dinner.toISOString(), quantityGrams: 80, loggedBy: 'Matthieu' });
+      activities.push({ id: `f3-${dayOffset}`, puppyId: 'pup-1', type: 'food', timestamp: makeParisIso(dayNum, 19, 0), quantityGrams: 80, loggedBy: 'Matthieu' });
 
       // Post-dinner poop 19:35 PM
-      const ePoop = new Date(day); ePoop.setHours(19, 35, 0, 0);
-      activities.push({ id: `po2-${dayOffset}`, puppyId: 'pup-1', type: 'poop', timestamp: ePoop.toISOString(), loggedBy: 'Matthieu' });
+      activities.push({ id: `po2-${dayOffset}`, puppyId: 'pup-1', type: 'poop', timestamp: makeParisIso(dayNum, 19, 35), loggedBy: 'Matthieu' });
 
       // Bedtime pee 22:30 PM
-      const bedPee = new Date(day); bedPee.setHours(22, 30, 0, 0);
-      activities.push({ id: `p5-${dayOffset}`, puppyId: 'pup-1', type: 'pee', timestamp: bedPee.toISOString(), loggedBy: 'Matthieu' });
+      activities.push({ id: `p5-${dayOffset}`, puppyId: 'pup-1', type: 'pee', timestamp: makeParisIso(dayNum, 22, 30), loggedBy: 'Matthieu' });
     }
 
     return activities;
@@ -176,7 +175,7 @@ describe('predictions utility — comprehensive test suite', () => {
     // 5.1 Pee Predictions
     describe('Pee Predictions', () => {
       it('predicts daytime baseline pee interval when no recent food trigger is active', () => {
-        const referenceTime = new Date(2026, 7, 7, 14, 0); // Aug 7, 14:00 PM
+        const referenceTime = new Date('2026-08-07T14:00:00+02:00'); // Aug 7, 14:00 PM Paris
         const predictions = calculatePredictions(dataset, mockProfile, referenceTime, 'Europe/Paris');
 
         expect(predictions.peeMode).toBe('daytime_baseline');
@@ -185,7 +184,7 @@ describe('predictions utility — comprehensive test suite', () => {
       });
 
       it('triggers immediate post-meal pee override when food is logged after last pee (within 60 minutes)', () => {
-        const referenceTime = new Date(2026, 7, 7, 12, 10); // 10 min after lunch at 12:00
+        const referenceTime = new Date('2026-08-07T12:10:00+02:00'); // 10 min after lunch at 12:00 Paris
         // Remove 12:20 PM pee from day 6 so food is strictly after last pee
         const customDataset = dataset.filter((act) => act.id !== 'p3-6');
 
@@ -195,7 +194,7 @@ describe('predictions utility — comprehensive test suite', () => {
       });
 
       it('expires post-meal pee trigger after 60 minutes and reverts to daytime baseline', () => {
-        const referenceTime = new Date(2026, 7, 7, 13, 15); // 75 min after lunch at 12:00
+        const referenceTime = new Date('2026-08-07T13:15:00+02:00'); // 75 min after lunch at 12:00 Paris
         const predictions = calculatePredictions(dataset, mockProfile, referenceTime, 'Europe/Paris');
 
         expect(predictions.peeMode).toBe('daytime_baseline');
@@ -203,7 +202,7 @@ describe('predictions utility — comprehensive test suite', () => {
       });
 
       it('enters night mode and predicts morning wakeup during sleep hours (e.g. 02:00 AM)', () => {
-        const referenceTime = new Date(2026, 7, 8, 2, 0); // 02:00 AM night
+        const referenceTime = new Date('2026-08-08T02:00:00+02:00'); // 02:00 AM night Paris
         const predictions = calculatePredictions(dataset, mockProfile, referenceTime, 'Europe/Paris');
 
         expect(predictions.peeMode).toBe('night_sleep');
@@ -213,10 +212,10 @@ describe('predictions utility — comprehensive test suite', () => {
 
       it('includes mid-night break for young puppies under 2.5 months during night mode', () => {
         const youngProfile: PuppyProfile = { ...mockProfile, birthDate: '2026-07-01' }; // ~5 weeks old
-        const nightTime = new Date(2026, 7, 8, 0, 30); // 00:30 AM night
+        const nightTime = new Date('2026-08-08T00:30:00+02:00'); // 00:30 AM night Paris
 
         const youngDataset: Activity[] = [
-          { id: '1', puppyId: 'pup-1', type: 'pee', timestamp: new Date(2026, 7, 7, 23, 0).toISOString(), loggedBy: 'Matthieu' },
+          { id: '1', puppyId: 'pup-1', type: 'pee', timestamp: '2026-08-07T23:00:00+02:00', loggedBy: 'Matthieu' },
         ];
 
         const predictions = calculatePredictions(youngDataset, youngProfile, nightTime, 'Europe/Paris');
@@ -225,7 +224,7 @@ describe('predictions utility — comprehensive test suite', () => {
       });
 
       it('enters night mode when approaching bedtime (within 1 hour of bedtime)', () => {
-        const referenceTime = new Date(2026, 7, 7, 21, 15); // 21:15 PM (bedtime is 22:00)
+        const referenceTime = new Date('2026-08-07T21:45:00+02:00'); // 21:45 PM Paris (bedtime is 22:30)
         const predictions = calculatePredictions(dataset, mockProfile, referenceTime, 'Europe/Paris');
 
         expect(predictions.peeMode).toBe('night_sleep');
@@ -233,10 +232,10 @@ describe('predictions utility — comprehensive test suite', () => {
 
       it('disables post-meal pee trigger for older puppies (age >= 8 months)', () => {
         const olderProfile: PuppyProfile = { ...mockProfile, birthDate: '2025-10-01' }; // ~10 months old
-        const referenceTime = new Date(2026, 7, 7, 12, 10);
+        const referenceTime = new Date('2026-08-07T12:10:00+02:00');
         const activities: Activity[] = [
-          { id: '1', puppyId: 'pup-1', type: 'pee', timestamp: new Date(2026, 7, 7, 10, 0).toISOString(), loggedBy: 'Matthieu' },
-          { id: '2', puppyId: 'pup-1', type: 'food', timestamp: new Date(2026, 7, 7, 12, 0).toISOString(), loggedBy: 'Matthieu' },
+          { id: '1', puppyId: 'pup-1', type: 'pee', timestamp: '2026-08-07T10:00:00+02:00', loggedBy: 'Matthieu' },
+          { id: '2', puppyId: 'pup-1', type: 'food', timestamp: '2026-08-07T12:00:00+02:00', loggedBy: 'Matthieu' },
         ];
 
         const predictions = calculatePredictions(activities, olderProfile, referenceTime, 'Europe/Paris');
@@ -247,10 +246,10 @@ describe('predictions utility — comprehensive test suite', () => {
     // 5.2 Poop Predictions
     describe('Poop Predictions', () => {
       it('predicts gastrocolic post-meal poop break when food is logged after last poop (within 90 minutes)', () => {
-        const referenceTime = new Date(2026, 7, 7, 12, 20); // 12:20 PM
+        const referenceTime = new Date('2026-08-07T12:20:00+02:00'); // 12:20 PM Paris
         const simplePostMealDataset: Activity[] = [
-          { id: '1', puppyId: 'pup-1', type: 'poop', timestamp: new Date(2026, 7, 7, 8, 0).toISOString(), loggedBy: 'Matthieu' },
-          { id: '2', puppyId: 'pup-1', type: 'food', timestamp: new Date(2026, 7, 7, 12, 0).toISOString(), loggedBy: 'Matthieu' },
+          { id: '1', puppyId: 'pup-1', type: 'poop', timestamp: '2026-08-07T08:00:00+02:00', loggedBy: 'Matthieu' },
+          { id: '2', puppyId: 'pup-1', type: 'food', timestamp: '2026-08-07T12:00:00+02:00', loggedBy: 'Matthieu' },
         ];
 
         const predictions = calculatePredictions(simplePostMealDataset, mockProfile, referenceTime, 'Europe/Paris');
@@ -259,11 +258,11 @@ describe('predictions utility — comprehensive test suite', () => {
       });
 
       it('predicts daytime baseline poop based on learned interval when puppy ate today', () => {
-        const referenceTime = new Date(2026, 7, 7, 14, 0); // 14:00 PM
+        const referenceTime = new Date('2026-08-07T14:00:00+02:00'); // 14:00 PM Paris
         const simpleFeedingDataset: Activity[] = [
-          { id: '1', puppyId: 'pup-1', type: 'poop', timestamp: new Date(2026, 7, 6, 19, 0).toISOString(), loggedBy: 'Matthieu' },
-          { id: '2', puppyId: 'pup-1', type: 'food', timestamp: new Date(2026, 7, 7, 8, 0).toISOString(), loggedBy: 'Matthieu' },
-          { id: '3', puppyId: 'pup-1', type: 'food', timestamp: new Date(2026, 7, 7, 12, 0).toISOString(), loggedBy: 'Matthieu' },
+          { id: '1', puppyId: 'pup-1', type: 'poop', timestamp: '2026-08-06T19:00:00+02:00', loggedBy: 'Matthieu' },
+          { id: '2', puppyId: 'pup-1', type: 'food', timestamp: '2026-08-07T08:00:00+02:00', loggedBy: 'Matthieu' },
+          { id: '3', puppyId: 'pup-1', type: 'food', timestamp: '2026-08-07T12:00:00+02:00', loggedBy: 'Matthieu' },
         ];
 
         const predictions = calculatePredictions(simpleFeedingDataset, mockProfile, referenceTime, 'Europe/Paris');
@@ -272,11 +271,11 @@ describe('predictions utility — comprehensive test suite', () => {
       });
 
       it('handles recent constipation and bowel clearance gracefully with extended recovery phase and safe status', () => {
-        const referenceTime = new Date(2026, 7, 8, 10, 0); // Aug 8, 10:00 AM daytime (12.8h after hard poop at 21:11)
+        const referenceTime = new Date('2026-08-08T10:00:00+02:00'); // Aug 8, 10:00 AM Paris
 
         const constipationDataset: Activity[] = [
-          { id: '1', puppyId: 'pup-1', type: 'poop', timestamp: new Date(2026, 7, 7, 21, 11).toISOString(), stoolConsistency: 'hard', loggedBy: 'Matthieu' },
-          { id: '2', puppyId: 'pup-1', type: 'food', timestamp: new Date(2026, 7, 8, 8, 0).toISOString(), loggedBy: 'Matthieu' },
+          { id: '1', puppyId: 'pup-1', type: 'poop', timestamp: '2026-08-07T21:11:00+02:00', stoolConsistency: 'hard', loggedBy: 'Matthieu' },
+          { id: '2', puppyId: 'pup-1', type: 'food', timestamp: '2026-08-08T08:00:00+02:00', loggedBy: 'Matthieu' },
         ];
 
         const predictions = calculatePredictions(constipationDataset, mockProfile, referenceTime, 'Europe/Paris');
@@ -285,7 +284,7 @@ describe('predictions utility — comprehensive test suite', () => {
       });
 
       it('enters night sleep mode for poop during overnight hours', () => {
-        const referenceTime = new Date(2026, 7, 8, 1, 30); // 01:30 AM night
+        const referenceTime = new Date('2026-08-08T01:30:00+02:00'); // 01:30 AM night Paris
         const predictions = calculatePredictions(dataset, mockProfile, referenceTime, 'Europe/Paris');
 
         expect(predictions.poopMode).toBe('night_sleep');
@@ -294,10 +293,10 @@ describe('predictions utility — comprehensive test suite', () => {
 
       it('disables post-meal poop trigger for older puppies (age >= 8 months)', () => {
         const olderProfile: PuppyProfile = { ...mockProfile, birthDate: '2025-10-01' }; // ~10 months old
-        const referenceTime = new Date(2026, 7, 7, 12, 20);
+        const referenceTime = new Date('2026-08-07T12:20:00+02:00');
         const activities: Activity[] = [
-          { id: '1', puppyId: 'pup-1', type: 'poop', timestamp: new Date(2026, 7, 7, 8, 0).toISOString(), loggedBy: 'Matthieu' },
-          { id: '2', puppyId: 'pup-1', type: 'food', timestamp: new Date(2026, 7, 7, 12, 0).toISOString(), loggedBy: 'Matthieu' },
+          { id: '1', puppyId: 'pup-1', type: 'poop', timestamp: '2026-08-07T08:00:00+02:00', loggedBy: 'Matthieu' },
+          { id: '2', puppyId: 'pup-1', type: 'food', timestamp: '2026-08-07T12:00:00+02:00', loggedBy: 'Matthieu' },
         ];
 
         const predictions = calculatePredictions(activities, olderProfile, referenceTime, 'Europe/Paris');
@@ -308,19 +307,19 @@ describe('predictions utility — comprehensive test suite', () => {
         const youngProfile: PuppyProfile = { ...mockProfile, birthDate: '2026-06-01' };
         const olderProfile: PuppyProfile = { ...mockProfile, birthDate: '2026-01-01' };
 
-        const referenceTime = new Date(2026, 7, 7, 14, 0);
+        const referenceTime = new Date('2026-08-07T14:00:00+02:00');
 
         const activities: Activity[] = [
-          { id: '1', puppyId: 'pup-1', type: 'poop', timestamp: new Date(2026, 7, 6, 19, 0).toISOString(), loggedBy: 'Matthieu' },
-          { id: '2', puppyId: 'pup-1', type: 'food', timestamp: new Date(2026, 7, 7, 12, 0).toISOString(), loggedBy: 'Matthieu' },
+          { id: '1', puppyId: 'pup-1', type: 'poop', timestamp: '2026-08-06T19:00:00+02:00', loggedBy: 'Matthieu' },
+          { id: '2', puppyId: 'pup-1', type: 'food', timestamp: '2026-08-07T12:00:00+02:00', loggedBy: 'Matthieu' },
         ];
 
         const predYoung = calculatePredictions(activities, youngProfile, referenceTime, 'Europe/Paris');
         const predOlder = calculatePredictions(activities, olderProfile, referenceTime, 'Europe/Paris');
 
         // Meal at 12:00 + 6h = 18:00
-        expect(predYoung.nextPoopExpectedAt?.getHours()).toBe(18);
-        expect(predOlder.nextPoopExpectedAt?.getHours()).toBe(18);
+        expect(getLocalHour(predYoung.nextPoopExpectedAt!, 'Europe/Paris')).toBe(18);
+        expect(getLocalHour(predOlder.nextPoopExpectedAt!, 'Europe/Paris')).toBe(18);
       });
     });
 
@@ -331,7 +330,7 @@ describe('predictions utility — comprehensive test suite', () => {
         const pup4mo: PuppyProfile = { ...mockProfile, birthDate: '2026-04-01', targetMealsPerDay: 0 };
         const pup8mo: PuppyProfile = { ...mockProfile, birthDate: '2025-12-01', targetMealsPerDay: 0 };
 
-        const refTime = new Date(2026, 7, 7, 10, 0);
+        const refTime = new Date('2026-08-07T10:00:00+02:00');
 
         const p2 = calculatePredictions([], pup2mo, refTime, 'Europe/Paris');
         const p4 = calculatePredictions([], pup4mo, refTime, 'Europe/Paris');
@@ -343,7 +342,7 @@ describe('predictions utility — comprehensive test suite', () => {
       });
 
       it('predicts morning breakfast scheduled at wakeup:30 AM when no meals logged today', () => {
-        const referenceTime = new Date(2026, 7, 7, 8, 15); // 08:15 AM (after wakeup 07:00 / 07:30 breakfast target)
+        const referenceTime = new Date('2026-08-07T08:15:00+02:00'); // 08:15 AM Paris
         const noMealsToday = dataset.filter((act) => !act.id.startsWith('f') || !act.id.endsWith('-6'));
 
         const predictions = calculatePredictions(noMealsToday, mockProfile, referenceTime, 'Europe/Paris');
@@ -352,7 +351,7 @@ describe('predictions utility — comprehensive test suite', () => {
       });
 
       it('spaces remaining daytime meals evenly when partial meals have been logged today', () => {
-        const referenceTime = new Date(2026, 7, 7, 10, 0); // 10:00 AM (1 meal logged so far: breakfast)
+        const referenceTime = new Date('2026-08-07T10:00:00+02:00'); // 10:00 AM Paris
         const singleMealToday = dataset.filter((act) => act.id !== 'f2-6' && act.id !== 'f3-6'); // Keep only breakfast on day 6
 
         const predictions = calculatePredictions(singleMealToday, mockProfile, referenceTime, 'Europe/Paris');
@@ -361,7 +360,7 @@ describe('predictions utility — comprehensive test suite', () => {
       });
 
       it('flags goal reached when daily food gram goal or target meal count is reached', () => {
-        const referenceTime = new Date(2026, 7, 7, 19, 30); // 19:30 PM after dinner (3 meals logged, 240g reached)
+        const referenceTime = new Date('2026-08-07T19:30:00+02:00'); // 19:30 PM Paris after dinner
         const predictions = calculatePredictions(dataset, mockProfile, referenceTime, 'Europe/Paris');
 
         expect(predictions.foodMode).toBe('goal_reached');
@@ -370,7 +369,7 @@ describe('predictions utility — comprehensive test suite', () => {
       });
 
       it('enters night sleep mode for food during overnight hours', () => {
-        const referenceTime = new Date(2026, 7, 8, 2, 0); // 02:00 AM
+        const referenceTime = new Date('2026-08-08T02:00:00+02:00'); // 02:00 AM Paris
         const predictions = calculatePredictions(dataset, mockProfile, referenceTime, 'Europe/Paris');
 
         expect(predictions.foodMode).toBe('night_sleep');
@@ -398,11 +397,11 @@ describe('predictions utility — comprehensive test suite', () => {
   // 6. Regression Bug Fixes (Bugs 1 - 5)
   describe('Regression Bug Fixes', () => {
     it('Bug 1: early morning potty before estimated wakeup overrides Night Mode', () => {
-      // Reference time: 07:15 AM today. Wakeup schedule is 07:37 AM.
+      // Reference time: 07:15 AM today Paris. Wakeup schedule is 07:37 AM.
       // A pee log occurred at 07:05 AM today.
-      const refTime = new Date(2026, 7, 13, 7, 15);
+      const refTime = new Date('2026-08-13T07:15:00+02:00');
       const activities: Activity[] = [
-        { id: '1', puppyId: 'pup-1', type: 'pee', timestamp: new Date(2026, 7, 13, 7, 5).toISOString(), loggedBy: 'Matthieu' },
+        { id: '1', puppyId: 'pup-1', type: 'pee', timestamp: makeParisIso(13, 7, 5), loggedBy: 'Matthieu' },
       ];
 
       const predictions = calculatePredictions(
@@ -418,10 +417,10 @@ describe('predictions utility — comprehensive test suite', () => {
     });
 
     it('Bug 2: late evening potty (e.g. 21:22 PM) predicts wakeup TOMORROW morning (+10h) and urgency is safe', () => {
-      // Reference time: 21:22 PM today. Bedtime is 21:30 PM. Wakeup is 07:37 AM.
-      const refTime = new Date(2026, 7, 13, 21, 22);
+      // Reference time: 21:22 PM today Paris. Bedtime is 21:30 PM. Wakeup is 07:37 AM.
+      const refTime = new Date('2026-08-13T21:22:00+02:00');
       const activities: Activity[] = [
-        { id: '1', puppyId: 'pup-1', type: 'pee', timestamp: new Date(2026, 7, 13, 21, 18).toISOString(), loggedBy: 'Matthieu' },
+        { id: '1', puppyId: 'pup-1', type: 'pee', timestamp: makeParisIso(13, 21, 18), loggedBy: 'Matthieu' },
       ];
 
       const predictions = calculatePredictions(
@@ -441,11 +440,11 @@ describe('predictions utility — comprehensive test suite', () => {
     });
 
     it('Bug 4: feeding 3 small 40g meals (totaling 120g / 240g goal) does NOT trigger goal_reached', () => {
-      const refTime = new Date(2026, 7, 13, 15, 0); // 15:00 PM afternoon
+      const refTime = new Date('2026-08-13T15:00:00+02:00'); // 15:00 PM afternoon Paris
       const smallMeals: Activity[] = [
-        { id: '1', puppyId: 'pup-1', type: 'food', timestamp: new Date(2026, 7, 13, 7, 0).toISOString(), quantityGrams: 40, loggedBy: 'Matthieu' },
-        { id: '2', puppyId: 'pup-1', type: 'food', timestamp: new Date(2026, 7, 13, 11, 0).toISOString(), quantityGrams: 40, loggedBy: 'Matthieu' },
-        { id: '3', puppyId: 'pup-1', type: 'food', timestamp: new Date(2026, 7, 13, 14, 0).toISOString(), quantityGrams: 40, loggedBy: 'Matthieu' },
+        { id: '1', puppyId: 'pup-1', type: 'food', timestamp: makeParisIso(13, 7, 0), quantityGrams: 40, loggedBy: 'Matthieu' },
+        { id: '2', puppyId: 'pup-1', type: 'food', timestamp: makeParisIso(13, 11, 0), quantityGrams: 40, loggedBy: 'Matthieu' },
+        { id: '3', puppyId: 'pup-1', type: 'food', timestamp: makeParisIso(13, 14, 0), quantityGrams: 40, loggedBy: 'Matthieu' },
       ];
 
       const predictions = calculatePredictions(
@@ -464,10 +463,8 @@ describe('predictions utility — comprehensive test suite', () => {
       const activities: Activity[] = [];
       // Last 5 days: late bedtime pees at 23:00 PM
       for (let d = 0; d < 5; d++) {
-        const date = new Date(2026, 7, 10 + d, 23, 0);
-        activities.push({ id: `p-${d}`, puppyId: 'pup-1', type: 'pee', timestamp: date.toISOString(), loggedBy: 'Matthieu' });
-        const wakeDate = new Date(2026, 7, 10 + d, 7, 0);
-        activities.push({ id: `w-${d}`, puppyId: 'pup-1', type: 'pee', timestamp: wakeDate.toISOString(), loggedBy: 'Matthieu' });
+        activities.push({ id: `p-${d}`, puppyId: 'pup-1', type: 'pee', timestamp: makeParisIso(10 + d, 23, 0), loggedBy: 'Matthieu' });
+        activities.push({ id: `w-${d}`, puppyId: 'pup-1', type: 'pee', timestamp: makeParisIso(10 + d, 7, 0), loggedBy: 'Matthieu' });
       }
 
       const schedule = detectSleepSchedule(activities, 'Europe/Paris');
@@ -479,7 +476,7 @@ describe('predictions utility — comprehensive test suite', () => {
   describe('Decoupled Predictors & Empirical Morning Sequence', () => {
     it('predictNextPee executes independently and returns valid SinglePredictionResult', () => {
       const dataset = generateRealisticMultiDayDataset();
-      const refTime = new Date(2026, 7, 7, 14, 0);
+      const refTime = new Date('2026-08-07T14:00:00+02:00');
       const peeResult = predictNextPee(dataset, mockProfile, refTime, { timeZone: 'Europe/Paris' });
 
       expect(peeResult.mode).toBe('daytime_baseline');
@@ -490,7 +487,7 @@ describe('predictions utility — comprehensive test suite', () => {
 
     it('predictNextPoop executes independently and returns valid SinglePredictionResult', () => {
       const dataset = generateRealisticMultiDayDataset();
-      const refTime = new Date(2026, 7, 7, 14, 0);
+      const refTime = new Date('2026-08-07T14:00:00+02:00');
       const poopResult = predictNextPoop(dataset, mockProfile, refTime, { timeZone: 'Europe/Paris' });
 
       expect(poopResult.mode).toBe('daytime_baseline');
@@ -500,7 +497,7 @@ describe('predictions utility — comprehensive test suite', () => {
 
     it('predictNextFood executes independently and returns valid FoodPredictionResult with portionGrams', () => {
       const dataset = generateRealisticMultiDayDataset();
-      const refTime = new Date(2026, 7, 7, 14, 0);
+      const refTime = new Date('2026-08-07T14:00:00+02:00');
       const foodResult = predictNextFood(dataset, mockProfile, refTime, { timeZone: 'Europe/Paris' });
 
       expect(foodResult.mode).toBe('daytime_schedule');
@@ -511,12 +508,9 @@ describe('predictions utility — comprehensive test suite', () => {
       const activities: Activity[] = [];
       // 5 days of data: Pee at 07:00, Poop at 07:07 (+7m), Breakfast at 07:18 (+18m)
       for (let d = 0; d < 5; d++) {
-        const date = new Date(2026, 7, 10 + d, 7, 0);
-        activities.push({ id: `p-${d}`, puppyId: 'pup-1', type: 'pee', timestamp: date.toISOString(), loggedBy: 'Matthieu' });
-        const poopDate = new Date(2026, 7, 10 + d, 7, 7);
-        activities.push({ id: `po-${d}`, puppyId: 'pup-1', type: 'poop', timestamp: poopDate.toISOString(), loggedBy: 'Matthieu' });
-        const foodDate = new Date(2026, 7, 10 + d, 7, 18);
-        activities.push({ id: `f-${d}`, puppyId: 'pup-1', type: 'food', timestamp: foodDate.toISOString(), quantityGrams: 80, loggedBy: 'Matthieu' });
+        activities.push({ id: `p-${d}`, puppyId: 'pup-1', type: 'pee', timestamp: makeParisIso(10 + d, 7, 0), loggedBy: 'Matthieu' });
+        activities.push({ id: `po-${d}`, puppyId: 'pup-1', type: 'poop', timestamp: makeParisIso(10 + d, 7, 7), loggedBy: 'Matthieu' });
+        activities.push({ id: `f-${d}`, puppyId: 'pup-1', type: 'food', timestamp: makeParisIso(10 + d, 7, 18), quantityGrams: 80, loggedBy: 'Matthieu' });
       }
 
       const offsets = calculateMorningSequenceOffsets(activities, 'Europe/Paris');
@@ -527,15 +521,12 @@ describe('predictions utility — comprehensive test suite', () => {
     it('adapts morning sequence ordering: nextPee <= nextPoop <= nextFood during night mode', () => {
       const activities: Activity[] = [];
       for (let d = 0; d < 5; d++) {
-        const pDate = new Date(2026, 7, 10 + d, 7, 20);
-        activities.push({ id: `p-${d}`, puppyId: 'pup-1', type: 'pee', timestamp: pDate.toISOString(), loggedBy: 'Matthieu' });
-        const poDate = new Date(2026, 7, 10 + d, 7, 28);
-        activities.push({ id: `po-${d}`, puppyId: 'pup-1', type: 'poop', timestamp: poDate.toISOString(), loggedBy: 'Matthieu' });
-        const fDate = new Date(2026, 7, 10 + d, 7, 42);
-        activities.push({ id: `f-${d}`, puppyId: 'pup-1', type: 'food', timestamp: fDate.toISOString(), quantityGrams: 80, loggedBy: 'Matthieu' });
+        activities.push({ id: `p-${d}`, puppyId: 'pup-1', type: 'pee', timestamp: makeParisIso(10 + d, 7, 20), loggedBy: 'Matthieu' });
+        activities.push({ id: `po-${d}`, puppyId: 'pup-1', type: 'poop', timestamp: makeParisIso(10 + d, 7, 28), loggedBy: 'Matthieu' });
+        activities.push({ id: `f-${d}`, puppyId: 'pup-1', type: 'food', timestamp: makeParisIso(10 + d, 7, 42), quantityGrams: 80, loggedBy: 'Matthieu' });
       }
 
-      const nightRefTime = new Date(2026, 7, 15, 2, 0); // 02:00 AM
+      const nightRefTime = new Date('2026-08-15T02:00:00+02:00'); // 02:00 AM Paris
       const predictions = calculatePredictions(activities, mockProfile, nightRefTime, 'Europe/Paris');
 
       expect(predictions.nextPeeExpectedAt).not.toBeNull();
@@ -545,16 +536,43 @@ describe('predictions utility — comprehensive test suite', () => {
       // Ensure morning sequence order
       expect(predictions.nextPeeExpectedAt!.getTime()).toBeLessThanOrEqual(predictions.nextPoopExpectedAt!.getTime());
       expect(predictions.nextPoopExpectedAt!.getTime()).toBeLessThanOrEqual(predictions.nextFoodExpectedAt!.getTime());
+
+      // Ensure that post-midnight (02:00 AM) predictions target the upcoming morning (Aug 15 ~07:xx AM, in ~5.5 hours), NOT the next day (+29 hours)
+      const hoursUntilBreakfast = (predictions.nextFoodExpectedAt!.getTime() - nightRefTime.getTime()) / (60 * 60 * 1000);
+      expect(hoursUntilBreakfast).toBeGreaterThan(5);
+      expect(hoursUntilBreakfast).toBeLessThan(7);
+      expect(formatLocalDate(predictions.nextFoodExpectedAt!, 'Europe/Paris')).toBe('2026-08-15');
+      expect(formatLocalDate(predictions.nextPeeExpectedAt!, 'Europe/Paris')).toBe('2026-08-15');
+      expect(formatLocalDate(predictions.nextPoopExpectedAt!, 'Europe/Paris')).toBe('2026-08-15');
+    });
+
+    it('predicts next upcoming breakfast accurately at 00:20 AM without adding an extra 24 hours', () => {
+      const activities: Activity[] = [
+        { id: 'f-1', puppyId: 'pup-1', type: 'food', timestamp: makeParisIso(18, 8, 0), quantityGrams: 80, loggedBy: 'Matthieu' },
+        { id: 'f-2', puppyId: 'pup-1', type: 'food', timestamp: makeParisIso(18, 13, 0), quantityGrams: 80, loggedBy: 'Matthieu' },
+        { id: 'f-3', puppyId: 'pup-1', type: 'food', timestamp: makeParisIso(18, 19, 0), quantityGrams: 80, loggedBy: 'Matthieu' },
+      ];
+
+      // Current time is 00:20 AM on Aug 19, 2026 Paris
+      const refTime = new Date('2026-08-19T00:20:00+02:00');
+      const sleepSchedule = { bedtimeHour: 22.5, wakeupHour: 7.5, bedtimeStr: '22:30', wakeupStr: '07:30' };
+      const foodPrediction = predictNextFood(activities, mockProfile, refTime, { sleepSchedule, timeZone: 'Europe/Paris' });
+
+      expect(foodPrediction.mode).toBe('night_sleep');
+      expect(foodPrediction.nextExpectedAt).not.toBeNull();
+      // Should be 07:xx AM on Aug 19, 2026 (same day morning, ~7.5h away), NOT Aug 20 (+31h)
+      expect(formatLocalDate(foodPrediction.nextExpectedAt!, 'Europe/Paris')).toBe('2026-08-19');
+      const diffHours = (foodPrediction.nextExpectedAt!.getTime() - refTime.getTime()) / (60 * 60 * 1000);
+      expect(diffHours).toBeGreaterThan(6.5);
+      expect(diffHours).toBeLessThan(8.5);
     });
 
     it('factors in pre-bedtime waking retention intervals spanning across midnight (e.g. 21:30 to 00:30)', () => {
       const activities: Activity[] = [];
       // 5 days of data where puppy pees at 21:30 and has a final pre-bedtime outing at 00:30 (3h gap across midnight)
       for (let d = 0; d < 5; d++) {
-        const eveningDate = new Date(2026, 7, 10 + d, 21, 30);
-        activities.push({ id: `p-eve-${d}`, puppyId: 'pup-1', type: 'pee', timestamp: eveningDate.toISOString(), loggedBy: 'Matthieu' });
-        const midnightDate = new Date(2026, 7, 11 + d, 0, 30);
-        activities.push({ id: `p-mid-${d}`, puppyId: 'pup-1', type: 'pee', timestamp: midnightDate.toISOString(), loggedBy: 'Matthieu' });
+        activities.push({ id: `p-eve-${d}`, puppyId: 'pup-1', type: 'pee', timestamp: makeParisIso(10 + d, 21, 30), loggedBy: 'Matthieu' });
+        activities.push({ id: `p-mid-${d}`, puppyId: 'pup-1', type: 'pee', timestamp: makeParisIso(11 + d, 0, 30), loggedBy: 'Matthieu' });
       }
 
       const sleepSchedule = { bedtimeHour: 1, wakeupHour: 7, bedtimeStr: '01:00', wakeupStr: '07:00' };
@@ -567,11 +585,11 @@ describe('predictions utility — comprehensive test suite', () => {
 
     it('calculates proper meal intervals when bedtime wraps past midnight', () => {
       const activities: Activity[] = [
-        { id: 'f-1', puppyId: 'pup-1', type: 'food', timestamp: new Date(2026, 7, 10, 12, 0).toISOString(), quantityGrams: 80, loggedBy: 'Matthieu' },
-        { id: 'f-2', puppyId: 'pup-1', type: 'food', timestamp: new Date(2026, 7, 10, 18, 0).toISOString(), quantityGrams: 80, loggedBy: 'Matthieu' },
+        { id: 'f-1', puppyId: 'pup-1', type: 'food', timestamp: makeParisIso(10, 12, 0), quantityGrams: 80, loggedBy: 'Matthieu' },
+        { id: 'f-2', puppyId: 'pup-1', type: 'food', timestamp: makeParisIso(10, 18, 0), quantityGrams: 80, loggedBy: 'Matthieu' },
       ];
 
-      const refTime = new Date(2026, 7, 10, 18, 15);
+      const refTime = new Date('2026-08-10T18:15:00+02:00');
       const sleepSchedule = { bedtimeHour: 1, wakeupHour: 7, bedtimeStr: '01:00', wakeupStr: '07:00' };
       const foodPrediction = predictNextFood(activities, mockProfile, refTime, { sleepSchedule, timeZone: 'Europe/Paris' });
 
@@ -584,10 +602,8 @@ describe('predictions utility — comprehensive test suite', () => {
       const activities: Activity[] = [];
       // 5 days of data: morning poop at 07:30, evening poop at 17:15 (585 min / 9h45m gap)
       for (let d = 0; d < 5; d++) {
-        const morningDate = new Date(2026, 7, 10 + d, 7, 30);
-        activities.push({ id: `po-m-${d}`, puppyId: 'pup-1', type: 'poop', timestamp: morningDate.toISOString(), loggedBy: 'Matthieu' });
-        const eveningDate = new Date(2026, 7, 10 + d, 17, 15);
-        activities.push({ id: `po-e-${d}`, puppyId: 'pup-1', type: 'poop', timestamp: eveningDate.toISOString(), loggedBy: 'Matthieu' });
+        activities.push({ id: `po-m-${d}`, puppyId: 'pup-1', type: 'poop', timestamp: makeParisIso(10 + d, 7, 30), loggedBy: 'Matthieu' });
+        activities.push({ id: `po-e-${d}`, puppyId: 'pup-1', type: 'poop', timestamp: makeParisIso(10 + d, 17, 15), loggedBy: 'Matthieu' });
       }
 
       const sleepSchedule = { bedtimeHour: 22, wakeupHour: 7, bedtimeStr: '22:00', wakeupStr: '07:00' };
@@ -603,13 +619,13 @@ describe('predictions utility — comprehensive test suite', () => {
     it('correctly marks breakfast as overdue during morning hours (e.g. 09:30 AM) when no breakfast is logged', () => {
       const activities: Activity[] = [
         // Yesterday's activities
-        { id: 'f-prev', puppyId: 'pup-1', type: 'food', timestamp: new Date(2026, 7, 9, 19, 0).toISOString(), quantityGrams: 100, loggedBy: 'Matthieu' },
+        { id: 'f-prev', puppyId: 'pup-1', type: 'food', timestamp: makeParisIso(9, 19, 0), quantityGrams: 100, loggedBy: 'Matthieu' },
         // Wakeup activity recorded this morning at 07:15 AM
-        { id: 'p-today', puppyId: 'pup-1', type: 'pee', timestamp: new Date(2026, 7, 10, 7, 15).toISOString(), loggedBy: 'Matthieu' },
+        { id: 'p-today', puppyId: 'pup-1', type: 'pee', timestamp: makeParisIso(10, 7, 15), loggedBy: 'Matthieu' },
       ];
 
-      // Current time is 09:30 AM on Aug 10, 2026
-      const refTime = new Date(2026, 7, 10, 9, 30);
+      // Current time is 09:30 AM on Aug 10, 2026 Paris
+      const refTime = new Date('2026-08-10T09:30:00+02:00');
       const sleepSchedule = { bedtimeHour: 22, wakeupHour: 7, bedtimeStr: '22:00', wakeupStr: '07:00' };
       const foodPrediction = predictNextFood(activities, mockProfile, refTime, { sleepSchedule, timeZone: 'Europe/Paris' });
 
@@ -618,8 +634,8 @@ describe('predictions utility — comprehensive test suite', () => {
       expect(foodPrediction.reason).toContain('Breakfast overdue');
       // Next expected should be this morning (07:xx AM today), NOT tomorrow morning (+21h)
       expect(foodPrediction.nextExpectedAt).not.toBeNull();
-      expect(foodPrediction.nextExpectedAt!.getDate()).toBe(10);
-      expect(foodPrediction.nextExpectedAt!.getHours()).toBe(7);
+      expect(formatLocalDate(foodPrediction.nextExpectedAt!, 'Europe/Paris')).toBe('2026-08-10');
+      expect(getLocalHour(foodPrediction.nextExpectedAt!, 'Europe/Paris')).toBe(7);
       expect((refTime.getTime() - foodPrediction.nextExpectedAt!.getTime()) / 60000).toBeGreaterThan(60);
     });
 
@@ -627,10 +643,8 @@ describe('predictions utility — comprehensive test suite', () => {
       const activities: Activity[] = [];
       // 5 consecutive days of meals with post-meal pees occurring at ~25 min
       for (let d = 0; d < 5; d++) {
-        const mealDate = new Date(2026, 7, 10 + d, 12, 0);
-        const peeDate = new Date(2026, 7, 10 + d, 12, 25);
-        activities.push({ id: `food-${d}`, puppyId: 'pup-1', type: 'food', timestamp: mealDate.toISOString(), loggedBy: 'Matthieu' });
-        activities.push({ id: `pee-${d}`, puppyId: 'pup-1', type: 'pee', timestamp: peeDate.toISOString(), loggedBy: 'Matthieu' });
+        activities.push({ id: `food-${d}`, puppyId: 'pup-1', type: 'food', timestamp: makeParisIso(10 + d, 12, 0), loggedBy: 'Matthieu' });
+        activities.push({ id: `pee-${d}`, puppyId: 'pup-1', type: 'pee', timestamp: makeParisIso(10 + d, 12, 25), loggedBy: 'Matthieu' });
       }
 
       const learned = calculateLearnedPostMealDelayMinutes(activities, 'pee', 20);
@@ -641,8 +655,8 @@ describe('predictions utility — comprehensive test suite', () => {
 
     it('falls back to age baseline when fewer than 3 post-meal sequences exist', () => {
       const activities: Activity[] = [
-        { id: 'f-1', puppyId: 'pup-1', type: 'food', timestamp: new Date(2026, 7, 10, 12, 0).toISOString(), loggedBy: 'Matthieu' },
-        { id: 'p-1', puppyId: 'pup-1', type: 'pee', timestamp: new Date(2026, 7, 10, 12, 25).toISOString(), loggedBy: 'Matthieu' },
+        { id: 'f-1', puppyId: 'pup-1', type: 'food', timestamp: makeParisIso(10, 12, 0), loggedBy: 'Matthieu' },
+        { id: 'p-1', puppyId: 'pup-1', type: 'pee', timestamp: makeParisIso(10, 12, 25), loggedBy: 'Matthieu' },
       ];
 
       const learned = calculateLearnedPostMealDelayMinutes(activities, 'pee', 20);

@@ -297,8 +297,8 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail }) => {
                         <span className="text-[11px] text-slate-400">{t.admin.assignTo}</span>
                         <select
                           value={currentSelectedHousehold}
-                          onChange={(e) =>
-                            setTargetHouseholds({ ...targetHouseholds, [userItem.email]: e.target.value })
+                          onChange={(event) =>
+                            setTargetHouseholds({ ...targetHouseholds, [userItem.email]: event.target.value })
                           }
                           className="bg-slate-900 border border-slate-700 text-slate-200 text-xs rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-indigo-500"
                         >
@@ -359,7 +359,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail }) => {
               <div className="flex items-center gap-2">
                 <select
                   value={newInviteHousehold}
-                  onChange={(e) => setNewInviteHousehold(e.target.value)}
+                  onChange={(event) => setNewInviteHousehold(event.target.value)}
                   className="bg-slate-950 border border-slate-800 text-slate-200 text-xs rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-500"
                 >
                   {households.map((h) => (
@@ -424,7 +424,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail }) => {
                           <Home className="w-3.5 h-3.5 text-indigo-400" />
                           <select
                             value={userItem.householdId || 'FAMILY-COCKER-2026'}
-                            onChange={(e) => handleMoveHousehold(userItem.email, e.target.value)}
+                            onChange={(event) => handleMoveHousehold(userItem.email, event.target.value)}
                             aria-label={t.admin.householdFor.replace('{name}', userItem.name)}
                             className="bg-slate-900 border border-slate-700 text-slate-200 text-xs rounded-lg px-2.5 py-1 focus:outline-none focus:border-indigo-500"
                           >

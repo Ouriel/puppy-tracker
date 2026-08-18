@@ -186,4 +186,89 @@ describe('Activity & CRUD Regression Tests', () => {
       expect(activityData.quantityCups).toBe(0.86);
     });
   });
+
+  describe('Day-by-Day Accordion & Nutrition Summary Calculations', () => {
+    it('accurately computes total food intake, meal counts, pees, poops, and accidents per day', () => {
+      const activities: Activity[] = [
+        // Morning meal
+        {
+          id: 'act-1',
+          puppyId: 'pup-1',
+          type: 'food',
+          timestamp: '2026-08-18T07:30:00.000Z',
+          loggedBy: 'Matthieu',
+          quantityGrams: 80,
+          quantityCups: 0.73,
+        },
+        // Midday meal
+        {
+          id: 'act-2',
+          puppyId: 'pup-1',
+          type: 'food',
+          timestamp: '2026-08-18T12:30:00.000Z',
+          loggedBy: 'Matthieu',
+          quantityGrams: 80,
+          quantityCups: 0.73,
+        },
+        // Evening meal
+        {
+          id: 'act-3',
+          puppyId: 'pup-1',
+          type: 'food',
+          timestamp: '2026-08-18T19:30:00.000Z',
+          loggedBy: 'Matthieu',
+          quantityGrams: 80,
+          quantityCups: 0.73,
+        },
+        // Pees & Poops
+        {
+          id: 'act-4',
+          puppyId: 'pup-1',
+          type: 'pee',
+          timestamp: '2026-08-18T07:45:00.000Z',
+          loggedBy: 'Matthieu',
+          pottyLocation: 'outside',
+        },
+        {
+          id: 'act-5',
+          puppyId: 'pup-1',
+          type: 'poop',
+          timestamp: '2026-08-18T07:50:00.000Z',
+          loggedBy: 'Matthieu',
+          pottyLocation: 'outside',
+          stoolConsistency: 'normal',
+        },
+        {
+          id: 'act-6',
+          puppyId: 'pup-1',
+          type: 'pee',
+          timestamp: '2026-08-18T15:00:00.000Z',
+          loggedBy: 'Matthieu',
+          pottyLocation: 'indoor_accident',
+        },
+      ];
+
+      const dailyGoalGrams = 240;
+      const targetMealsCount = 3;
+
+      const totalFoodGrams = activities
+        .filter((activity) => activity.type === 'food')
+        .reduce((sum, activity) => sum + (activity.quantityGrams || 0), 0);
+      const mealsCount = activities.filter((activity) => activity.type === 'food').length;
+      const peeCount = activities.filter((activity) => activity.type === 'pee').length;
+      const poopCount = activities.filter((activity) => activity.type === 'poop').length;
+      const accidentCount = activities.filter(
+        (activity) => (activity.type === 'pee' || activity.type === 'poop') && activity.pottyLocation === 'indoor_accident'
+      ).length;
+
+      expect(totalFoodGrams).toBe(240);
+      expect(mealsCount).toBe(3);
+      expect(totalFoodGrams >= dailyGoalGrams).toBe(true);
+      expect(mealsCount >= targetMealsCount).toBe(true);
+      expect(peeCount).toBe(2);
+      expect(poopCount).toBe(1);
+      expect(accidentCount).toBe(1);
+    });
+  });
 });
+

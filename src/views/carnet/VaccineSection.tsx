@@ -124,17 +124,18 @@ export const VaccineSection: React.FC<VaccineSectionProps> = ({
   };
 
   return (
-    <Card className="bg-slate-900 border border-slate-800 text-slate-100">
-      <Card.Content className="p-6 space-y-4">
-        <div className="flex items-center justify-between">
-          <h3 className="text-sm font-bold text-slate-100 flex items-center gap-2">
-            <Syringe className="w-4 h-4 text-teal-400" />
+    <Card className="bg-slate-900 border border-slate-800 text-slate-100 shadow-xl">
+      <Card.Content className="p-4 sm:p-6 space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h3 className="text-sm sm:text-base font-bold text-slate-100 flex items-center gap-2">
+            <Syringe className="w-4 h-4 sm:w-5 sm:h-5 text-teal-400" />
             <span>{t.health.vaccinations} ({vaccinations.length})</span>
           </h3>
           <Button
             variant="primary"
             size="sm"
             onPress={() => setIsAddingVaccine(!isAddingVaccine)}
+            className="bg-teal-600 hover:bg-teal-500 text-white font-bold text-xs shadow-sm"
           >
             <Plus className="w-4 h-4 mr-1 inline" />
             {isAddingVaccine ? t.potty.cancel : t.health.addVaccine}
@@ -333,37 +334,42 @@ export const VaccineSection: React.FC<VaccineSectionProps> = ({
             const status = getVaccineStatus(vaccine, vaccinations);
 
             return (
-              <div key={vaccine.id} className="flex items-center justify-between p-3.5 bg-slate-950/40 rounded-xl border border-slate-800">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-teal-500/20 text-teal-400 rounded-lg">
+              <div
+                key={vaccine.id}
+                className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 sm:p-4 bg-slate-950/40 hover:bg-slate-950/70 transition-colors rounded-xl border border-slate-800/80"
+              >
+                <div className="flex items-start sm:items-center gap-3 flex-1 min-w-0">
+                  <div className="p-2 sm:p-2.5 bg-teal-500/20 text-teal-400 rounded-xl shrink-0 mt-0.5 sm:mt-0">
                     <Syringe className="w-4 h-4" />
                   </div>
-                  <div>
-                    <div className="text-xs font-bold text-white flex items-center gap-2">
-                      <span>{vaccine.name}</span>
+                  <div className="space-y-0.5 min-w-0 flex-1">
+                    <div className="text-xs font-bold text-white flex items-center gap-2 flex-wrap">
+                      <span className="truncate">{vaccine.name}</span>
                       {vaccine.batchNumber && (
                         <Chip size="sm" variant="soft">
                           {t.health.lotPrefix}: {vaccine.batchNumber}
                         </Chip>
                       )}
                     </div>
-                    <div className="text-[11px] text-slate-400">
-                      {t.health.injectedOn} {vaccine.date} &bull; {t.health.clinic}: {vaccine.vetClinic || t.health.veterinary}
+                    <div className="text-[11px] text-slate-400 flex flex-col sm:flex-row sm:items-center sm:gap-1.5 gap-0.5">
+                      <span>{t.health.injectedOn} {vaccine.date}</span>
+                      <span className="hidden sm:inline">&bull;</span>
+                      <span className="truncate text-slate-400/90">{t.health.clinic}: {vaccine.vetClinic || t.health.veterinary}</span>
                     </div>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-3">
-                  <div className="text-right">
+                <div className="flex items-center justify-between sm:justify-end gap-3 pt-2 sm:pt-0 border-t border-slate-800/60 sm:border-t-0 shrink-0">
+                  <div className="text-left sm:text-right">
                     <div className="text-xs font-bold text-amber-300">{t.health.booster}: {vaccine.boosterDate}</div>
                     <StatusBadge status={status.urgency} label={status.label} />
                   </div>
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex items-center gap-1.5 shrink-0">
                     <button
                       type="button"
                       onClick={() => startEditVaccine(vaccine)}
                       aria-label={t.health.editVaccineEntry}
-                      className="p-2.5 min-h-[44px] min-w-[44px] flex items-center justify-center text-slate-400 hover:text-indigo-300 hover:bg-slate-800 rounded-lg border border-slate-800 bg-slate-950 transition-colors"
+                      className="p-2 min-h-[38px] min-w-[38px] flex items-center justify-center text-slate-400 hover:text-indigo-300 hover:bg-slate-800 rounded-lg border border-slate-800 bg-slate-950 transition-colors"
                     >
                       <Pencil className="w-3.5 h-3.5" />
                     </button>
@@ -371,7 +377,7 @@ export const VaccineSection: React.FC<VaccineSectionProps> = ({
                       type="button"
                       onClick={() => setConfirmDelete({ id: vaccine.id, type: 'vaccine' })}
                       aria-label={t.health.deleteVaccineConfirm}
-                      className="p-2.5 min-h-[44px] min-w-[44px] flex items-center justify-center text-slate-400 hover:text-red-400 hover:bg-slate-800 rounded-lg border border-slate-800 bg-slate-950 transition-colors"
+                      className="p-2 min-h-[38px] min-w-[38px] flex items-center justify-center text-slate-400 hover:text-red-400 hover:bg-slate-800 rounded-lg border border-slate-800 bg-slate-950 transition-colors"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>

@@ -1,9 +1,10 @@
 import React from 'react';
 import type { Activity, ActivityType, PottyLocation, PuppyProfile, PredictionResult } from '../types';
-import { Droplet, Footprints, Utensils, CheckCircle2 } from 'lucide-react';
+import { Droplet, Utensils, CheckCircle2 } from 'lucide-react';
+import { PoopIcon } from './common/PoopIcon';
 import { Card } from '@heroui/react';
 import { useI18n } from '../i18n';
-import { formatMinutesToXhXX, isSameLocalDate, parseIsoDate } from '../utils/date';
+import { formatMinutesToXhXX, isSameLogicalDate, parseIsoDate } from '../utils/date';
 import { calculateNextMealPortion } from '../utils/predictions';
 import { StatusBadge } from './common/StatusBadge';
 
@@ -11,7 +12,7 @@ function getActivityStats(activities: Activity[], type: string, now: Date) {
   const typeLogs = activities.filter((activity) => activity.type === type).sort(
     (activityA, activityB) => parseIsoDate(activityB.timestamp).getTime() - parseIsoDate(activityA.timestamp).getTime()
   );
-  const todayLogs = typeLogs.filter((activity) => isSameLocalDate(parseIsoDate(activity.timestamp), now));
+  const todayLogs = typeLogs.filter((activity) => isSameLogicalDate(parseIsoDate(activity.timestamp), now));
   const lastMinsAgo = typeLogs.length > 0
     ? Math.max(0, Math.floor((now.getTime() - parseIsoDate(typeLogs[0].timestamp).getTime()) / 60000))
     : null;
@@ -183,7 +184,7 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = React.memo(({
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2">
                 <div className="p-1.5 bg-amber-600/20 text-amber-400 rounded-lg shrink-0 border border-amber-500/30">
-                  <Footprints className="w-4 h-4" />
+                  <PoopIcon className="w-4 h-4" />
                 </div>
                 <div className="text-xs font-bold text-slate-300">{t.potty.nextPoop}</div>
               </div>

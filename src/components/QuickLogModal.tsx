@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import type { Activity, ActivityType, PottyLocation, StoolConsistency } from '../types';
-import { Droplet, Footprints, Utensils, Scale, Pill, X, Calendar, FileText } from 'lucide-react';
+import { Droplet, Utensils, Scale, Pill, X, Calendar, FileText } from 'lucide-react';
+import { PoopIcon } from './common/PoopIcon';
 import { Modal } from '@heroui/react';
 import { useI18n } from '../i18n';
 import { getLocalDatetimeString } from '../utils/date';
@@ -90,11 +91,13 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
 
   const activityTypes: { type: ActivityType; label: string; icon: React.ReactNode; color: string }[] = [
     { type: 'pee', label: t.potty.pee, icon: <Droplet className="w-5 h-5" />, color: 'text-amber-400' },
-    { type: 'poop', label: t.potty.poop, icon: <Footprints className="w-5 h-5" />, color: 'text-amber-600' },
+    { type: 'poop', label: t.potty.poop, icon: <PoopIcon className="w-5 h-5" />, color: 'text-amber-600' },
     { type: 'food', label: t.potty.food, icon: <Utensils className="w-5 h-5" />, color: 'text-purple-400' },
     { type: 'weight', label: t.potty.weight, icon: <Scale className="w-5 h-5" />, color: 'text-pink-400' },
     { type: 'medication', label: t.potty.medication, icon: <Pill className="w-5 h-5" />, color: 'text-teal-400' },
   ];
+
+  const currentTypeConfig = activityTypes.find((item) => item.type === type) || activityTypes[0];
 
   return (
     <Modal isOpen={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
@@ -105,7 +108,7 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
             <div className="flex items-center justify-between p-5 border-b border-slate-800/80 bg-slate-900/60">
               <div className="flex items-center gap-3">
                 <div className="p-2.5 bg-indigo-600/20 text-indigo-400 rounded-xl border border-indigo-500/30">
-                  <Utensils className="w-5 h-5" />
+                  {currentTypeConfig.icon}
                 </div>
                 <div>
                   <h3 className="text-base font-extrabold text-white">
@@ -127,7 +130,7 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
             </div>
 
             {/* Body */}
-            <div className="p-6 space-y-5">
+            <div className="p-4 sm:p-6 space-y-5">
               <form id="quicklog-form" onSubmit={handleSubmit} className="space-y-5">
                 {/* Activity Type Segmented Selector */}
                 <div>
@@ -135,7 +138,7 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
                     {t.potty.activityType}
                   </label>
                   <div 
-                    className="grid grid-cols-5 gap-2" 
+                    className="flex flex-wrap sm:grid sm:grid-cols-5 gap-2" 
                     role="radiogroup"
                     onKeyDown={(event) => {
                       if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
@@ -175,14 +178,14 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
                               setWeightKg(defaultWeightKg);
                             }
                           }}
-                          className={`flex flex-col items-center justify-center p-3 rounded-xl border transition-all duration-150 ${
+                          className={`flex-1 min-w-[28%] sm:min-w-0 flex flex-col items-center justify-center p-2.5 sm:p-3 rounded-xl border transition-all duration-150 ${
                             isSelected
                               ? 'bg-indigo-600 border-indigo-500 text-white shadow-lg ring-2 ring-indigo-400/40 font-bold'
                               : 'bg-slate-950/80 border-slate-800/80 text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
                           }`}
                         >
                           <span className={isSelected ? 'text-white' : item.color}>{item.icon}</span>
-                          <span className="mt-1.5 text-xs font-medium truncate w-full text-center">{item.label}</span>
+                          <span className="mt-1.5 text-xs font-medium whitespace-nowrap text-center">{item.label}</span>
                         </button>
                       );
                     })}

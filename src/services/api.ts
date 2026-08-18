@@ -107,10 +107,11 @@ export async function deleteDog(id: string): Promise<ApiResult<{ success: boolea
 
 export async function fetchActivities(
   puppyId?: string,
-  options?: { days?: number; limit?: number; offset?: number }
+  options?: { days?: number; limit?: number; offset?: number; type?: string }
 ): Promise<ApiResult<Activity[]>> {
   const params = new URLSearchParams();
   if (puppyId) params.append('puppyId', puppyId);
+  if (options?.type) params.append('type', options.type);
   if (options?.days) params.append('days', String(options.days));
   if (options?.limit) params.append('limit', String(options.limit));
   if (options?.offset) params.append('offset', String(options.offset));

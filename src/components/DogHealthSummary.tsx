@@ -160,7 +160,7 @@ export const DogHealthSummary: React.FC<DogHealthSummaryProps> = ({
 
   return (
     <Card className="shadow-xl bg-slate-900/90 border-slate-800">
-      <Card.Content className="p-5 space-y-4">
+      <Card.Content className="p-3.5 sm:p-5 space-y-4">
         {/* Header */}
         <div className="flex items-center justify-between">
           <h2 className="text-base font-extrabold text-slate-100 flex items-center gap-2">
@@ -170,8 +170,8 @@ export const DogHealthSummary: React.FC<DogHealthSummaryProps> = ({
         </div>
 
         {/* Dog Profile & Weight Card */}
-        <div className="bg-slate-950/60 p-4 rounded-xl border border-slate-800 space-y-3">
-          <div className="flex items-center justify-between">
+        <div className="bg-slate-950/60 p-3 sm:p-4 rounded-xl border border-slate-800 space-y-3">
+          <div className="flex items-center justify-between gap-2 flex-wrap">
             <span className="text-xs font-bold text-white">{profile.name}</span>
             <Chip size="sm" variant="soft" color="accent" className="font-bold">
               {localizedBreed}
@@ -179,7 +179,7 @@ export const DogHealthSummary: React.FC<DogHealthSummaryProps> = ({
           </div>
 
           <div className="bg-slate-900/80 p-3 rounded-xl border border-slate-800 space-y-2">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="flex items-center gap-2">
                 <Scale className="w-4 h-4 text-pink-400 shrink-0" />
                 <span className="text-xs font-bold text-slate-200">{t.health.weightSummary}</span>
@@ -211,8 +211,8 @@ export const DogHealthSummary: React.FC<DogHealthSummaryProps> = ({
 
         {/* Calculated Daily Routine (Night Sleep & Meals) Card */}
         {scheduleData && (
-          <div className="bg-slate-950/60 p-4 rounded-xl border border-slate-800 space-y-3">
-            <div className="flex items-center justify-between">
+          <div className="bg-slate-950/60 p-3 sm:p-4 rounded-xl border border-slate-800 space-y-3">
+            <div className="flex items-center justify-between gap-2 flex-wrap">
               <div className="flex items-center gap-2">
                 <Clock className="w-4 h-4 text-amber-400 shrink-0" />
                 <span className="text-xs font-bold text-slate-200">{t.health.dailySchedule}</span>
@@ -225,7 +225,7 @@ export const DogHealthSummary: React.FC<DogHealthSummaryProps> = ({
 
             {/* Night Sleep / Wakeup Row */}
             <div className="bg-slate-900/80 p-3 rounded-xl border border-slate-800/90 space-y-2">
-              <div className="flex items-center justify-between text-xs">
+              <div className="flex items-center justify-between text-xs gap-2 flex-wrap">
                 <div className="flex items-center gap-1.5 font-bold text-slate-300">
                   <Moon className="w-3.5 h-3.5 text-indigo-400" />
                   <span>{t.health.nightSleep}</span>
@@ -260,7 +260,7 @@ export const DogHealthSummary: React.FC<DogHealthSummaryProps> = ({
 
             {/* Meals Schedule Row */}
             <div className="bg-slate-900/80 p-3 rounded-xl border border-slate-800/90 space-y-2">
-              <div className="flex items-center justify-between text-xs">
+              <div className="flex items-center justify-between text-xs gap-2 flex-wrap">
                 <div className="flex items-center gap-1.5 font-bold text-slate-300">
                   <Utensils className="w-3.5 h-3.5 text-emerald-400" />
                   <span>{t.health.mealSchedule}</span>
@@ -272,9 +272,9 @@ export const DogHealthSummary: React.FC<DogHealthSummaryProps> = ({
 
               <div className={`grid gap-2 text-xs pt-0.5 ${scheduleData.mealItems.length === 2 ? 'grid-cols-2' : scheduleData.mealItems.length === 4 ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-3'}`}>
                 {scheduleData.mealItems.map((item, index) => (
-                  <div key={index} className="bg-slate-950/70 p-2.5 rounded-lg border border-slate-800/70">
-                    <div className="text-[11px] text-slate-400 font-medium truncate">{item.name}</div>
-                    <div className="font-extrabold text-emerald-300 text-sm mt-0.5">~{item.timeStr}</div>
+                  <div key={index} className="bg-slate-950/70 p-2 sm:p-2.5 rounded-lg border border-slate-800/70 text-center sm:text-left">
+                    <div className="text-[11px] text-slate-400 font-medium truncate" title={item.name}>{item.name}</div>
+                    <div className="font-extrabold text-emerald-300 text-xs sm:text-sm mt-0.5">~{item.timeStr}</div>
                     <div className="text-[10px] text-slate-400 mt-0.5 font-medium">~{item.grams}g</div>
                   </div>
                 ))}
@@ -286,12 +286,12 @@ export const DogHealthSummary: React.FC<DogHealthSummaryProps> = ({
         {/* Dynamic Health Overview (Vaccine & Deworming) */}
         <div className="space-y-2.5">
           {/* Last Vaccine */}
-          <div className="bg-slate-950/60 p-3.5 rounded-xl border border-slate-800 flex items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-teal-500/20 text-teal-400 rounded-lg shrink-0">
+          <div className="bg-slate-950/60 p-3 sm:p-3.5 rounded-xl border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3">
+            <div className="flex items-start sm:items-center gap-3">
+              <div className="p-2 bg-teal-500/20 text-teal-400 rounded-lg shrink-0 mt-0.5 sm:mt-0">
                 <Syringe className="w-4 h-4" />
               </div>
-              <div>
+              <div className="space-y-0.5">
                 <div className="text-xs font-bold text-slate-200">
                   {lastVaccine ? lastVaccine.name : t.health.lastVaccination}
                 </div>
@@ -307,12 +307,12 @@ export const DogHealthSummary: React.FC<DogHealthSummaryProps> = ({
           </div>
 
           {/* Last Deworming */}
-          <div className="bg-slate-950/60 p-3.5 rounded-xl border border-slate-800 flex items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-amber-500/20 text-amber-400 rounded-lg shrink-0">
+          <div className="bg-slate-950/60 p-3 sm:p-3.5 rounded-xl border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3">
+            <div className="flex items-start sm:items-center gap-3">
+              <div className="p-2 bg-amber-500/20 text-amber-400 rounded-lg shrink-0 mt-0.5 sm:mt-0">
                 <Pill className="w-4 h-4" />
               </div>
-              <div>
+              <div className="space-y-0.5">
                 <div className="text-xs font-bold text-slate-200">
                   {lastDeworming ? (lastDeworming.productName || lastDeworming.name) : t.health.lastDeworming}
                 </div>

@@ -75,11 +75,97 @@ export function formatLocalTime(date: Date, timeZone?: string): string {
 }
 
 /**
+ * Creates a Date object for a specific YYYY-MM-DD and HH:mm in a specified IANA timezone
+ */
+export function createDateInTimezone(dateStr: string, timeStr: string, timeZone?: string): Date {
+  const tz = timeZone || getUserTimezone();
+  const [year, month, day] = dateStr.split('-').map(Number);
+  const [hours, minutes] = timeStr.split(':').map(Number);
+
+  const utcDate = new Date(Date.UTC(year, (month || 1) - 1, day || 1, hours || 0, minutes || 0, 0));
+
+  try {
+    const formatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: tz,
+      year: 'numeric',
+      month: 'numeric',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: 'numeric',
+      second: 'numeric',
+      hour12: false,
+    });
+
+    const parts = formatter.formatToParts(utcDate);
+    const getPart = (type: string) => parseInt(parts.find((p) => p.type === type)?.value || '0', 10);
+
+    let formattedHour = getPart('hour');
+    if (formattedHour === 24) formattedHour = 0;
+    const targetTimeInTz = Date.UTC(
+      getPart('year'),
+      getPart('month') - 1,
+      getPart('day'),
+      formattedHour,
+      getPart('minute'),
+      getPart('second')
+    );
+
+    const offsetMs = targetTimeInTz - utcDate.getTime();
+    return new Date(utcDate.getTime() - offsetMs);
+  } catch {
+    return new Date(year, (month || 1) - 1, day || 1, hours || 0, minutes || 0);
+  }
+}
+
+/**
+ * Calculates a specific occurrence of a clock hour (e.g. 7.3 -> 07:18) in target timezone
+ */
+export function getOccurrenceOfClockTimeInTimezone(
+  referenceDate: Date,
+  targetHourDecimal: number,
+  timeZone?: string,
+  daysOffset: number = 0
+): Date {
+  const tz = timeZone || getUserTimezone();
+  const targetDay = new Date(referenceDate.getTime() + daysOffset * 24 * 3600 * 1000);
+  const dateStr = formatLocalDate(targetDay, tz);
+  const h = Math.floor(targetHourDecimal);
+  const m = Math.round((targetHourDecimal - h) * 60);
+  const timeStr = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+  return createDateInTimezone(dateStr, timeStr, tz);
+}
+
+/**
  * Parses ISO timestamp string or Date object into a JavaScript Date object
  */
 export function parseIsoDate(timestamp: string | Date): Date {
   if (timestamp instanceof Date) return timestamp;
   return new Date(timestamp);
+}
+
+/**
+ * Default hour cutoff for puppy waking/night cycles (04:00 AM)
+ * Activities between 00:00 AM and 03:59 AM belong to previous waking day.
+ */
+export const LOGICAL_DAY_CUTOFF_HOURS = 4;
+
+/**
+ * Returns a Date shifted back by cutoff hours to compute logical waking day
+ */
+export function getLogicalDate(date: Date | string = new Date(), cutoffHours: number = LOGICAL_DAY_CUTOFF_HOURS): Date {
+  const d = typeof date === 'string' ? parseIsoDate(date) : date;
+  return new Date(d.getTime() - cutoffHours * 3600 * 1000);
+}
+
+/**
+ * Returns YYYY-MM-DD for the logical waking day of a timestamp
+ */
+export function formatLogicalDate(
+  date: Date | string = new Date(),
+  timeZone?: string,
+  cutoffHours: number = LOGICAL_DAY_CUTOFF_HOURS
+): string {
+  return formatLocalDate(getLogicalDate(date, cutoffHours), timeZone);
 }
 
 /**
@@ -89,6 +175,18 @@ export function isSameLocalDate(dateA: Date | string, dateB: Date | string, time
   const dA = typeof dateA === 'string' ? parseIsoDate(dateA) : dateA;
   const dB = typeof dateB === 'string' ? parseIsoDate(dateB) : dateB;
   return formatLocalDate(dA, timeZone) === formatLocalDate(dB, timeZone);
+}
+
+/**
+ * Checks whether two Date objects (or ISO strings) fall on the exact same logical waking day (4:00 AM cutoff)
+ */
+export function isSameLogicalDate(
+  dateA: Date | string,
+  dateB: Date | string,
+  timeZone?: string,
+  cutoffHours: number = LOGICAL_DAY_CUTOFF_HOURS
+): boolean {
+  return formatLogicalDate(dateA, timeZone, cutoffHours) === formatLogicalDate(dateB, timeZone, cutoffHours);
 }
 
 /**
