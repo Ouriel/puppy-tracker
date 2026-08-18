@@ -351,8 +351,10 @@ export const VaccineSection: React.FC<VaccineSectionProps> = ({
                         </Chip>
                       )}
                     </div>
-                    <div className="text-[11px] text-slate-400">
-                      {t.health.injectedOn} {vaccine.date} &bull; {t.health.clinic}: {vaccine.vetClinic || t.health.veterinary}
+                    <div className="text-[11px] text-slate-400 flex flex-col sm:flex-row sm:items-center sm:gap-1.5 gap-0.5">
+                      <span>{t.health.injectedOn} {vaccine.date}</span>
+                      <span className="hidden sm:inline">&bull;</span>
+                      <span className="truncate text-slate-400/90">{t.health.clinic}: {vaccine.vetClinic || t.health.veterinary}</span>
                     </div>
                   </div>
                 </div>
