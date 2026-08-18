@@ -1,9 +1,9 @@
 import React, { useState, useMemo } from 'react';
-import type { Activity, ActivityType, Caretaker } from '../types';
-import { Droplet, Footprints, Utensils, Trash2, Pencil, User, ChevronDown } from 'lucide-react';
+import type { Activity, ActivityType, Caretaker, PuppyProfile } from '../types';
+import { Droplet, Footprints, Utensils, Trash2, Pencil, User, ChevronDown, Calendar, CheckCircle2, ChevronsUpDown } from 'lucide-react';
 import { Button, Card, Chip } from '@heroui/react';
 import { useI18n } from '../i18n';
-import { formatRelativeTime, parseIsoDate } from '../utils/date';
+import { formatRelativeTime, parseIsoDate, formatLogicalDate, getUserTimezone } from '../utils/date';
 import { EditActivityModal } from './EditActivityModal';
 import { resolveCaretakerName } from '../utils/caretakers';
 import { sortByTimestampDesc } from '../utils/activities';
@@ -12,6 +12,7 @@ import { ConfirmationModal } from './common/ConfirmationModal';
 interface ActivityTimelineProps {
   activities: Activity[];
   caretakers: Caretaker[];
+  activePuppy?: PuppyProfile | null;
   onDeleteActivity: (id: string) => void;
   onUpdateActivity?: (updated: Partial<Activity> & { id: string }) => void;
   onLoadMore?: () => Promise<void>;
@@ -19,9 +20,46 @@ interface ActivityTimelineProps {
   hasMoreRemote?: boolean;
 }
 
+interface DayGroup {
+  dateKey: string;
+  isToday: boolean;
+  isYesterday: boolean;
+  dateLabel: string;
+  totalFoodGrams: number;
+  mealsCount: number;
+  dailyGoalGrams: number;
+  targetMealsCount: number;
+  peeCount: number;
+  poopCount: number;
+  accidentCount: number;
+  activities: Activity[];
+}
+
+function formatDayHeading(
+  dateKey: string,
+  isToday: boolean,
+  isYesterday: boolean,
+  lang: 'en' | 'fr',
+  labels: { today: string; yesterday: string }
+): string {
+  const [year, month, day] = dateKey.split('-').map(Number);
+  const dateObj = new Date(year, (month || 1) - 1, day || 1, 12, 0, 0);
+  const locale = lang === 'fr' ? 'fr-FR' : 'en-US';
+  const shortDate = dateObj.toLocaleDateString(locale, { weekday: 'short', month: 'short', day: 'numeric' });
+
+  if (isToday) {
+    return `${labels.today} • ${shortDate}`;
+  }
+  if (isYesterday) {
+    return `${labels.yesterday} • ${shortDate}`;
+  }
+  return dateObj.toLocaleDateString(locale, { weekday: 'long', month: 'short', day: 'numeric' });
+}
+
 export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
   activities,
   caretakers,
+  activePuppy,
   onDeleteActivity,
   onUpdateActivity,
   onLoadMore,
@@ -31,8 +69,15 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
   const { t, lang } = useI18n();
   const [filter, setFilter] = useState<'all' | 'potty' | 'food'>('all');
   const [editingActivity, setEditingActivity] = useState<Activity | null>(null);
-  const [confirmDelete, setConfirmDelete] = useState<{id: string; type: string} | null>(null);
-  const [daysLimit, setDaysLimit] = useState<number>(180); // 180-day initial window
+  const [confirmDelete, setConfirmDelete] = useState<{ id: string; type: string } | null>(null);
+  const [daysLimit, setDaysLimit] = useState<number>(180);
+  const tz = getUserTimezone();
+
+  const todayDateKey = useMemo(() => formatLogicalDate(new Date(), tz), [tz]);
+  const yesterdayDateKey = useMemo(() => formatLogicalDate(new Date(Date.now() - 24 * 3600 * 1000), tz), [tz]);
+
+  // Track expanded days in accordion (Today open by default)
+  const [expandedDays, setExpandedDays] = useState<Set<string>>(() => new Set([todayDateKey]));
 
   const getIcon = (type: ActivityType) => {
     switch (type) {
@@ -53,16 +98,15 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
     return caretaker ? caretaker.color : '#6366F1';
   };
 
-  // Filter to Pee, Poop, Food logs sorted chronologically descending
+  // Filter to core activities sorted chronologically descending
   const sortedCoreActivities = useMemo(() => {
-    const filtered = activities
-      .filter((act) => {
-        const isCoreType = act.type === 'pee' || act.type === 'poop' || act.type === 'food';
-        if (!isCoreType) return false;
-        if (filter === 'potty') return act.type === 'pee' || act.type === 'poop';
-        if (filter === 'food') return act.type === 'food';
-        return true;
-      });
+    const filtered = activities.filter((act) => {
+      const isCoreType = act.type === 'pee' || act.type === 'poop' || act.type === 'food';
+      if (!isCoreType) return false;
+      if (filter === 'potty') return act.type === 'pee' || act.type === 'poop';
+      if (filter === 'food') return act.type === 'food';
+      return true;
+    });
     return sortByTimestampDesc(filtered);
   }, [activities, filter]);
 
@@ -77,7 +121,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
   const hasMorePriorLogs = sortedCoreActivities.length > visibleActivities.length || hasMoreRemote;
 
   const handleLoadMore = async () => {
-    setDaysLimit((prev) => prev + 90);
+    setDaysLimit((previous) => previous + 90);
     if (onLoadMore) {
       await onLoadMore();
     }
@@ -88,6 +132,81 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
       today: t.dashboard.today,
       yesterday: t.dashboard.yesterday,
     });
+  };
+
+  const dailyGoalGrams = activePuppy?.dailyFoodGramGoal || 200;
+  const targetMealsCount = activePuppy?.targetMealsPerDay || 3;
+
+  // Group visible activities by logical day
+  const dayGroups = useMemo<DayGroup[]>(() => {
+    const groupsMap = new Map<string, Activity[]>();
+
+    visibleActivities.forEach((activity) => {
+      const dateKey = formatLogicalDate(activity.timestamp, tz);
+      const existing = groupsMap.get(dateKey) || [];
+      existing.push(activity);
+      groupsMap.set(dateKey, existing);
+    });
+
+    const groups: DayGroup[] = [];
+
+    groupsMap.forEach((dayActs, dateKey) => {
+      const isToday = dateKey === todayDateKey;
+      const isYesterday = dateKey === yesterdayDateKey;
+      const totalFoodGrams = dayActs
+        .filter((activity) => activity.type === 'food')
+        .reduce((sum, activity) => sum + (activity.quantityGrams || 0), 0);
+      const mealsCount = dayActs.filter((activity) => activity.type === 'food').length;
+      const peeCount = dayActs.filter((activity) => activity.type === 'pee').length;
+      const poopCount = dayActs.filter((activity) => activity.type === 'poop').length;
+      const accidentCount = dayActs.filter(
+        (activity) => (activity.type === 'pee' || activity.type === 'poop') && activity.pottyLocation === 'indoor_accident'
+      ).length;
+
+      groups.push({
+        dateKey,
+        isToday,
+        isYesterday,
+        dateLabel: formatDayHeading(dateKey, isToday, isYesterday, lang as 'en' | 'fr', {
+          today: t.dashboard.today,
+          yesterday: t.dashboard.yesterday,
+        }),
+        totalFoodGrams,
+        mealsCount,
+        dailyGoalGrams,
+        targetMealsCount,
+        peeCount,
+        poopCount,
+        accidentCount,
+        activities: dayActs,
+      });
+    });
+
+    // Ensure groups are sorted by dateKey descending
+    return groups.sort((groupA, groupB) => groupB.dateKey.localeCompare(groupA.dateKey));
+  }, [visibleActivities, tz, todayDateKey, yesterdayDateKey, lang, t.dashboard.today, t.dashboard.yesterday, dailyGoalGrams, targetMealsCount]);
+
+  const toggleDay = (dateKey: string) => {
+    setExpandedDays((previous) => {
+      const next = new Set(previous);
+      if (next.has(dateKey)) {
+        next.delete(dateKey);
+      } else {
+        next.add(dateKey);
+      }
+      return next;
+    });
+  };
+
+  const allDayKeys = useMemo(() => dayGroups.map((group) => group.dateKey), [dayGroups]);
+  const isAllExpanded = allDayKeys.length > 0 && allDayKeys.every((key) => expandedDays.has(key));
+
+  const handleToggleExpandAll = () => {
+    if (isAllExpanded) {
+      setExpandedDays(new Set());
+    } else {
+      setExpandedDays(new Set(allDayKeys));
+    }
   };
 
   return (
@@ -107,145 +226,282 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
             </p>
           </div>
 
-          {/* Filter Buttons */}
-          <div className="flex items-center gap-1 bg-slate-950/80 border border-slate-800 p-1 rounded-xl">
-            <button
-              type="button"
-              onClick={() => setFilter('all')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                filter === 'all'
-                  ? 'bg-indigo-600 text-white shadow'
-                  : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
-              }`}
-            >
-              {t.dashboard.all}
-            </button>
-            <button
-              type="button"
-              onClick={() => setFilter('potty')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                filter === 'potty'
-                  ? 'bg-indigo-600 text-white shadow'
-                  : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
-              }`}
-            >
-              {t.dashboard.pottyFilter}
-            </button>
-            <button
-              type="button"
-              onClick={() => setFilter('food')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                filter === 'food'
-                  ? 'bg-indigo-600 text-white shadow'
-                  : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
-              }`}
-            >
-              {t.dashboard.mealsFilter}
-            </button>
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Expand / Collapse All Button */}
+            {dayGroups.length > 0 && (
+              <button
+                type="button"
+                onClick={handleToggleExpandAll}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-950 border border-slate-800 text-slate-300 hover:text-white hover:bg-slate-800 transition-colors"
+                title={isAllExpanded ? t.dashboard.collapseAll : t.dashboard.expandAll}
+              >
+                <ChevronsUpDown className="w-3.5 h-3.5" />
+                <span>{isAllExpanded ? t.dashboard.collapseAll : t.dashboard.expandAll}</span>
+              </button>
+            )}
+
+            {/* Filter Buttons */}
+            <div className="flex items-center gap-1 bg-slate-950/80 border border-slate-800 p-1 rounded-xl">
+              <button
+                type="button"
+                onClick={() => setFilter('all')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                  filter === 'all'
+                    ? 'bg-indigo-600 text-white shadow'
+                    : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+                }`}
+              >
+                {t.dashboard.all}
+              </button>
+              <button
+                type="button"
+                onClick={() => setFilter('potty')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                  filter === 'potty'
+                    ? 'bg-indigo-600 text-white shadow'
+                    : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+                }`}
+              >
+                {t.dashboard.pottyFilter}
+              </button>
+              <button
+                type="button"
+                onClick={() => setFilter('food')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                  filter === 'food'
+                    ? 'bg-indigo-600 text-white shadow'
+                    : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+                }`}
+              >
+                {t.dashboard.mealsFilter}
+              </button>
+            </div>
           </div>
         </div>
 
-        {/* Timeline list */}
-        {visibleActivities.length === 0 ? (
+        {/* Day-by-day Accordion List */}
+        {dayGroups.length === 0 ? (
           <div className="text-center py-10 text-slate-400 bg-slate-950/60 rounded-xl border border-dashed border-slate-800 space-y-1">
             <p className="text-sm font-semibold">{t.dashboard.noActivityLogs}</p>
             <p className="text-xs text-slate-500">{t.dashboard.tapLogEvent}</p>
           </div>
         ) : (
-          <div className="relative pl-6 space-y-3.5 before:absolute before:left-2.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-800">
-            {visibleActivities.map((item) => {
-              const color = getCaretakerColor(item.loggedBy);
-              const caretakerName = resolveCaretakerName(item.loggedBy, caretakers);
+          <div className="space-y-3">
+            {dayGroups.map((group) => {
+              const isExpanded = expandedDays.has(group.dateKey);
+              const foodGoalReached = group.totalFoodGrams >= group.dailyGoalGrams && group.dailyGoalGrams > 0;
+              const hasFoodLogs = group.totalFoodGrams > 0;
 
               return (
                 <div
-                  key={item.id}
-                  className="relative group bg-slate-950/60 hover:bg-slate-950 border border-slate-800 rounded-xl p-3.5 transition-all shadow-sm flex items-start justify-between gap-3"
+                  key={group.dateKey}
+                  className={`rounded-2xl border transition-all duration-200 overflow-hidden ${
+                    group.isToday
+                      ? 'bg-slate-950/70 border-indigo-500/40 shadow-sm'
+                      : 'bg-slate-950/50 border-slate-800 hover:border-slate-700'
+                  }`}
                 >
-                  {/* Timeline dot */}
-                  <div
-                    className="absolute -left-[23px] top-4 w-3.5 h-3.5 rounded-full ring-4 ring-slate-900 shrink-0"
-                    style={{ backgroundColor: color }}
-                  />
-
-                  <div className="flex items-start gap-3">
-                    <div className="p-2.5 bg-slate-900 rounded-xl border border-slate-800 mt-0.5 shrink-0">
-                      {getIcon(item.type)}
-                    </div>
-
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-xs font-bold text-slate-100 capitalize">
-                          {t.potty[item.type as keyof typeof t.potty] || item.type}
-                        </span>
-
-                        {/* Potty location pill */}
-                        {item.pottyLocation === 'outside' && (
-                          <Chip color="success" variant="soft" size="sm">
-                            🌳 {t.potty.outside}
-                          </Chip>
-                        )}
-                        {item.pottyLocation === 'indoor_accident' && (
-                          <Chip color="danger" variant="soft" size="sm">
-                            🚨 {t.potty.accident}
-                          </Chip>
-                        )}
-
-                        {/* Stool consistency */}
-                        {item.stoolConsistency && (
-                          <Chip color="default" variant="soft" size="sm">
-                            {t.potty.stoolConsistencyPrefix} {t.potty[item.stoolConsistency as keyof typeof t.potty] || item.stoolConsistency}
-                          </Chip>
-                        )}
-
-                        {/* Food Grams */}
-                        {item.quantityGrams && (
-                          <Chip color="accent" variant="soft" size="sm">
-                            {item.quantityGrams}{t.units.grams} ({item.quantityCups || 0.75} {t.units.cups})
-                          </Chip>
-                        )}
-                      </div>
-
-                      {item.notes && (
-                        <p className="text-xs text-slate-300 italic font-mono bg-slate-900/80 px-2.5 py-1 rounded-lg border border-slate-800">
-                          "{item.notes}"
-                        </p>
-                      )}
-
-                      {/* Caretaker Name & Timestamp Line (Clean: just caretaker name, no "Logged by") */}
-                      <div className="flex items-center gap-2 text-xs text-slate-400 pt-0.5">
-                        <span className="font-medium text-slate-300">{formatTime(item.timestamp)}</span>
-                        <span>•</span>
-                        <span className="inline-flex items-center gap-1 font-bold px-2 py-0.5 rounded-full bg-slate-900 border border-slate-800" style={{ color }}>
-                          <User className="w-3 h-3" />
-                          <span>{caretakerName}</span>
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Actions: Edit & Delete */}
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    {onUpdateActivity && (
-                      <button
-                        type="button"
-                        onClick={() => setEditingActivity(item)}
-                        aria-label="Edit activity log"
-                        className="p-2.5 min-h-[44px] min-w-[44px] flex items-center justify-center text-slate-400 hover:text-indigo-300 hover:bg-slate-800 rounded-lg border border-slate-800 bg-slate-950 transition-colors"
+                  {/* Accordion Header (Clickable Summary Bar) */}
+                  <button
+                    type="button"
+                    onClick={() => toggleDay(group.dateKey)}
+                    className="w-full p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-left transition-colors hover:bg-slate-900/50"
+                    aria-expanded={isExpanded}
+                  >
+                    {/* Left: Date Title & Events Badge */}
+                    <div className="flex items-center gap-2.5">
+                      <div
+                        className={`p-2 rounded-xl border shrink-0 ${
+                          group.isToday
+                            ? 'bg-indigo-600/20 text-indigo-400 border-indigo-500/30'
+                            : 'bg-slate-900 text-slate-400 border-slate-800'
+                        }`}
                       >
-                        <Pencil className="w-4 h-4" />
-                      </button>
-                    )}
+                        <Calendar className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-xs sm:text-sm font-extrabold text-slate-100 capitalize">
+                            {group.dateLabel}
+                          </span>
+                          <span className="text-[10px] font-bold bg-slate-800/90 text-slate-300 px-2 py-0.5 rounded-full border border-slate-700/60">
+                            {t.dashboard.eventsCount.replace('{count}', String(group.activities.length))}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
 
-                    <button
-                      type="button"
-                      onClick={() => setConfirmDelete({ id: item.id, type: 'activity' })}
-                      aria-label="Delete log"
-                      className="p-2.5 min-h-[44px] min-w-[44px] flex items-center justify-center text-slate-400 hover:text-red-400 hover:bg-slate-800 rounded-lg border border-slate-800 bg-slate-950 transition-colors"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
+                    {/* Right: Quick Nutrition & Potty Summaries */}
+                    <div className="flex items-center justify-between sm:justify-end gap-2 flex-wrap sm:flex-nowrap">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        {/* Food Summary Pill */}
+                        <div
+                          className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-bold border transition-all ${
+                            foodGoalReached
+                              ? 'bg-emerald-950/70 border-emerald-700/60 text-emerald-300'
+                              : hasFoodLogs
+                              ? 'bg-amber-950/60 border-amber-700/50 text-amber-300'
+                              : 'bg-slate-900 border-slate-800 text-slate-400'
+                          }`}
+                          title={`${t.dashboard.foodIntake}: ${group.totalFoodGrams}g / ${group.dailyGoalGrams}g`}
+                        >
+                          <Utensils className="w-3.5 h-3.5 shrink-0" />
+                          <span>
+                            {group.totalFoodGrams}g / {group.dailyGoalGrams}g
+                          </span>
+                          <span className="text-[10px] opacity-80">
+                            ({group.mealsCount}/{group.targetMealsCount})
+                          </span>
+                          {foodGoalReached && <CheckCircle2 className="w-3 h-3 text-emerald-400 ml-0.5 shrink-0" />}
+                        </div>
+
+                        {/* Potty Pills: Pee */}
+                        <div
+                          className="inline-flex items-center gap-1 px-2 py-1 rounded-xl text-xs font-bold bg-sky-950/60 border border-sky-800/50 text-sky-300"
+                          title={t.dashboard.peesCount.replace('{count}', String(group.peeCount))}
+                        >
+                          <Droplet className="w-3.5 h-3.5 shrink-0" />
+                          <span>{group.peeCount}</span>
+                        </div>
+
+                        {/* Potty Pills: Poop */}
+                        <div
+                          className="inline-flex items-center gap-1 px-2 py-1 rounded-xl text-xs font-bold bg-amber-950/60 border border-amber-800/50 text-amber-300"
+                          title={t.dashboard.poopsCount.replace('{count}', String(group.poopCount))}
+                        >
+                          <Footprints className="w-3.5 h-3.5 shrink-0" />
+                          <span>{group.poopCount}</span>
+                        </div>
+
+                        {/* Accidents Warning Chip (if any) */}
+                        {group.accidentCount > 0 && (
+                          <div
+                            className="inline-flex items-center gap-1 px-2 py-1 rounded-xl text-xs font-bold bg-rose-950/80 border border-rose-700 text-rose-300 animate-pulse"
+                            title={t.dashboard.accidentsCount.replace('{count}', String(group.accidentCount))}
+                          >
+                            <span>🚨 {group.accidentCount}</span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Expand/Collapse Chevron */}
+                      <div className="p-1 rounded-lg text-slate-400 hover:text-slate-200 transition-transform duration-200">
+                        <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${isExpanded ? 'rotate-180 text-indigo-400' : ''}`} />
+                      </div>
+                    </div>
+                  </button>
+
+                  {/* Accordion Content (Detailed Event Feed) */}
+                  {isExpanded && (
+                    <div className="border-t border-slate-800/80 bg-slate-950/40 p-4 sm:p-5 pt-4">
+                      {group.activities.length === 0 ? (
+                        <p className="text-xs text-slate-500 italic py-2">{t.dashboard.noLogsThisDay}</p>
+                      ) : (
+                        <div className="relative pl-6 space-y-3.5 before:absolute before:left-2.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-800/80">
+                          {group.activities.map((item) => {
+                            const color = getCaretakerColor(item.loggedBy);
+                            const caretakerName = resolveCaretakerName(item.loggedBy, caretakers);
+
+                            return (
+                              <div
+                                key={item.id}
+                                className="relative group bg-slate-900/80 hover:bg-slate-900 border border-slate-800/80 hover:border-slate-700 rounded-xl p-3 sm:p-3.5 transition-all shadow-sm flex items-start justify-between gap-3"
+                              >
+                                {/* Timeline dot */}
+                                <div
+                                  className="absolute -left-[23px] top-4 w-3.5 h-3.5 rounded-full ring-4 ring-slate-950 shrink-0"
+                                  style={{ backgroundColor: color }}
+                                />
+
+                                <div className="flex items-start gap-3">
+                                  <div className="p-2.5 bg-slate-950 rounded-xl border border-slate-800 mt-0.5 shrink-0">
+                                    {getIcon(item.type)}
+                                  </div>
+
+                                  <div className="space-y-1">
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                      <span className="text-xs font-bold text-slate-100 capitalize">
+                                        {t.potty[item.type as keyof typeof t.potty] || item.type}
+                                      </span>
+
+                                      {/* Potty location pill */}
+                                      {item.pottyLocation === 'outside' && (
+                                        <Chip color="success" variant="soft" size="sm">
+                                          🌳 {t.potty.outside}
+                                        </Chip>
+                                      )}
+                                      {item.pottyLocation === 'indoor_accident' && (
+                                        <Chip color="danger" variant="soft" size="sm">
+                                          🚨 {t.potty.accident}
+                                        </Chip>
+                                      )}
+
+                                      {/* Stool consistency */}
+                                      {item.stoolConsistency && (
+                                        <Chip color="default" variant="soft" size="sm">
+                                          {t.potty.stoolConsistencyPrefix} {t.potty[item.stoolConsistency as keyof typeof t.potty] || item.stoolConsistency}
+                                        </Chip>
+                                      )}
+
+                                      {/* Food Grams */}
+                                      {item.quantityGrams && (
+                                        <Chip color="accent" variant="soft" size="sm">
+                                          {item.quantityGrams}
+                                          {t.units.grams} ({item.quantityCups || 0.75} {t.units.cups})
+                                        </Chip>
+                                      )}
+                                    </div>
+
+                                    {item.notes && (
+                                      <p className="text-xs text-slate-300 italic font-mono bg-slate-950 px-2.5 py-1 rounded-lg border border-slate-800">
+                                        "{item.notes}"
+                                      </p>
+                                    )}
+
+                                    {/* Caretaker Name & Timestamp Line */}
+                                    <div className="flex items-center gap-2 text-xs text-slate-400 pt-0.5">
+                                      <span className="font-medium text-slate-300">{formatTime(item.timestamp)}</span>
+                                      <span>•</span>
+                                      <span
+                                        className="inline-flex items-center gap-1 font-bold px-2 py-0.5 rounded-full bg-slate-950 border border-slate-800"
+                                        style={{ color }}
+                                      >
+                                        <User className="w-3 h-3" />
+                                        <span>{caretakerName}</span>
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                {/* Actions: Edit & Delete */}
+                                <div className="flex items-center gap-1.5 shrink-0">
+                                  {onUpdateActivity && (
+                                    <button
+                                      type="button"
+                                      onClick={() => setEditingActivity(item)}
+                                      aria-label="Edit activity log"
+                                      className="p-2 min-h-[38px] min-w-[38px] flex items-center justify-center text-slate-400 hover:text-indigo-300 hover:bg-slate-800 rounded-lg border border-slate-800 bg-slate-950 transition-colors"
+                                    >
+                                      <Pencil className="w-3.5 h-3.5" />
+                                    </button>
+                                  )}
+
+                                  <button
+                                    type="button"
+                                    onClick={() => setConfirmDelete({ id: item.id, type: 'activity' })}
+                                    aria-label="Delete log"
+                                    className="p-2 min-h-[38px] min-w-[38px] flex items-center justify-center text-slate-400 hover:text-red-400 hover:bg-slate-800 rounded-lg border border-slate-800 bg-slate-950 transition-colors"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -293,3 +549,4 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
     </Card>
   );
 };
+

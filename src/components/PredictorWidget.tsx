@@ -3,7 +3,7 @@ import type { Activity, ActivityType, PottyLocation, PuppyProfile, PredictionRes
 import { Droplet, Footprints, Utensils, CheckCircle2 } from 'lucide-react';
 import { Card } from '@heroui/react';
 import { useI18n } from '../i18n';
-import { formatMinutesToXhXX, isSameLocalDate, parseIsoDate } from '../utils/date';
+import { formatMinutesToXhXX, isSameLogicalDate, parseIsoDate } from '../utils/date';
 import { calculateNextMealPortion } from '../utils/predictions';
 import { StatusBadge } from './common/StatusBadge';
 
@@ -11,7 +11,7 @@ function getActivityStats(activities: Activity[], type: string, now: Date) {
   const typeLogs = activities.filter((activity) => activity.type === type).sort(
     (activityA, activityB) => parseIsoDate(activityB.timestamp).getTime() - parseIsoDate(activityA.timestamp).getTime()
   );
-  const todayLogs = typeLogs.filter((activity) => isSameLocalDate(parseIsoDate(activity.timestamp), now));
+  const todayLogs = typeLogs.filter((activity) => isSameLogicalDate(parseIsoDate(activity.timestamp), now));
   const lastMinsAgo = typeLogs.length > 0
     ? Math.max(0, Math.floor((now.getTime() - parseIsoDate(typeLogs[0].timestamp).getTime()) / 60000))
     : null;
