@@ -44,14 +44,14 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [selectedTab, setSelectedTab] = useState<'dogs' | 'household' | 'admin'>('dogs');
 
   return (
-    <div className="space-y-6 w-full pb-12">
+    <div className="space-y-4 sm:space-y-6 w-full pb-12">
       {/* Top Navigation Bar */}
       {onBackToDashboard && (
         <div className="flex items-center justify-between">
           <button
             type="button"
             onClick={onBackToDashboard}
-            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-white text-xs font-bold transition-all shadow-sm group"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-white text-xs font-bold transition-all shadow-sm group"
           >
             <ArrowLeft className="w-4 h-4 text-indigo-400 group-hover:-translate-x-0.5 transition-transform" />
             <span>{t.nav.backToDashboard}</span>
@@ -61,63 +61,61 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
       {/* Header Banner */}
       <Card className="bg-slate-900 border-slate-800 text-slate-100 shadow-xl">
-        <Card.Content className="flex flex-wrap items-center justify-between gap-4 p-6">
-          <div className="flex items-center gap-3">
-            <div className="p-3 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl shadow-md">
-              <Settings className="w-6 h-6 text-white" />
-            </div>
-            <div>
-              <h2 className="text-xl font-bold text-slate-100 flex items-center gap-2">
-                <span>{t.nav.settings} & Administration</span>
-              </h2>
-              <p className="text-xs text-slate-400">
-                {t.household.manageSettingsSubtitle || 'Manage household dog profiles, family caretakers, and access approvals'}
-              </p>
-            </div>
+        <Card.Content className="flex items-center gap-3 p-3.5 sm:p-5">
+          <div className="p-2.5 sm:p-3 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl shadow-md shrink-0">
+            <Settings className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+          </div>
+          <div className="min-w-0">
+            <h2 className="text-base sm:text-lg font-black text-slate-100 flex items-center gap-2 truncate">
+              <span>{t.nav.settings} &amp; Administration</span>
+            </h2>
+            <p className="text-xs text-slate-400 truncate">
+              {t.household.manageSettingsSubtitle || 'Manage household dog profiles, family caretakers, and access approvals'}
+            </p>
           </div>
         </Card.Content>
       </Card>
 
       {/* Full Page Navigation Tabs */}
-      <div className="flex flex-wrap gap-2 border-b border-slate-800 pb-3">
+      <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2 border-b border-slate-800 pb-3">
         <button
           type="button"
           onClick={() => setSelectedTab('dogs')}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs transition-all ${
+          className={`flex items-center justify-center sm:justify-start gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl font-bold text-xs transition-all ${
             selectedTab === 'dogs'
               ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30'
               : 'bg-slate-900 border border-slate-800 text-slate-400 hover:text-white hover:bg-slate-800'
           }`}
         >
-          <Dog className="w-4 h-4 text-indigo-400" />
-          <span>{t.settings.dogProfiles} ({puppies.length})</span>
+          <Dog className="w-4 h-4 text-indigo-400 shrink-0" />
+          <span className="truncate">{t.settings.dogProfiles} ({puppies.length})</span>
         </button>
 
         <button
           type="button"
           onClick={() => setSelectedTab('household')}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs transition-all ${
+          className={`flex items-center justify-center sm:justify-start gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl font-bold text-xs transition-all ${
             selectedTab === 'household'
               ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30'
               : 'bg-slate-900 border border-slate-800 text-slate-400 hover:text-white hover:bg-slate-800'
           }`}
         >
-          <Users className="w-4 h-4 text-purple-400" />
-          <span>{t.settings.householdMembers} ({caretakers.length})</span>
+          <Users className="w-4 h-4 text-purple-400 shrink-0" />
+          <span className="truncate">{t.settings.householdMembers} ({caretakers.length})</span>
         </button>
 
         {isSuperAdmin && (
           <button
             type="button"
             onClick={() => setSelectedTab('admin')}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs transition-all ${
+            className={`col-span-2 sm:col-span-1 flex items-center justify-center sm:justify-start gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl font-bold text-xs transition-all ${
               selectedTab === 'admin'
                 ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30'
                 : 'bg-slate-900 border border-slate-800 text-slate-400 hover:text-white hover:bg-slate-800'
             }`}
           >
-            <Shield className="w-4 h-4 text-red-400" />
-            <span>{t.settings.superAdminPanel}</span>
+            <Shield className="w-4 h-4 text-red-400 shrink-0" />
+            <span className="truncate">{t.settings.superAdminPanel}</span>
           </button>
         )}
       </div>

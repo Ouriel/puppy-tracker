@@ -3,7 +3,7 @@ import type { PuppyProfile, Activity, HealthRecord } from '../types';
 import { Syringe, ArrowLeft, Printer } from 'lucide-react';
 import { useI18n } from '../i18n';
 import { formatBreedName } from '../utils/breeds';
-import { Card, Button } from '@heroui/react';
+import { Card } from '@heroui/react';
 import { fetchHealthRecords } from '../services/api';
 import { WeightGrowthChart } from '../components/WeightGrowthChart';
 import { VaccineSection } from './carnet/VaccineSection';
@@ -73,47 +73,45 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({
   }
 
   return (
-    <div className="space-y-6 w-full">
-      {/* Top Navigation Bar */}
-      {onBackToDashboard && (
-        <div className="flex items-center justify-between">
+    <div className="space-y-4 sm:space-y-6 w-full">
+      {/* Top Navigation Bar: Back button & compact PDF export button */}
+      <div className="flex items-center justify-between gap-2">
+        {onBackToDashboard ? (
           <button
             type="button"
             onClick={onBackToDashboard}
-            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-white text-xs font-bold transition-all shadow-sm group"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-white text-xs font-bold transition-all shadow-sm group"
           >
             <ArrowLeft className="w-4 h-4 text-indigo-400 group-hover:-translate-x-0.5 transition-transform" />
             <span>{t.nav.backToDashboard}</span>
           </button>
-        </div>
-      )}
+        ) : <div />}
 
-      {/* Header Card with Passport Details & Print Export Action */}
+        <button
+          type="button"
+          onClick={() => printHealthPassportReport(activePuppy, vaccinations, dewormingLogs, activities, lang, t)}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-teal-300 hover:text-white text-xs font-bold transition-all shadow-sm shrink-0"
+          title={t.nav.exportPdf}
+        >
+          <Printer className="w-3.5 h-3.5 text-teal-400" />
+          <span>{t.nav.exportPdf}</span>
+        </button>
+      </div>
+
+      {/* Header Card with Passport Details */}
       <Card className="bg-slate-900 border-slate-800 shadow-xl">
-        <Card.Content className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 sm:p-6">
-          <div className="flex items-center gap-3">
-            <div className="p-3 bg-gradient-to-br from-teal-500 to-emerald-600 rounded-2xl shadow-md shrink-0">
-              <Syringe className="w-6 h-6 text-white" />
-            </div>
-            <div className="min-w-0">
-              <h2 className="text-lg sm:text-xl font-black text-slate-100 flex items-center gap-2">
-                <span>{t.health.healthPassportFor.replace('{name}', activePuppy.name)}</span>
-              </h2>
-              <p className="text-xs text-slate-400 mt-0.5">
-                {t.health.carnetSubtitle} &bull; {activePuppy.name} ({formatBreedName(activePuppy.breed, lang)})
-              </p>
-            </div>
+        <Card.Content className="p-3.5 sm:p-5 flex items-center gap-3">
+          <div className="p-2.5 sm:p-3 bg-gradient-to-br from-teal-500 to-emerald-600 rounded-xl shadow-md shrink-0">
+            <Syringe className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
           </div>
-
-          <Button
-            variant="outline"
-            size="sm"
-            onPress={() => printHealthPassportReport(activePuppy, vaccinations, dewormingLogs, activities, lang, t)}
-            className="w-full sm:w-auto border-slate-700 bg-slate-950/80 hover:bg-slate-800 text-slate-200 font-bold text-xs shrink-0"
-          >
-            <Printer className="w-4 h-4 mr-1.5 inline text-teal-400" />
-            <span>{t.nav.exportPdf}</span>
-          </Button>
+          <div className="min-w-0">
+            <h2 className="text-base sm:text-lg font-black text-slate-100 flex items-center gap-2 truncate">
+              <span>{t.health.healthPassportFor.replace('{name}', activePuppy.name)}</span>
+            </h2>
+            <p className="text-xs text-slate-400 mt-0.5 truncate">
+              {t.health.carnetSubtitle} &bull; {activePuppy.name} ({formatBreedName(activePuppy.breed, lang)})
+            </p>
+          </div>
         </Card.Content>
       </Card>
 
