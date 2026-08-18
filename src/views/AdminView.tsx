@@ -45,11 +45,11 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail }) => {
         fetchAllHouseholds(),
       ]);
 
-      if (Array.isArray(remoteUsers)) {
-        setUsers(remoteUsers);
+      if (remoteUsers.ok) {
+        setUsers(remoteUsers.data);
       }
-      if (Array.isArray(remoteHouseholds) && remoteHouseholds.length > 0) {
-        setHouseholds(remoteHouseholds);
+      if (remoteHouseholds.ok && remoteHouseholds.data.length > 0) {
+        setHouseholds(remoteHouseholds.data);
       }
     } catch (err) {
       console.error('Failed to load admin data', err);
@@ -62,7 +62,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail }) => {
     const targetHouseholdId = targetHouseholds[email] || 'FAMILY-COCKER-2026';
     try {
       const res = await updateUser({ email, status: 'ACTIVE', householdId: targetHouseholdId });
-      if (res) {
+      if (res.ok) {
         setUsers((previous) =>
           previous.map((registeredUser) =>
             registeredUser.email === email
@@ -83,7 +83,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail }) => {
   const handleMoveHousehold = async (email: string, newHouseholdId: string) => {
     try {
       const res = await updateUser({ email, householdId: newHouseholdId });
-      if (res) {
+      if (res.ok) {
         setUsers((previous) =>
           previous.map((registeredUser) =>
             registeredUser.email === email
@@ -105,7 +105,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail }) => {
     if (isSuperAdminEmail(email)) return;
     try {
       const res = await updateUser({ email, status: 'PENDING_APPROVAL' });
-      if (res) {
+      if (res.ok) {
         setUsers((previous) =>
           previous.map((registeredUser) =>
             registeredUser.email === email
@@ -129,8 +129,8 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail }) => {
     }
 
     try {
-      const success = await deleteUser(userToDelete.email);
-      if (success) {
+      const res = await deleteUser(userToDelete.email);
+      if (res.ok) {
         setUsers((previous) => previous.filter((registeredUser) => registeredUser.email !== userToDelete.email));
         setStatusMessage(t.admin.deletedAccount ? t.admin.deletedAccount.replace('{email}', userToDelete.email) : `Deleted ${userToDelete.email}`);
       }
@@ -156,7 +156,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail }) => {
         householdId: newInviteHousehold,
       });
 
-      if (res) {
+      if (res.ok) {
         await loadData();
         setNewInviteEmail('');
         setStatusMessage(`Pre-approved ${email} in household "${newInviteHousehold}"`);

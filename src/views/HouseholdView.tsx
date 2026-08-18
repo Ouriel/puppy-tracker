@@ -40,14 +40,14 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
     if (!inviteEmail.trim()) return;
 
     const email = inviteEmail.trim().toLowerCase();
-    const created = await createUser({
+    const result = await createUser({
       email,
       name: email.split('@')[0],
       role: 'Member',
       status: 'ACTIVE',
     });
 
-    if (created) {
+    if (result.ok) {
       setInviteSuccess(`${email} authorized!`);
       setInviteEmail('');
       if (!caretakers.some((item) => item.name.toLowerCase() === email.split('@')[0])) {
@@ -58,6 +58,8 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
           color: '#8B5CF6',
         });
       }
+    } else {
+      showToast(result.error || t.toasts.errorGeneric, 'error');
     }
   };
 

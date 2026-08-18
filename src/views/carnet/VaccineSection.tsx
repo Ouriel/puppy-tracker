@@ -69,13 +69,15 @@ export const VaccineSection: React.FC<VaccineSectionProps> = ({
       batchNumber: batchNumber.trim() || undefined,
     };
 
-    const created = await createHealthRecord(newEntry);
-    if (created) {
-      setVaccinations((previous) => sortByDateDesc([created, ...previous]));
+    const result = await createHealthRecord(newEntry);
+    if (result.ok) {
+      setVaccinations((previous) => sortByDateDesc([result.data, ...previous]));
       setIsAddingVaccine(false);
       setCustomNextDueDate(null);
       setVetClinic('');
       setBatchNumber('');
+    } else {
+      showToast(result.error || t.toasts.errorGeneric, 'error');
     }
   };
 
@@ -90,7 +92,7 @@ export const VaccineSection: React.FC<VaccineSectionProps> = ({
 
   const handleUpdateVaccineSubmit = async (id: string) => {
     if (!editVaccineDate) return;
-    const updated = await updateHealthRecord({
+    const result = await updateHealthRecord({
       id,
       puppyId: activePuppy.id,
       type: 'vaccination',
@@ -101,19 +103,23 @@ export const VaccineSection: React.FC<VaccineSectionProps> = ({
       batchNumber: editVaccineBatchNumber || undefined,
     });
 
-    if (updated) {
+    if (result.ok) {
       setVaccinations((previous) =>
-        sortByDateDesc(previous.map((vaccine) => (vaccine.id === id ? { ...vaccine, ...updated } : vaccine)))
+        sortByDateDesc(previous.map((vaccine) => (vaccine.id === id ? { ...vaccine, ...result.data } : vaccine)))
       );
       setEditingVaccineId(null);
       showToast(t.toasts.vaccineUpdated, 'success');
+    } else {
+      showToast(result.error || t.toasts.errorGeneric, 'error');
     }
   };
 
   const handleDeleteVaccine = async (id: string) => {
-    const ok = await deleteHealthRecord(id);
-    if (ok) {
+    const result = await deleteHealthRecord(id);
+    if (result.ok) {
       setVaccinations((previous) => previous.filter((vaccine) => vaccine.id !== id));
+    } else {
+      showToast(result.error || t.toasts.errorGeneric, 'error');
     }
   };
 

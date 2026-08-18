@@ -69,11 +69,13 @@ export const DewormingSection: React.FC<DewormingSectionProps> = ({
       weightAtTime: getEffectivePuppyWeight(activePuppy, activities).estimatedCurrentWeight,
     };
 
-    const created = await createHealthRecord(newEntry);
-    if (created) {
-      setDewormingLogs((previous) => sortByDateDesc([created, ...previous]));
+    const result = await createHealthRecord(newEntry);
+    if (result.ok) {
+      setDewormingLogs((previous) => sortByDateDesc([result.data, ...previous]));
       setIsAddingDeworming(false);
       setCustomDewormNextDate(null);
+    } else {
+      showToast(result.error || t.toasts.errorGeneric, 'error');
     }
   };
 
@@ -87,7 +89,7 @@ export const DewormingSection: React.FC<DewormingSectionProps> = ({
 
   const handleUpdateDewormingSubmit = async (id: string) => {
     if (!editDewormingDate) return;
-    const updated = await updateHealthRecord({
+    const result = await updateHealthRecord({
       id,
       puppyId: activePuppy.id,
       type: 'deworming',
@@ -98,19 +100,23 @@ export const DewormingSection: React.FC<DewormingSectionProps> = ({
       weightAtTime: editDewormingWeight ? Number(editDewormingWeight) : undefined,
     });
 
-    if (updated) {
+    if (result.ok) {
       setDewormingLogs((previous) =>
-        sortByDateDesc(previous.map((deworming) => (deworming.id === id ? { ...deworming, ...updated } : deworming)))
+        sortByDateDesc(previous.map((deworming) => (deworming.id === id ? { ...deworming, ...result.data } : deworming)))
       );
       setEditingDewormingId(null);
       showToast(t.toasts.dewormingUpdated, 'success');
+    } else {
+      showToast(result.error || t.toasts.errorGeneric, 'error');
     }
   };
 
   const handleDeleteDeworming = async (id: string) => {
-    const ok = await deleteHealthRecord(id);
-    if (ok) {
+    const result = await deleteHealthRecord(id);
+    if (result.ok) {
       setDewormingLogs((previous) => previous.filter((deworming) => deworming.id !== id));
+    } else {
+      showToast(result.error || t.toasts.errorGeneric, 'error');
     }
   };
 

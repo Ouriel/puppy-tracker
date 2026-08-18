@@ -344,6 +344,7 @@ export const fr: TranslationKeys = {
   toasts: {
     selectPuppyFirst: 'Veuillez sélectionner un profil de chiot.',
     activityLogged: 'Activité enregistrée avec succès !',
+    activityUpdated: 'Activité mise à jour.',
     activityDeleted: 'Activité supprimée.',
     dogRegistered: '{name} enregistré !',
     dogUpdated: 'Profil mis à jour.',

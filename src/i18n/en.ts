@@ -342,6 +342,7 @@ export const en = {
   toasts: {
     selectPuppyFirst: 'Please select a puppy profile first.',
     activityLogged: 'Activity logged successfully!',
+    activityUpdated: 'Activity updated.',
     activityDeleted: 'Activity deleted.',
     dogRegistered: '{name} registered!',
     dogUpdated: 'Dog profile updated.',

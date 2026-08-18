@@ -36,14 +36,17 @@ export const DogHealthSummary: React.FC<DogHealthSummaryProps> = ({
         fetchHealthRecords(profile.id, 'vaccination'),
         fetchHealthRecords(profile.id, 'deworming'),
       ]);
-      if (vRes && vRes.length > 0) {
-        const sorted = [...vRes].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      const vRecords = vRes.ok ? vRes.data : [];
+      const dRecords = dRes.ok ? dRes.data : [];
+
+      if (vRecords.length > 0) {
+        const sorted = [...vRecords].sort((recordA, recordB) => new Date(recordB.date).getTime() - new Date(recordA.date).getTime());
         setLastVaccine(sorted[0]);
       } else {
         setLastVaccine(null);
       }
-      if (dRes && dRes.length > 0) {
-        const sorted = [...dRes].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      if (dRecords.length > 0) {
+        const sorted = [...dRecords].sort((recordA, recordB) => new Date(recordB.date).getTime() - new Date(recordA.date).getTime());
         setLastDeworming(sorted[0]);
       } else {
         setLastDeworming(null);

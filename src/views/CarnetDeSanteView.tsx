@@ -42,11 +42,11 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({
       fetchHealthRecords(activePuppy.id, 'vaccination'),
       fetchHealthRecords(activePuppy.id, 'deworming'),
     ]);
-    if (vaccineResponse) {
-      setVaccinations(sortByDateDesc(vaccineResponse));
+    if (vaccineResponse.ok) {
+      setVaccinations(sortByDateDesc(vaccineResponse.data));
     }
-    if (dewormingResponse) {
-      setDewormingLogs(sortByDateDesc(dewormingResponse));
+    if (dewormingResponse.ok) {
+      setDewormingLogs(sortByDateDesc(dewormingResponse.data));
     }
   }, [activePuppy?.id]);
 

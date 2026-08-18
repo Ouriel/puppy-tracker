@@ -1,8 +1,11 @@
 import type { Activity, PuppyProfile, Caretaker, RegisteredUserItem, HealthRecord } from '../types';
 import { getAuthToken, setAuthToken, clearAuthToken } from '../utils/auth';
-import { showToast } from '../utils/toast';
 
 export type { RegisteredUserItem };
+
+export type ApiResult<T> =
+  | { ok: true; data: T }
+  | { ok: false; error: string; status: number };
 
 const apiCache = new Map<string, { data: any; timestamp: number }>();
 const CACHE_TTL_MS = 60 * 1000; // 60 seconds SWR cache
@@ -22,7 +25,7 @@ function getHeaders(): Record<string, string> {
   return headers;
 }
 
-async function request<T>(url: string, options: RequestInit = {}): Promise<T | null> {
+async function request<T>(url: string, options: RequestInit = {}): Promise<ApiResult<T>> {
   const method = (options.method || 'GET').toUpperCase();
   const headers = { ...getHeaders(), ...(options.headers || {}) };
 
@@ -37,7 +40,7 @@ async function request<T>(url: string, options: RequestInit = {}): Promise<T | n
           if (freshData) apiCache.set(url, { data: freshData, timestamp: Date.now() });
         })
         .catch(() => {});
-      return cached.data as T;
+      return { ok: true, data: cached.data as T };
     }
   } else {
     // Invalidate cache on mutations (POST, PUT, DELETE)
@@ -48,12 +51,11 @@ async function request<T>(url: string, options: RequestInit = {}): Promise<T | n
     const res = await fetch(url, { ...options, headers });
 
     if (res.ok) {
-      if (res.status === 204) return {} as T;
-      const data = await res.json();
+      const data = res.status === 204 ? ({} as T) : await res.json();
       if (method === 'GET') {
         apiCache.set(url, { data, timestamp: Date.now() });
       }
-      return data as T;
+      return { ok: true, data: data as T };
     }
 
     if (res.status === 401) {
@@ -62,45 +64,43 @@ async function request<T>(url: string, options: RequestInit = {}): Promise<T | n
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent('puppace:unauthorized'));
       }
-      return null;
+      return { ok: false, error: 'Unauthorized', status: 401 };
     }
 
     const body = await res.json().catch(() => ({}));
-    showToast(body.error || `Server error (${res.status})`, 'error');
-    return null;
+    const errorMsg = body.error || `Server error (${res.status})`;
+    return { ok: false, error: errorMsg, status: res.status };
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : String(err);
+    const message = err instanceof Error ? err.message : 'Network error connecting to server.';
     console.error(`API request error on ${url}:`, message);
-    showToast('Network error connecting to server.', 'error');
-    return null;
+    return { ok: false, error: message, status: 0 };
   }
 }
 
 // ── Dogs API ──
 
-export async function fetchDogs(): Promise<PuppyProfile[] | null> {
+export async function fetchDogs(): Promise<ApiResult<PuppyProfile[]>> {
   return request<PuppyProfile[]>('/api/dogs');
 }
 
-export async function createDog(dog: PuppyProfile): Promise<PuppyProfile | null> {
+export async function createDog(dog: PuppyProfile): Promise<ApiResult<PuppyProfile>> {
   return request<PuppyProfile>('/api/dogs', {
     method: 'POST',
     body: JSON.stringify(dog),
   });
 }
 
-export async function updateDog(dog: Partial<PuppyProfile> & { id: string }): Promise<PuppyProfile | null> {
+export async function updateDog(dog: Partial<PuppyProfile> & { id: string }): Promise<ApiResult<PuppyProfile>> {
   return request<PuppyProfile>('/api/dogs', {
     method: 'PUT',
     body: JSON.stringify(dog),
   });
 }
 
-export async function deleteDog(id: string): Promise<boolean> {
-  const res = await request<{ success: boolean }>(`/api/dogs?id=${encodeURIComponent(id)}`, {
+export async function deleteDog(id: string): Promise<ApiResult<{ success: boolean; deletedId: string }>> {
+  return request<{ success: boolean; deletedId: string }>(`/api/dogs?id=${encodeURIComponent(id)}`, {
     method: 'DELETE',
   });
-  return !!res?.success;
 }
 
 // ── Activities API ──
@@ -108,7 +108,7 @@ export async function deleteDog(id: string): Promise<boolean> {
 export async function fetchActivities(
   puppyId?: string,
   options?: { days?: number; limit?: number; offset?: number }
-): Promise<Activity[] | null> {
+): Promise<ApiResult<Activity[]>> {
   const params = new URLSearchParams();
   if (puppyId) params.append('puppyId', puppyId);
   if (options?.days) params.append('days', String(options.days));
@@ -120,7 +120,7 @@ export async function fetchActivities(
   return request<Activity[]>(url);
 }
 
-export async function createActivity(activity: Omit<Activity, 'id'> & { id?: string }): Promise<Activity | null> {
+export async function createActivity(activity: Omit<Activity, 'id'> & { id?: string }): Promise<ApiResult<Activity>> {
   const prepared: Activity = {
     ...activity,
     id: activity.id || `act-${Date.now()}`,
@@ -132,112 +132,111 @@ export async function createActivity(activity: Omit<Activity, 'id'> & { id?: str
   });
 }
 
-export async function updateActivity(activity: Partial<Activity> & { id: string }): Promise<Activity | null> {
+export async function updateActivity(activity: Partial<Activity> & { id: string }): Promise<ApiResult<Activity>> {
   return request<Activity>('/api/activities', {
     method: 'PUT',
     body: JSON.stringify(activity),
   });
 }
 
-export async function deleteActivity(id: string): Promise<boolean> {
-  const res = await request<{ success: boolean }>(`/api/activities?id=${encodeURIComponent(id)}`, {
+export async function deleteActivity(id: string): Promise<ApiResult<{ success: boolean; deletedId: string }>> {
+  return request<{ success: boolean; deletedId: string }>(`/api/activities?id=${encodeURIComponent(id)}`, {
     method: 'DELETE',
   });
-  return !!res?.success;
 }
 
 // ── Health Records API ──
 
-export async function fetchHealthRecords(puppyId: string, type?: string): Promise<HealthRecord[] | null> {
+export async function fetchHealthRecords(puppyId: string, type?: string): Promise<ApiResult<HealthRecord[]>> {
   const url = type
     ? `/api/health-records?puppyId=${encodeURIComponent(puppyId)}&type=${encodeURIComponent(type)}`
     : `/api/health-records?puppyId=${encodeURIComponent(puppyId)}`;
   return request<HealthRecord[]>(url);
 }
 
-export async function createHealthRecord(record: Omit<HealthRecord, 'id' | 'householdId'> & { id?: string }): Promise<HealthRecord | null> {
+export async function createHealthRecord(record: Omit<HealthRecord, 'id' | 'householdId'> & { id?: string }): Promise<ApiResult<HealthRecord>> {
   return request<HealthRecord>('/api/health-records', {
     method: 'POST',
     body: JSON.stringify(record),
   });
 }
 
-export async function updateHealthRecord(record: Partial<HealthRecord> & { id: string }): Promise<HealthRecord | null> {
+export async function updateHealthRecord(record: Partial<HealthRecord> & { id: string }): Promise<ApiResult<HealthRecord>> {
   return request<HealthRecord>('/api/health-records', {
     method: 'PUT',
     body: JSON.stringify(record),
   });
 }
 
-export async function deleteHealthRecord(id: string): Promise<boolean> {
-  const res = await request<{ success: boolean }>(`/api/health-records?id=${encodeURIComponent(id)}`, {
+export async function deleteHealthRecord(id: string): Promise<ApiResult<{ success: boolean; deletedId: string }>> {
+  return request<{ success: boolean; deletedId: string }>(`/api/health-records?id=${encodeURIComponent(id)}`, {
     method: 'DELETE',
   });
-  return !!res?.success;
 }
 
 // ── Household & Caretakers API ──
 
-export async function fetchHousehold(): Promise<{ caretakers: Caretaker[] } | null> {
+export async function fetchHousehold(): Promise<ApiResult<{ caretakers: Caretaker[] }>> {
   return request<{ caretakers: Caretaker[] }>('/api/households');
 }
 
-export async function fetchAllHouseholds(): Promise<Array<{ id: string; name: string; familyPackId?: string }> | null> {
+export async function fetchAllHouseholds(): Promise<ApiResult<Array<{ id: string; name: string; familyPackId?: string }>>> {
   const res = await request<{ households: Array<{ id: string; name: string; familyPackId?: string }> }>('/api/households?all=true');
-  return res?.households || null;
+  if (res.ok) {
+    return { ok: true, data: res.data.households };
+  }
+  return res;
 }
 
-export async function createCaretaker(caretaker: Partial<Caretaker>): Promise<Caretaker | null> {
+export async function createCaretaker(caretaker: Partial<Caretaker>): Promise<ApiResult<Caretaker>> {
   return request<Caretaker>('/api/households', {
     method: 'POST',
     body: JSON.stringify(caretaker),
   });
 }
 
-export async function updateCaretaker(caretaker: Partial<Caretaker> & { id: string }): Promise<Caretaker | null> {
+export async function updateCaretaker(caretaker: Partial<Caretaker> & { id: string }): Promise<ApiResult<Caretaker>> {
   return request<Caretaker>('/api/households', {
     method: 'PUT',
     body: JSON.stringify(caretaker),
   });
 }
 
-export async function deleteCaretaker(id: string): Promise<boolean> {
-  const res = await request<{ success: boolean }>(`/api/households?id=${encodeURIComponent(id)}`, {
+export async function deleteCaretaker(id: string): Promise<ApiResult<{ success: boolean }>> {
+  return request<{ success: boolean }>(`/api/households?id=${encodeURIComponent(id)}`, {
     method: 'DELETE',
   });
-  return !!res?.success;
 }
 
 // ── Users API ──
 
-export async function fetchUsers(): Promise<RegisteredUserItem[] | null> {
+export async function fetchUsers(): Promise<ApiResult<RegisteredUserItem[]>> {
   return request<RegisteredUserItem[]>('/api/users');
 }
 
-export async function createUser(user: Partial<RegisteredUserItem>): Promise<RegisteredUserItem | null> {
+export async function createUser(user: Partial<RegisteredUserItem>): Promise<ApiResult<RegisteredUserItem>> {
   return request<RegisteredUserItem>('/api/users', {
     method: 'POST',
     body: JSON.stringify(user),
   });
 }
 
-export async function updateUser(user: Partial<RegisteredUserItem>): Promise<RegisteredUserItem | null> {
+export async function updateUser(user: Partial<RegisteredUserItem>): Promise<ApiResult<RegisteredUserItem>> {
   return request<RegisteredUserItem>('/api/users', {
     method: 'PUT',
     body: JSON.stringify(user),
   });
 }
 
-export async function deleteUser(email: string): Promise<boolean> {
-  const res = await request<{ success: boolean }>(`/api/users?email=${encodeURIComponent(email)}`, {
+export async function deleteUser(email: string): Promise<ApiResult<{ success: boolean; email: string }>> {
+  return request<{ success: boolean; email: string }>(`/api/users?email=${encodeURIComponent(email)}`, {
     method: 'DELETE',
   });
-  return !!res?.success;
 }
 
-export async function exchangeSessionToken(rawToken?: string): Promise<{ sessionToken: string; user: RegisteredUserItem } | null> {
+export async function exchangeSessionToken(rawToken?: string): Promise<ApiResult<{ sessionToken: string; user: RegisteredUserItem }>> {
   const token = rawToken || getAuthToken();
-  if (!token) return null;
+  if (!token) return { ok: false, error: 'No auth token available', status: 401 };
 
   try {
     const res = await fetch('/api/auth/session', {
@@ -253,11 +252,14 @@ export async function exchangeSessionToken(rawToken?: string): Promise<{ session
       if (data?.sessionToken) {
         setAuthToken(data.sessionToken);
       }
-      return data;
+      return { ok: true, data };
     }
-  } catch (err) {
-    console.error('Failed to exchange session token', err);
+    const body = await res.json().catch(() => ({}));
+    return { ok: false, error: body.error || 'Failed to exchange session token', status: res.status };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Network error';
+    console.error('Failed to exchange session token', message);
+    return { ok: false, error: message, status: 0 };
   }
-  return null;
 }
 
