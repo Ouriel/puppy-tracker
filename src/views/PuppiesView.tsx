@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import type { PuppyProfile } from '../types';
-import { Dog, Plus, Trash2, Edit3, Utensils, Calendar } from 'lucide-react';
+import { Dog, Plus, Trash2, Pencil, Utensils, Calendar } from 'lucide-react';
 import { useI18n } from '../i18n';
 import { formatBreedName } from '../utils/breeds';
 import { Card, Button, Input, Select, ListBox, ListBoxItem, Chip } from '@heroui/react';
@@ -272,7 +272,7 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
                   <Card.Content className="p-5 space-y-4">
                     <div className="flex items-center justify-between border-b border-slate-800 pb-3">
                       <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                        <Edit3 className="w-4 h-4 text-indigo-400" />
+                        <Pencil className="w-4 h-4 text-indigo-400" />
                         <span>{t.puppies.editProfileTitle.replace('{name}', pup.name)}</span>
                       </h3>
                     </div>
@@ -431,7 +431,7 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
                         aria-label={t.puppies.editProfileBtn}
                         className="p-2 min-h-[38px] min-w-[38px] flex items-center justify-center text-slate-400 hover:text-indigo-300 hover:bg-slate-800 rounded-xl border border-slate-800 bg-slate-950 transition-colors"
                       >
-                        <Edit3 className="w-4 h-4" />
+                        <Pencil className="w-4 h-4" />
                       </button>
 
                       <button

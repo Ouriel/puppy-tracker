@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import type { Activity, ActivityType, Caretaker, PuppyProfile } from '../types';
-import { Droplet, Utensils, Trash2, Pencil, User, ChevronDown, Calendar, CheckCircle2, ChevronsUpDown } from 'lucide-react';
+import { Droplet, Utensils, Trash2, Pencil, User, ChevronDown, Calendar, CheckCircle2, ChevronsUpDown, AlertTriangle } from 'lucide-react';
 import { PoopIcon } from './common/PoopIcon';
 import { Button, Card, Chip } from '@heroui/react';
 import { useI18n } from '../i18n';
@@ -338,7 +338,8 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
                           className="inline-flex items-center gap-1 px-2 py-1 rounded-xl text-xs font-bold bg-rose-950/80 border border-rose-700 text-rose-300 animate-pulse"
                           title={t.dashboard.accidentsCount.replace('{count}', String(group.accidentCount))}
                         >
-                          <span>🚨 {group.accidentCount}</span>
+                          <AlertTriangle className="w-3.5 h-3.5 text-rose-400 shrink-0" />
+                          <span>{group.accidentCount}</span>
                         </div>
                       )}
                     </div>

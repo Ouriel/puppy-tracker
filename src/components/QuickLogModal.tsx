@@ -97,6 +97,8 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
     { type: 'medication', label: t.potty.medication, icon: <Pill className="w-5 h-5" />, color: 'text-teal-400' },
   ];
 
+  const currentTypeConfig = activityTypes.find((item) => item.type === type) || activityTypes[0];
+
   return (
     <Modal isOpen={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
       <Modal.Backdrop className="bg-slate-950/80 backdrop-blur-sm">
@@ -106,7 +108,7 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
             <div className="flex items-center justify-between p-5 border-b border-slate-800/80 bg-slate-900/60">
               <div className="flex items-center gap-3">
                 <div className="p-2.5 bg-indigo-600/20 text-indigo-400 rounded-xl border border-indigo-500/30">
-                  <Utensils className="w-5 h-5" />
+                  {currentTypeConfig.icon}
                 </div>
                 <div>
                   <h3 className="text-base font-extrabold text-white">
