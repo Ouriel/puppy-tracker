@@ -89,13 +89,13 @@ export function App() {
       if (currentToken && storedUser) {
         setUser(storedUser);
         // Non-blocking background 90-day session extension
-        exchangeSessionToken(currentToken).then((sessionData) => {
-          if (sessionData?.user) {
+        exchangeSessionToken(currentToken).then((sessionResult) => {
+          if (sessionResult.ok && sessionResult.data?.user) {
             const userAccount: UserAccount = {
-              id: sessionData.user.id || 'u-1',
-              email: sessionData.user.email,
-              name: sessionData.user.name,
-              role: (['Husband', 'Wife', 'Partner', 'Child', 'Dog Walker', 'Sitter', 'Relative', 'Member', 'SuperAdmin'].includes(sessionData.user.role) ? sessionData.user.role : 'Member') as FamilyRole,
+              id: sessionResult.data.user.id || 'u-1',
+              email: sessionResult.data.user.email,
+              name: sessionResult.data.user.name,
+              role: (['Husband', 'Wife', 'Partner', 'Child', 'Dog Walker', 'Sitter', 'Relative', 'Member', 'SuperAdmin'].includes(sessionResult.data.user.role) ? sessionResult.data.user.role : 'Member') as FamilyRole,
             };
             setUser(userAccount);
             setStoredAuthUser(userAccount);
@@ -112,25 +112,25 @@ export function App() {
 
       try {
         // Parallel data loading: dogs, household, and initial activities in 1 concurrent roundtrip
-        const [remoteDogs, remoteHousehold, initialActivities] = await Promise.all([
+        const [dogsRes, householdRes, activitiesRes] = await Promise.all([
           fetchDogs(),
           fetchHousehold(),
           fetchActivities(activePupId, { days: 90, limit: 100 }),
         ]);
 
-        if (remoteDogs && remoteDogs.length > 0) {
-          puppyState.setPuppies(remoteDogs);
-          if (!puppyState.activePuppyId || !remoteDogs.some((puppy) => puppy.id === puppyState.activePuppyId)) {
-            puppyState.selectPuppy(remoteDogs[0].id);
+        if (dogsRes.ok && dogsRes.data.length > 0) {
+          puppyState.setPuppies(dogsRes.data);
+          if (!puppyState.activePuppyId || !dogsRes.data.some((puppy) => puppy.id === puppyState.activePuppyId)) {
+            puppyState.selectPuppy(dogsRes.data[0].id);
           }
         }
 
-        if (remoteHousehold?.caretakers && remoteHousehold.caretakers.length > 0) {
-          caretakerState.setCaretakers(remoteHousehold.caretakers);
+        if (householdRes.ok && householdRes.data?.caretakers && householdRes.data.caretakers.length > 0) {
+          caretakerState.setCaretakers(householdRes.data.caretakers);
         }
 
-        if (initialActivities && initialActivities.length > 0) {
-          activityState.setActivities(initialActivities);
+        if (activitiesRes.ok && activitiesRes.data.length > 0) {
+          activityState.setActivities(activitiesRes.data);
         }
       } catch (err) {
         console.error('Failed to load initial PupPace data', err);
@@ -214,32 +214,32 @@ export function App() {
 
   const handleUnlockWithSSO = async (email: string, name: string, token: string) => {
     setIsLoading(true);
-    const sessionData = await exchangeSessionToken(token);
-    if (sessionData && sessionData.user && sessionData.sessionToken) {
-      setAuthToken(sessionData.sessionToken);
+    const sessionRes = await exchangeSessionToken(token);
+    if (sessionRes.ok && sessionRes.data?.user && sessionRes.data.sessionToken) {
+      setAuthToken(sessionRes.data.sessionToken);
       const userAccount: UserAccount = {
-        id: sessionData.user.id || `u-${Date.now()}`,
-        email: sessionData.user.email,
-        name: sessionData.user.name,
-        role: (['Husband', 'Wife', 'Partner', 'Child', 'Dog Walker', 'Sitter', 'Relative', 'Member', 'SuperAdmin'].includes(sessionData.user.role) ? sessionData.user.role : 'Member') as FamilyRole,
+        id: sessionRes.data.user.id || `u-${Date.now()}`,
+        email: sessionRes.data.user.email,
+        name: sessionRes.data.user.name,
+        role: (['Husband', 'Wife', 'Partner', 'Child', 'Dog Walker', 'Sitter', 'Relative', 'Member', 'SuperAdmin'].includes(sessionRes.data.user.role) ? sessionRes.data.user.role : 'Member') as FamilyRole,
       };
       setUser(userAccount);
       setStoredAuthUser(userAccount);
 
-      const [remoteDogs, remoteHousehold] = await Promise.all([
+      const [dogsRes, householdRes] = await Promise.all([
         fetchDogs(),
         fetchHousehold(),
       ]);
 
-      if (remoteDogs && remoteDogs.length > 0) {
-        puppyState.setPuppies(remoteDogs);
-        if (!puppyState.activePuppyId || !remoteDogs.some((puppy) => puppy.id === puppyState.activePuppyId)) {
-          puppyState.selectPuppy(remoteDogs[0].id);
+      if (dogsRes.ok && dogsRes.data.length > 0) {
+        puppyState.setPuppies(dogsRes.data);
+        if (!puppyState.activePuppyId || !dogsRes.data.some((puppy) => puppy.id === puppyState.activePuppyId)) {
+          puppyState.selectPuppy(dogsRes.data[0].id);
         }
       }
 
-      if (remoteHousehold?.caretakers && remoteHousehold.caretakers.length > 0) {
-        caretakerState.setCaretakers(remoteHousehold.caretakers);
+      if (householdRes.ok && householdRes.data?.caretakers && householdRes.data.caretakers.length > 0) {
+        caretakerState.setCaretakers(householdRes.data.caretakers);
       }
 
       setIsLoading(false);
@@ -407,16 +407,19 @@ export function App() {
         )}
       </main>
 
-      {/* Quick Log Modal Component */}
-      <QuickLogModal
-        isOpen={isQuickLogOpen}
-        onClose={() => setIsQuickLogOpen(false)}
-        initialType={quickLogType}
-        onSave={activityState.addActivity}
-        currentUser={caretakerState.currentUser}
-        defaultMealPortionGrams={nextMealPortionGrams}
-        defaultWeightKg={lastWeightLogKg}
-      />
+      {/* Quick Log Modal Component (Conditionally mounted with key for clean lifecycle) */}
+      {isQuickLogOpen && (
+        <QuickLogModal
+          key={`quicklog-${quickLogType}-${Date.now()}`}
+          isOpen={true}
+          onClose={() => setIsQuickLogOpen(false)}
+          initialType={quickLogType}
+          onSave={activityState.addActivity}
+          currentUser={caretakerState.currentUser}
+          defaultMealPortionGrams={nextMealPortionGrams}
+          defaultWeightKg={lastWeightLogKg}
+        />
+      )}
     </div>
   );
 }

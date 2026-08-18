@@ -8,10 +8,10 @@ import { calculateNextMealPortion } from '../utils/predictions';
 import { StatusBadge } from './common/StatusBadge';
 
 function getActivityStats(activities: Activity[], type: string, now: Date) {
-  const typeLogs = activities.filter((act) => act.type === type).sort(
-    (a, b) => parseIsoDate(b.timestamp).getTime() - parseIsoDate(a.timestamp).getTime()
+  const typeLogs = activities.filter((activity) => activity.type === type).sort(
+    (activityA, activityB) => parseIsoDate(activityB.timestamp).getTime() - parseIsoDate(activityA.timestamp).getTime()
   );
-  const todayLogs = typeLogs.filter((act) => isSameLocalDate(parseIsoDate(act.timestamp), now));
+  const todayLogs = typeLogs.filter((activity) => isSameLocalDate(parseIsoDate(activity.timestamp), now));
   const lastMinsAgo = typeLogs.length > 0
     ? Math.max(0, Math.floor((now.getTime() - parseIsoDate(typeLogs[0].timestamp).getTime()) / 60000))
     : null;

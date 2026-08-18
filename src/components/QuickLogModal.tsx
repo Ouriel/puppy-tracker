@@ -137,21 +137,21 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
                   <div 
                     className="grid grid-cols-5 gap-2" 
                     role="radiogroup"
-                    onKeyDown={(e) => {
-                      if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
-                        e.preventDefault();
-                        const idx = activityTypes.findIndex(i => i.type === type);
+                    onKeyDown={(event) => {
+                      if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
+                        event.preventDefault();
+                        const idx = activityTypes.findIndex((item) => item.type === type);
                         const next = activityTypes[(idx + 1) % activityTypes.length];
                         setType(next.type);
-                        const nextBtn = e.currentTarget.querySelectorAll('[role="radio"]')[((idx + 1) % activityTypes.length)] as HTMLElement;
+                        const nextBtn = event.currentTarget.querySelectorAll('[role="radio"]')[((idx + 1) % activityTypes.length)] as HTMLElement;
                         nextBtn?.focus();
-                      } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
-                        e.preventDefault();
-                        const idx = activityTypes.findIndex(i => i.type === type);
+                      } else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
+                        event.preventDefault();
+                        const idx = activityTypes.findIndex((item) => item.type === type);
                         const prevIdx = (idx - 1 + activityTypes.length) % activityTypes.length;
                         const prev = activityTypes[prevIdx];
                         setType(prev.type);
-                        const prevBtn = e.currentTarget.querySelectorAll('[role="radio"]')[prevIdx] as HTMLElement;
+                        const prevBtn = event.currentTarget.querySelectorAll('[role="radio"]')[prevIdx] as HTMLElement;
                         prevBtn?.focus();
                       }
                     }}
@@ -165,7 +165,16 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
                           role="radio"
                           aria-checked={isSelected}
                           tabIndex={isSelected ? 0 : -1}
-                          onClick={() => setType(item.type)}
+                          onClick={() => {
+                            setType(item.type);
+                            if (item.type === 'food' && (!quantityGrams || quantityGrams <= 0)) {
+                              setQuantityGrams(defaultMealPortionGrams);
+                              setQuantityCups(Math.round((defaultMealPortionGrams / 110) * 100) / 100);
+                            }
+                            if (item.type === 'weight' && (!weightKg || weightKg <= 0)) {
+                              setWeightKg(defaultWeightKg);
+                            }
+                          }}
                           className={`flex flex-col items-center justify-center p-3 rounded-xl border transition-all duration-150 ${
                             isSelected
                               ? 'bg-indigo-600 border-indigo-500 text-white shadow-lg ring-2 ring-indigo-400/40 font-bold'
@@ -190,13 +199,13 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
                       <div 
                         className="grid grid-cols-2 gap-3" 
                         role="radiogroup"
-                        onKeyDown={(e) => {
-                          if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
-                            e.preventDefault();
+                        onKeyDown={(event) => {
+                          if (event.key === 'ArrowRight' || event.key === 'ArrowDown' || event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
+                            event.preventDefault();
                             const nextLoc = pottyLocation === 'outside' ? 'indoor_accident' : 'outside';
                             setPottyLocation(nextLoc);
                             const idx = nextLoc === 'outside' ? 0 : 1;
-                            (e.currentTarget.querySelectorAll('[role="radio"]')[idx] as HTMLElement)?.focus();
+                            (event.currentTarget.querySelectorAll('[role="radio"]')[idx] as HTMLElement)?.focus();
                           }
                         }}
                       >
@@ -243,39 +252,39 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
                         <div 
                           className="grid grid-cols-3 gap-2" 
                           role="radiogroup"
-                          onKeyDown={(e) => {
+                          onKeyDown={(event) => {
                             const options: StoolConsistency[] = ['hard', 'normal', 'diarrhea'];
                             const idx = options.indexOf(stoolConsistency);
-                            if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
-                              e.preventDefault();
+                            if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
+                              event.preventDefault();
                               const nextIdx = (idx + 1) % options.length;
                               setStoolConsistency(options[nextIdx]);
-                              (e.currentTarget.querySelectorAll('[role="radio"]')[nextIdx] as HTMLElement)?.focus();
-                            } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
-                              e.preventDefault();
+                              (event.currentTarget.querySelectorAll('[role="radio"]')[nextIdx] as HTMLElement)?.focus();
+                            } else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
+                              event.preventDefault();
                               const prevIdx = (idx - 1 + options.length) % options.length;
                               setStoolConsistency(options[prevIdx]);
-                              (e.currentTarget.querySelectorAll('[role="radio"]')[prevIdx] as HTMLElement)?.focus();
+                              (event.currentTarget.querySelectorAll('[role="radio"]')[prevIdx] as HTMLElement)?.focus();
                             }
                           }}
                         >
-                          {(['hard', 'normal', 'diarrhea'] as StoolConsistency[]).map((c) => {
-                            const isSelected = stoolConsistency === c;
+                          {(['hard', 'normal', 'diarrhea'] as StoolConsistency[]).map((consistency) => {
+                            const isSelected = stoolConsistency === consistency;
                             return (
                               <button
-                                key={c}
+                                key={consistency}
                                 type="button"
                                 role="radio"
                                 aria-checked={isSelected}
                                 tabIndex={isSelected ? 0 : -1}
-                                onClick={() => setStoolConsistency(c)}
+                                onClick={() => setStoolConsistency(consistency)}
                                 className={`py-2.5 px-2 rounded-xl text-xs font-bold border transition-all text-center capitalize ${
                                   isSelected
                                     ? 'bg-amber-600 border-amber-500 text-white shadow ring-2 ring-amber-400/30'
                                     : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-white hover:bg-slate-800'
                                 }`}
                               >
-                                {t.potty[c as keyof typeof t.potty] || c}
+                                {t.potty[consistency as keyof typeof t.potty] || consistency}
                               </button>
                             );
                           })}
