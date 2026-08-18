@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import type { Activity, ActivityType, Caretaker, PuppyProfile } from '../types';
 import { Droplet, Utensils, Trash2, Pencil, User, ChevronDown, Calendar, CheckCircle2, ChevronsUpDown, AlertTriangle } from 'lucide-react';
 import { PoopIcon } from './common/PoopIcon';
-import { Button, Card, Chip } from '@heroui/react';
+import { Button, Card } from '@heroui/react';
 import { useI18n } from '../i18n';
 import { formatRelativeTime, parseIsoDate, formatLogicalDate, getUserTimezone } from '../utils/date';
 import { EditActivityModal } from './EditActivityModal';
@@ -380,29 +380,46 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
 
                                       {/* Potty location pill */}
                                       {item.pottyLocation === 'outside' && (
-                                        <Chip color="success" variant="soft" size="sm">
+                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold bg-emerald-950/70 border border-emerald-800/60 text-emerald-300 whitespace-nowrap">
                                           🌳 {t.potty.outside}
-                                        </Chip>
+                                        </span>
                                       )}
                                       {item.pottyLocation === 'indoor_accident' && (
-                                        <Chip color="danger" variant="soft" size="sm">
-                                          🚨 {t.potty.accident}
-                                        </Chip>
+                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold bg-rose-950/80 border border-rose-700/80 text-rose-300 whitespace-nowrap">
+                                          <AlertTriangle className="w-3 h-3 text-rose-400 shrink-0" />
+                                          <span>{t.potty.accident}</span>
+                                        </span>
                                       )}
 
                                       {/* Stool consistency */}
                                       {item.stoolConsistency && (
-                                        <Chip color="default" variant="soft" size="sm">
-                                          {t.potty.stoolConsistencyPrefix} {t.potty[item.stoolConsistency as keyof typeof t.potty] || item.stoolConsistency}
-                                        </Chip>
+                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-slate-950 border border-slate-800 text-slate-300 whitespace-nowrap">
+                                          {t.potty[item.stoolConsistency as keyof typeof t.potty] || item.stoolConsistency}
+                                        </span>
                                       )}
 
                                       {/* Food Grams */}
                                       {item.quantityGrams && (
-                                        <Chip color="accent" variant="soft" size="sm">
-                                          {item.quantityGrams}
-                                          {t.units.grams} ({item.quantityCups || 0.75} {t.units.cups})
-                                        </Chip>
+                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold bg-purple-950/60 border border-purple-800/60 text-purple-300 whitespace-nowrap">
+                                          {item.quantityGrams}{t.units.grams}
+                                          {item.quantityCups ? (
+                                            <span className="font-normal text-purple-400/80"> ({item.quantityCups} {t.units.cups})</span>
+                                          ) : null}
+                                        </span>
+                                      )}
+
+                                      {/* Weight Kg */}
+                                      {item.weightKg && (
+                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold bg-pink-950/60 border border-pink-800/60 text-pink-300 whitespace-nowrap">
+                                          {item.weightKg} {t.units.kg}
+                                        </span>
+                                      )}
+
+                                      {/* Medication */}
+                                      {item.medicationName && (
+                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold bg-teal-950/60 border border-teal-800/60 text-teal-300 whitespace-nowrap">
+                                          💊 {item.medicationName}
+                                        </span>
                                       )}
                                     </div>
 
