@@ -536,6 +536,35 @@ describe('predictions utility — comprehensive test suite', () => {
       // Ensure morning sequence order
       expect(predictions.nextPeeExpectedAt!.getTime()).toBeLessThanOrEqual(predictions.nextPoopExpectedAt!.getTime());
       expect(predictions.nextPoopExpectedAt!.getTime()).toBeLessThanOrEqual(predictions.nextFoodExpectedAt!.getTime());
+
+      // Ensure that post-midnight (02:00 AM) predictions target the upcoming morning (Aug 15 ~07:xx AM, in ~5.5 hours), NOT the next day (+29 hours)
+      const hoursUntilBreakfast = (predictions.nextFoodExpectedAt!.getTime() - nightRefTime.getTime()) / (60 * 60 * 1000);
+      expect(hoursUntilBreakfast).toBeGreaterThan(5);
+      expect(hoursUntilBreakfast).toBeLessThan(7);
+      expect(formatLocalDate(predictions.nextFoodExpectedAt!, 'Europe/Paris')).toBe('2026-08-15');
+      expect(formatLocalDate(predictions.nextPeeExpectedAt!, 'Europe/Paris')).toBe('2026-08-15');
+      expect(formatLocalDate(predictions.nextPoopExpectedAt!, 'Europe/Paris')).toBe('2026-08-15');
+    });
+
+    it('predicts next upcoming breakfast accurately at 00:20 AM without adding an extra 24 hours', () => {
+      const activities: Activity[] = [
+        { id: 'f-1', puppyId: 'pup-1', type: 'food', timestamp: makeParisIso(18, 8, 0), quantityGrams: 80, loggedBy: 'Matthieu' },
+        { id: 'f-2', puppyId: 'pup-1', type: 'food', timestamp: makeParisIso(18, 13, 0), quantityGrams: 80, loggedBy: 'Matthieu' },
+        { id: 'f-3', puppyId: 'pup-1', type: 'food', timestamp: makeParisIso(18, 19, 0), quantityGrams: 80, loggedBy: 'Matthieu' },
+      ];
+
+      // Current time is 00:20 AM on Aug 19, 2026 Paris
+      const refTime = new Date('2026-08-19T00:20:00+02:00');
+      const sleepSchedule = { bedtimeHour: 22.5, wakeupHour: 7.5, bedtimeStr: '22:30', wakeupStr: '07:30' };
+      const foodPrediction = predictNextFood(activities, mockProfile, refTime, { sleepSchedule, timeZone: 'Europe/Paris' });
+
+      expect(foodPrediction.mode).toBe('night_sleep');
+      expect(foodPrediction.nextExpectedAt).not.toBeNull();
+      // Should be 07:xx AM on Aug 19, 2026 (same day morning, ~7.5h away), NOT Aug 20 (+31h)
+      expect(formatLocalDate(foodPrediction.nextExpectedAt!, 'Europe/Paris')).toBe('2026-08-19');
+      const diffHours = (foodPrediction.nextExpectedAt!.getTime() - refTime.getTime()) / (60 * 60 * 1000);
+      expect(diffHours).toBeGreaterThan(6.5);
+      expect(diffHours).toBeLessThan(8.5);
     });
 
     it('factors in pre-bedtime waking retention intervals spanning across midnight (e.g. 21:30 to 00:30)', () => {

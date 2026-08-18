@@ -111,16 +111,13 @@ export function calculateNextMealPortion(
 /**
  * Calculates the next upcoming occurrence of a decimal clock hour (e.g. 7.61 -> 07:37 AM) strictly after referenceDate.
  */
-export function getNextOccurrenceOfClockTime(referenceDate: Date, targetHourDecimal: number): Date {
-  const target = new Date(referenceDate);
-  const h = Math.floor(targetHourDecimal);
-  const m = Math.round((targetHourDecimal - h) * 60);
-  target.setHours(h, m, 0, 0);
-
-  if (target.getTime() <= referenceDate.getTime()) {
-    target.setDate(target.getDate() + 1);
+export function getNextOccurrenceOfClockTime(referenceDate: Date, targetHourDecimal: number, timeZone?: string): Date {
+  const tz = timeZone || getUserTimezone();
+  let candidate = getOccurrenceOfClockTimeInTimezone(referenceDate, targetHourDecimal, tz, 0);
+  if (candidate.getTime() <= referenceDate.getTime()) {
+    candidate = getOccurrenceOfClockTimeInTimezone(referenceDate, targetHourDecimal, tz, 1);
   }
-  return target;
+  return candidate;
 }
 
 /**
@@ -558,10 +555,7 @@ export function predictNextPee(
 
   if (isNightTime) {
     mode = 'night_sleep';
-    let targetWakeup = getOccurrenceOfClockTimeInTimezone(now, sleepSchedule.wakeupHour, tz, 0);
-    if (targetWakeup.getTime() <= now.getTime()) {
-      targetWakeup = getOccurrenceOfClockTimeInTimezone(now, sleepSchedule.wakeupHour, tz, 1);
-    }
+    const targetWakeup = getNextOccurrenceOfClockTime(now, sleepSchedule.wakeupHour, tz);
 
     if (months < 2.5) {
       const midNightPee = new Date(lastPeeTime + 4 * 60 * 60 * 1000);
@@ -702,14 +696,10 @@ export function predictNextPoop(
     reason = 'GI Upset Alert: Liquid/diarrhea stool recorded. Frequent potty checks recommended (60m window).';
   } else if (isNightTime) {
     mode = 'night_sleep';
-    let targetWakeup = getOccurrenceOfClockTimeInTimezone(now, sleepSchedule.wakeupHour, tz, 0);
-    if (targetWakeup.getTime() <= now.getTime()) {
-      targetWakeup = getOccurrenceOfClockTimeInTimezone(now, sleepSchedule.wakeupHour, tz, 1);
-    }
+    const targetWakeup = getNextOccurrenceOfClockTime(now, sleepSchedule.wakeupHour, tz);
     nextExpectedAt = new Date(targetWakeup.getTime() + offsets.morningPoopOffsetMins * 60 * 1000);
-    const targetH = String(getLocalHour(nextExpectedAt, tz)).padStart(2, '0');
-    const targetM = String(nextExpectedAt.getMinutes()).padStart(2, '0');
-    reason = `Night mode: Sleeping until morning outing (~${targetH}:${targetM})`;
+    const targetTimeStr = formatLocalTime(nextExpectedAt, tz);
+    reason = `Night mode: Sleeping until morning outing (~${targetTimeStr})`;
   } else if (isLastPoopConstipated && hoursSinceLastPoop < 16) {
     mode = 'daytime_baseline';
     const refractoryMinutes = Math.max(learnedPoop.intervalMins * 1.4, 480);
@@ -825,10 +815,10 @@ export function predictNextFood(
   const todayBreakfast = new Date(todayWakeup.getTime() + offsets.morningFoodOffsetMins * 60 * 1000);
   const todayBfastStr = formatLocalTime(todayBreakfast, tz);
 
-  // Next upcoming morning breakfast (for night sleep or goal reached)
-  const tomorrowWakeup = getOccurrenceOfClockTimeInTimezone(now, sleepSchedule.wakeupHour, tz, 1);
-  const tomorrowBreakfast = new Date(tomorrowWakeup.getTime() + offsets.morningFoodOffsetMins * 60 * 1000);
-  const tomorrowBfastStr = formatLocalTime(tomorrowBreakfast, tz);
+  // Next upcoming morning breakfast (strictly in the future, for night sleep or goal reached)
+  const nextWakeup = getNextOccurrenceOfClockTime(now, sleepSchedule.wakeupHour, tz);
+  const nextBreakfast = new Date(nextWakeup.getTime() + offsets.morningFoodOffsetMins * 60 * 1000);
+  const nextBfastStr = formatLocalTime(nextBreakfast, tz);
 
   const effectiveBedtimeHour = sleepSchedule.bedtimeHour < sleepSchedule.wakeupHour
     ? sleepSchedule.bedtimeHour + 24
@@ -846,14 +836,14 @@ export function predictNextFood(
 
   if (isNightTime) {
     mode = 'night_sleep';
-    nextExpectedAt = tomorrowBreakfast;
-    reason = `Night mode: Sleeping until morning breakfast (~${tomorrowBfastStr})`;
+    nextExpectedAt = nextBreakfast;
+    reason = `Night mode: Sleeping until morning breakfast (~${nextBfastStr})`;
   } else if (isGoalReached || isLateEveningCutoff) {
     mode = 'goal_reached';
-    nextExpectedAt = tomorrowBreakfast;
+    nextExpectedAt = nextBreakfast;
     reason = isGoalReached
-      ? `Today's food goal reached (${todayGramTotal}g logged). Next: Breakfast tomorrow ~${tomorrowBfastStr}`
-      : `Evening mode: Next meal is breakfast tomorrow ~${tomorrowBfastStr}`;
+      ? `Today's food goal reached (${todayGramTotal}g logged). Next: Breakfast tomorrow ~${nextBfastStr}`
+      : `Evening mode: Next meal is breakfast tomorrow ~${nextBfastStr}`;
   } else if (todayMeals.length === 0) {
     nextExpectedAt = todayBreakfast;
     const minsUntilBreakfast = (todayBreakfast.getTime() - now.getTime()) / 60000;
