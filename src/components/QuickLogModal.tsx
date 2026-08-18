@@ -130,7 +130,7 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
             </div>
 
             {/* Body */}
-            <div className="p-6 space-y-5">
+            <div className="p-4 sm:p-6 space-y-5">
               <form id="quicklog-form" onSubmit={handleSubmit} className="space-y-5">
                 {/* Activity Type Segmented Selector */}
                 <div>
@@ -138,7 +138,7 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
                     {t.potty.activityType}
                   </label>
                   <div 
-                    className="grid grid-cols-5 gap-2" 
+                    className="flex flex-wrap sm:grid sm:grid-cols-5 gap-2" 
                     role="radiogroup"
                     onKeyDown={(event) => {
                       if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
@@ -178,14 +178,14 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
                               setWeightKg(defaultWeightKg);
                             }
                           }}
-                          className={`flex flex-col items-center justify-center p-3 rounded-xl border transition-all duration-150 ${
+                          className={`flex-1 min-w-[28%] sm:min-w-0 flex flex-col items-center justify-center p-2.5 sm:p-3 rounded-xl border transition-all duration-150 ${
                             isSelected
                               ? 'bg-indigo-600 border-indigo-500 text-white shadow-lg ring-2 ring-indigo-400/40 font-bold'
                               : 'bg-slate-950/80 border-slate-800/80 text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
                           }`}
                         >
                           <span className={isSelected ? 'text-white' : item.color}>{item.icon}</span>
-                          <span className="mt-1.5 text-xs font-medium truncate w-full text-center">{item.label}</span>
+                          <span className="mt-1.5 text-xs font-medium whitespace-nowrap text-center">{item.label}</span>
                         </button>
                       );
                     })}
