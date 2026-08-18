@@ -430,11 +430,11 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
                                     )}
 
                                     {/* Caretaker Name & Timestamp Line */}
-                                    <div className="flex items-center gap-2 text-xs text-slate-400 pt-0.5 flex-wrap">
-                                      <span className="font-medium text-slate-300">{formatTime(item.timestamp)}</span>
-                                      <span>•</span>
+                                    <div className="flex items-center gap-1.5 sm:gap-2 text-xs text-slate-400 pt-0.5">
+                                      <span className="font-medium text-slate-300 whitespace-nowrap">{formatTime(item.timestamp)}</span>
+                                      <span className="text-slate-600">&bull;</span>
                                       <span
-                                        className="inline-flex items-center gap-1 font-bold px-2 py-0.5 rounded-full bg-slate-950 border border-slate-800 text-[11px]"
+                                        className="inline-flex items-center gap-1 font-bold px-2 py-0.5 rounded-full bg-slate-950 border border-slate-800 text-[11px] whitespace-nowrap"
                                         style={{ color }}
                                       >
                                         <User className="w-3 h-3" />
