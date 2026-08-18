@@ -89,17 +89,17 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({
       )}
 
       {/* Header Card with Passport Details & Print Export Action */}
-      <Card className="bg-slate-900 border-slate-800">
-        <Card.Content className="flex flex-wrap items-center justify-between gap-4 p-6">
+      <Card className="bg-slate-900 border-slate-800 shadow-xl">
+        <Card.Content className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 sm:p-6">
           <div className="flex items-center gap-3">
-            <div className="p-3 bg-gradient-to-br from-teal-500 to-emerald-600 rounded-xl shadow-md">
+            <div className="p-3 bg-gradient-to-br from-teal-500 to-emerald-600 rounded-2xl shadow-md shrink-0">
               <Syringe className="w-6 h-6 text-white" />
             </div>
-            <div>
-              <h2 className="text-xl font-bold text-slate-100 flex items-center gap-2">
+            <div className="min-w-0">
+              <h2 className="text-lg sm:text-xl font-black text-slate-100 flex items-center gap-2">
                 <span>{t.health.healthPassportFor.replace('{name}', activePuppy.name)}</span>
               </h2>
-              <p className="text-xs text-slate-400">
+              <p className="text-xs text-slate-400 mt-0.5">
                 {t.health.carnetSubtitle} &bull; {activePuppy.name} ({formatBreedName(activePuppy.breed, lang)})
               </p>
             </div>
@@ -109,7 +109,7 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({
             variant="outline"
             size="sm"
             onPress={() => printHealthPassportReport(activePuppy, vaccinations, dewormingLogs, activities, lang, t)}
-            className="border-slate-700 bg-slate-950/80 hover:bg-slate-800 text-slate-200 font-bold text-xs"
+            className="w-full sm:w-auto border-slate-700 bg-slate-950/80 hover:bg-slate-800 text-slate-200 font-bold text-xs shrink-0"
           >
             <Printer className="w-4 h-4 mr-1.5 inline text-teal-400" />
             <span>{t.nav.exportPdf}</span>

@@ -211,28 +211,43 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
 
   return (
     <Card className="shadow-xl bg-slate-900/90 border-slate-800">
-      <Card.Content className="p-5 space-y-4">
+      <Card.Content className="p-3.5 sm:p-5 space-y-4">
         {/* Header & Filter Pills */}
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h2 className="text-base font-extrabold text-slate-100 flex items-center gap-2">
-              <span>{t.dashboard.activityFeed}</span>
-              <span className="text-xs bg-slate-800 text-slate-300 px-2 py-0.5 rounded-full font-bold">
-                {visibleActivities.length}
-              </span>
-            </h2>
-            <p className="text-xs text-slate-400">
-              {t.dashboard.showingLogs.replace('{days}', String(daysLimit)).replace('{total}', String(sortedCoreActivities.length))}
-            </p>
-          </div>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center justify-between sm:block">
+            <div>
+              <h2 className="text-base font-extrabold text-slate-100 flex items-center gap-2">
+                <span>{t.dashboard.activityFeed}</span>
+                <span className="text-xs bg-slate-800 text-slate-300 px-2 py-0.5 rounded-full font-bold">
+                  {visibleActivities.length}
+                </span>
+              </h2>
+              <p className="text-xs text-slate-400">
+                {t.dashboard.showingLogs.replace('{days}', String(daysLimit)).replace('{total}', String(sortedCoreActivities.length))}
+              </p>
+            </div>
 
-          <div className="flex flex-wrap items-center gap-2">
-            {/* Expand / Collapse All Button */}
+            {/* Mobile Expand / Collapse All */}
             {dayGroups.length > 0 && (
               <button
                 type="button"
                 onClick={handleToggleExpandAll}
-                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-950 border border-slate-800 text-slate-300 hover:text-white hover:bg-slate-800 transition-colors"
+                className="sm:hidden inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-950 border border-slate-800 text-slate-300 hover:text-white hover:bg-slate-800 transition-colors shrink-0"
+                title={isAllExpanded ? t.dashboard.collapseAll : t.dashboard.expandAll}
+              >
+                <ChevronsUpDown className="w-3.5 h-3.5" />
+                <span>{isAllExpanded ? t.dashboard.collapseAll : t.dashboard.expandAll}</span>
+              </button>
+            )}
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Desktop Expand / Collapse All Button */}
+            {dayGroups.length > 0 && (
+              <button
+                type="button"
+                onClick={handleToggleExpandAll}
+                className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-950 border border-slate-800 text-slate-300 hover:text-white hover:bg-slate-800 transition-colors"
                 title={isAllExpanded ? t.dashboard.collapseAll : t.dashboard.expandAll}
               >
                 <ChevronsUpDown className="w-3.5 h-3.5" />
@@ -241,11 +256,11 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
             )}
 
             {/* Filter Buttons */}
-            <div className="flex items-center gap-1 bg-slate-950/80 border border-slate-800 p-1 rounded-xl">
+            <div className="w-full sm:w-auto grid grid-cols-3 sm:flex items-center gap-1 bg-slate-950/80 border border-slate-800 p-1 rounded-xl">
               <button
                 type="button"
                 onClick={() => setFilter('all')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold text-center transition-all ${
                   filter === 'all'
                     ? 'bg-indigo-600 text-white shadow'
                     : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
@@ -256,7 +271,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
               <button
                 type="button"
                 onClick={() => setFilter('potty')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold text-center transition-all ${
                   filter === 'potty'
                     ? 'bg-indigo-600 text-white shadow'
                     : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
@@ -267,7 +282,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
               <button
                 type="button"
                 onClick={() => setFilter('food')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold text-center transition-all ${
                   filter === 'food'
                     ? 'bg-indigo-600 text-white shadow'
                     : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
@@ -305,99 +320,97 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
                   <button
                     type="button"
                     onClick={() => toggleDay(group.dateKey)}
-                    className="w-full p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-left transition-colors hover:bg-slate-900/50"
+                    className="w-full p-3 sm:p-4 text-left transition-colors hover:bg-slate-900/50 focus:outline-none"
                     aria-expanded={isExpanded}
                   >
-                    {/* Left: Date Title & Events Badge */}
-                    <div className="flex items-center gap-2.5">
-                      <div
-                        className={`p-2 rounded-xl border shrink-0 ${
-                          group.isToday
-                            ? 'bg-indigo-600/20 text-indigo-400 border-indigo-500/30'
-                            : 'bg-slate-900 text-slate-400 border-slate-800'
-                        }`}
-                      >
-                        <Calendar className="w-4 h-4" />
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-2 flex-wrap">
+                    <div className="flex items-center justify-between gap-2">
+                      {/* Left: Date Title & Events Badge */}
+                      <div className="flex items-center gap-2 min-w-0">
+                        <div
+                          className={`p-1.5 sm:p-2 rounded-xl border shrink-0 ${
+                            group.isToday
+                              ? 'bg-indigo-600/20 text-indigo-400 border-indigo-500/30'
+                              : 'bg-slate-900 text-slate-400 border-slate-800'
+                          }`}
+                        >
+                          <Calendar className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                        </div>
+                        <div className="flex items-center gap-2 flex-wrap min-w-0">
                           <span className="text-xs sm:text-sm font-extrabold text-slate-100 capitalize">
                             {group.dateLabel}
                           </span>
-                          <span className="text-[10px] font-bold bg-slate-800/90 text-slate-300 px-2 py-0.5 rounded-full border border-slate-700/60">
+                          <span className="text-[10px] font-bold bg-slate-800/90 text-slate-300 px-2 py-0.5 rounded-full border border-slate-700/60 shrink-0">
                             {t.dashboard.eventsCount.replace('{count}', String(group.activities.length))}
                           </span>
                         </div>
                       </div>
-                    </div>
-
-                    {/* Right: Quick Nutrition & Potty Summaries */}
-                    <div className="flex items-center justify-between sm:justify-end gap-2 flex-wrap sm:flex-nowrap">
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        {/* Food Summary Pill */}
-                        <div
-                          className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-bold border transition-all ${
-                            foodGoalReached
-                              ? 'bg-emerald-950/70 border-emerald-700/60 text-emerald-300'
-                              : hasFoodLogs
-                              ? 'bg-amber-950/60 border-amber-700/50 text-amber-300'
-                              : 'bg-slate-900 border-slate-800 text-slate-400'
-                          }`}
-                          title={`${t.dashboard.foodIntake}: ${group.totalFoodGrams}g / ${group.dailyGoalGrams}g`}
-                        >
-                          <Utensils className="w-3.5 h-3.5 shrink-0" />
-                          <span>
-                            {group.totalFoodGrams}g / {group.dailyGoalGrams}g
-                          </span>
-                          <span className="text-[10px] opacity-80">
-                            ({group.mealsCount}/{group.targetMealsCount})
-                          </span>
-                          {foodGoalReached && <CheckCircle2 className="w-3 h-3 text-emerald-400 ml-0.5 shrink-0" />}
-                        </div>
-
-                        {/* Potty Pills: Pee */}
-                        <div
-                          className="inline-flex items-center gap-1 px-2 py-1 rounded-xl text-xs font-bold bg-sky-950/60 border border-sky-800/50 text-sky-300"
-                          title={t.dashboard.peesCount.replace('{count}', String(group.peeCount))}
-                        >
-                          <Droplet className="w-3.5 h-3.5 shrink-0" />
-                          <span>{group.peeCount}</span>
-                        </div>
-
-                        {/* Potty Pills: Poop */}
-                        <div
-                          className="inline-flex items-center gap-1 px-2 py-1 rounded-xl text-xs font-bold bg-amber-950/60 border border-amber-800/50 text-amber-300"
-                          title={t.dashboard.poopsCount.replace('{count}', String(group.poopCount))}
-                        >
-                          <Footprints className="w-3.5 h-3.5 shrink-0" />
-                          <span>{group.poopCount}</span>
-                        </div>
-
-                        {/* Accidents Warning Chip (if any) */}
-                        {group.accidentCount > 0 && (
-                          <div
-                            className="inline-flex items-center gap-1 px-2 py-1 rounded-xl text-xs font-bold bg-rose-950/80 border border-rose-700 text-rose-300 animate-pulse"
-                            title={t.dashboard.accidentsCount.replace('{count}', String(group.accidentCount))}
-                          >
-                            <span>🚨 {group.accidentCount}</span>
-                          </div>
-                        )}
-                      </div>
 
                       {/* Expand/Collapse Chevron */}
-                      <div className="p-1 rounded-lg text-slate-400 hover:text-slate-200 transition-transform duration-200">
+                      <div className="p-1 rounded-lg text-slate-400 hover:text-slate-200 shrink-0">
                         <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${isExpanded ? 'rotate-180 text-indigo-400' : ''}`} />
                       </div>
+                    </div>
+
+                    {/* Nutrition & Potty Summaries (Responsive Wrap) */}
+                    <div className="flex items-center gap-1.5 flex-wrap mt-2.5 pt-2 border-t border-slate-800/50">
+                      {/* Food Summary Pill */}
+                      <div
+                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-bold border transition-all ${
+                          foodGoalReached
+                            ? 'bg-emerald-950/70 border-emerald-700/60 text-emerald-300'
+                            : hasFoodLogs
+                            ? 'bg-amber-950/60 border-amber-700/50 text-amber-300'
+                            : 'bg-slate-900 border-slate-800 text-slate-400'
+                        }`}
+                        title={`${t.dashboard.foodIntake}: ${group.totalFoodGrams}g / ${group.dailyGoalGrams}g`}
+                      >
+                        <Utensils className="w-3.5 h-3.5 shrink-0" />
+                        <span>
+                          {group.totalFoodGrams}g / {group.dailyGoalGrams}g
+                        </span>
+                        <span className="text-[10px] opacity-80">
+                          ({group.mealsCount}/{group.targetMealsCount})
+                        </span>
+                        {foodGoalReached && <CheckCircle2 className="w-3 h-3 text-emerald-400 ml-0.5 shrink-0" />}
+                      </div>
+
+                      {/* Potty Pills: Pee */}
+                      <div
+                        className="inline-flex items-center gap-1 px-2 py-1 rounded-xl text-xs font-bold bg-sky-950/60 border border-sky-800/50 text-sky-300"
+                        title={t.dashboard.peesCount.replace('{count}', String(group.peeCount))}
+                      >
+                        <Droplet className="w-3.5 h-3.5 shrink-0" />
+                        <span>{group.peeCount}</span>
+                      </div>
+
+                      {/* Potty Pills: Poop */}
+                      <div
+                        className="inline-flex items-center gap-1 px-2 py-1 rounded-xl text-xs font-bold bg-amber-950/60 border border-amber-800/50 text-amber-300"
+                        title={t.dashboard.poopsCount.replace('{count}', String(group.poopCount))}
+                      >
+                        <Footprints className="w-3.5 h-3.5 shrink-0" />
+                        <span>{group.poopCount}</span>
+                      </div>
+
+                      {/* Accidents Warning Chip (if any) */}
+                      {group.accidentCount > 0 && (
+                        <div
+                          className="inline-flex items-center gap-1 px-2 py-1 rounded-xl text-xs font-bold bg-rose-950/80 border border-rose-700 text-rose-300 animate-pulse"
+                          title={t.dashboard.accidentsCount.replace('{count}', String(group.accidentCount))}
+                        >
+                          <span>🚨 {group.accidentCount}</span>
+                        </div>
+                      )}
                     </div>
                   </button>
 
                   {/* Accordion Content (Detailed Event Feed) */}
                   {isExpanded && (
-                    <div className="border-t border-slate-800/80 bg-slate-950/40 p-4 sm:p-5 pt-4">
+                    <div className="border-t border-slate-800/80 bg-slate-950/40 p-3 sm:p-5 pt-4">
                       {group.activities.length === 0 ? (
                         <p className="text-xs text-slate-500 italic py-2">{t.dashboard.noLogsThisDay}</p>
                       ) : (
-                        <div className="relative pl-6 space-y-3.5 before:absolute before:left-2.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-800/80">
+                        <div className="relative pl-5 sm:pl-6 space-y-3 before:absolute before:left-2.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-800/80">
                           {group.activities.map((item) => {
                             const color = getCaretakerColor(item.loggedBy);
                             const caretakerName = resolveCaretakerName(item.loggedBy, caretakers);
@@ -405,21 +418,21 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
                             return (
                               <div
                                 key={item.id}
-                                className="relative group bg-slate-900/80 hover:bg-slate-900 border border-slate-800/80 hover:border-slate-700 rounded-xl p-3 sm:p-3.5 transition-all shadow-sm flex items-start justify-between gap-3"
+                                className="relative group bg-slate-900/80 hover:bg-slate-900 border border-slate-800/80 hover:border-slate-700 rounded-xl p-3 sm:p-3.5 transition-all shadow-sm flex flex-col sm:flex-row sm:items-start justify-between gap-2.5 sm:gap-3"
                               >
                                 {/* Timeline dot */}
                                 <div
-                                  className="absolute -left-[23px] top-4 w-3.5 h-3.5 rounded-full ring-4 ring-slate-950 shrink-0"
+                                  className="absolute -left-[22px] sm:-left-[23px] top-4 w-3.5 h-3.5 rounded-full ring-4 ring-slate-950 shrink-0"
                                   style={{ backgroundColor: color }}
                                 />
 
-                                <div className="flex items-start gap-3">
-                                  <div className="p-2.5 bg-slate-950 rounded-xl border border-slate-800 mt-0.5 shrink-0">
+                                <div className="flex items-start gap-2.5 sm:gap-3 flex-1 min-w-0">
+                                  <div className="p-2 sm:p-2.5 bg-slate-950 rounded-xl border border-slate-800 mt-0.5 shrink-0">
                                     {getIcon(item.type)}
                                   </div>
 
-                                  <div className="space-y-1">
-                                    <div className="flex items-center gap-2 flex-wrap">
+                                  <div className="space-y-1 flex-1 min-w-0">
+                                    <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
                                       <span className="text-xs font-bold text-slate-100 capitalize">
                                         {t.potty[item.type as keyof typeof t.potty] || item.type}
                                       </span>
@@ -453,17 +466,17 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
                                     </div>
 
                                     {item.notes && (
-                                      <p className="text-xs text-slate-300 italic font-mono bg-slate-950 px-2.5 py-1 rounded-lg border border-slate-800">
+                                      <p className="text-xs text-slate-300 italic font-mono bg-slate-950 px-2.5 py-1 rounded-lg border border-slate-800 break-words">
                                         "{item.notes}"
                                       </p>
                                     )}
 
                                     {/* Caretaker Name & Timestamp Line */}
-                                    <div className="flex items-center gap-2 text-xs text-slate-400 pt-0.5">
+                                    <div className="flex items-center gap-2 text-xs text-slate-400 pt-0.5 flex-wrap">
                                       <span className="font-medium text-slate-300">{formatTime(item.timestamp)}</span>
                                       <span>•</span>
                                       <span
-                                        className="inline-flex items-center gap-1 font-bold px-2 py-0.5 rounded-full bg-slate-950 border border-slate-800"
+                                        className="inline-flex items-center gap-1 font-bold px-2 py-0.5 rounded-full bg-slate-950 border border-slate-800 text-[11px]"
                                         style={{ color }}
                                       >
                                         <User className="w-3 h-3" />
@@ -474,13 +487,13 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
                                 </div>
 
                                 {/* Actions: Edit & Delete */}
-                                <div className="flex items-center gap-1.5 shrink-0">
+                                <div className="flex items-center justify-end gap-1.5 shrink-0 self-end sm:self-start pt-1 sm:pt-0 border-t border-slate-800/40 sm:border-t-0 w-full sm:w-auto">
                                   {onUpdateActivity && (
                                     <button
                                       type="button"
                                       onClick={() => setEditingActivity(item)}
                                       aria-label="Edit activity log"
-                                      className="p-2 min-h-[38px] min-w-[38px] flex items-center justify-center text-slate-400 hover:text-indigo-300 hover:bg-slate-800 rounded-lg border border-slate-800 bg-slate-950 transition-colors"
+                                      className="p-1.5 sm:p-2 min-h-[36px] min-w-[36px] flex items-center justify-center text-slate-400 hover:text-indigo-300 hover:bg-slate-800 rounded-lg border border-slate-800 bg-slate-950 transition-colors"
                                     >
                                       <Pencil className="w-3.5 h-3.5" />
                                     </button>
@@ -490,7 +503,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
                                     type="button"
                                     onClick={() => setConfirmDelete({ id: item.id, type: 'activity' })}
                                     aria-label="Delete log"
-                                    className="p-2 min-h-[38px] min-w-[38px] flex items-center justify-center text-slate-400 hover:text-red-400 hover:bg-slate-800 rounded-lg border border-slate-800 bg-slate-950 transition-colors"
+                                    className="p-1.5 sm:p-2 min-h-[36px] min-w-[36px] flex items-center justify-center text-slate-400 hover:text-red-400 hover:bg-slate-800 rounded-lg border border-slate-800 bg-slate-950 transition-colors"
                                   >
                                     <Trash2 className="w-3.5 h-3.5" />
                                   </button>
