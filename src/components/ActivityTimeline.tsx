@@ -67,7 +67,6 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
   hasMoreRemote = true,
 }) => {
   const { t, lang } = useI18n();
-  const [filter, setFilter] = useState<'all' | 'potty' | 'food'>('all');
   const [editingActivity, setEditingActivity] = useState<Activity | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<{ id: string; type: string } | null>(null);
   const [daysLimit, setDaysLimit] = useState<number>(180);
@@ -76,8 +75,8 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
   const todayDateKey = useMemo(() => formatLogicalDate(new Date(), tz), [tz]);
   const yesterdayDateKey = useMemo(() => formatLogicalDate(new Date(Date.now() - 24 * 3600 * 1000), tz), [tz]);
 
-  // Track expanded days in accordion (Today open by default)
-  const [expandedDays, setExpandedDays] = useState<Set<string>>(() => new Set([todayDateKey]));
+  // Track expanded days in accordion (All days collapsed by default)
+  const [expandedDays, setExpandedDays] = useState<Set<string>>(() => new Set());
 
   const getIcon = (type: ActivityType) => {
     switch (type) {
@@ -100,15 +99,9 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
 
   // Filter to core activities sorted chronologically descending
   const sortedCoreActivities = useMemo(() => {
-    const filtered = activities.filter((act) => {
-      const isCoreType = act.type === 'pee' || act.type === 'poop' || act.type === 'food';
-      if (!isCoreType) return false;
-      if (filter === 'potty') return act.type === 'pee' || act.type === 'poop';
-      if (filter === 'food') return act.type === 'food';
-      return true;
-    });
+    const filtered = activities.filter((act) => act.type === 'pee' || act.type === 'poop' || act.type === 'food');
     return sortByTimestampDesc(filtered);
-  }, [activities, filter]);
+  }, [activities]);
 
   // Filter by time window
   const now = new Date();
@@ -212,86 +205,32 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
   return (
     <Card className="shadow-xl bg-slate-900/90 border-slate-800">
       <Card.Content className="p-3.5 sm:p-5 space-y-4">
-        {/* Header & Filter Pills */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="flex items-center justify-between sm:block">
-            <div>
-              <h2 className="text-base font-extrabold text-slate-100 flex items-center gap-2">
-                <span>{t.dashboard.activityFeed}</span>
-                <span className="text-xs bg-slate-800 text-slate-300 px-2 py-0.5 rounded-full font-bold">
-                  {visibleActivities.length}
-                </span>
-              </h2>
-              <p className="text-xs text-slate-400">
-                {t.dashboard.showingLogs.replace('{days}', String(daysLimit)).replace('{total}', String(sortedCoreActivities.length))}
-              </p>
-            </div>
-
-            {/* Mobile Expand / Collapse All */}
-            {dayGroups.length > 0 && (
-              <button
-                type="button"
-                onClick={handleToggleExpandAll}
-                className="sm:hidden inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-950 border border-slate-800 text-slate-300 hover:text-white hover:bg-slate-800 transition-colors shrink-0"
-                title={isAllExpanded ? t.dashboard.collapseAll : t.dashboard.expandAll}
-              >
-                <ChevronsUpDown className="w-3.5 h-3.5" />
-                <span>{isAllExpanded ? t.dashboard.collapseAll : t.dashboard.expandAll}</span>
-              </button>
-            )}
+        {/* Header & Expand/Collapse All Action */}
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <h2 className="text-base font-extrabold text-slate-100 flex items-center gap-2">
+              <span>{t.dashboard.activityFeed}</span>
+              <span className="text-xs bg-slate-800 text-slate-300 px-2 py-0.5 rounded-full font-bold">
+                {visibleActivities.length}
+              </span>
+            </h2>
+            <p className="text-xs text-slate-400">
+              {t.dashboard.showingLogs.replace('{days}', String(daysLimit)).replace('{total}', String(sortedCoreActivities.length))}
+            </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
-            {/* Desktop Expand / Collapse All Button */}
-            {dayGroups.length > 0 && (
-              <button
-                type="button"
-                onClick={handleToggleExpandAll}
-                className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-950 border border-slate-800 text-slate-300 hover:text-white hover:bg-slate-800 transition-colors"
-                title={isAllExpanded ? t.dashboard.collapseAll : t.dashboard.expandAll}
-              >
-                <ChevronsUpDown className="w-3.5 h-3.5" />
-                <span>{isAllExpanded ? t.dashboard.collapseAll : t.dashboard.expandAll}</span>
-              </button>
-            )}
-
-            {/* Filter Buttons */}
-            <div className="w-full sm:w-auto grid grid-cols-3 sm:flex items-center gap-1 bg-slate-950/80 border border-slate-800 p-1 rounded-xl">
-              <button
-                type="button"
-                onClick={() => setFilter('all')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold text-center transition-all ${
-                  filter === 'all'
-                    ? 'bg-indigo-600 text-white shadow'
-                    : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
-                }`}
-              >
-                {t.dashboard.all}
-              </button>
-              <button
-                type="button"
-                onClick={() => setFilter('potty')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold text-center transition-all ${
-                  filter === 'potty'
-                    ? 'bg-indigo-600 text-white shadow'
-                    : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
-                }`}
-              >
-                {t.dashboard.pottyFilter}
-              </button>
-              <button
-                type="button"
-                onClick={() => setFilter('food')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold text-center transition-all ${
-                  filter === 'food'
-                    ? 'bg-indigo-600 text-white shadow'
-                    : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
-                }`}
-              >
-                {t.dashboard.mealsFilter}
-              </button>
-            </div>
-          </div>
+          {/* Expand / Collapse All Button */}
+          {dayGroups.length > 0 && (
+            <button
+              type="button"
+              onClick={handleToggleExpandAll}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-950 border border-slate-800 text-slate-300 hover:text-white hover:bg-slate-800 transition-colors shrink-0"
+              title={isAllExpanded ? t.dashboard.collapseAll : t.dashboard.expandAll}
+            >
+              <ChevronsUpDown className="w-3.5 h-3.5" />
+              <span>{isAllExpanded ? t.dashboard.collapseAll : t.dashboard.expandAll}</span>
+            </button>
+          )}
         </div>
 
         {/* Day-by-day Accordion List */}
