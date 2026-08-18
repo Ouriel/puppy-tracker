@@ -52,6 +52,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method === 'GET') {
       res.setHeader('Cache-Control', 'private, max-age=10, stale-while-revalidate=60');
       const puppyId = req.query.puppyId as string;
+      const type = req.query.type as string;
       const days = req.query.days ? parseInt(req.query.days as string, 10) : null;
       const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : null;
       const offset = req.query.offset ? parseInt(req.query.offset as string, 10) : null;
@@ -59,6 +60,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       let whereClause = puppyId
         ? and(eq(activitiesTable.householdId, householdId), eq(activitiesTable.puppyId, puppyId))
         : eq(activitiesTable.householdId, householdId);
+
+      if (type) {
+        whereClause = and(whereClause, eq(activitiesTable.type, type));
+      }
 
       if (days && !isNaN(days)) {
         const cutoffDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
@@ -71,7 +76,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         .where(whereClause)
         .orderBy(desc(activitiesTable.timestamp));
 
-      const queryLimit = limit && !isNaN(limit) ? Math.min(limit, 200) : 100;
+      const queryLimit = limit && !isNaN(limit) ? Math.min(limit, 1000) : 500;
       baseQuery = baseQuery.limit(queryLimit) as typeof baseQuery;
 
       if (offset && !isNaN(offset)) {

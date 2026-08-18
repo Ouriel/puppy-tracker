@@ -15,10 +15,10 @@ export function useActivities(activePuppy: PuppyProfile | null) {
     if (!activePuppy?.id) return;
 
     async function loadActivities() {
-      const result = await fetchActivities(activePuppy!.id, { days: 90, limit: 100, offset: 0 });
+      const result = await fetchActivities(activePuppy!.id, { days: 365, limit: 500, offset: 0 });
       if (result.ok) {
         setActivities(result.data);
-        setHasMoreRemote(result.data.length >= 100);
+        setHasMoreRemote(result.data.length >= 500);
       }
     }
 
@@ -30,8 +30,8 @@ export function useActivities(activePuppy: PuppyProfile | null) {
     setIsFetchingMore(true);
     const currentPuppyLogs = activities.filter((activity) => activity.puppyId === activePuppy.id);
     const result = await fetchActivities(activePuppy.id, {
-      days: 365,
-      limit: 100,
+      days: 730,
+      limit: 500,
       offset: currentPuppyLogs.length,
     });
 
@@ -41,7 +41,7 @@ export function useActivities(activePuppy: PuppyProfile | null) {
         const newUnique = result.data.filter((activity) => !existingIds.has(activity.id));
         return [...previous, ...newUnique];
       });
-      setHasMoreRemote(result.data.length >= 100);
+      setHasMoreRemote(result.data.length >= 500);
     } else if (result.ok) {
       setHasMoreRemote(false);
     }
