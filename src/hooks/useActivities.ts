@@ -7,22 +7,34 @@ import { useI18n } from '../i18n';
 export function useActivities(activePuppy: PuppyProfile | null) {
   const { t } = useI18n();
   const [activities, setActivities] = useState<Activity[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isFetchingMore, setIsFetchingMore] = useState(false);
   const [hasMoreRemote, setHasMoreRemote] = useState(true);
 
   // Fetch activities when active puppy changes
   useEffect(() => {
-    if (!activePuppy?.id) return;
+    if (!activePuppy?.id) {
+      setIsLoading(false);
+      return;
+    }
 
+    let isMounted = true;
     async function loadActivities() {
+      setIsLoading(true);
       const result = await fetchActivities(activePuppy!.id, { days: 365, limit: 500, offset: 0 });
-      if (result.ok) {
+      if (isMounted && result.ok) {
         setActivities(result.data);
         setHasMoreRemote(result.data.length >= 500);
+      }
+      if (isMounted) {
+        setIsLoading(false);
       }
     }
 
     loadActivities();
+    return () => {
+      isMounted = false;
+    };
   }, [activePuppy?.id]);
 
   const loadMoreActivities = useCallback(async () => {
@@ -132,6 +144,7 @@ export function useActivities(activePuppy: PuppyProfile | null) {
   return {
     activities,
     setActivities,
+    isLoadingActivities: isLoading,
     hasMoreRemoteActivities: hasMoreRemote,
     isFetchingMoreActivities: isFetchingMore,
     loadMoreActivities,

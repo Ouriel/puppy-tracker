@@ -1,12 +1,10 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import type { Activity, UserAccount, ActivityType, PottyLocation, FamilyRole } from './types';
 import { getAuthToken, setAuthToken, getStoredAuthUser, setStoredAuthUser } from './utils/auth';
-import { getActivePuppyId } from './utils/storage';
 import { isSuperAdminEmail } from './constants/auth';
 import {
   fetchDogs,
   fetchHousehold,
-  fetchActivities,
   exchangeSessionToken,
 } from './services/api';
 import { calculatePredictions, calculateNextMealPortion } from './utils/predictions';
@@ -108,14 +106,11 @@ export function App() {
         return;
       }
 
-      const activePupId = getActivePuppyId() || 'dog-balma-2026';
-
       try {
-        // Parallel data loading: dogs, household, and initial activities in 1 concurrent roundtrip
-        const [dogsRes, householdRes, activitiesRes] = await Promise.all([
+        // Parallel data loading: dogs and household in 1 concurrent roundtrip
+        const [dogsRes, householdRes] = await Promise.all([
           fetchDogs(),
           fetchHousehold(),
-          fetchActivities(activePupId, { days: 90, limit: 100 }),
         ]);
 
         if (dogsRes.ok && dogsRes.data.length > 0) {
@@ -127,10 +122,6 @@ export function App() {
 
         if (householdRes.ok && householdRes.data?.caretakers && householdRes.data.caretakers.length > 0) {
           caretakerState.setCaretakers(householdRes.data.caretakers);
-        }
-
-        if (activitiesRes.ok && activitiesRes.data.length > 0) {
-          activityState.setActivities(activitiesRes.data);
         }
       } catch (err) {
         console.error('Failed to load initial PupPace data', err);
@@ -287,7 +278,7 @@ export function App() {
     return { success: true };
   };
 
-  if (isLoading) {
+  if (isLoading || (user && activityState.isLoadingActivities && puppyState.puppies.length > 0)) {
     return (
       <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center">
         <div className="text-center space-y-3">
