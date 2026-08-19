@@ -1,14 +1,26 @@
-# 🐾 Puppace
+<div align="center">
+  <img src="public/flat_cocker_spaniel_logo.jpg" alt="Puppace Logo" width="100" style="border-radius: 20px;" />
 
-> **Intelligent Canine Care Companion, Potty Predictor & Digital Health Passport**
+  # 🐾 Puppace
+  
+  **Intelligent Canine Care Companion, Potty Predictor & Digital Health Passport**
 
-[![React 19](https://img.shields.io/badge/React-19.x-61dafb?logo=react&logoColor=black)](https://react.dev/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178c6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
-[![Vite](https://img.shields.io/badge/Vite-8.x-646cff?logo=vite&logoColor=white)](https://vitejs.dev/)
-[![Tailwind CSS](https://img.shields.io/badge/Tailwind-4.x-38bdf8?logo=tailwindcss&logoColor=white)](https://tailwindcss.com/)
-[![Neon PostgreSQL](https://img.shields.io/badge/Neon-Serverless_PostgreSQL-00e599?logo=postgresql&logoColor=white)](https://neon.tech/)
-[![Vitest](https://img.shields.io/badge/Tests-138_Passing-green?logo=vitest&logoColor=white)](https://vitest.dev/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+  <p align="center">
+    <a href="https://puppace.vercel.app"><strong>Explore the Live Demo »</strong></a>
+  </p>
+
+  [![Live App](https://img.shields.io/badge/Live_Demo-puppace.vercel.app-000000?style=for-the-badge&logo=vercel&logoColor=white)](https://puppace.vercel.app)
+  <br />
+  [![React 19](https://img.shields.io/badge/React-19.x-61dafb?logo=react&logoColor=black)](https://react.dev/)
+  [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178c6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+  [![Vite](https://img.shields.io/badge/Vite-8.x-646cff?logo=vite&logoColor=white)](https://vitejs.dev/)
+  [![Tailwind CSS](https://img.shields.io/badge/Tailwind-4.x-38bdf8?logo=tailwindcss&logoColor=white)](https://tailwindcss.com/)
+  [![Neon PostgreSQL](https://img.shields.io/badge/Neon-Serverless_PostgreSQL-00e599?logo=postgresql&logoColor=white)](https://neon.tech/)
+  [![Vitest](https://img.shields.io/badge/Tests-138_Passing-green?logo=vitest&logoColor=white)](https://vitest.dev/)
+  [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+</div>
+
+<br />
 
 **Puppace** is a modern, high-performance web application designed to eliminate the guesswork of raising a puppy. By combining **canine behavioral science**, **gastrointestinal physiology**, and **veterinary nutritional models**, Puppace learns your puppy’s biological rhythms in real-time — predicting when they need to pee, poop, and eat, while maintaining a medical-grade Digital Health Passport (*Carnet de Santé*).
 
