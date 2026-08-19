@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import type { PuppyProfile, Activity, HealthRecord } from '../types';
+import type { PuppyProfile, Activity, HealthRecord, ActivityType } from '../types';
 import { Syringe, ArrowLeft, Printer, Download, FileSpreadsheet, ChevronDown } from 'lucide-react';
 import { useI18n } from '../i18n';
 import { formatBreedName } from '../utils/breeds';
@@ -8,12 +8,13 @@ import { fetchHealthRecords } from '../services/api';
 import { WeightGrowthChart } from '../components/WeightGrowthChart';
 import { VaccineSection } from './carnet/VaccineSection';
 import { DewormingSection } from './carnet/DewormingSection';
+import { MedicationSection } from './carnet/MedicationSection';
 import { printHealthPassportReport, exportHealthPassportToCSV } from '../utils/export';
 
 interface CarnetDeSanteViewProps {
   activePuppy: PuppyProfile | null;
   activities?: Activity[];
-  onOpenQuickLogModal?: (type: 'weight') => void;
+  onOpenQuickLogModal?: (type: ActivityType) => void;
   onBackToDashboard?: () => void;
   onDeleteActivity?: (id: string) => void;
 }
@@ -226,6 +227,13 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({
         dewormingLogs={dewormingLogs}
         setDewormingLogs={setDewormingLogs}
         t={t}
+      />
+
+      {/* Modular Medication & Treatments History Section */}
+      <MedicationSection
+        activities={activities}
+        onOpenQuickLogModal={onOpenQuickLogModal}
+        onDeleteActivity={onDeleteActivity}
       />
     </div>
   );

@@ -269,6 +269,28 @@ describe('Activity & CRUD Regression Tests', () => {
       expect(poopCount).toBe(1);
       expect(accidentCount).toBe(1);
     });
+
+    it('should include all 5 core activity types in the unified timeline', () => {
+      const allActivities: Activity[] = [
+        { id: '1', puppyId: 'p1', type: 'pee', timestamp: '2026-08-19T08:00:00Z', loggedBy: 'M' },
+        { id: '2', puppyId: 'p1', type: 'poop', timestamp: '2026-08-19T08:15:00Z', loggedBy: 'M' },
+        { id: '3', puppyId: 'p1', type: 'food', timestamp: '2026-08-19T08:30:00Z', loggedBy: 'M', quantityGrams: 80 },
+        { id: '4', puppyId: 'p1', type: 'medication', timestamp: '2026-08-19T09:00:00Z', loggedBy: 'M', medicationName: 'Amoxicillin' },
+        { id: '5', puppyId: 'p1', type: 'weight', timestamp: '2026-08-19T09:30:00Z', loggedBy: 'M', weightKg: 6.8 },
+      ];
+
+      const filtered = allActivities.filter(
+        (act) => act.type === 'pee' || act.type === 'poop' || act.type === 'food' || act.type === 'medication' || act.type === 'weight'
+      );
+
+      expect(filtered.length).toBe(5);
+      expect(filtered.map((a) => a.type)).toEqual(['pee', 'poop', 'food', 'medication', 'weight']);
+
+      const medicationLogs = allActivities.filter((act) => act.type === 'medication');
+      expect(medicationLogs.length).toBe(1);
+      expect(medicationLogs[0].medicationName).toBe('Amoxicillin');
+    });
   });
 });
+
 

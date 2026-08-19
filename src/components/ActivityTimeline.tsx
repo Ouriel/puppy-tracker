@@ -1,10 +1,10 @@
 import React, { useState, useMemo, lazy, Suspense, useRef, useEffect, useCallback } from 'react';
 import type { Activity, ActivityType, Caretaker, PuppyProfile } from '../types';
-import { Droplet, Utensils, Trash2, Pencil, User, ChevronDown, Calendar, CheckCircle2, ChevronsUpDown, AlertTriangle, Download, FileSpreadsheet, Printer } from 'lucide-react';
+import { Droplet, Utensils, Trash2, Pencil, User, ChevronDown, Calendar, CheckCircle2, ChevronsUpDown, AlertTriangle, Download, FileSpreadsheet, Printer, Pill, Scale } from 'lucide-react';
 import { PoopIcon } from './common/PoopIcon';
 import { Button, Card } from '@heroui/react';
 import { useI18n } from '../i18n';
-import { formatRelativeTime, parseIsoDate, formatLogicalDate, getUserTimezone } from '../utils/date';
+import { formatRelativeTime, formatLogicalDate, getUserTimezone } from '../utils/date';
 import { resolveCaretakerName } from '../utils/caretakers';
 import { sortByTimestampDesc } from '../utils/activities';
 import { exportActivitiesToCSV, printActivitiesReport } from '../utils/export';
@@ -72,7 +72,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
   const { t, lang } = useI18n();
   const [editingActivity, setEditingActivity] = useState<Activity | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<{ id: string; type: string } | null>(null);
-  const [daysLimit, setDaysLimit] = useState<number>(180);
+  const [daysLimit, setDaysLimit] = useState<number>(7);
   const [isExportMenuOpen, setIsExportMenuOpen] = useState<boolean>(false);
   const [expandedDays, setExpandedDays] = useState<Set<string>>(() => new Set());
 
@@ -90,6 +90,10 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
         return <PoopIcon className="w-4 h-4 text-amber-400" />;
       case 'food':
         return <Utensils className="w-4 h-4 text-purple-400" />;
+      case 'medication':
+        return <Pill className="w-4 h-4 text-teal-400" />;
+      case 'weight':
+        return <Scale className="w-4 h-4 text-pink-400" />;
       default:
         return <Droplet className="w-4 h-4 text-sky-400" />;
     }
@@ -103,19 +107,26 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
 
   // Filter to core activities sorted chronologically descending
   const sortedCoreActivities = useMemo(() => {
-    const filtered = activities.filter((act) => act.type === 'pee' || act.type === 'poop' || act.type === 'food');
+    const filtered = activities.filter(
+      (act) => act.type === 'pee' || act.type === 'poop' || act.type === 'food' || act.type === 'medication' || act.type === 'weight'
+    );
     return sortByTimestampDesc(filtered);
   }, [activities]);
 
-  // Filter by time window
-  const now = new Date();
-  const cutoffTime = now.getTime() - daysLimit * 24 * 60 * 60 * 1000;
+  // Filter by calendar day window (Last N days)
+  const cutoffDateKey = useMemo(() => {
+    const now = new Date();
+    const cutoffDate = new Date(now.getTime() - (daysLimit - 1) * 24 * 60 * 60 * 1000);
+    return formatLogicalDate(cutoffDate, tz);
+  }, [daysLimit, tz]);
 
   const visibleActivities = useMemo(() => {
-    return sortedCoreActivities.filter((act) => parseIsoDate(act.timestamp).getTime() >= cutoffTime);
-  }, [sortedCoreActivities, cutoffTime]);
+    return sortedCoreActivities.filter((act) => formatLogicalDate(act.timestamp, tz) >= cutoffDateKey);
+  }, [sortedCoreActivities, cutoffDateKey, tz]);
 
   const hasMorePriorLogs = sortedCoreActivities.length > visibleActivities.length || hasMoreRemote;
+
+  const nextDaysLimit = daysLimit < 14 ? 14 : daysLimit < 30 ? 30 : daysLimit < 90 ? 90 : daysLimit + 90;
 
   const dailyGoalGrams = activePuppy?.dailyFoodGramGoal || 200;
   const targetMealsCount = activePuppy?.targetMealsPerDay || 3;
@@ -173,11 +184,11 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
   const isAllExpanded = allDayKeys.length > 0 && allDayKeys.every((key) => expandedDays.has(key));
 
   const handleLoadMore = useCallback(async () => {
-    setDaysLimit((previous) => previous + 90);
+    setDaysLimit(nextDaysLimit);
     if (onLoadMore) {
       await onLoadMore();
     }
-  }, [onLoadMore]);
+  }, [nextDaysLimit, onLoadMore]);
 
   const formatTime = useCallback((isoString: string) => {
     return formatRelativeTime(isoString, lang as 'en' | 'fr', {
@@ -596,7 +607,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
                   className="w-full text-xs font-bold text-slate-300 border-slate-800 hover:bg-slate-950"
                 >
                   <ChevronDown className={`w-4 h-4 mr-1 inline ${isLoadingMore ? 'animate-spin' : ''}`} />
-                  <span>{isLoadingMore ? t.dashboard.loadingEarlier : t.dashboard.loadEarlier.replace('{days}', String(daysLimit + 90))}</span>
+                  <span>{isLoadingMore ? t.dashboard.loadingEarlier : t.dashboard.loadEarlier.replace('{days}', String(nextDaysLimit))}</span>
                 </Button>
               </div>
             )}
