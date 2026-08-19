@@ -474,6 +474,122 @@ export function printVetReport(
 }
 
 /**
+ * Exports puppy veterinary and health passport records to a formatted CSV file with UTF-8 BOM.
+ */
+export function exportHealthPassportToCSV(
+  profile: PuppyProfile,
+  vaccinations: HealthRecord[],
+  dewormings: HealthRecord[],
+  activities: Activity[] = [],
+  lang: 'en' | 'fr' = 'fr',
+  caretakers: Caretaker[] = []
+): boolean {
+  if (!profile) return false;
+
+  const isFrench = lang === 'fr';
+  const locale = isFrench ? 'fr-FR' : 'en-US';
+
+  const headers = isFrench
+    ? [
+        'Catégorie',
+        'Date',
+        'Protocole / Produit',
+        'Prochain Rappel / Échéance',
+        'Clinique Vétérinaire / Membre',
+        'Poids (kg)',
+        'N° Lot / Flacon',
+        'Notes',
+      ]
+    : [
+        'Category',
+        'Date',
+        'Protocol / Product',
+        'Next Due / Booster Date',
+        'Clinic / Logged By',
+        'Weight (kg)',
+        'Batch / Lot Number',
+        'Notes',
+      ];
+
+  const escapeCsvField = (value: string | number | null | undefined): string => {
+    if (value === null || value === undefined) return '""';
+    const stringValue = String(value).replace(/"/g, '""');
+    return `"${stringValue}"`;
+  };
+
+  const rows: string[] = [];
+
+  // 1. Vaccinations
+  const sortedVaccines = [...vaccinations].sort(
+    (vaccineA, vaccineB) => new Date(vaccineB.date).getTime() - new Date(vaccineA.date).getTime()
+  );
+  sortedVaccines.forEach((vaccine) => {
+    rows.push([
+      escapeCsvField(isFrench ? 'Vaccination' : 'Vaccination'),
+      escapeCsvField(vaccine.date),
+      escapeCsvField(vaccine.name),
+      escapeCsvField(vaccine.boosterDate || ''),
+      escapeCsvField(vaccine.vetClinic || (isFrench ? 'Clinique Vétérinaire' : 'Veterinary Clinic')),
+      escapeCsvField(vaccine.weightAtTime ?? ''),
+      escapeCsvField(vaccine.batchNumber || ''),
+      escapeCsvField(vaccine.notes || ''),
+    ].join(','));
+  });
+
+  // 2. Deworming & Antiparasitics
+  const sortedDewormings = [...dewormings].sort(
+    (dewormingA, dewormingB) => new Date(dewormingB.date).getTime() - new Date(dewormingA.date).getTime()
+  );
+  sortedDewormings.forEach((deworming) => {
+    rows.push([
+      escapeCsvField(isFrench ? 'Vermifuge / Antiparasitaire' : 'Deworming / Antiparasitic'),
+      escapeCsvField(deworming.date),
+      escapeCsvField(deworming.productName || deworming.name),
+      escapeCsvField(deworming.boosterDate || ''),
+      escapeCsvField(deworming.vetClinic || ''),
+      escapeCsvField(deworming.weightAtTime ?? ''),
+      escapeCsvField(deworming.batchNumber || ''),
+      escapeCsvField(deworming.notes || ''),
+    ].join(','));
+  });
+
+  // 3. Weight Records
+  const weightLogs = activities
+    .filter((activity) => activity.type === 'weight' && activity.weightKg && activity.weightKg > 0)
+    .sort((activityA, activityB) => new Date(activityB.timestamp).getTime() - new Date(activityA.timestamp).getTime());
+
+  weightLogs.forEach((weightItem) => {
+    const formattedDate = new Date(weightItem.timestamp).toLocaleDateString(locale);
+    const resolvedCaretaker = resolveCaretakerName(weightItem.loggedBy, caretakers);
+    rows.push([
+      escapeCsvField(isFrench ? 'Pesée & Croissance' : 'Weight & Growth'),
+      escapeCsvField(formattedDate),
+      escapeCsvField(isFrench ? 'Contrôle du Poids' : 'Weight Measurement'),
+      escapeCsvField(''),
+      escapeCsvField(resolvedCaretaker),
+      escapeCsvField(weightItem.weightKg ?? ''),
+      escapeCsvField(''),
+      escapeCsvField(weightItem.notes || ''),
+    ].join(','));
+  });
+
+  const csvContent = '\uFEFF' + [headers.join(','), ...rows].join('\r\n');
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const downloadLink = document.createElement('a');
+
+  const safeDogName = (profile?.name || 'puppy').toLowerCase().replace(/[^a-z0-9_-]/gi, '_');
+  downloadLink.setAttribute('href', url);
+  downloadLink.setAttribute('download', `${safeDogName}_carnet_de_sante_${formatLocalDate()}.csv`);
+  document.body.appendChild(downloadLink);
+  downloadLink.click();
+  document.body.removeChild(downloadLink);
+  URL.revokeObjectURL(url);
+
+  return true;
+}
+
+/**
  * Opens a print-optimized window for the Veterinary Health Passport.
  */
 export function printHealthPassportReport(
@@ -481,15 +597,23 @@ export function printHealthPassportReport(
   vaccinations: HealthRecord[],
   dewormings: HealthRecord[],
   activities: Activity[] = [],
-  _lang = 'fr',
+  lang: 'en' | 'fr' = 'fr',
   _t?: TranslationKeys
-) {
-  if (typeof window === 'undefined') return;
+): boolean {
+  if (typeof window === 'undefined') return false;
 
   const windowPrint = window.open('', '', 'width=900,height=1000');
-  if (!windowPrint) return;
+  if (!windowPrint) return false;
 
-  const today = new Date().toLocaleDateString();
+  const isFrench = lang === 'fr';
+  const locale = isFrench ? 'fr-FR' : 'en-US';
+  const generatedDate = new Date().toLocaleDateString(locale, {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  });
+
   const sortedVaccines = [...vaccinations].sort(
     (vaccineA, vaccineB) => new Date(vaccineB.date).getTime() - new Date(vaccineA.date).getTime()
   );
@@ -501,72 +625,159 @@ export function printHealthPassportReport(
     .sort((activityA, activityB) => new Date(activityB.timestamp).getTime() - new Date(activityA.timestamp).getTime());
 
   const latestWeight = weightLogs.length > 0 ? weightLogs[0].weightKg : (profile.weightKg || '-');
+  const breedLabel = formatBreedName(profile?.breed || 'Puppy', lang);
 
   const html = `
     <!DOCTYPE html>
-    <html>
+    <html lang="${lang}">
       <head>
-        <title>${profile.name} - Carnet de Santé Vétérinaire</title>
+        <meta charset="utf-8" />
+        <title>${profile.name} - ${isFrench ? 'Carnet de Santé Vétérinaire' : 'Veterinary Health Passport'}</title>
         <style>
           @page { size: A4; margin: 15mm; }
-          body { font-family: system-ui, -apple-system, sans-serif; padding: 20px; color: #0f172a; line-height: 1.4; }
-          .header { border-bottom: 2px solid #0284c7; padding-bottom: 14px; margin-bottom: 18px; display: flex; justify-content: space-between; align-items: flex-start; }
-          .title-area h1 { margin: 0 0 4px 0; font-size: 22px; color: #0f172a; }
-          .title-area p { margin: 0; font-size: 13px; color: #64748b; }
-          .badge { display: inline-block; padding: 3px 8px; border-radius: 6px; font-size: 11px; font-weight: bold; background: #e0f2fe; color: #0369a1; }
-          .grid-summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px; }
-          .card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 14px; }
-          .card-label { font-size: 11px; text-transform: uppercase; color: #64748b; font-weight: 600; }
-          .card-value { font-size: 16px; font-weight: bold; color: #0f172a; margin-top: 2px; }
-          h2 { font-size: 15px; color: #0369a1; border-bottom: 1px solid #e2e8f0; padding-bottom: 6px; margin: 20px 0 10px 0; display: flex; align-items: center; gap: 6px; }
-          table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 12px; }
-          th, td { border: 1px solid #cbd5e1; padding: 7px 10px; text-align: left; }
-          th { background: #f1f5f9; font-weight: 600; color: #334155; }
-          tr:nth-child(even) { background: #f8fafc; }
-          .status-tag { font-size: 11px; font-weight: bold; padding: 2px 6px; border-radius: 4px; }
-          .status-ok { background: #dcfce7; color: #166534; }
-          .status-warn { background: #fef3c7; color: #92400e; }
-          .footer { margin-top: 28px; padding-top: 12px; border-top: 1px solid #e2e8f0; font-size: 11px; color: #94a3b8; text-align: center; }
+          * { box-sizing: border-box; }
+          body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            padding: 20px;
+            color: #0f172a;
+            line-height: 1.4;
+            background: #ffffff;
+            margin: 0;
+          }
+          .header {
+            border-bottom: 2px solid #0284c7;
+            padding-bottom: 14px;
+            margin-bottom: 18px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+          }
+          .title-area h1 {
+            margin: 0 0 4px 0;
+            font-size: 22px;
+            font-weight: 800;
+            color: #0f172a;
+          }
+          .title-area p {
+            margin: 0;
+            font-size: 13px;
+            color: #64748b;
+          }
+          .badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 8px;
+            font-size: 11px;
+            font-weight: bold;
+            background: #e0f2fe;
+            color: #0369a1;
+            border: 1px solid #bae6fd;
+          }
+          .grid-summary {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            margin-bottom: 20px;
+          }
+          .card {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 10px 14px;
+          }
+          .card-label {
+            font-size: 11px;
+            text-transform: uppercase;
+            color: #64748b;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+          }
+          .card-value {
+            font-size: 16px;
+            font-weight: bold;
+            color: #0f172a;
+            margin-top: 2px;
+          }
+          h2 {
+            font-size: 15px;
+            color: #0369a1;
+            border-bottom: 1px solid #e2e8f0;
+            padding-bottom: 6px;
+            margin: 20px 0 10px 0;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+          }
+          table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 8px;
+            font-size: 12px;
+          }
+          th, td {
+            border: 1px solid #cbd5e1;
+            padding: 7px 10px;
+            text-align: left;
+            vertical-align: top;
+          }
+          th {
+            background: #f1f5f9;
+            font-weight: 600;
+            color: #334155;
+            font-size: 11px;
+            text-transform: uppercase;
+          }
+          tr:nth-child(even) {
+            background: #f8fafc;
+          }
+          .footer {
+            margin-top: 28px;
+            padding-top: 12px;
+            border-top: 1px solid #e2e8f0;
+            font-size: 11px;
+            color: #94a3b8;
+            text-align: center;
+          }
         </style>
       </head>
       <body>
         <div class="header">
           <div class="title-area">
-            <h1>🐾 Carnet de Santé & Passeport Vaccinal — ${profile.name}</h1>
-            <p>Dossier Médical Vétérinaire &bull; ${profile.breed} &bull; Édité le ${today}</p>
+            <h1>🐾 ${isFrench ? 'Carnet de Santé & Passeport Vaccinal' : 'Health Passport & Vaccine Record'} — ${profile.name}</h1>
+            <p>${isFrench ? 'Dossier Médical Vétérinaire' : 'Veterinary Medical File'} &bull; ${breedLabel} &bull; ${isFrench ? 'Édité le' : 'Generated on'} ${generatedDate}</p>
           </div>
           <span class="badge">PupPace Health Passport</span>
         </div>
 
         <div class="grid-summary">
           <div class="card">
-            <div class="card-label">Nom du Chien</div>
+            <div class="card-label">${isFrench ? 'Nom du Chien' : 'Dog Name'}</div>
             <div class="card-value">${profile.name}</div>
           </div>
           <div class="card">
-            <div class="card-label">Race</div>
-            <div class="card-value">${profile.breed}</div>
+            <div class="card-label">${isFrench ? 'Race' : 'Breed'}</div>
+            <div class="card-value">${breedLabel}</div>
           </div>
           <div class="card">
-            <div class="card-label">Date de Naissance</div>
+            <div class="card-label">${isFrench ? 'Date de Naissance' : 'Birth Date'}</div>
             <div class="card-value">${profile.birthDate || '-'}</div>
           </div>
           <div class="card">
-            <div class="card-label">Dernier Poids Connu</div>
+            <div class="card-label">${isFrench ? 'Dernier Poids Connu' : 'Latest Known Weight'}</div>
             <div class="card-value">${latestWeight} kg</div>
           </div>
         </div>
 
-        <h2>💉 Historique des Vaccinations & Rappels WSAVA</h2>
-        ${sortedVaccines.length === 0 ? '<p style="font-size:12px;color:#64748b;">Aucun vaccin enregistré.</p>' : `
+        <h2>💉 ${isFrench ? 'Historique des Vaccinations & Rappels WSAVA' : 'Vaccination History & WSAVA Boosters'}</h2>
+        ${sortedVaccines.length === 0 ? `<p style="font-size:12px;color:#64748b;">${isFrench ? 'Aucun vaccin enregistré.' : 'No vaccine records logged.'}</p>` : `
         <table>
           <thead>
             <tr>
-              <th>Date Injection</th>
-              <th>Protocole Vaccinal</th>
-              <th>Prochain Rappel</th>
-              <th>Clinique Vétérinaire</th>
-              <th>N° Lot / Flacon</th>
+              <th>${isFrench ? 'Date Injection' : 'Injection Date'}</th>
+              <th>${isFrench ? 'Protocole Vaccinal' : 'Vaccine Protocol'}</th>
+              <th>${isFrench ? 'Prochain Rappel' : 'Next Booster'}</th>
+              <th>${isFrench ? 'Clinique Vétérinaire' : 'Veterinary Clinic'}</th>
+              <th>${isFrench ? 'N° Lot / Flacon' : 'Batch / Lot #'}</th>
             </tr>
           </thead>
           <tbody>
@@ -575,7 +786,7 @@ export function printHealthPassportReport(
                 <td><strong>${vaccine.date}</strong></td>
                 <td>${vaccine.name}</td>
                 <td>${vaccine.boosterDate || '-'}</td>
-                <td>${vaccine.vetClinic || 'Clinique Vétérinaire'}</td>
+                <td>${vaccine.vetClinic || (isFrench ? 'Clinique Vétérinaire' : 'Veterinary Clinic')}</td>
                 <td>${vaccine.batchNumber || '-'}</td>
               </tr>
             `).join('')}
@@ -583,15 +794,15 @@ export function printHealthPassportReport(
         </table>
         `}
 
-        <h2>💊 Historique Vermifuge & Parasitologie (Protocole ESCCAP)</h2>
-        ${sortedDewormings.length === 0 ? '<p style="font-size:12px;color:#64748b;">Aucun traitement vermifuge enregistré.</p>' : `
+        <h2>💊 ${isFrench ? 'Historique Vermifuge & Parasitologie (Protocole ESCCAP)' : 'Deworming & Parasitology History (ESCCAP Protocol)'}</h2>
+        ${sortedDewormings.length === 0 ? `<p style="font-size:12px;color:#64748b;">${isFrench ? 'Aucun traitement vermifuge enregistré.' : 'No deworming treatments logged.'}</p>` : `
         <table>
           <thead>
             <tr>
-              <th>Date Administration</th>
-              <th>Produit Antiparasitaire</th>
-              <th>Poids au Traitement</th>
-              <th>Prochain Traitement Dû</th>
+              <th>${isFrench ? 'Date Administration' : 'Date Given'}</th>
+              <th>${isFrench ? 'Produit Antiparasitaire' : 'Product Name'}</th>
+              <th>${isFrench ? 'Poids au Traitement' : 'Weight at time'}</th>
+              <th>${isFrench ? 'Prochain Traitement Dû' : 'Next Due Date'}</th>
             </tr>
           </thead>
           <tbody>
@@ -607,21 +818,21 @@ export function printHealthPassportReport(
         </table>
         `}
 
-        <h2>⚖️ Historique des Pesées & Croissance</h2>
-        ${weightLogs.length === 0 ? '<p style="font-size:12px;color:#64748b;">Aucune pesée enregistrée.</p>' : `
+        <h2>⚖️ ${isFrench ? 'Historique des Pesées & Croissance' : 'Weight History & Growth Curve'}</h2>
+        ${weightLogs.length === 0 ? `<p style="font-size:12px;color:#64748b;">${isFrench ? 'Aucune pesée enregistrée.' : 'No weight entries logged.'}</p>` : `
         <table>
           <thead>
             <tr>
-              <th>Date & Heure</th>
-              <th>Poids (kg)</th>
-              <th>Enregistré Par</th>
-              <th>Notes / Remarques</th>
+              <th>${isFrench ? 'Date & Heure' : 'Date & Time'}</th>
+              <th>${isFrench ? 'Poids (kg)' : 'Weight (kg)'}</th>
+              <th>${isFrench ? 'Enregistré Par' : 'Logged By'}</th>
+              <th>${isFrench ? 'Notes / Remarques' : 'Notes'}</th>
             </tr>
           </thead>
           <tbody>
-            ${weightLogs.slice(0, 10).map((weightItem) => `
+            ${weightLogs.slice(0, 15).map((weightItem) => `
               <tr>
-                <td>${new Date(weightItem.timestamp).toLocaleDateString()}</td>
+                <td>${new Date(weightItem.timestamp).toLocaleDateString(locale)}</td>
                 <td><strong>${weightItem.weightKg} kg</strong></td>
                 <td>${weightItem.loggedBy}</td>
                 <td>${weightItem.notes || '-'}</td>
@@ -632,11 +843,13 @@ export function printHealthPassportReport(
         `}
 
         <div class="footer">
-          Document généré via PupPace — Application de Suivi & Carnet de Santé Familial du Chiot.
+          ${isFrench
+            ? 'Document généré via PupPace — Application de Suivi & Carnet de Santé Familial du Chiot.'
+            : 'Document generated with PupPace — Family Puppy Care & Health Passport.'}
         </div>
 
         <script>
-          window.onload = function() { window.print(); }
+          window.onload = function() { window.print(); };
         </script>
       </body>
     </html>
@@ -644,6 +857,7 @@ export function printHealthPassportReport(
 
   windowPrint.document.write(html);
   windowPrint.document.close();
+  return true;
 }
 
 

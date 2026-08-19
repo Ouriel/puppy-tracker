@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import type { Activity, PuppyProfile, Caretaker } from '../../types';
-import { exportActivitiesToCSV, printActivitiesReport } from '../export';
+import type { Activity, PuppyProfile, Caretaker, HealthRecord } from '../../types';
+import { exportActivitiesToCSV, printActivitiesReport, exportHealthPassportToCSV, printHealthPassportReport } from '../export';
 import { en } from '../../i18n/en';
 import { fr } from '../../i18n/fr';
 
@@ -192,6 +192,104 @@ describe('export utilities — CSV and PDF export test suite', () => {
       expect(htmlContent).toContain('Total Logs');
       expect(htmlContent).toContain('Outside');
       expect(htmlContent).toContain('Indoors');
+    });
+  });
+
+  describe('exportHealthPassportToCSV', () => {
+    const mockVaccinations: HealthRecord[] = [
+      {
+        id: 'v-1',
+        householdId: 'hh-1',
+        puppyId: 'pup-1',
+        type: 'vaccination' as const,
+        name: 'CHPPiL4 (Nobivac)',
+        date: '2026-05-01',
+        boosterDate: '2027-05-01',
+        vetClinic: 'Clinique Vétérinaire des Lilas',
+        batchNumber: 'LOT-992A',
+        notes: 'Bien toléré',
+      },
+    ];
+
+    const mockDewormings: HealthRecord[] = [
+      {
+        id: 'd-1',
+        householdId: 'hh-1',
+        puppyId: 'pup-1',
+        type: 'deworming' as const,
+        name: 'Milbemax',
+        productName: 'Milbemax',
+        date: '2026-06-01',
+        boosterDate: '2026-07-01',
+        weightAtTime: 6.2,
+        notes: 'Comprimé appétant',
+      },
+    ];
+
+    it('generates structured CSV with vaccine, deworming, and weight records', async () => {
+      const result = exportHealthPassportToCSV(mockProfile, mockVaccinations, mockDewormings, mockActivities, 'fr', mockCaretakers);
+      expect(result).toBe(true);
+      expect(clickedDownload).toBe(true);
+      expect(createdBlob).not.toBeNull();
+
+      if (createdBlob) {
+        const text = await (createdBlob as Blob).text();
+        expect(text).toContain('Catégorie,Date,Protocole / Produit,Prochain Rappel / Échéance');
+        expect(text).toContain('"CHPPiL4 (Nobivac)"');
+        expect(text).toContain('"LOT-992A"');
+        expect(text).toContain('"Milbemax"');
+        expect(text).toContain('"6.8"');
+      }
+    });
+  });
+
+  describe('printHealthPassportReport', () => {
+    const mockVaccinations: HealthRecord[] = [
+      {
+        id: 'v-1',
+        householdId: 'hh-1',
+        puppyId: 'pup-1',
+        type: 'vaccination' as const,
+        name: 'CHPPiL4',
+        date: '2026-05-01',
+        boosterDate: '2027-05-01',
+        vetClinic: 'Clinique Vet',
+        batchNumber: 'LOT-1',
+      },
+    ];
+
+    const mockDewormings: HealthRecord[] = [
+      {
+        id: 'd-1',
+        householdId: 'hh-1',
+        puppyId: 'pup-1',
+        type: 'deworming' as const,
+        name: 'Credelio Plus',
+        date: '2026-06-01',
+        boosterDate: '2026-07-01',
+      },
+    ];
+
+    it('renders printable French veterinary health passport', () => {
+      const result = printHealthPassportReport(mockProfile, mockVaccinations, mockDewormings, mockActivities, 'fr', fr);
+      expect(result).toBe(true);
+      expect(window.open).toHaveBeenCalledWith('', '', 'width=900,height=1000');
+
+      const htmlContent = mockWindow?.document.write.mock.calls[0][0] as string;
+      expect(htmlContent).toContain('Carnet de Santé & Passeport Vaccinal');
+      expect(htmlContent).toContain('CHPPiL4');
+      expect(htmlContent).toContain('Credelio Plus');
+      expect(htmlContent).toContain('window.print()');
+    });
+
+    it('renders printable English veterinary health passport when lang is en', () => {
+      const result = printHealthPassportReport(mockProfile, mockVaccinations, mockDewormings, mockActivities, 'en', en);
+      expect(result).toBe(true);
+
+      const htmlContent = mockWindow?.document.write.mock.calls[0][0] as string;
+      expect(htmlContent).toContain('Health Passport & Vaccine Record');
+      expect(htmlContent).toContain('Vaccination History');
+      expect(htmlContent).toContain('Deworming & Parasitology');
     });
   });
 });
