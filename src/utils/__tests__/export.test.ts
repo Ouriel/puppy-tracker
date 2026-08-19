@@ -129,16 +129,18 @@ describe('export utilities — CSV and PDF export test suite', () => {
         expect(bytes[2]).toBe(0xbf);
 
         const text = await (createdBlob as Blob).text();
-        // Check French headers
-        expect(text).toContain('Date & Heure,Type,Lieu Besoins,Consistance Selles,Quantité (g),Quantité (cups),Durée (min),Poids (kg),Médicament,Enregistré par,Notes');
+        // Check quoted French headers
+        expect(text).toContain('"Date","Heure","Type d\'Activité","Lieu Besoins","Consistance Selles","Quantité (g)","Quantité (cups)","Durée (min)","Poids (kg)","Médicament","Enregistré Par","Notes"');
         expect(text).toContain('"Matthieu"');
         expect(text).toContain('"Daria"');
         expect(text).toContain('Accident in ""hallway"", cleaned immediately');
-        expect(text).toContain('"PEE"');
-        expect(text).toContain('"POOP"');
-        expect(text).toContain('"FOOD"');
-        expect(text).toContain('"WEIGHT"');
-        expect(text).toContain('"MEDICATION"');
+        expect(text).toContain('"Pipi"');
+        expect(text).toContain('"Caca"');
+        expect(text).toContain('"Repas"');
+        expect(text).toContain('"Pesée"');
+        expect(text).toContain('"Médicament"');
+        expect(text).toContain('"Dehors"');
+        expect(text).toContain('"Accident Intérieur"');
         expect(text).toContain('"80"');
         expect(text).toContain('"6.8"');
         expect(text).toContain('"Bravecto"');
@@ -151,7 +153,11 @@ describe('export utilities — CSV and PDF export test suite', () => {
 
       if (createdBlob) {
         const text = await (createdBlob as Blob).text();
-        expect(text).toContain('Date & Time,Type,Potty Location,Stool Consistency,Quantity (g),Quantity (cups),Duration (min),Weight (kg),Medication,Logged By,Notes');
+        expect(text).toContain('"Date","Time","Activity Type","Potty Location","Stool Consistency","Quantity (g)","Quantity (cups)","Duration (min)","Weight (kg)","Medication","Logged By","Notes"');
+        expect(text).toContain('"Pee"');
+        expect(text).toContain('"Poop"');
+        expect(text).toContain('"Outside"');
+        expect(text).toContain('"Indoor Accident"');
       }
     });
   });
@@ -234,11 +240,22 @@ describe('export utilities — CSV and PDF export test suite', () => {
 
       if (createdBlob) {
         const text = await (createdBlob as Blob).text();
-        expect(text).toContain('Catégorie,Date,Protocole / Produit,Prochain Rappel / Échéance');
+        expect(text).toContain('"Catégorie","Date","Protocole / Produit / Mesure","Prochain Rappel / Échéance","Poids (kg)","Clinique Vétérinaire","N° Lot / Flacon","Enregistré Par","Notes"');
         expect(text).toContain('"CHPPiL4 (Nobivac)"');
         expect(text).toContain('"LOT-992A"');
         expect(text).toContain('"Milbemax"');
+        expect(text).toContain('"Clinique Vétérinaire des Lilas"');
         expect(text).toContain('"6.8"');
+      }
+    });
+
+    it('generates structured CSV with English headers when lang is en', async () => {
+      const result = exportHealthPassportToCSV(mockProfile, mockVaccinations, mockDewormings, mockActivities, 'en', mockCaretakers);
+      expect(result).toBe(true);
+
+      if (createdBlob) {
+        const text = await (createdBlob as Blob).text();
+        expect(text).toContain('"Category","Date","Protocol / Product / Measurement","Next Due / Booster Date","Weight (kg)","Veterinary Clinic","Batch / Lot Number","Logged By","Notes"');
       }
     });
   });

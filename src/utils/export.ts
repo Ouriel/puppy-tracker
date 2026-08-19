@@ -1,6 +1,6 @@
 import type { Activity, PuppyProfile, Caretaker, HealthRecord } from '../types';
 import type { TranslationKeys } from '../i18n/types';
-import { formatLocalDate } from './date';
+import { formatLocalDate, parseIsoDate, formatLogicalDate, getUserTimezone } from './date';
 import { resolveCaretakerName } from './caretakers';
 import { formatBreedName } from './breeds';
 
@@ -18,11 +18,13 @@ export function exportActivitiesToCSV(
   }
 
   const isFrench = lang === 'fr';
+  const tz = getUserTimezone();
 
   const headers = isFrench
     ? [
-        'Date & Heure',
-        'Type',
+        'Date',
+        'Heure',
+        'Type d\'Activité',
         'Lieu Besoins',
         'Consistance Selles',
         'Quantité (g)',
@@ -30,12 +32,13 @@ export function exportActivitiesToCSV(
         'Durée (min)',
         'Poids (kg)',
         'Médicament',
-        'Enregistré par',
+        'Enregistré Par',
         'Notes',
       ]
     : [
-        'Date & Time',
-        'Type',
+        'Date',
+        'Time',
+        'Activity Type',
         'Potty Location',
         'Stool Consistency',
         'Quantity (g)',
@@ -49,7 +52,7 @@ export function exportActivitiesToCSV(
 
   const escapeCsvField = (value: string | number | null | undefined): string => {
     if (value === null || value === undefined) return '""';
-    const stringValue = String(value).replace(/"/g, '""');
+    const stringValue = String(value).trim().replace(/"/g, '""');
     return `"${stringValue}"`;
   };
 
@@ -57,15 +60,47 @@ export function exportActivitiesToCSV(
     (activityA, activityB) => new Date(activityB.timestamp).getTime() - new Date(activityA.timestamp).getTime()
   );
 
+  const formatLocation = (location?: string) => {
+    if (!location) return '';
+    if (location === 'outside') return isFrench ? 'Dehors' : 'Outside';
+    if (location === 'indoor_accident') return isFrench ? 'Accident Intérieur' : 'Indoor Accident';
+    return location;
+  };
+
+  const formatConsistency = (consistency?: string) => {
+    if (!consistency) return '';
+    if (consistency === 'normal') return isFrench ? 'Normale' : 'Normal';
+    if (consistency === 'soft') return isFrench ? 'Molle' : 'Soft';
+    if (consistency === 'liquid') return isFrench ? 'Liquide' : 'Liquid';
+    if (consistency === 'hard') return isFrench ? 'Dure' : 'Hard';
+    return consistency;
+  };
+
+  const formatActivityType = (type: string) => {
+    if (type === 'pee') return isFrench ? 'Pipi' : 'Pee';
+    if (type === 'poop') return isFrench ? 'Caca' : 'Poop';
+    if (type === 'food') return isFrench ? 'Repas' : 'Meal';
+    if (type === 'weight') return isFrench ? 'Pesée' : 'Weight';
+    if (type === 'medication') return isFrench ? 'Médicament' : 'Medication';
+    return type.toUpperCase();
+  };
+
   const rows = sortedActivities.map((activity) => {
-    const formattedDate = new Date(activity.timestamp).toLocaleString(isFrench ? 'fr-FR' : 'en-US');
+    const activityDate = parseIsoDate(activity.timestamp);
+    const dateStr = formatLogicalDate(activity.timestamp, tz);
+    const timeStr = activityDate.toLocaleTimeString(isFrench ? 'fr-FR' : 'en-US', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    });
     const resolvedCaretaker = resolveCaretakerName(activity.loggedBy, caretakers);
 
     return [
-      escapeCsvField(formattedDate),
-      escapeCsvField(activity.type.toUpperCase()),
-      escapeCsvField(activity.pottyLocation || ''),
-      escapeCsvField(activity.stoolConsistency || ''),
+      escapeCsvField(dateStr),
+      escapeCsvField(timeStr),
+      escapeCsvField(formatActivityType(activity.type)),
+      escapeCsvField(formatLocation(activity.pottyLocation)),
+      escapeCsvField(formatConsistency(activity.stoolConsistency)),
       escapeCsvField(activity.quantityGrams ?? ''),
       escapeCsvField(activity.quantityCups ?? ''),
       escapeCsvField(activity.durationMinutes ?? ''),
@@ -77,7 +112,8 @@ export function exportActivitiesToCSV(
   });
 
   // UTF-8 BOM prefix (\uFEFF) ensures Excel and Apple Numbers properly decode French accents (é, è, ê, etc.)
-  const csvContent = '\uFEFF' + [headers.join(','), ...rows].join('\r\n');
+  const escapedHeaders = headers.map(escapeCsvField).join(',');
+  const csvContent = '\uFEFF' + [escapedHeaders, ...rows].join('\r\n');
   const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
   const downloadLink = document.createElement('a');
@@ -487,33 +523,35 @@ export function exportHealthPassportToCSV(
   if (!profile) return false;
 
   const isFrench = lang === 'fr';
-  const locale = isFrench ? 'fr-FR' : 'en-US';
+  const tz = getUserTimezone();
 
   const headers = isFrench
     ? [
         'Catégorie',
         'Date',
-        'Protocole / Produit',
+        'Protocole / Produit / Mesure',
         'Prochain Rappel / Échéance',
-        'Clinique Vétérinaire / Membre',
         'Poids (kg)',
+        'Clinique Vétérinaire',
         'N° Lot / Flacon',
+        'Enregistré Par',
         'Notes',
       ]
     : [
         'Category',
         'Date',
-        'Protocol / Product',
+        'Protocol / Product / Measurement',
         'Next Due / Booster Date',
-        'Clinic / Logged By',
         'Weight (kg)',
+        'Veterinary Clinic',
         'Batch / Lot Number',
+        'Logged By',
         'Notes',
       ];
 
   const escapeCsvField = (value: string | number | null | undefined): string => {
     if (value === null || value === undefined) return '""';
-    const stringValue = String(value).replace(/"/g, '""');
+    const stringValue = String(value).trim().replace(/"/g, '""');
     return `"${stringValue}"`;
   };
 
@@ -529,9 +567,10 @@ export function exportHealthPassportToCSV(
       escapeCsvField(vaccine.date),
       escapeCsvField(vaccine.name),
       escapeCsvField(vaccine.boosterDate || ''),
-      escapeCsvField(vaccine.vetClinic || (isFrench ? 'Clinique Vétérinaire' : 'Veterinary Clinic')),
       escapeCsvField(vaccine.weightAtTime ?? ''),
+      escapeCsvField(vaccine.vetClinic || (isFrench ? 'Clinique Vétérinaire' : 'Veterinary Clinic')),
       escapeCsvField(vaccine.batchNumber || ''),
+      escapeCsvField(''),
       escapeCsvField(vaccine.notes || ''),
     ].join(','));
   });
@@ -546,9 +585,10 @@ export function exportHealthPassportToCSV(
       escapeCsvField(deworming.date),
       escapeCsvField(deworming.productName || deworming.name),
       escapeCsvField(deworming.boosterDate || ''),
-      escapeCsvField(deworming.vetClinic || ''),
       escapeCsvField(deworming.weightAtTime ?? ''),
+      escapeCsvField(deworming.vetClinic || ''),
       escapeCsvField(deworming.batchNumber || ''),
+      escapeCsvField(''),
       escapeCsvField(deworming.notes || ''),
     ].join(','));
   });
@@ -559,21 +599,23 @@ export function exportHealthPassportToCSV(
     .sort((activityA, activityB) => new Date(activityB.timestamp).getTime() - new Date(activityA.timestamp).getTime());
 
   weightLogs.forEach((weightItem) => {
-    const formattedDate = new Date(weightItem.timestamp).toLocaleDateString(locale);
+    const formattedDate = formatLogicalDate(weightItem.timestamp, tz);
     const resolvedCaretaker = resolveCaretakerName(weightItem.loggedBy, caretakers);
     rows.push([
       escapeCsvField(isFrench ? 'Pesée & Croissance' : 'Weight & Growth'),
       escapeCsvField(formattedDate),
       escapeCsvField(isFrench ? 'Contrôle du Poids' : 'Weight Measurement'),
       escapeCsvField(''),
-      escapeCsvField(resolvedCaretaker),
       escapeCsvField(weightItem.weightKg ?? ''),
       escapeCsvField(''),
+      escapeCsvField(''),
+      escapeCsvField(resolvedCaretaker),
       escapeCsvField(weightItem.notes || ''),
     ].join(','));
   });
 
-  const csvContent = '\uFEFF' + [headers.join(','), ...rows].join('\r\n');
+  const escapedHeaders = headers.map(escapeCsvField).join(',');
+  const csvContent = '\uFEFF' + [escapedHeaders, ...rows].join('\r\n');
   const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
   const downloadLink = document.createElement('a');
