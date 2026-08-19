@@ -16,7 +16,7 @@
   [![Vite](https://img.shields.io/badge/Vite-8.x-646cff?logo=vite&logoColor=white)](https://vitejs.dev/)
   [![Tailwind CSS](https://img.shields.io/badge/Tailwind-4.x-38bdf8?logo=tailwindcss&logoColor=white)](https://tailwindcss.com/)
   [![Neon PostgreSQL](https://img.shields.io/badge/Neon-Serverless_PostgreSQL-00e599?logo=postgresql&logoColor=white)](https://neon.tech/)
-  [![Vitest](https://img.shields.io/badge/Tests-138_Passing-green?logo=vitest&logoColor=white)](https://vitest.dev/)
+  [![Vitest](https://img.shields.io/badge/Tests-144_Passing-green?logo=vitest&logoColor=white)](https://vitest.dev/)
   [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 </div>
 
@@ -36,7 +36,7 @@
   - [4. Multi-Tenant Household & SSO Caretaker Attribution](#4-multi-tenant-household--sso-caretaker-attribution)
 - [How It Works (Under the Hood)](#-how-it-works-under-the-hood)
   - [The Potty & Sleep Biological Pipeline](#the-potty--sleep-biological-pipeline)
-  - [The Gastrocolic & GI Upset Heuristics](#the-gastrocolic--gi-upset-heuristics)
+  - [The Age-Graduated Gastrocolic Maturation Model](#the-age-graduated-gastrocolic-maturation-model)
   - [Nutritional Mathematics (RER & MER)](#nutritional-mathematics-rer--mer)
 - [Project Architecture](#-project-architecture)
 - [Getting Started](#-getting-started)
@@ -50,53 +50,46 @@
 
 ---
 
-## 🌟 What is Puppace?
+## 🐶 What is Puppace?
 
-Raising a puppy requires constant coordination between family members, strict adherence to vaccination protocols, and vigilance around potty training schedules. 
+Most pet apps are static loggers — passive digital notebooks where you type what happened in the past. **Puppace is an active predictive companion**.
 
-Traditional pet apps are static logbooks: you record an event, and it sits in a database. **Puppace is active and predictive**:
-1. **It observes**: You log pees, poops, meals, weights, and medical events via 1-tap quick actions.
-2. **It learns**: Using exponential time-decay math and sleep schedule detection, it models your dog's physiological intervals.
-3. **It guides**: The dashboard shows dynamic countdowns with confidence tolerances ($\pm \text{mins}$), gastrocolic alerts, and exact kibble portion recommendations.
+Puppies do not operate on fixed clock schedules; their physiological needs change dynamically with:
+- **Age-related sphincter myelination** (transitioning from involuntary infant reflexes to conscious cortical control between 16–20 weeks).
+- **Natural digestive transit rhythms** and meal spacing.
+- **Household sleep cycles** and seasonal daylight shifts.
+
+Puppace continuously fits mathematical models to your household's time-series activity logs to compute accurate, confidence-interval-bounded countdowns for **Next Pee**, **Next Poop**, and **Next Meal**.
 
 ---
 
-## 🚀 What Does It Do?
+## ✨ What Does It Do?
 
 ### 1. Real-Time Predictive Potty & Meal Engine
-- **Three Decoupled Live Hero Cards**: Dedicated real-time countdowns for **Next Pee**, **Next Poop**, and **Next Meal**.
-- **Confidence Intervals ($\pm \text{delta}$)**: Calculates Semi-Interquartile Ranges ($P_{25}, P_{50}, P_{75}$) to display honest accuracy windows (e.g. `In ~45m (±15m)`).
-- **Synchronized Morning Outing Flow**: Mathematically aligns morning wakeup, first pee, walk poop, and breakfast in natural biological sequence ($\text{Pee} \le \text{Poop} \le \text{Breakfast}$).
-- **Physiological Emergency & Digestive Alerts**:
-  - *Gastrocolic Reflex*: Prompts an immediate potty check 15–30 minutes after any meal.
-  - *Digestive Upset*: Flags diarrhea/liquid stools with a 60-minute urgent re-check; accounts for refractory delay after constipation.
+- **Decoupled Hero Countdown**: Separate cards for Pee, Poop, and Food with dynamic urgency states (`safe`, `soon`, `overdue`).
+- **Sleep-Aware Boundaries**: Suppresses daytime alarms during learned night sleep hours while preserving midnight relief alerts for very young pups (< 2.5 months).
+- **Semi-IQR Confidence Bands**: Displays dynamic tolerance intervals (e.g. `±15m`) derived from the semi-interquartile range of your puppy's actual logs.
 
 ### 2. Digital Health Passport (*Carnet de Santé*)
-- **Core & Non-Core Vaccine Protocols**: Automatically tracks French & European veterinary guidelines (CHPPi/DAPPi, Leptospirosis L4, Rabies, Kennel Cough) with booster schedules and batch numbers.
-- **ESCCAP Antiparasitic & Deworming Engine**: Automated age-based deworming schedules (bi-weekly for puppies $< 8\text{w}$, monthly up to $6\text{m}$, quarterly for adults).
-- **One-Click Veterinary PDF Export**: Generates a clean, printable medical passport for vet visits and boarding facilities.
+- **Official Veterinary French & International Protocols**: Built-in schedules for core puppy vaccines (DHPPi, L4, Rabies) and anti-parasitics (monthly all-in-one chewables like Credelio Plus / NexGard Spectra, quarterly adult dewormers).
+- **One-Click PDF Export**: Generates a clean, bilingual French/English health summary formatted for veterinary visits or border crossings.
 
 ### 3. Weight Trajectory & Veterinary Calorie Allocator
-- **Waltham Growth Curves**: Evaluates weight entries against breed-specific adult growth curves (Toy, Small, Medium, Large, Giant).
-- **RER & MER Veterinary Nutrition**:
-  $$\text{RER (kcal/day)} = 70 \times (\text{weight}_{\text{kg}})^{0.75}$$
-  Scales by puppy growth factors ($3.0\times$ for $< 4\text{m}$, $2.0\times$ for $4\text{–}12\text{m}$) to output exact daily kibble targets in grams.
-- **Portion Allocator**: Automatically splits remaining calories across remaining meals today based on logged breakfast/lunch portions.
+- **Waltham Growth Projections**: Compares your puppy's weigh-in history against breed-specific standard growth curves to forecast adult weight.
+- **Dynamic Calorie (RER/MER) Allocation**: Computes Resting Energy Requirements ($70 \times \text{weight}^{0.75}$) and maintenance multipliers based on age and target meals per day.
 
 ### 4. Multi-Tenant Household & SSO Caretaker Attribution
-- **Seamless Caretaker Sync**: Multiple family members (Owner, Partner, Sitter, Walker) log in via Google SSO or family credentials.
-- **Zero-Friction Attribution**: Every log automatically records `loggedBy` metadata with color-coded avatar badges.
-- **Multi-Puppy Support**: Switch between dogs in the household with a single tap.
+- **Google SSO Caretaker Sync**: Seamless family sharing where each event (walks, feedings, health treatments) is automatically attributed to the active family member.
 
 ---
 
-## 🔬 How It Works (Under the Hood)
+## 🧠 How It Works (Under the Hood)
 
 ### The Potty & Sleep Biological Pipeline
 
 ```mermaid
 flowchart TD
-    A[Activity Logs] --> B[detectSleepSchedule]
+    A[Household Activity Logs] --> B[detectSleepSchedule Engine]
     B -->|Timezone-Aware Decimal Hours| C[Wakeup & Bedtime Anchor]
     A --> D[Exponential Time-Decay Filter]
     D -->|7-Day Half-Life Weighting| E[Waking Intervals Median]
@@ -112,11 +105,27 @@ flowchart TD
 3. **Night Boundary Filtering**:
    Filters out night sleep intervals so morning pee intervals reflect real awake bladder retention rather than 8-hour overnight holds.
 
-### The Gastrocolic & GI Upset Heuristics
+### The Age-Graduated Gastrocolic Maturation Model
 
-- **Gastrocolic Trigger**: When food is logged, the engine sets an active 30-minute potty alert window.
+In young puppies, stomach distension immediately stimulates the colon (the **gastrocolic reflex**) because the pudendal nerve is not yet fully myelinated. Between **16 and 20 weeks (4 to 5 months)**, puppies develop **cortical inhibition** (voluntary sphincter control), naturally decoupling elimination from eating.
+
+```mermaid
+flowchart TD
+    A[Meal Logged] --> B{Puppy Age}
+    B -->|< 14 Weeks| C[Active Gastrocolic Window 15-30m]
+    B -->|14 - 20 Weeks| D{Empirical Post-Meal Ratio >= 40%?}
+    D -->|Yes| C
+    D -->|No / Insufficient Data| E[Maintain Learned Daytime Interval]
+    B -->|> 20 Weeks| F{Statistically Proven Habit >= 50%?}
+    F -->|Yes| G[Custom Learned Delay]
+    F -->|No| E
+```
+
+- **$< 14\text{ Weeks}$**: Active guidance enabled by default (15–30m post-meal potty alert).
+- **$14\text{ to }20\text{ Weeks}$**: Transition phase — requires empirical data confirmation ($\ge 40\%$ of meals followed by potty $\le 45\text{m}$) before overriding the waking baseline.
+- **$> 20\text{ Weeks}$ (Adolescent / Adult)**: Assumes voluntary cortical control; maintains standard daytime intervals (~4h 26m) unless statistically proven with $\ge 50\%$ post-meal correlation.
 - **Stool Quality Feedback**:
-  - `diarrhea` / `liquid` $\rightarrow$ Triggers rapid 45–60m re-check interval.
+  - `diarrhea` / `liquid` $\rightarrow$ Triggers rapid 60m GI Upset check interval.
   - `hard` / `constipated` $\rightarrow$ Adds a 20% refractory extension to the learned median.
 
 ### Nutritional Mathematics (RER & MER)

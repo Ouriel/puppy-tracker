@@ -51,8 +51,8 @@ PupPace — Smart Household Puppy Activity Tracker & Potty Predictor. React 19 +
 
 ### Testing & Verification
 
-- Every test must exercise real code — zero placeholder assertions (75/75 tests passing across 9 test files).
-- Multi-day 30-day realistic dataset test suite (`src/utils/__tests__/realistic_dataset.test.ts`) verifies predictions, sleep bounds, and protocols.
+- Every test must exercise real code — zero placeholder assertions (144/144 tests passing across 16 test files).
+- Multi-day 30-day realistic dataset test suite (`src/utils/__tests__/realistic_dataset.test.ts` & `predictions.test.ts`) verifies predictions, sleep bounds, age-graduated gastrocolic reflex maturation, and protocols.
 
 ### Safe Database Inspection
 
@@ -68,7 +68,7 @@ PupPace — Smart Household Puppy Activity Tracker & Potty Predictor. React 19 +
 | `src/services/api.ts`                 | SWR-cached REST API client & fetch helpers                                            |
 | `scripts/inspect_db.ts`               | Safe database inspection & live prediction engine diagnostics script                    |
 | `src/i18n/en.ts` & `fr.ts`            | English & French localization dictionaries                                           |
-| `src/utils/predictions.ts`            | Learner algorithm for next potty & meal predictions with night boundaries              |
+| `src/utils/predictions.ts`            | Predictive engine (learned intervals, age-graduated gastrocolic reflex, sleep bounds)   |
 | `src/views/HouseholdSettingsView.tsx` | Combined Chiens & Membres configuration view with inline member name editing           |
 | `src/views/CarnetDeSanteView.tsx`      | French & International veterinary health protocol passport                          |
 
