@@ -27,6 +27,33 @@ export function getLocalHour(date: Date = new Date(), timeZone?: string): number
 }
 
 /**
+ * Gets local decimal hour (e.g. 07:30 -> 7.5, 22:45 -> 22.75) of a Date object in a specific timezone
+ */
+export function getLocalDecimalHour(date: Date = new Date(), timeZone?: string): number {
+  const tz = timeZone || getUserTimezone();
+  try {
+    const formatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: tz,
+      hour: 'numeric',
+      minute: 'numeric',
+      second: 'numeric',
+      hour12: false,
+    });
+    const parts = formatter.formatToParts(date);
+    const getPart = (type: Intl.DateTimeFormatPartTypes): number => {
+      const p = parts.find((part) => part.type === type);
+      return p ? parseInt(p.value, 10) : 0;
+    };
+    const hour = getPart('hour') % 24;
+    const minute = getPart('minute');
+    const second = getPart('second');
+    return hour + minute / 60 + second / 3600;
+  } catch {
+    return date.getHours() + date.getMinutes() / 60 + date.getSeconds() / 3600;
+  }
+}
+
+/**
  * Returns YYYY-MM-DD in specified timezone (defaulting to user timezone)
  */
 export function formatLocalDate(date: Date = new Date(), timeZone?: string): string {

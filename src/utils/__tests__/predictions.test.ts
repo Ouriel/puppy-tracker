@@ -583,6 +583,27 @@ describe('predictions utility — comprehensive test suite', () => {
       expect(learned.intervalMins).toBe(180); // 3 hours (180 mins) exactly
     });
 
+    it('accurately learns ~4h30m waking pee intervals for 5x/day routine with post-midnight bedtime (00:48 AM)', () => {
+      const activities: Activity[] = [];
+      // 5 days of realistic 5x/day routine: 07:50, 12:15, 17:15, 22:15, 00:40
+      for (let d = 0; d < 5; d++) {
+        activities.push({ id: `p-1-${d}`, puppyId: 'pup-1', type: 'pee', timestamp: makeParisIso(10 + d, 7, 50), loggedBy: 'Matthieu' });
+        activities.push({ id: `p-2-${d}`, puppyId: 'pup-1', type: 'pee', timestamp: makeParisIso(10 + d, 12, 15), loggedBy: 'Matthieu' });
+        activities.push({ id: `p-3-${d}`, puppyId: 'pup-1', type: 'pee', timestamp: makeParisIso(10 + d, 17, 15), loggedBy: 'Matthieu' });
+        activities.push({ id: `p-4-${d}`, puppyId: 'pup-1', type: 'pee', timestamp: makeParisIso(10 + d, 22, 15), loggedBy: 'Matthieu' });
+        activities.push({ id: `p-5-${d}`, puppyId: 'pup-1', type: 'pee', timestamp: makeParisIso(11 + d, 0, 40), loggedBy: 'Matthieu' });
+      }
+
+      const sleepSchedule = { bedtimeHour: 0.8, wakeupHour: 7.6, bedtimeStr: '00:48', wakeupStr: '07:37' };
+      const learned = calculateLearnedIntervalMinutes(activities, 'pee', 120, sleepSchedule, 'Europe/Paris');
+
+      expect(learned.isLearned).toBe(true);
+      expect(learned.sampleCount).toBeGreaterThanOrEqual(15);
+      // Average should be ~265 - 300m (~4h25m - 5h), NOT compressed to 3h28m
+      expect(learned.intervalMins).toBeGreaterThanOrEqual(260);
+      expect(learned.intervalMins).toBeLessThanOrEqual(305);
+    });
+
     it('calculates proper meal intervals when bedtime wraps past midnight', () => {
       const activities: Activity[] = [
         { id: 'f-1', puppyId: 'pup-1', type: 'food', timestamp: makeParisIso(10, 12, 0), quantityGrams: 80, loggedBy: 'Matthieu' },

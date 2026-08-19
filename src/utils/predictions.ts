@@ -16,6 +16,7 @@ import {
   formatLocalTime,
   formatMinutesToXhXX,
   getLocalHour,
+  getLocalDecimalHour,
   getUserTimezone,
   isSameLocalDate,
   getOccurrenceOfClockTimeInTimezone,
@@ -362,17 +363,17 @@ export function calculateLearnedIntervalMinutes(
         const weight = Math.exp(-daysAgo / 3);
         intervals.push({ diffMinutes, weight });
       } else {
-        const prevHour = getLocalHour(prevTime, timeZone);
-        const currHour = getLocalHour(currTime, timeZone);
+        const prevHour = getLocalDecimalHour(prevTime, timeZone);
+        const currHour = getLocalDecimalHour(currTime, timeZone);
 
         const isPrevDay = isDaytimeHour(prevHour, sleepSchedule.wakeupHour, sleepSchedule.bedtimeHour);
         const isCurrDay = isDaytimeHour(currHour, sleepSchedule.wakeupHour, sleepSchedule.bedtimeHour);
 
-        // Check if interval spans across the overnight sleep period (from bedtime to morning wakeup)
-        const crossesNight = (
-          getLocalHour(currTime, timeZone) >= sleepSchedule.wakeupHour &&
-          (prevHour >= Math.floor(sleepSchedule.bedtimeHour - 3) || isNighttimeHour(prevHour, sleepSchedule.wakeupHour, sleepSchedule.bedtimeHour) || (prevHour < sleepSchedule.wakeupHour && prevHour <= Math.ceil(sleepSchedule.bedtimeHour))) &&
-          diffMinutes > 4 * 60
+        // An interval spans overnight sleep if it starts in the evening/night and ends the next morning after waking up
+        const isDifferentDays = formatLocalDate(prevTime, timeZone) !== formatLocalDate(currTime, timeZone);
+        const crossesNight = isDifferentDays && diffMinutes >= 4.5 * 60 && (
+          (prevHour >= 20 || isNighttimeHour(prevHour, sleepSchedule.wakeupHour, sleepSchedule.bedtimeHour)) &&
+          (currHour >= (sleepSchedule.wakeupHour - 2) && currHour <= (sleepSchedule.wakeupHour + 3.5))
         );
 
         // Allow valid waking retention intervals (including pre-bedtime outings around midnight)
