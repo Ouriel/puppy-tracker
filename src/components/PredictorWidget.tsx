@@ -6,6 +6,7 @@ import { Card } from '@heroui/react';
 import { useI18n } from '../i18n';
 import { formatMinutesToXhXX, isSameLogicalDate, parseIsoDate } from '../utils/date';
 import { calculateNextMealPortion } from '../utils/predictions';
+import { translatePredictionReason } from '../utils/predictionsTranslation';
 import { StatusBadge } from './common/StatusBadge';
 
 function getActivityStats(activities: Activity[], type: string, now: Date) {
@@ -144,7 +145,7 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = React.memo(({
 
             {/* SECOND: Pee Recommendation Description (Calculation details) */}
             <p className="text-xs text-slate-300 bg-slate-950/60 p-2.5 rounded-xl border border-slate-800/80 leading-relaxed min-h-[52px] flex items-center">
-              {predictions.peeReason}
+              {translatePredictionReason(predictions.peeReason, lang)}
             </p>
           </div>
 
@@ -229,7 +230,7 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = React.memo(({
 
             {/* SECOND: Poop Recommendation Description (Calculation details) */}
             <p className="text-xs text-slate-300 bg-slate-950/60 p-2.5 rounded-xl border border-slate-800/80 leading-relaxed min-h-[52px] flex items-center">
-              {predictions.poopReason}
+              {translatePredictionReason(predictions.poopReason, lang)}
             </p>
           </div>
 
@@ -309,7 +310,7 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = React.memo(({
 
             {/* SECOND: Food Description (Calculation details) */}
             <p className="text-xs text-slate-300 bg-slate-950/60 p-2.5 rounded-xl border border-slate-800/80 leading-relaxed min-h-[52px] flex items-center">
-              {predictions.foodReason}
+              {translatePredictionReason(predictions.foodReason, lang)}
             </p>
           </div>
 

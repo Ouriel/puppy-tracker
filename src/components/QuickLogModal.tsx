@@ -382,7 +382,7 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
                     id="quicklog-notes"
                     type="text"
                     className="w-full bg-slate-950 border border-slate-800 text-slate-100 rounded-xl px-3.5 py-2.5 text-xs focus:outline-none focus:border-indigo-500 transition-colors"
-                    placeholder="e.g., Peed on grass after 15m walk"
+                    placeholder={t.potty.notesPlaceholder}
                     value={notes}
                     onChange={(event) => setNotes(event.target.value)}
                   />

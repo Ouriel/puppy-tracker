@@ -35,9 +35,9 @@ export const Navbar: React.FC<NavbarProps> = ({
         <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
           <div className="flex items-center gap-2">
             <img
-              src="/flat_cocker_spaniel_logo.jpg"
+              src="/puppace_logo.png"
               alt="PupPace Logo"
-              className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl object-cover ring-2 ring-amber-500/50 shadow-md shrink-0"
+              className="w-8 h-8 sm:w-9 sm:h-9 object-contain shrink-0"
             />
             <span className="text-base font-extrabold tracking-tight bg-gradient-to-r from-amber-300 via-indigo-300 to-pink-300 bg-clip-text text-transparent hidden md:inline">
               {t.brand}

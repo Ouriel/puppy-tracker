@@ -117,6 +117,7 @@ export const fr: TranslationKeys = {
     medication: 'Médicament',
     dateAndTime: 'Date & Heure',
     notes: 'Notes / Remarques',
+    notesPlaceholder: 'ex : A fait pipi sur l’herbe après 15 min de marche',
     cancel: 'Annuler',
     saveLog: 'Enregistrer',
     pee: 'Pipi',
