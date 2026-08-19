@@ -21,10 +21,11 @@ export function useActivities(activePuppy: PuppyProfile | null) {
     let isMounted = true;
     async function loadActivities() {
       setIsLoading(true);
-      const result = await fetchActivities(activePuppy!.id, { days: 365, limit: 500, offset: 0 });
+      // Fetch initial 30-day window (matches prediction learning history & 7-day timeline view)
+      const result = await fetchActivities(activePuppy!.id, { days: 30, limit: 300, offset: 0 });
       if (isMounted && result.ok) {
         setActivities(result.data);
-        setHasMoreRemote(result.data.length >= 500);
+        setHasMoreRemote(result.data.length >= 300);
       }
       if (isMounted) {
         setIsLoading(false);
@@ -37,14 +38,17 @@ export function useActivities(activePuppy: PuppyProfile | null) {
     };
   }, [activePuppy?.id]);
 
-  const loadMoreActivities = useCallback(async () => {
+  const loadMoreActivities = useCallback(async (targetDays?: number) => {
     if (!activePuppy?.id || isFetchingMore) return;
     setIsFetchingMore(true);
-    const currentPuppyLogs = activities.filter((activity) => activity.puppyId === activePuppy.id);
+
+    const isAllTime = targetDays === Infinity;
+    const requestedDays = isAllTime ? undefined : (targetDays || 90);
+
     const result = await fetchActivities(activePuppy.id, {
-      days: 730,
+      days: requestedDays,
       limit: 500,
-      offset: currentPuppyLogs.length,
+      offset: 0,
     });
 
     if (result.ok && result.data.length > 0) {
@@ -58,7 +62,7 @@ export function useActivities(activePuppy: PuppyProfile | null) {
       setHasMoreRemote(false);
     }
     setIsFetchingMore(false);
-  }, [activePuppy?.id, activities, isFetchingMore]);
+  }, [activePuppy?.id, isFetchingMore]);
 
   const addActivity = useCallback(
     async (activityData: Omit<Activity, 'id'>) => {

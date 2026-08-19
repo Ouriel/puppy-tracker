@@ -18,7 +18,7 @@ interface ActivityTimelineProps {
   activePuppy?: PuppyProfile | null;
   onDeleteActivity: (id: string) => void;
   onUpdateActivity?: (updated: Partial<Activity> & { id: string }) => void;
-  onLoadMore?: () => Promise<void>;
+  onLoadMore?: (targetDays?: number) => Promise<void>;
   isLoadingMore?: boolean;
   hasMoreRemote?: boolean;
 }
@@ -195,7 +195,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
   const handleLoadMore = useCallback(async () => {
     setDaysLimit(nextDaysLimit);
     if (onLoadMore) {
-      await onLoadMore();
+      await onLoadMore(nextDaysLimit);
     }
   }, [nextDaysLimit, onLoadMore]);
 
