@@ -1,4 +1,4 @@
-# CLAUDE.md — PupPace
+# AGENTS.md — PupPace
 
 ## Quick Context
 
@@ -11,6 +11,11 @@ PupPace — Smart Household Puppy Activity Tracker & Potty Predictor. React 19 +
 3. Check `src/types/index.ts` before defining any type locally
 
 ## Critical Rules
+
+### Agent Instruction Files Standard
+
+- `AGENTS.md` is the canonical open standard for repository and workspace guidelines.
+- When maintaining or updating project rules, edit `AGENTS.md`. Maintain `CLAUDE.md -> AGENTS.md` as a relative symlink (`ln -sf AGENTS.md CLAUDE.md`) for backward compatibility with Anthropic CLI.
 
 ### Database & Drizzle ORM Timestamp Alignment
 
