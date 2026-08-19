@@ -81,12 +81,36 @@ PupPace — Smart Household Puppy Activity Tracker & Potty Predictor. React 19 +
 | `src/views/HouseholdSettingsView.tsx` | Combined Chiens & Membres configuration view with inline member name editing           |
 | `src/views/CarnetDeSanteView.tsx`      | French & International veterinary health protocol passport                          |
 
+### Global React Context for App-Wide State (i18n & Theme)
+
+- App-wide state (language, theme, active tenant) must be provided via a root React Context (`I18nProvider`) wrapped at `main.tsx`.
+- Never use local `useState(getStoredLanguage)` in individual components; this causes desynchronized state and fails to re-render sibling components upon language switch.
+
+### API Caching, In-Flight Deduplication & Network Discipline
+
+- `src/services/api.ts` maintains an `inflightRequests` map to de-duplicate simultaneous requests for identical URLs across mounting components.
+- Within the in-memory TTL window (60s), serve from cache directly without spawning redundant background `fetch()` requests on every tab switch.
+- Clear cache synchronously on mutations (`createActivity`, `updateActivity`, `deleteActivity`, `createDog`, etc.).
+- Consolidate related entities: query `/api/health-records?puppyId=...` in a single unified request rather than issuing separate HTTP requests for `vaccination` and `deworming`. Filter client-side.
+
+### SQL-Side Date Filtering & Progressive Timeline Pagination
+
+- Initial dashboard boot fetches a minimal 30-day window (`{ days: 30, limit: 300 }`), supplying 100% of data needed for the AI Prediction Engine while keeping network payloads light (~90 KB).
+- Dynamic timeline expansion (`7d -> 14d -> 30d -> 90d -> 180d -> all-time`) must pass `days` to the backend so PostgreSQL executes indexed date bounds (`gte(timestamp, cutoffDate)` backed by `idx_activities_tenant_pup_time`). Never fetch all historical records over the wire when expanding a date window.
+
+### Static Asset Compression & Responsive Mobile Localization
+
+- All static images in `public/` must be compressed (PNGs quantized with adaptive filtering, JPGs encoded with mozjpeg, WebP generated) to keep image payloads $\le 35\text{ KB}$.
+- Button labels and action text must remain concise in both English and French to avoid overflowing containers on narrow 320px–375px mobile viewports (e.g. `Charger les {days} derniers jours` instead of `Charger les journaux précédents (Les {days} derniers jours)`).
+
 ## Common Mistakes to Avoid
 
 - Don't return raw space-separated PostgreSQL strings (`'2026-07-28 05:52:00+00'`) over API responses — serialize to ISO 8601 strings (`.toISOString()`)
 - Don't add useEffect to react to state changes — put logic in the event handler that causes the change
 - Don't execute inline DDL (`CREATE TABLE IF NOT EXISTS`) inside serverless handlers — schema migrations belong in `src/db/schema.ts` and `drizzle/`
 - Don't stack sequential `await` calls in data loaders — use `Promise.all` for parallel fetching
+- Don't spawn background `fetch()` revalidations on every cache hit — use clean TTL and in-flight promise deduplication
+- Don't fetch monolithic 365-day datasets on boot when the initial view only needs 7–30 days — filter via SQL `days` parameter
 - Don't define types locally when they exist in `src/types/index.ts`
 - Don't use `(e) =>` or `(p) =>` — spell out parameter names (`(event) =>`, `(puppy) =>`, `(activity) =>`)
 - Don't run `sleep` commands or poll deployment CLI after `git push` — inform the user immediately
