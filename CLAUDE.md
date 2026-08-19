@@ -7,7 +7,7 @@ PupPace — Smart Household Puppy Activity Tracker & Potty Predictor. React 19 +
 ## Before Making Changes
 
 1. `npx tsc -b` — must pass clean with 0 errors
-2. `npm test` — Vitest suite (75 tests across 9 files), all tests must pass
+2. `npm test` — Vitest suite (165 tests across 18 files), all tests must pass
 3. Check `src/types/index.ts` before defining any type locally
 
 ## Critical Rules
@@ -17,6 +17,15 @@ PupPace — Smart Household Puppy Activity Tracker & Potty Predictor. React 19 +
 - Database timestamp columns use `timestamp('col', { withTimezone: true, mode: 'date' })` in `src/db/schema.ts`.
 - Server API handlers (`api/activities.ts`) format Date objects into standard **ISO 8601 strings** (`.toISOString()`) before returning `res.json()`.
 - NEVER return raw PostgreSQL space-separated driver strings (`'2026-07-28 05:52:00+00'`) to client components; V8 engines reject raw PostgreSQL strings as `Invalid Date`.
+
+### CSV Export & Printable Report Standards
+
+- **UTF-8 BOM Prefix**: Always prepend `\uFEFF` to generated CSV content so Microsoft Excel and Apple Numbers parse Unicode / French accents (`é`, `è`, `ê`, `à`) without character corruption.
+- **Uniform Quoting & Escaping**: Pass both headers and row cells through `escapeCsvField`. Always `.trim()` values before quoting.
+- **Separate Date & Time Columns**: Never export combined locale timestamp strings (e.g. `"8/19/2026, 8:45:00 AM"`). Split into distinct ISO `Date` (`YYYY-MM-DD`) and 24h `Time` (`HH:mm`) columns to enable spreadsheet filtering, sorting, and charts.
+- **Dedicated Columns for Mixed Records**: When exporting heterogeneous records into a single CSV (e.g. Health Passport vaccines, dewormings, weights), never overload columns (avoid `Clinic / Logged By`). Provide dedicated, unambiguous columns (`Veterinary Clinic`, `Logged By`).
+- **Client-Side Print Reports**: Use lightweight, responsive HTML templates with `@page { size: A4; margin: 15mm; }` via `window.open()` + `window.print()` instead of heavy client PDF libraries.
+- **DOM Test Environment**: Tag DOM-dependent Vitest files with `// @vitest-environment jsdom`. Verify BOM presence via raw bytes `new Uint8Array(await blob.arrayBuffer())` (`0xEF, 0xBB, 0xBF`), as WHATWG `blob.text()` strips the BOM.
 
 ### User Identity & Security
 
