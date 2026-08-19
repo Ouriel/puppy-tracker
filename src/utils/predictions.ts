@@ -175,8 +175,8 @@ export function detectSleepSchedule(
       const firstMorning = sortedLogs.find((a) => getLocalHour(a, tz) >= 5) || sortedLogs[0];
       const last = sortedLogs[sortedLogs.length - 1];
 
-      const firstM = getLocalHour(firstMorning, tz) * 60 + firstMorning.getMinutes();
-      let lastM = getLocalHour(last, tz) * 60 + last.getMinutes();
+      const firstM = Math.round(getLocalDecimalHour(firstMorning, tz) * 60);
+      let lastM = Math.round(getLocalDecimalHour(last, tz) * 60);
 
       // Exponential time decay (7-day half-life so full week sets the schedule smoothly)
       const daysAgo = Math.max(0, (nowTime - last.getTime()) / (1000 * 60 * 60 * 24));
@@ -306,7 +306,7 @@ export function detectMealSchedule(
 
   foodLogs.forEach((f) => {
     const d = parseIsoDate(f.timestamp);
-    const m = getLocalHour(d, tz) * 60 + d.getMinutes();
+    const m = Math.round(getLocalDecimalHour(d, tz) * 60);
     if (m >= 5 * 60 && m < 11 * 60) bfasts.push(m);
     else if (m >= 11 * 60 && m < 16 * 60) lunches.push(m);
     else if (m >= 16 * 60 && m <= 23 * 60 + 59) dinners.push(m);
@@ -502,7 +502,7 @@ export function predictNextPee(
   options?: PredictorOptions
 ): SinglePredictionResult {
   const tz = options?.timeZone || getUserTimezone();
-  const currentHour = getLocalHour(now, tz);
+  const currentHour = getLocalDecimalHour(now, tz);
   const sleepSchedule = options?.sleepSchedule || detectSleepSchedule(activities, tz);
 
   const past = activities.filter((a) => parseIsoDate(a.timestamp).getTime() <= now.getTime());
@@ -631,7 +631,7 @@ export function predictNextPoop(
   options?: PredictorOptions
 ): SinglePredictionResult {
   const tz = options?.timeZone || getUserTimezone();
-  const currentHour = getLocalHour(now, tz);
+  const currentHour = getLocalDecimalHour(now, tz);
   const sleepSchedule = options?.sleepSchedule || detectSleepSchedule(activities, tz);
   const offsets = calculateMorningSequenceOffsets(activities, tz);
 
@@ -781,7 +781,7 @@ export function predictNextFood(
   options?: PredictorOptions
 ): FoodPredictionResult {
   const tz = options?.timeZone || getUserTimezone();
-  const currentHour = getLocalHour(now, tz);
+  const currentHour = getLocalDecimalHour(now, tz);
   const sleepSchedule = options?.sleepSchedule || detectSleepSchedule(activities, tz);
   const offsets = calculateMorningSequenceOffsets(activities, tz);
 
@@ -868,7 +868,7 @@ export function predictNextFood(
     const effectiveBedtime = sleepSchedule.bedtimeHour < sleepSchedule.wakeupHour
       ? sleepSchedule.bedtimeHour + 24
       : sleepSchedule.bedtimeHour;
-    const lastMealHour = getLocalHour(new Date(lastMealTime), tz);
+    const lastMealHour = getLocalDecimalHour(new Date(lastMealTime), tz);
     const wakingHoursLeft = Math.max(1, effectiveBedtime - lastMealHour);
     const idealIntervalHours = Math.max(2.5, Math.min(5.5, wakingHoursLeft / (remainingMealsCount + 1)));
 
