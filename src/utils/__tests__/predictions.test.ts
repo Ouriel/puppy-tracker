@@ -6,6 +6,7 @@ import {
   calculateLearnedIntervalMinutes,
   calculateLearnedPostMealDelayMinutes,
   calculateMorningSequenceOffsets,
+  shouldApplyPostMealOverride,
   predictNextPee,
   predictNextPoop,
   predictNextFood,
@@ -738,6 +739,92 @@ describe('predictions utility — comprehensive test suite', () => {
       expect(pred.nextExpectedAt).toBeDefined();
       // Should be 60m after the diarrhea stool (02:30 UTC)
       expect(pred.nextExpectedAt?.toISOString()).toBe(new Date(recentDiarrhea.getTime() + 60 * 60 * 1000).toISOString());
+    });
+  });
+
+  // 6. Age-Graduated Gastrocolic Maturation Tests
+  describe('Age-Graduated Gastrocolic Maturation Model', () => {
+    it('always enables post-meal override for young puppies under 3.5 months (< 14 weeks)', () => {
+      // 2 months old
+      expect(shouldApplyPostMealOverride(2.0, { isLearned: false, postMealRatio: 0 })).toBe(true);
+      expect(shouldApplyPostMealOverride(3.0, { isLearned: true, postMealRatio: 0.15 })).toBe(true);
+    });
+
+    it('requires at least 40% post-meal potty ratio for transition puppies (3.5 to 5 months)', () => {
+      // 4 months old
+      expect(shouldApplyPostMealOverride(4.0, { isLearned: true, postMealRatio: 0.45 })).toBe(true);
+      expect(shouldApplyPostMealOverride(4.0, { isLearned: true, postMealRatio: 0.20 })).toBe(false);
+      // If unlearned (< 3 samples), give benefit of doubt during transition
+      expect(shouldApplyPostMealOverride(4.0, { isLearned: false, postMealRatio: 0 })).toBe(true);
+    });
+
+    it('assumes voluntary cortical control for adolescent/adult dogs (>= 5 months)', () => {
+      // 5.5 months old (like Balma at 20.5 weeks)
+      expect(shouldApplyPostMealOverride(5.5, { isLearned: true, postMealRatio: 0.24 })).toBe(false);
+      expect(shouldApplyPostMealOverride(5.5, { isLearned: false, postMealRatio: 0 })).toBe(false);
+      // Only true if statistically proven habit (>= 50%)
+      expect(shouldApplyPostMealOverride(5.5, { isLearned: true, postMealRatio: 0.60 })).toBe(true);
+    });
+
+    it('calculates accurate postMealRatio in calculateLearnedPostMealDelayMinutes', () => {
+      const activities: Activity[] = [
+        // Meal 1 followed by pee in 15m
+        { id: '1', puppyId: 'pup-1', type: 'food', timestamp: '2026-08-19T07:00:00Z', loggedBy: 'Matthieu' },
+        { id: '2', puppyId: 'pup-1', type: 'pee', timestamp: '2026-08-19T07:15:00Z', loggedBy: 'Matthieu' },
+        // Meal 2 NOT followed by pee for 3 hours
+        { id: '3', puppyId: 'pup-1', type: 'food', timestamp: '2026-08-19T11:00:00Z', loggedBy: 'Matthieu' },
+        { id: '4', puppyId: 'pup-1', type: 'pee', timestamp: '2026-08-19T14:00:00Z', loggedBy: 'Matthieu' },
+      ];
+
+      const result = calculateLearnedPostMealDelayMinutes(activities, 'pee', 20);
+      expect(result.postMealRatio).toBe(0.5); // 1 out of 2 meals within window
+    });
+
+    it('prevents false post-meal pee alarms for a 5-month-old puppy with voluntary control (Balma scenario)', () => {
+      const adolescentProfile: PuppyProfile = {
+        ...mockProfile,
+        birthDate: '2026-03-27', // ~5 months old on 2026-08-19
+      };
+
+      const now = new Date('2026-08-19T08:15:00+02:00'); // 15 mins after breakfast
+      // Dataset with 4 meals where potty consistently happens 2-3 hours later (ratio < 40%)
+      const activities: Activity[] = [
+        { id: 'p1', puppyId: 'pup-1', type: 'pee', timestamp: '2026-08-18T07:15:00+02:00', loggedBy: 'Matthieu' },
+        { id: 'f1', puppyId: 'pup-1', type: 'food', timestamp: '2026-08-18T08:00:00+02:00', loggedBy: 'Matthieu' },
+        { id: 'p2', puppyId: 'pup-1', type: 'pee', timestamp: '2026-08-18T11:30:00+02:00', loggedBy: 'Matthieu' },
+
+        { id: 'f2', puppyId: 'pup-1', type: 'food', timestamp: '2026-08-18T13:00:00+02:00', loggedBy: 'Matthieu' },
+        { id: 'p3', puppyId: 'pup-1', type: 'pee', timestamp: '2026-08-18T16:30:00+02:00', loggedBy: 'Matthieu' },
+
+        { id: 'f3', puppyId: 'pup-1', type: 'food', timestamp: '2026-08-18T19:30:00+02:00', loggedBy: 'Matthieu' },
+        { id: 'p4', puppyId: 'pup-1', type: 'pee', timestamp: '2026-08-18T22:30:00+02:00', loggedBy: 'Matthieu' },
+
+        // Today morning (pee was at 06:00 AM, 2 hours before 08:00 AM breakfast)
+        { id: 'p5', puppyId: 'pup-1', type: 'pee', timestamp: '2026-08-19T06:00:00+02:00', loggedBy: 'Matthieu' },
+        { id: 'f4', puppyId: 'pup-1', type: 'food', timestamp: '2026-08-19T08:00:00+02:00', loggedBy: 'Matthieu' },
+      ];
+
+      const pred = predictNextPee(activities, adolescentProfile, now, { timeZone: 'Europe/Paris' });
+      // Should NOT force post_meal_override (~20m)
+      expect(pred.mode).toBe('daytime_baseline');
+      expect(pred.reason).toMatch(/Learned average|bladder capacity/);
+    });
+
+    it('triggers post-meal pee override for an 8-week-old young puppy after eating', () => {
+      const youngPuppyProfile: PuppyProfile = {
+        ...mockProfile,
+        birthDate: '2026-06-24', // 8 weeks old on 2026-08-19
+      };
+
+      const now = new Date('2026-08-19T08:10:00+02:00'); // 10 mins after eating
+      const activities: Activity[] = [
+        { id: 'p1', puppyId: 'pup-1', type: 'pee', timestamp: '2026-08-19T07:00:00+02:00', loggedBy: 'Matthieu' },
+        { id: 'f1', puppyId: 'pup-1', type: 'food', timestamp: '2026-08-19T08:00:00+02:00', loggedBy: 'Matthieu' },
+      ];
+
+      const pred = predictNextPee(activities, youngPuppyProfile, now, { timeZone: 'Europe/Paris' });
+      expect(pred.mode).toBe('post_meal_override');
+      expect(pred.reason).toContain('Pup fed recently');
     });
   });
 });

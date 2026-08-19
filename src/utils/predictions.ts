@@ -427,6 +427,33 @@ export function calculateLearnedIntervalMinutes(
 
 /**
  * Calculates adaptive learned delay between eating a meal and subsequent potty event (pee / poop).
+/**
+ * Evaluates whether a puppy is eligible for post-meal potty override
+ * based on canine neurological maturity (pudendal nerve myelination) and empirical data.
+ */
+export function shouldApplyPostMealOverride(
+  ageMonths: number,
+  learnedPostMeal: { isLearned: boolean; postMealRatio: number; foodCount?: number }
+): boolean {
+  // Young puppy (< 3.5 months / < 14 weeks): reflex is active by default
+  if (ageMonths < 3.5) return true;
+
+  // Transition puppy (3.5 to 5 months / 14 to 20 weeks):
+  // If at least 3 meals are logged, use empirical ratio (>= 40%). If brand new with no meal history, default to active.
+  if (ageMonths < 5.0) {
+    if (learnedPostMeal.foodCount && learnedPostMeal.foodCount >= 3) {
+      return learnedPostMeal.postMealRatio >= 0.40;
+    }
+    return learnedPostMeal.isLearned ? learnedPostMeal.postMealRatio >= 0.40 : true;
+  }
+
+  // Older puppy / adult (>= 5 months / >= 20 weeks): voluntary cortical control
+  // Only override if data statistically proves an established post-meal habit (>= 50%)
+  return learnedPostMeal.isLearned && learnedPostMeal.postMealRatio >= 0.50;
+}
+
+/**
+ * Learns puppy's post-meal potty interval (minutes between a food log and subsequent pee/poop).
  * Uses exponential recency weighting and semi-IQR tolerance, falling back to age baselines when < 3 samples exist.
  */
 export function calculateLearnedPostMealDelayMinutes(
@@ -434,7 +461,7 @@ export function calculateLearnedPostMealDelayMinutes(
   pottyType: 'pee' | 'poop',
   fallbackMinutes: number,
   fallbackDeltaMinutes: number = pottyType === 'pee' ? 10 : 15
-): { delayMins: number; deltaMins: number; sampleCount: number; isLearned: boolean } {
+): { delayMins: number; deltaMins: number; sampleCount: number; foodCount: number; postMealRatio: number; isLearned: boolean } {
   const maxLogTime = activities.reduce((max, act) => Math.max(max, parseIsoDate(act.timestamp).getTime()), 0);
   const nowTime = maxLogTime > 0 ? maxLogTime : Date.now();
   const thirtyDaysAgo = new Date(nowTime - 30 * 24 * 60 * 60 * 1000);
@@ -472,8 +499,10 @@ export function calculateLearnedPostMealDelayMinutes(
     }
   }
 
+  const postMealRatio = foodLogs.length > 0 ? samples.length / foodLogs.length : 0;
+
   if (samples.length < 3) {
-    return { delayMins: fallbackMinutes, deltaMins: defaultDelta, sampleCount: samples.length, isLearned: false };
+    return { delayMins: fallbackMinutes, deltaMins: defaultDelta, sampleCount: samples.length, foodCount: foodLogs.length, postMealRatio, isLearned: false };
   }
 
   const delayMins = Math.round(
@@ -489,7 +518,7 @@ export function calculateLearnedPostMealDelayMinutes(
   const q3 = values[Math.floor(values.length * 0.75)];
   const semiIqr = Math.round(Math.max(5, Math.min(25, (q3 - q1) / 2 || defaultDelta)));
 
-  return { delayMins, deltaMins: semiIqr, sampleCount: samples.length, isLearned: true };
+  return { delayMins, deltaMins: semiIqr, sampleCount: samples.length, foodCount: foodLogs.length, postMealRatio, isLearned: true };
 }
 
 /**
@@ -571,7 +600,7 @@ export function predictNextPee(
       nextExpectedAt = targetWakeup;
       reason = `Night mode: Sleeping until morning wakeup (~${wakeupStr})`;
     }
-  } else if (months < 8 && lastFood && parseIsoDate(lastFood.timestamp).getTime() > lastPeeTime) {
+  } else if (shouldApplyPostMealOverride(months, learnedPostMealPee) && lastFood && parseIsoDate(lastFood.timestamp).getTime() > lastPeeTime) {
     const foodTime = parseIsoDate(lastFood.timestamp).getTime();
     const minsBetweenPeeAndMeal = Math.round((foodTime - lastPeeTime) / 60000);
     const minsSinceMeal = Math.round((now.getTime() - foodTime) / 60000);
@@ -708,7 +737,7 @@ export function predictNextPoop(
     reason = 'Digestive system recovering from recent hard stool. Colon refilling after meals.';
   } else {
     let postMealOverride = false;
-    if (months < 8 && lastFood && parseIsoDate(lastFood.timestamp).getTime() > lastPoopTime) {
+    if (shouldApplyPostMealOverride(months, learnedPostMealPoop) && lastFood && parseIsoDate(lastFood.timestamp).getTime() > lastPoopTime) {
       const foodTime = parseIsoDate(lastFood.timestamp).getTime();
       const minsBetweenPoopAndMeal = Math.round((foodTime - lastPoopTime) / 60000);
       const minsSinceMeal = Math.round((now.getTime() - foodTime) / 60000);
