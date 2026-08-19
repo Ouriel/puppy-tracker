@@ -6,6 +6,7 @@ import { SpeedInsights } from '@vercel/speed-insights/react';
 import { Analytics } from '@vercel/analytics/react';
 import './index.css';
 import App from './App.tsx';
+import { I18nProvider } from './i18n';
 
 interface ErrorBoundaryState {
   hasError: boolean;
@@ -59,8 +60,10 @@ function getAppRoute(): string {
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ErrorBoundary>
-      <ToastProvider placement="bottom" />
-      <App />
+      <I18nProvider>
+        <ToastProvider placement="bottom" />
+        <App />
+      </I18nProvider>
       <SpeedInsights
         route={getAppRoute()}
         beforeSend={(event) => {

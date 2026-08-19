@@ -1,6 +1,7 @@
 import React from 'react';
 import { Chip } from '@heroui/react';
 import { AlertTriangle, Clock, CheckCircle2, ShieldCheck } from 'lucide-react';
+import { useI18n } from '../../i18n';
 
 export type StatusUrgency = 'safe' | 'upToDate' | 'soon' | 'overdue' | 'expired';
 
@@ -17,13 +18,14 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({
   className = '',
   size = 'sm',
 }) => {
+  const { t } = useI18n();
   const norm = status.toLowerCase();
 
   if (norm === 'overdue' || norm === 'expired') {
     return (
       <Chip color="danger" variant="soft" size={size} className={`font-bold inline-flex items-center gap-1.5 animate-pulse ${className}`}>
         <AlertTriangle className="w-3 h-3" />
-        <span>{label || (norm === 'expired' ? 'Expired' : 'Overdue')}</span>
+        <span>{label || t.potty.overdue}</span>
       </Chip>
     );
   }
@@ -32,7 +34,7 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({
     return (
       <Chip color="warning" variant="soft" size={size} className={`font-bold inline-flex items-center gap-1.5 ${className}`}>
         <Clock className="w-3 h-3" />
-        <span>{label || 'Due Soon'}</span>
+        <span>{label || t.potty.dueSoon}</span>
       </Chip>
     );
   }
@@ -41,7 +43,7 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({
     return (
       <Chip color="success" variant="soft" size={size} className={`font-bold inline-flex items-center gap-1.5 ${className}`}>
         <ShieldCheck className="w-3 h-3" />
-        <span>{label || 'Up to Date'}</span>
+        <span>{label || t.health.statusUpToDate}</span>
       </Chip>
     );
   }
@@ -49,7 +51,8 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({
   return (
     <Chip color="success" variant="soft" size={size} className={`font-semibold inline-flex items-center gap-1.5 ${className}`}>
       <CheckCircle2 className="w-3 h-3" />
-      <span>{label || 'Normal'}</span>
+      <span>{label || t.potty.allGood}</span>
     </Chip>
   );
 };
+
