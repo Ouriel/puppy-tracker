@@ -113,20 +113,29 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
     return sortByTimestampDesc(filtered);
   }, [activities]);
 
-  // Filter by calendar day window (Last N days)
+  // Progression steps: 7 -> 14 -> 30 -> 90 -> 180 -> All Time (Infinity)
+  const nextDaysLimit = useMemo(() => {
+    if (daysLimit < 14) return 14;
+    if (daysLimit < 30) return 30;
+    if (daysLimit < 90) return 90;
+    if (daysLimit < 180) return 180;
+    return Infinity;
+  }, [daysLimit]);
+
+  // Filter by calendar day window (Last N days or All Time)
   const cutoffDateKey = useMemo(() => {
+    if (daysLimit === Infinity) return null;
     const now = new Date();
     const cutoffDate = new Date(now.getTime() - (daysLimit - 1) * 24 * 60 * 60 * 1000);
     return formatLogicalDate(cutoffDate, tz);
   }, [daysLimit, tz]);
 
   const visibleActivities = useMemo(() => {
+    if (!cutoffDateKey) return sortedCoreActivities;
     return sortedCoreActivities.filter((act) => formatLogicalDate(act.timestamp, tz) >= cutoffDateKey);
   }, [sortedCoreActivities, cutoffDateKey, tz]);
 
   const hasMorePriorLogs = sortedCoreActivities.length > visibleActivities.length || hasMoreRemote;
-
-  const nextDaysLimit = daysLimit < 14 ? 14 : daysLimit < 30 ? 30 : daysLimit < 90 ? 90 : daysLimit + 90;
 
   const dailyGoalGrams = activePuppy?.dailyFoodGramGoal || 200;
   const targetMealsCount = activePuppy?.targetMealsPerDay || 3;
@@ -273,7 +282,9 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
               </span>
             </h2>
             <p className="text-xs text-slate-400">
-              {t.dashboard.showingLogs.replace('{days}', String(daysLimit)).replace('{total}', String(sortedCoreActivities.length))}
+              {daysLimit === Infinity
+                ? t.dashboard.showingAllLogs.replace('{total}', String(sortedCoreActivities.length))
+                : t.dashboard.showingLogs.replace('{days}', String(daysLimit)).replace('{total}', String(sortedCoreActivities.length))}
             </p>
           </div>
 
@@ -607,7 +618,13 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
                   className="w-full text-xs font-bold text-slate-300 border-slate-800 hover:bg-slate-950"
                 >
                   <ChevronDown className={`w-4 h-4 mr-1 inline ${isLoadingMore ? 'animate-spin' : ''}`} />
-                  <span>{isLoadingMore ? t.dashboard.loadingEarlier : t.dashboard.loadEarlier.replace('{days}', String(nextDaysLimit))}</span>
+                  <span>
+                    {isLoadingMore
+                      ? t.dashboard.loadingEarlier
+                      : nextDaysLimit === Infinity
+                      ? t.dashboard.loadAllLogs
+                      : t.dashboard.loadEarlier.replace('{days}', String(nextDaysLimit))}
+                  </span>
                 </Button>
               </div>
             )}
