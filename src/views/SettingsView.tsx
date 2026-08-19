@@ -60,16 +60,16 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       )}
 
       {/* Header Banner */}
-      <Card className="bg-slate-900 border-slate-800 text-slate-100 shadow-xl">
-        <Card.Content className="flex items-center gap-3 p-3.5 sm:p-5">
+      <Card className="bg-slate-900 border-slate-800 text-slate-100 shadow-xl overflow-hidden">
+        <Card.Content className="flex items-center gap-3 sm:gap-4 p-3.5 sm:p-5">
           <div className="p-2.5 sm:p-3 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl shadow-md shrink-0">
             <Settings className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
           </div>
-          <div className="min-w-0">
-            <h2 className="text-base sm:text-lg font-black text-slate-100 flex items-center gap-2 truncate">
+          <div className="flex-1 min-w-0">
+            <h2 className="text-base sm:text-lg font-black text-slate-100 leading-tight sm:leading-snug break-words">
               <span>{t.nav.settings} &amp; Administration</span>
             </h2>
-            <p className="text-xs text-slate-400 truncate">
+            <p className="text-xs text-slate-400 mt-0.5 sm:mt-1 leading-normal break-words">
               {t.household.manageSettingsSubtitle || 'Manage household dog profiles, family caretakers, and access approvals'}
             </p>
           </div>
