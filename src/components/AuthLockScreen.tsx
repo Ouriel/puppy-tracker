@@ -32,6 +32,19 @@ export const AuthLockScreen: React.FC<AuthLockScreenProps> = ({
   useEffect(() => {
     if (!googleClientId) return;
 
+    // Dynamically load Google GSI script on demand if not already loaded
+    if (!window.google?.accounts?.id) {
+      const existingScript = document.getElementById('google-gsi-script');
+      if (!existingScript) {
+        const script = document.createElement('script');
+        script.id = 'google-gsi-script';
+        script.src = 'https://accounts.google.com/gsi/client';
+        script.async = true;
+        script.defer = true;
+        document.head.appendChild(script);
+      }
+    }
+
     let isMounted = true;
     let timerId: ReturnType<typeof setTimeout> | null = null;
     let attempts = 0;

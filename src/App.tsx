@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, lazy, Suspense } from 'react';
 import type { Activity, UserAccount, ActivityType, PottyLocation, FamilyRole } from './types';
 import { getAuthToken, setAuthToken, getStoredAuthUser, setStoredAuthUser } from './utils/auth';
 import { isSuperAdminEmail } from './constants/auth';
@@ -11,13 +11,14 @@ import { calculatePredictions, calculateNextMealPortion } from './utils/predicti
 import { getEffectivePuppyWeight } from './utils/weight';
 import { isSameLogicalDate } from './utils/date';
 import { Navbar } from './components/Navbar';
-import { QuickLogModal } from './components/QuickLogModal';
 import { PredictorWidget } from './components/PredictorWidget';
 import { ActivityTimeline } from './components/ActivityTimeline';
 import { DogHealthSummary } from './components/DogHealthSummary';
-import { SettingsView } from './views/SettingsView';
-import { CarnetDeSanteView } from './views/CarnetDeSanteView';
-import { AuthLockScreen } from './components/AuthLockScreen';
+
+const SettingsView = lazy(() => import('./views/SettingsView').then((m) => ({ default: m.SettingsView })));
+const CarnetDeSanteView = lazy(() => import('./views/CarnetDeSanteView').then((m) => ({ default: m.CarnetDeSanteView })));
+const AuthLockScreen = lazy(() => import('./components/AuthLockScreen').then((m) => ({ default: m.AuthLockScreen })));
+const QuickLogModal = lazy(() => import('./components/QuickLogModal').then((m) => ({ default: m.QuickLogModal })));
 import { Button, Card } from '@heroui/react';
 import { useI18n } from './i18n';
 import { Dog, Plus } from 'lucide-react';
@@ -291,11 +292,19 @@ export function App() {
 
   if (!user) {
     return (
-      <AuthLockScreen
-        onUnlockWithSSO={handleUnlockWithSSO}
-        onUnlockWithPassword={handleUnlockWithPassword}
-        onRegisterAccount={handleRegisterAccount}
-      />
+      <Suspense
+        fallback={
+          <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center">
+            <div className="w-10 h-10 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto" />
+          </div>
+        }
+      >
+        <AuthLockScreen
+          onUnlockWithSSO={handleUnlockWithSSO}
+          onUnlockWithPassword={handleUnlockWithPassword}
+          onRegisterAccount={handleRegisterAccount}
+        />
+      </Suspense>
     );
   }
 
@@ -318,30 +327,46 @@ export function App() {
       <main className="flex-1 max-w-6xl w-full mx-auto px-4 py-6">
         {currentView === 'carnetdesante' ? (
           /* Full Page View for Health Passport */
-          <CarnetDeSanteView
-            activePuppy={puppyState.activePuppy}
-            activities={activityState.activities}
-            onOpenQuickLogModal={handleOpenQuickLogModal}
-            onBackToDashboard={() => handleNavigate('dashboard')}
-            onDeleteActivity={activityState.deleteActivity}
-          />
+          <Suspense
+            fallback={
+              <div className="py-20 text-center">
+                <div className="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto" />
+              </div>
+            }
+          >
+            <CarnetDeSanteView
+              activePuppy={puppyState.activePuppy}
+              activities={activityState.activities}
+              onOpenQuickLogModal={handleOpenQuickLogModal}
+              onBackToDashboard={() => handleNavigate('dashboard')}
+              onDeleteActivity={activityState.deleteActivity}
+            />
+          </Suspense>
         ) : currentView === 'settings' ? (
           /* Full Page View for Settings & Administration */
-          <SettingsView
-            user={user}
-            puppies={puppyState.puppies}
-            activePuppyId={puppyState.activePuppyId}
-            onSelectPuppy={puppyState.selectPuppy}
-            onAddPuppy={puppyState.addPuppy}
-            onUpdatePuppy={puppyState.updatePuppy}
-            onDeletePuppy={puppyState.deletePuppy}
-            caretakers={caretakerState.caretakers}
-            currentUser={caretakerState.currentUser}
-            onAddCaretaker={caretakerState.addCaretaker}
-            onUpdateCaretaker={caretakerState.updateCaretaker}
-            onDeleteCaretaker={caretakerState.deleteCaretaker}
-            onBackToDashboard={() => handleNavigate('dashboard')}
-          />
+          <Suspense
+            fallback={
+              <div className="py-20 text-center">
+                <div className="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto" />
+              </div>
+            }
+          >
+            <SettingsView
+              user={user}
+              puppies={puppyState.puppies}
+              activePuppyId={puppyState.activePuppyId}
+              onSelectPuppy={puppyState.selectPuppy}
+              onAddPuppy={puppyState.addPuppy}
+              onUpdatePuppy={puppyState.updatePuppy}
+              onDeletePuppy={puppyState.deletePuppy}
+              caretakers={caretakerState.caretakers}
+              currentUser={caretakerState.currentUser}
+              onAddCaretaker={caretakerState.addCaretaker}
+              onUpdateCaretaker={caretakerState.updateCaretaker}
+              onDeleteCaretaker={caretakerState.deleteCaretaker}
+              onBackToDashboard={() => handleNavigate('dashboard')}
+            />
+          </Suspense>
         ) : puppyState.puppies.length === 0 ? (
           <Card className="p-10 text-center max-w-lg mx-auto my-12 bg-slate-900 border border-slate-800">
             <Card.Content className="space-y-4">
@@ -401,16 +426,18 @@ export function App() {
 
       {/* Quick Log Modal Component (Conditionally mounted with key for clean lifecycle) */}
       {isQuickLogOpen && (
-        <QuickLogModal
-          key={`quicklog-${quickLogType}-${Date.now()}`}
-          isOpen={true}
-          onClose={() => setIsQuickLogOpen(false)}
-          initialType={quickLogType}
-          onSave={activityState.addActivity}
-          currentUser={caretakerState.currentUser}
-          defaultMealPortionGrams={nextMealPortionGrams}
-          defaultWeightKg={lastWeightLogKg}
-        />
+        <Suspense fallback={null}>
+          <QuickLogModal
+            key={`quicklog-${quickLogType}-${Date.now()}`}
+            isOpen={true}
+            onClose={() => setIsQuickLogOpen(false)}
+            initialType={quickLogType}
+            onSave={activityState.addActivity}
+            currentUser={caretakerState.currentUser}
+            defaultMealPortionGrams={nextMealPortionGrams}
+            defaultWeightKg={lastWeightLogKg}
+          />
+        </Suspense>
       )}
     </div>
   );

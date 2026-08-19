@@ -1,14 +1,15 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, lazy, Suspense } from 'react';
 import type { Activity, ActivityType, Caretaker, PuppyProfile } from '../types';
 import { Droplet, Utensils, Trash2, Pencil, User, ChevronDown, Calendar, CheckCircle2, ChevronsUpDown, AlertTriangle } from 'lucide-react';
 import { PoopIcon } from './common/PoopIcon';
 import { Button, Card } from '@heroui/react';
 import { useI18n } from '../i18n';
 import { formatRelativeTime, parseIsoDate, formatLogicalDate, getUserTimezone } from '../utils/date';
-import { EditActivityModal } from './EditActivityModal';
 import { resolveCaretakerName } from '../utils/caretakers';
 import { sortByTimestampDesc } from '../utils/activities';
 import { ConfirmationModal } from './common/ConfirmationModal';
+
+const EditActivityModal = lazy(() => import('./EditActivityModal').then((m) => ({ default: m.EditActivityModal })));
 
 interface ActivityTimelineProps {
   activities: Activity[];
@@ -497,15 +498,17 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
         )}
 
         {editingActivity && onUpdateActivity && (
-          <EditActivityModal
-            key={`edit-${editingActivity.id}`}
-            activity={editingActivity}
-            onSave={(updated) => {
-              onUpdateActivity(updated);
-              setEditingActivity(null);
-            }}
-            onClose={() => setEditingActivity(null)}
-          />
+          <Suspense fallback={null}>
+            <EditActivityModal
+              key={`edit-${editingActivity.id}`}
+              activity={editingActivity}
+              onSave={(updated) => {
+                onUpdateActivity(updated);
+                setEditingActivity(null);
+              }}
+              onClose={() => setEditingActivity(null)}
+            />
+          </Suspense>
         )}
 
         <ConfirmationModal
