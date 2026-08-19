@@ -124,15 +124,15 @@ export const DewormingSection: React.FC<DewormingSectionProps> = ({
     <Card className="bg-slate-900 border border-slate-800 text-slate-100 shadow-xl">
       <Card.Content className="p-4 sm:p-6 space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h3 className="text-sm sm:text-base font-bold text-slate-100 flex items-center gap-2">
-            <Pill className="w-4 h-4 sm:w-5 sm:h-5 text-amber-400" />
-            <span>{t.health.deworming} ({dewormingLogs.length})</span>
+          <h3 className="text-sm sm:text-base font-bold text-slate-100 flex items-center gap-2 min-w-0">
+            <Pill className="w-4 h-4 sm:w-5 sm:h-5 text-amber-400 shrink-0" />
+            <span className="break-words">{t.health.deworming} ({dewormingLogs.length})</span>
           </h3>
           <Button
             variant="primary"
             size="sm"
             onPress={() => setIsAddingDeworming(!isAddingDeworming)}
-            className="bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs shadow-sm"
+            className="bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs shadow-sm shrink-0"
           >
             <Plus className="w-4 h-4 mr-1 inline" />
             {isAddingDeworming ? t.potty.cancel : t.health.addDeworming}

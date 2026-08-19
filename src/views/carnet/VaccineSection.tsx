@@ -127,15 +127,15 @@ export const VaccineSection: React.FC<VaccineSectionProps> = ({
     <Card className="bg-slate-900 border border-slate-800 text-slate-100 shadow-xl">
       <Card.Content className="p-4 sm:p-6 space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h3 className="text-sm sm:text-base font-bold text-slate-100 flex items-center gap-2">
-            <Syringe className="w-4 h-4 sm:w-5 sm:h-5 text-teal-400" />
-            <span>{t.health.vaccinations} ({vaccinations.length})</span>
+          <h3 className="text-sm sm:text-base font-bold text-slate-100 flex items-center gap-2 min-w-0">
+            <Syringe className="w-4 h-4 sm:w-5 sm:h-5 text-teal-400 shrink-0" />
+            <span className="break-words">{t.health.vaccinations} ({vaccinations.length})</span>
           </h3>
           <Button
             variant="primary"
             size="sm"
             onPress={() => setIsAddingVaccine(!isAddingVaccine)}
-            className="bg-teal-600 hover:bg-teal-500 text-white font-bold text-xs shadow-sm"
+            className="bg-teal-600 hover:bg-teal-500 text-white font-bold text-xs shadow-sm shrink-0"
           >
             <Plus className="w-4 h-4 mr-1 inline" />
             {isAddingVaccine ? t.potty.cancel : t.health.addVaccine}

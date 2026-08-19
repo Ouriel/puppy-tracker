@@ -99,17 +99,17 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({
       </div>
 
       {/* Header Card with Passport Details */}
-      <Card className="bg-slate-900 border-slate-800 shadow-xl">
-        <Card.Content className="p-3.5 sm:p-5 flex items-center gap-3">
-          <div className="p-2.5 sm:p-3 bg-gradient-to-br from-teal-500 to-emerald-600 rounded-xl shadow-md shrink-0">
+      <Card className="bg-slate-900 border-slate-800 shadow-xl overflow-hidden">
+        <Card.Content className="p-3.5 sm:p-5 flex items-start sm:items-center gap-3">
+          <div className="p-2.5 sm:p-3 bg-gradient-to-br from-teal-500 to-emerald-600 rounded-xl shadow-md shrink-0 mt-0.5 sm:mt-0">
             <Syringe className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
           </div>
-          <div className="min-w-0">
-            <h2 className="text-base sm:text-lg font-black text-slate-100 flex items-center gap-2 truncate">
-              <span>{t.health.healthPassportFor.replace('{name}', activePuppy.name)}</span>
+          <div className="flex-1 min-w-0">
+            <h2 className="text-base sm:text-lg font-black text-slate-100 leading-snug break-words">
+              {t.health.healthPassportFor.replace('{name}', activePuppy.name)}
             </h2>
-            <p className="text-xs text-slate-400 mt-0.5 truncate">
-              {t.health.carnetSubtitle} &bull; {activePuppy.name} ({formatBreedName(activePuppy.breed, lang)})
+            <p className="text-xs text-slate-400 mt-1 leading-relaxed break-words">
+              {t.health.carnetSubtitle} &bull; <span className="text-slate-300 font-semibold">{activePuppy.name}</span> ({formatBreedName(activePuppy.breed, lang)})
             </p>
           </div>
         </Card.Content>
