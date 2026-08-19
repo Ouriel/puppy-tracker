@@ -1,12 +1,13 @@
-import React, { useState, useMemo, lazy, Suspense } from 'react';
+import React, { useState, useMemo, lazy, Suspense, useRef, useEffect, useCallback } from 'react';
 import type { Activity, ActivityType, Caretaker, PuppyProfile } from '../types';
-import { Droplet, Utensils, Trash2, Pencil, User, ChevronDown, Calendar, CheckCircle2, ChevronsUpDown, AlertTriangle } from 'lucide-react';
+import { Droplet, Utensils, Trash2, Pencil, User, ChevronDown, Calendar, CheckCircle2, ChevronsUpDown, AlertTriangle, Download, FileSpreadsheet, Printer } from 'lucide-react';
 import { PoopIcon } from './common/PoopIcon';
 import { Button, Card } from '@heroui/react';
 import { useI18n } from '../i18n';
 import { formatRelativeTime, parseIsoDate, formatLogicalDate, getUserTimezone } from '../utils/date';
 import { resolveCaretakerName } from '../utils/caretakers';
 import { sortByTimestampDesc } from '../utils/activities';
+import { exportActivitiesToCSV, printActivitiesReport } from '../utils/export';
 import { ConfirmationModal } from './common/ConfirmationModal';
 
 const EditActivityModal = lazy(() => import('./EditActivityModal').then((m) => ({ default: m.EditActivityModal })));
@@ -71,14 +72,15 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
   const { t, lang } = useI18n();
   const [editingActivity, setEditingActivity] = useState<Activity | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<{ id: string; type: string } | null>(null);
-  const [daysLimit, setDaysLimit] = useState<number>(7);
+  const [daysLimit, setDaysLimit] = useState<number>(180);
+  const [isExportMenuOpen, setIsExportMenuOpen] = useState<boolean>(false);
+  const [expandedDays, setExpandedDays] = useState<Set<string>>(() => new Set());
+
+  const exportMenuRef = useRef<HTMLDivElement>(null);
   const tz = getUserTimezone();
 
   const todayDateKey = useMemo(() => formatLogicalDate(new Date(), tz), [tz]);
   const yesterdayDateKey = useMemo(() => formatLogicalDate(new Date(Date.now() - 24 * 3600 * 1000), tz), [tz]);
-
-  // Track expanded days in accordion (All days collapsed by default)
-  const [expandedDays, setExpandedDays] = useState<Set<string>>(() => new Set());
 
   const getIcon = (type: ActivityType) => {
     switch (type) {
@@ -114,22 +116,6 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
   }, [sortedCoreActivities, cutoffTime]);
 
   const hasMorePriorLogs = sortedCoreActivities.length > visibleActivities.length || hasMoreRemote;
-
-  const nextDaysLimit = daysLimit < 14 ? 14 : daysLimit < 30 ? 30 : daysLimit < 90 ? 90 : daysLimit + 90;
-
-  const handleLoadMore = async () => {
-    setDaysLimit(nextDaysLimit);
-    if (onLoadMore) {
-      await onLoadMore();
-    }
-  };
-
-  const formatTime = (isoString: string) => {
-    return formatRelativeTime(isoString, lang as 'en' | 'fr', {
-      today: t.dashboard.today,
-      yesterday: t.dashboard.yesterday,
-    });
-  };
 
   const dailyGoalGrams = activePuppy?.dailyFoodGramGoal || 200;
   const targetMealsCount = activePuppy?.targetMealsPerDay || 3;
@@ -183,7 +169,24 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
     return groups.sort((groupA, groupB) => groupB.dateKey.localeCompare(groupA.dateKey));
   }, [visibleActivities, tz, todayDateKey, yesterdayDateKey, lang, t.dashboard.today, t.dashboard.yesterday, dailyGoalGrams, targetMealsCount]);
 
-  const toggleDay = (dateKey: string) => {
+  const allDayKeys = useMemo(() => dayGroups.map((group) => group.dateKey), [dayGroups]);
+  const isAllExpanded = allDayKeys.length > 0 && allDayKeys.every((key) => expandedDays.has(key));
+
+  const handleLoadMore = useCallback(async () => {
+    setDaysLimit((previous) => previous + 90);
+    if (onLoadMore) {
+      await onLoadMore();
+    }
+  }, [onLoadMore]);
+
+  const formatTime = useCallback((isoString: string) => {
+    return formatRelativeTime(isoString, lang as 'en' | 'fr', {
+      today: t.dashboard.today,
+      yesterday: t.dashboard.yesterday,
+    });
+  }, [lang, t.dashboard.today, t.dashboard.yesterday]);
+
+  const toggleDay = useCallback((dateKey: string) => {
     setExpandedDays((previous) => {
       const next = new Set(previous);
       if (next.has(dateKey)) {
@@ -193,23 +196,63 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
       }
       return next;
     });
-  };
+  }, []);
 
-  const allDayKeys = useMemo(() => dayGroups.map((group) => group.dateKey), [dayGroups]);
-  const isAllExpanded = allDayKeys.length > 0 && allDayKeys.every((key) => expandedDays.has(key));
-
-  const handleToggleExpandAll = () => {
+  const handleToggleExpandAll = useCallback(() => {
     if (isAllExpanded) {
       setExpandedDays(new Set());
     } else {
       setExpandedDays(new Set(allDayKeys));
     }
-  };
+  }, [isAllExpanded, allDayKeys]);
+
+  const handleExportCsv = useCallback(() => {
+    setIsExportMenuOpen(false);
+    if (!activePuppy) return;
+    const activitiesToExport = sortedCoreActivities.length > 0 ? sortedCoreActivities : activities;
+    exportActivitiesToCSV(activitiesToExport, activePuppy, lang as 'en' | 'fr', caretakers);
+  }, [activePuppy, sortedCoreActivities, activities, lang, caretakers]);
+
+  const handleExportPdf = useCallback(() => {
+    setIsExportMenuOpen(false);
+    if (!activePuppy) return;
+    const activitiesToExport = sortedCoreActivities.length > 0 ? sortedCoreActivities : activities;
+    printActivitiesReport(activitiesToExport, activePuppy, lang as 'en' | 'fr', t, caretakers);
+  }, [activePuppy, sortedCoreActivities, activities, lang, t, caretakers]);
+
+  // Close Export dropdown on outside click or Escape key
+  useEffect(() => {
+    if (!isExportMenuOpen) return;
+
+    const handlePointerDown = (event: MouseEvent | TouchEvent) => {
+      if (exportMenuRef.current && !exportMenuRef.current.contains(event.target as Node)) {
+        setIsExportMenuOpen(false);
+      }
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsExportMenuOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handlePointerDown);
+    document.addEventListener('touchstart', handlePointerDown);
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+      document.removeEventListener('touchstart', handlePointerDown);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isExportMenuOpen]);
+
+  const hasLogsToExport = (sortedCoreActivities.length > 0 || activities.length > 0) && !!activePuppy;
 
   return (
     <Card className="shadow-xl bg-slate-900/90 border-slate-800">
       <Card.Content className="p-3.5 sm:p-5 space-y-4">
-        {/* Header & Expand/Collapse All Action */}
+        {/* Header & Actions */}
         <div className="flex items-center justify-between gap-3">
           <div>
             <h2 className="text-base font-extrabold text-slate-100 flex items-center gap-2">
@@ -223,18 +266,79 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
             </p>
           </div>
 
-          {/* Expand / Collapse All Button */}
-          {dayGroups.length > 0 && (
-            <button
-              type="button"
-              onClick={handleToggleExpandAll}
-              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-950 border border-slate-800 text-slate-300 hover:text-white hover:bg-slate-800 transition-colors shrink-0"
-              title={isAllExpanded ? t.dashboard.collapseAll : t.dashboard.expandAll}
-            >
-              <ChevronsUpDown className="w-3.5 h-3.5" />
-              <span>{isAllExpanded ? t.dashboard.collapseAll : t.dashboard.expandAll}</span>
-            </button>
-          )}
+          {/* Action Toolbar: Export Dropdown & Expand/Collapse All */}
+          <div className="flex items-center gap-2 shrink-0">
+            {/* Unified Export ▾ Dropdown */}
+            {hasLogsToExport && (
+              <div className="relative inline-block text-left" ref={exportMenuRef}>
+                <button
+                  type="button"
+                  onClick={() => setIsExportMenuOpen((previous) => !previous)}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-950 border border-slate-800 text-slate-300 hover:text-white hover:bg-slate-800 transition-colors shrink-0"
+                  aria-expanded={isExportMenuOpen}
+                  aria-haspopup="true"
+                  title={t.dashboard.export}
+                >
+                  <Download className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+                  <span className="hidden sm:inline">{t.dashboard.export}</span>
+                  <ChevronDown className={`w-3 h-3 text-slate-400 transition-transform duration-200 ${isExportMenuOpen ? 'rotate-180 text-indigo-400' : ''}`} />
+                </button>
+
+                {isExportMenuOpen && (
+                  <div className="absolute right-0 mt-1.5 w-60 rounded-xl bg-slate-900 border border-slate-700 shadow-2xl z-30 py-1.5 overflow-hidden animate-in fade-in zoom-in-95 duration-100">
+                    <button
+                      type="button"
+                      onClick={handleExportCsv}
+                      className="w-full text-left px-3 py-2.5 flex items-start gap-2.5 hover:bg-slate-800/80 transition-colors text-slate-200 group"
+                    >
+                      <div className="p-1.5 rounded-lg bg-emerald-950/80 border border-emerald-800/60 text-emerald-400 mt-0.5 shrink-0 group-hover:bg-emerald-900/90 transition-colors">
+                        <FileSpreadsheet className="w-4 h-4" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="text-xs font-bold text-slate-100 group-hover:text-emerald-300 transition-colors">
+                          {t.dashboard.exportCsv}
+                        </div>
+                        <div className="text-[11px] text-slate-400 leading-tight mt-0.5">
+                          {t.dashboard.exportCsvDesc}
+                        </div>
+                      </div>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleExportPdf}
+                      className="w-full text-left px-3 py-2.5 flex items-start gap-2.5 hover:bg-slate-800/80 transition-colors text-slate-200 border-t border-slate-800/80 group"
+                    >
+                      <div className="p-1.5 rounded-lg bg-teal-950/80 border border-teal-800/60 text-teal-400 mt-0.5 shrink-0 group-hover:bg-teal-900/90 transition-colors">
+                        <Printer className="w-4 h-4" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="text-xs font-bold text-slate-100 group-hover:text-teal-300 transition-colors">
+                          {t.dashboard.exportPdf}
+                        </div>
+                        <div className="text-[11px] text-slate-400 leading-tight mt-0.5">
+                          {t.dashboard.exportPdfDesc}
+                        </div>
+                      </div>
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Expand / Collapse All Button */}
+            {dayGroups.length > 0 && (
+              <button
+                type="button"
+                onClick={handleToggleExpandAll}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-950 border border-slate-800 text-slate-300 hover:text-white hover:bg-slate-800 transition-colors shrink-0"
+                title={isAllExpanded ? t.dashboard.collapseAll : t.dashboard.expandAll}
+              >
+                <ChevronsUpDown className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">{isAllExpanded ? t.dashboard.collapseAll : t.dashboard.expandAll}</span>
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Day-by-day Accordion List */}
@@ -492,7 +596,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
                   className="w-full text-xs font-bold text-slate-300 border-slate-800 hover:bg-slate-950"
                 >
                   <ChevronDown className={`w-4 h-4 mr-1 inline ${isLoadingMore ? 'animate-spin' : ''}`} />
-                  <span>{isLoadingMore ? t.dashboard.loadingEarlier : t.dashboard.loadEarlier.replace('{days}', String(nextDaysLimit))}</span>
+                  <span>{isLoadingMore ? t.dashboard.loadingEarlier : t.dashboard.loadEarlier.replace('{days}', String(daysLimit + 90))}</span>
                 </Button>
               </div>
             )}

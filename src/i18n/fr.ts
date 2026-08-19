@@ -84,6 +84,12 @@ export const fr: TranslationKeys = {
     eventsCount: '{count} événement(s)',
     foodIntake: 'Nourriture',
     pottyEvents: 'Besoins',
+    export: 'Exporter',
+    exportCsv: 'Exporter en CSV',
+    exportCsvDesc: 'Format tableur (Excel, Numbers)',
+    exportPdf: 'Exporter en PDF / Imprimer',
+    exportPdfDesc: 'Rapport d\'activités imprimable',
+    noLogsToExport: 'Aucune activité à exporter',
   },
   potty: {
     editActivity: 'Modifier l\'Activité',
