@@ -71,7 +71,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
   const { t, lang } = useI18n();
   const [editingActivity, setEditingActivity] = useState<Activity | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<{ id: string; type: string } | null>(null);
-  const [daysLimit, setDaysLimit] = useState<number>(180);
+  const [daysLimit, setDaysLimit] = useState<number>(7);
   const tz = getUserTimezone();
 
   const todayDateKey = useMemo(() => formatLogicalDate(new Date(), tz), [tz]);
@@ -115,8 +115,10 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
 
   const hasMorePriorLogs = sortedCoreActivities.length > visibleActivities.length || hasMoreRemote;
 
+  const nextDaysLimit = daysLimit < 14 ? 14 : daysLimit < 30 ? 30 : daysLimit < 90 ? 90 : daysLimit + 90;
+
   const handleLoadMore = async () => {
-    setDaysLimit((previous) => previous + 90);
+    setDaysLimit(nextDaysLimit);
     if (onLoadMore) {
       await onLoadMore();
     }
@@ -490,7 +492,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
                   className="w-full text-xs font-bold text-slate-300 border-slate-800 hover:bg-slate-950"
                 >
                   <ChevronDown className={`w-4 h-4 mr-1 inline ${isLoadingMore ? 'animate-spin' : ''}`} />
-                  <span>{isLoadingMore ? t.dashboard.loadingEarlier : t.dashboard.loadEarlier.replace('{days}', String(daysLimit))}</span>
+                  <span>{isLoadingMore ? t.dashboard.loadingEarlier : t.dashboard.loadEarlier.replace('{days}', String(nextDaysLimit))}</span>
                 </Button>
               </div>
             )}
