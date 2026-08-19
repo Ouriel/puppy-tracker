@@ -8,10 +8,12 @@ export type ApiResult<T> =
   | { ok: false; error: string; status: number };
 
 const apiCache = new Map<string, { data: any; timestamp: number }>();
-const CACHE_TTL_MS = 60 * 1000; // 60 seconds SWR cache
+const inflightRequests = new Map<string, Promise<ApiResult<any>>>();
+const CACHE_TTL_MS = 60 * 1000; // 60 seconds TTL
 
 export function clearApiCache() {
   apiCache.clear();
+  inflightRequests.clear();
 }
 
 function getHeaders(): Record<string, string> {
@@ -29,52 +31,65 @@ async function request<T>(url: string, options: RequestInit = {}): Promise<ApiRe
   const method = (options.method || 'GET').toUpperCase();
   const headers = { ...getHeaders(), ...(options.headers || {}) };
 
-  // For GET requests, serve from in-memory cache instantly (0ms latency on tab switch)
+  // For GET requests:
   if (method === 'GET') {
+    // 1. Serve from in-memory cache if valid (< 60s old) - 0 network requests
     const cached = apiCache.get(url);
     if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
-      // Revalidate in background asynchronously
-      fetch(url, { ...options, headers })
-        .then((res) => (res.ok ? res.json() : null))
-        .then((freshData) => {
-          if (freshData) apiCache.set(url, { data: freshData, timestamp: Date.now() });
-        })
-        .catch(() => {});
       return { ok: true, data: cached.data as T };
+    }
+
+    // 2. De-duplicate identical inflight requests (e.g. concurrent component mounts)
+    const existingInflight = inflightRequests.get(url);
+    if (existingInflight) {
+      return existingInflight as Promise<ApiResult<T>>;
     }
   } else {
     // Invalidate cache on mutations (POST, PUT, DELETE)
     apiCache.clear();
+    inflightRequests.clear();
   }
 
-  try {
-    const res = await fetch(url, { ...options, headers });
+  const fetchPromise = (async (): Promise<ApiResult<T>> => {
+    try {
+      const res = await fetch(url, { ...options, headers });
 
-    if (res.ok) {
-      const data = res.status === 204 ? ({} as T) : await res.json();
+      if (res.ok) {
+        const data = res.status === 204 ? ({} as T) : await res.json();
+        if (method === 'GET') {
+          apiCache.set(url, { data, timestamp: Date.now() });
+        }
+        return { ok: true, data: data as T };
+      }
+
+      if (res.status === 401) {
+        clearAuthToken();
+        apiCache.clear();
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('puppace:unauthorized'));
+        }
+        return { ok: false, error: 'Unauthorized', status: 401 };
+      }
+
+      const body = await res.json().catch(() => ({}));
+      const errorMsg = body.error || `Server error (${res.status})`;
+      return { ok: false, error: errorMsg, status: res.status };
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Network error connecting to server.';
+      console.error(`API request error on ${url}:`, message);
+      return { ok: false, error: message, status: 0 };
+    } finally {
       if (method === 'GET') {
-        apiCache.set(url, { data, timestamp: Date.now() });
+        inflightRequests.delete(url);
       }
-      return { ok: true, data: data as T };
     }
+  })();
 
-    if (res.status === 401) {
-      clearAuthToken();
-      apiCache.clear();
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent('puppace:unauthorized'));
-      }
-      return { ok: false, error: 'Unauthorized', status: 401 };
-    }
-
-    const body = await res.json().catch(() => ({}));
-    const errorMsg = body.error || `Server error (${res.status})`;
-    return { ok: false, error: errorMsg, status: res.status };
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : 'Network error connecting to server.';
-    console.error(`API request error on ${url}:`, message);
-    return { ok: false, error: message, status: 0 };
+  if (method === 'GET') {
+    inflightRequests.set(url, fetchPromise);
   }
+
+  return fetchPromise;
 }
 
 // ── Dogs API ──
