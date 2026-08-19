@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="public/flat_cocker_spaniel_logo.jpg" alt="Puppace Logo" width="100" style="border-radius: 20px;" />
+  <img src="public/puppace_logo.png" alt="Puppace Mascot Logo" width="110" />
 
   # 🐾 Puppace
   
