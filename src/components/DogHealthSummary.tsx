@@ -31,13 +31,14 @@ export const DogHealthSummary: React.FC<DogHealthSummaryProps> = ({
   const [lastDeworming, setLastDeworming] = useState<HealthRecord | null>(null);
 
   useEffect(() => {
+    let isMounted = true;
     const loadHealth = async () => {
-      const [vRes, dRes] = await Promise.all([
-        fetchHealthRecords(profile.id, 'vaccination'),
-        fetchHealthRecords(profile.id, 'deworming'),
-      ]);
-      const vRecords = vRes.ok ? vRes.data : [];
-      const dRecords = dRes.ok ? dRes.data : [];
+      const res = await fetchHealthRecords(profile.id);
+      if (!isMounted) return;
+
+      const allRecords = res.ok ? res.data : [];
+      const vRecords = allRecords.filter((r) => r.type === 'vaccination');
+      const dRecords = allRecords.filter((r) => r.type === 'deworming');
 
       if (vRecords.length > 0) {
         const sorted = [...vRecords].sort((recordA, recordB) => new Date(recordB.date).getTime() - new Date(recordA.date).getTime());
@@ -54,6 +55,9 @@ export const DogHealthSummary: React.FC<DogHealthSummaryProps> = ({
     };
 
     loadHealth();
+    return () => {
+      isMounted = false;
+    };
   }, [profile.id]);
 
   // Calculate puppy age in weeks & months

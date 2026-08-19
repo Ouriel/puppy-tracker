@@ -42,15 +42,13 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({
 
   const loadHealthRecords = useCallback(async () => {
     if (!activePuppy?.id) return;
-    const [vaccineResponse, dewormingResponse] = await Promise.all([
-      fetchHealthRecords(activePuppy.id, 'vaccination'),
-      fetchHealthRecords(activePuppy.id, 'deworming'),
-    ]);
-    if (vaccineResponse.ok) {
-      setVaccinations(sortByDateDesc(vaccineResponse.data));
-    }
-    if (dewormingResponse.ok) {
-      setDewormingLogs(sortByDateDesc(dewormingResponse.data));
+    const response = await fetchHealthRecords(activePuppy.id);
+    if (response.ok) {
+      const allRecords = response.data;
+      const vRecords = allRecords.filter((record) => record.type === 'vaccination');
+      const dRecords = allRecords.filter((record) => record.type === 'deworming');
+      setVaccinations(sortByDateDesc(vRecords));
+      setDewormingLogs(sortByDateDesc(dRecords));
     }
   }, [activePuppy?.id]);
 
