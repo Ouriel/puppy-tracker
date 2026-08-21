@@ -65,6 +65,16 @@ describe("predictionsTranslation utility", () => {
     );
   });
 
+  it("translates morning wake-up potty reasons into French", () => {
+    expect(
+      translatePredictionReason("Morning wake-up: First outing of the day due after overnight sleep (~07:00)", "fr")
+    ).toBe("Réveil matinal : Première sortie de la journée due après la nuit (~07:00)");
+
+    expect(
+      translatePredictionReason("Morning wake-up: First bowel movement expected during morning outing (~07:10)", "fr")
+    ).toBe("Réveil matinal : Premier besoin attendu lors de la sortie du matin (~07:10)");
+  });
+
   it("translates food goal reached into French", () => {
     const enReason = "Today's food goal reached (240g logged). Next: Breakfast tomorrow ~07:00";
     expect(translatePredictionReason(enReason, "fr")).toBe(

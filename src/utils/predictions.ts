@@ -292,7 +292,9 @@ export function detectMealSchedule(
 ): { breakfastMins: number; lunchMins: number; dinnerMins: number } {
   const defaultMeals = { breakfastMins: 7 * 60 + 30, lunchMins: 12 * 60 + 30, dinnerMins: 19 * 60 + 30 };
 
-  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  const maxLogTime = activities.reduce((max, act) => Math.max(max, parseIsoDate(act.timestamp).getTime()), 0);
+  const nowTime = maxLogTime > 0 ? maxLogTime : Date.now();
+  const thirtyDaysAgo = new Date(nowTime - 30 * 24 * 60 * 60 * 1000);
   const foodLogs = activities.filter(
     (activity) => activity.type === 'food' && parseIsoDate(activity.timestamp) >= thirtyDaysAgo
   );
@@ -583,6 +585,8 @@ export function predictNextPee(
   const wakeM = Math.round((sleepSchedule.wakeupHour - wakeH) * 60);
   const wakeupStr = sleepSchedule.wakeupStr || `${String(wakeH).padStart(2, '0')}:${String(wakeM).padStart(2, '0')}`;
 
+  const todayPees = past.filter((a) => a.type === 'pee' && isSameLocalDate(parseIsoDate(a.timestamp), now, tz));
+
   if (isNightTime) {
     mode = 'night_sleep';
     const targetWakeup = getNextOccurrenceOfClockTime(now, sleepSchedule.wakeupHour, tz);
@@ -600,6 +604,12 @@ export function predictNextPee(
       nextExpectedAt = targetWakeup;
       reason = `Night mode: Sleeping until morning wakeup (~${wakeupStr})`;
     }
+  } else if (todayPees.length === 0 && !isSameLocalDate(lastPeeDate, now, tz)) {
+    // New day has started, puppy woke up after overnight sleep and hasn't peed yet today
+    mode = 'daytime_baseline';
+    const todayWakeup = getOccurrenceOfClockTimeInTimezone(now, sleepSchedule.wakeupHour, tz, 0);
+    nextExpectedAt = todayWakeup;
+    reason = `Morning wake-up: First outing of the day due after overnight sleep (~${wakeupStr})`;
   } else if (shouldApplyPostMealOverride(months, learnedPostMealPee) && lastFood && parseIsoDate(lastFood.timestamp).getTime() > lastPeeTime) {
     const foodTime = parseIsoDate(lastFood.timestamp).getTime();
     const minsBetweenPeeAndMeal = Math.round((foodTime - lastPeeTime) / 60000);
@@ -693,6 +703,8 @@ export function predictNextPoop(
   const lastPoopTime = lastPoopDate.getTime();
   const standardExpectedAt = new Date(lastPoopTime + learnedPoop.intervalMins * 60 * 1000);
 
+  const todayPoops = past.filter((a) => a.type === 'poop' && isSameLocalDate(parseIsoDate(a.timestamp), now, tz));
+
   const isMorningWindow = currentHour >= (sleepSchedule.wakeupHour - 2) && currentHour < (sleepSchedule.wakeupHour + 3);
   const hasAwokenToday = sorted.some((a) => {
     const d = parseIsoDate(a.timestamp);
@@ -724,17 +736,49 @@ export function predictNextPoop(
     const elapsedHours = Math.floor((now.getTime() - lastPoopTime) / (60 * 60 * 1000));
     nextExpectedAt = new Date(lastPoopTime + (elapsedHours + 1) * 60 * 60 * 1000);
     reason = 'GI Upset Alert: Liquid/diarrhea stool recorded. Frequent potty checks recommended (60m window).';
+  } else if (isLastPoopConstipated && hoursSinceLastPoop < 16) {
+    mode = 'daytime_baseline';
+    const refractoryMinutes = Math.max(learnedPoop.intervalMins * 1.4, 480);
+    nextExpectedAt = new Date(lastPoopTime + refractoryMinutes * 60 * 1000);
+    reason = 'Digestive system recovering from recent hard stool. Colon refilling after meals.';
   } else if (isNightTime) {
     mode = 'night_sleep';
     const targetWakeup = getNextOccurrenceOfClockTime(now, sleepSchedule.wakeupHour, tz);
     nextExpectedAt = new Date(targetWakeup.getTime() + offsets.morningPoopOffsetMins * 60 * 1000);
     const targetTimeStr = formatLocalTime(nextExpectedAt, tz);
     reason = `Night mode: Sleeping until morning outing (~${targetTimeStr})`;
-  } else if (isLastPoopConstipated && hoursSinceLastPoop < 16) {
-    mode = 'daytime_baseline';
-    const refractoryMinutes = Math.max(learnedPoop.intervalMins * 1.4, 480);
-    nextExpectedAt = new Date(lastPoopTime + refractoryMinutes * 60 * 1000);
-    reason = 'Digestive system recovering from recent hard stool. Colon refilling after meals.';
+  } else if (todayPoops.length === 0 && !isSameLocalDate(lastPoopDate, now, tz)) {
+    // New day has started, puppy woke up after overnight sleep and has not pooped yet today
+    const todayMealsSorted = past
+      .filter((a) => a.type === 'food' && isSameLocalDate(parseIsoDate(a.timestamp), now, tz))
+      .sort((a, b) => parseIsoDate(a.timestamp).getTime() - parseIsoDate(b.timestamp).getTime());
+
+    const todayWakeup = getOccurrenceOfClockTimeInTimezone(now, sleepSchedule.wakeupHour, tz, 0);
+    const todayMorningPoop = new Date(todayWakeup.getTime() + offsets.morningPoopOffsetMins * 60 * 1000);
+    const targetTimeStr = formatLocalTime(todayMorningPoop, tz);
+
+    if (todayMealsSorted.length > 0) {
+      const latestMeal = todayMealsSorted[todayMealsSorted.length - 1];
+      const foodTime = parseIsoDate(latestMeal.timestamp).getTime();
+      const minsSinceMeal = Math.round((now.getTime() - foodTime) / 60000);
+
+      if (shouldApplyPostMealOverride(months, learnedPostMealPoop) && minsSinceMeal <= postMealPoopDelay + 45) {
+        mode = 'post_meal_override';
+        nextExpectedAt = new Date(foodTime + postMealPoopDelay * 60 * 1000);
+        reason = `Pup fed recently (${formatMinutesToXhXX(minsSinceMeal)} ago). Poop break expected ~${postMealPoopDelay}m post-meal.`;
+      } else {
+        mode = 'daytime_baseline';
+        const digestiveTransitMins = Math.max(240, learnedPoop.intervalMins);
+        nextExpectedAt = new Date(foodTime + digestiveTransitMins * 60 * 1000);
+        reason = learnedPoop.isLearned
+          ? `Learned average: ~${formatMinutesToXhXX(digestiveTransitMins)} digestive interval (30-day history)`
+          : `Standard digestive interval (~${formatMinutesToXhXX(digestiveTransitMins)})`;
+      }
+    } else {
+      mode = 'daytime_baseline';
+      nextExpectedAt = todayMorningPoop;
+      reason = `Morning wake-up: First bowel movement expected during morning outing (~${targetTimeStr})`;
+    }
   } else {
     let postMealOverride = false;
     if (shouldApplyPostMealOverride(months, learnedPostMealPoop) && lastFood && parseIsoDate(lastFood.timestamp).getTime() > lastPoopTime) {
@@ -754,25 +798,14 @@ export function predictNextPoop(
     }
 
     if (!postMealOverride) {
-      const todayDateStr = formatLocalDate(now, tz);
-      const todayMealsSorted = past
-        .filter((a) => a.type === 'food' && formatLocalDate(parseIsoDate(a.timestamp), tz) === todayDateStr)
-        .sort((a, b) => parseIsoDate(a.timestamp).getTime() - parseIsoDate(b.timestamp).getTime());
-
-      const todayPoops = past.filter(
-        (a) => a.type === 'poop' && formatLocalDate(parseIsoDate(a.timestamp), tz) === todayDateStr
-      );
-
-      if (todayMealsSorted.length > 0 && todayPoops.length === 0) {
-        mode = 'daytime_baseline';
-        const latestMealTime = parseIsoDate(todayMealsSorted[todayMealsSorted.length - 1].timestamp).getTime();
-        const digestiveTransitMins = Math.max(240, learnedPoop.intervalMins);
-        nextExpectedAt = new Date(latestMealTime + digestiveTransitMins * 60 * 1000);
-        reason = learnedPoop.isLearned
-          ? `Learned average: ~${formatMinutesToXhXX(digestiveTransitMins)} digestive interval (30-day history)`
-          : `Standard digestive interval (~${formatMinutesToXhXX(digestiveTransitMins)})`;
+      mode = 'daytime_baseline';
+      const expectedHour = getLocalDecimalHour(standardExpectedAt, tz);
+      if (isNighttimeHour(expectedHour, sleepSchedule.wakeupHour, sleepSchedule.bedtimeHour)) {
+        const nextWakeup = getNextOccurrenceOfClockTime(now, sleepSchedule.wakeupHour, tz);
+        nextExpectedAt = new Date(nextWakeup.getTime() + offsets.morningPoopOffsetMins * 60 * 1000);
+        const targetTimeStr = formatLocalTime(nextExpectedAt, tz);
+        reason = `Night mode: Sleeping until morning outing (~${targetTimeStr})`;
       } else {
-        mode = 'daytime_baseline';
         nextExpectedAt = standardExpectedAt;
         reason = learnedPoop.isLearned
           ? `Learned average: ~${formatMinutesToXhXX(learnedPoop.intervalMins)} digestive interval (30-day history)`

@@ -827,4 +827,51 @@ describe('predictions utility — comprehensive test suite', () => {
       expect(pred.reason).toContain('Pup fed recently');
     });
   });
+
+  // 6. Morning Wake-Up Potty Predictions (Overnight Sleep Transition)
+  describe('Morning Wake-Up Potty Predictions', () => {
+    it('predicts morning wake-up poop (~07:10 AM) instead of middle-of-night (03:52 AM) when last poop was previous evening (Screenshot bug fix)', () => {
+      const dataset = generateRealisticMultiDayDataset();
+      // Add last poop yesterday evening at 17:38 PM
+      dataset.push({
+        id: 'poop-yesterday-eve',
+        puppyId: 'pup-1',
+        type: 'poop',
+        timestamp: '2026-08-07T17:38:00+02:00',
+        loggedBy: 'Matthieu',
+      });
+      // Morning pee logged at 07:34 AM today
+      dataset.push({
+        id: 'pee-today-morning',
+        puppyId: 'pup-1',
+        type: 'pee',
+        timestamp: '2026-08-08T07:34:00+02:00',
+        loggedBy: 'Matthieu',
+      });
+
+      const now = new Date('2026-08-08T07:34:00+02:00');
+      const predictions = calculatePredictions(dataset, mockProfile, now, 'Europe/Paris');
+
+      // Poop prediction should be for morning outing today (~07:xx AM), NOT 03:52 AM in the middle of the night
+      expect(predictions.nextPoopExpectedAt).toBeDefined();
+      const poopHour = getLocalHour(predictions.nextPoopExpectedAt!, 'Europe/Paris');
+      expect(poopHour).toBeGreaterThanOrEqual(7);
+      expect(poopHour).toBeLessThan(9);
+      expect(predictions.poopReason).toMatch(/morning outing/i);
+    });
+
+    it('predicts morning wake-up pee (~07:00 AM) instead of middle-of-night (02:00 AM) before first pee is logged today', () => {
+      const dataset = generateRealisticMultiDayDataset();
+      // Last pee was bedtime 22:30 PM on Aug 7
+      const now = new Date('2026-08-08T07:15:00+02:00'); // Morning Aug 8, no pees logged yet today
+      const predictions = calculatePredictions(dataset, mockProfile, now, 'Europe/Paris');
+
+      // Pee prediction should target morning wakeup (~07:00 AM), NOT 02:00/03:30 AM
+      expect(predictions.nextPeeExpectedAt).toBeDefined();
+      const peeHour = getLocalHour(predictions.nextPeeExpectedAt!, 'Europe/Paris');
+      expect(peeHour).toBe(7);
+      expect(predictions.peeReason).toContain('Morning wake-up: First outing of the day due');
+    });
+  });
 });
+

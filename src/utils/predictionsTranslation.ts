@@ -48,6 +48,13 @@ export function translatePredictionReason(reason: string, lang: Language): strin
     );
   }
 
+  if (reason.startsWith("Morning wake-up: First outing of the day due")) {
+    return reason.replace(
+      /Morning wake-up: First outing of the day due after overnight sleep \(~(.+?)\)/,
+      "Réveil matinal : Première sortie de la journée due après la nuit (~$1)"
+    );
+  }
+
   if (reason === "No pee recorded yet") {
     return "Aucun pipi enregistré pour l'instant";
   }
@@ -78,6 +85,13 @@ export function translatePredictionReason(reason: string, lang: Language): strin
     return reason.replace(
       /Night mode: Sleeping until morning outing \(~(.+?)\)/,
       "Mode nuit : Sommeil jusqu'à la sortie matinale (~$1)"
+    );
+  }
+
+  if (reason.startsWith("Morning wake-up: First bowel movement expected")) {
+    return reason.replace(
+      /Morning wake-up: First bowel movement expected during morning outing \(~(.+?)\)/,
+      "Réveil matinal : Premier besoin attendu lors de la sortie du matin (~$1)"
     );
   }
 
