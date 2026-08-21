@@ -224,6 +224,6 @@ describe('Balma Derived Variations Test Suite (5 Multi-Scenario Datasets)', () =
     expect(pred.nextPoopExpectedAt).toBeDefined();
     const poopUtcHours = pred.nextPoopExpectedAt!.getUTCHours();
     expect(poopUtcHours).toBe(7);
-    expect(pred.poopReason).toContain('Morning wake-up: First bowel movement expected');
+    expect(pred.poopReason).toContain('Morning outing');
   });
 });

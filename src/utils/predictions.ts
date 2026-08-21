@@ -598,18 +598,18 @@ export function predictNextPee(
         reason = 'Night mode: Young puppy mid-night potty break';
       } else {
         nextExpectedAt = targetWakeup;
-        reason = `Night mode: Sleeping until morning wakeup (~${wakeupStr})`;
+        reason = `Morning outing (~${wakeupStr})`;
       }
     } else {
       nextExpectedAt = targetWakeup;
-      reason = `Night mode: Sleeping until morning wakeup (~${wakeupStr})`;
+      reason = `Morning outing (~${wakeupStr})`;
     }
   } else if (todayPees.length === 0 && !isSameLocalDate(lastPeeDate, now, tz)) {
     // New day has started, puppy woke up after overnight sleep and hasn't peed yet today
     mode = 'daytime_baseline';
     const todayWakeup = getOccurrenceOfClockTimeInTimezone(now, sleepSchedule.wakeupHour, tz, 0);
     nextExpectedAt = todayWakeup;
-    reason = `Morning wake-up: First outing of the day due after overnight sleep (~${wakeupStr})`;
+    reason = `Morning outing (~${wakeupStr})`;
   } else if (shouldApplyPostMealOverride(months, learnedPostMealPee) && lastFood && parseIsoDate(lastFood.timestamp).getTime() > lastPeeTime) {
     const foodTime = parseIsoDate(lastFood.timestamp).getTime();
     const minsBetweenPeeAndMeal = Math.round((foodTime - lastPeeTime) / 60000);
@@ -621,24 +621,26 @@ export function predictNextPee(
     if (peedRightBeforeMeal) {
       mode = 'daytime_baseline';
       nextExpectedAt = standardExpectedAt;
-      reason = `Bladder emptied before meal (${formatMinutesToXhXX(minsBetweenPeeAndMeal)} ago). Next break during daytime cycle.`;
+      reason = learnedPee.isLearned
+        ? `Learned average: ~${formatMinutesToXhXX(learnedPee.intervalMins)} bladder interval`
+        : `Standard bladder interval (~${formatMinutesToXhXX(learnedPee.intervalMins)})`;
     } else if (minsSinceMeal <= postMealPeeDelay + 40) {
       mode = 'post_meal_override';
       nextExpectedAt = new Date(foodTime + postMealPeeDelay * 60 * 1000);
-      reason = `Pup fed recently (${formatMinutesToXhXX(minsSinceMeal)} ago). Potty break expected ~${postMealPeeDelay}m post-meal.`;
+      reason = `Post-meal potty break (~${postMealPeeDelay}m after food)`;
     } else {
       mode = 'daytime_baseline';
       nextExpectedAt = standardExpectedAt;
       reason = learnedPee.isLearned
-        ? `Learned average: ~${formatMinutesToXhXX(learnedPee.intervalMins)} bladder interval (30-day history)`
-        : `Based on ~${formatMinutesToXhXX(learnedPee.intervalMins)} age bladder capacity`;
+        ? `Learned average: ~${formatMinutesToXhXX(learnedPee.intervalMins)} bladder interval`
+        : `Standard bladder interval (~${formatMinutesToXhXX(learnedPee.intervalMins)})`;
     }
   } else {
     mode = 'daytime_baseline';
     nextExpectedAt = standardExpectedAt;
     reason = learnedPee.isLearned
-      ? `Learned average: ~${formatMinutesToXhXX(learnedPee.intervalMins)} bladder interval (30-day history)`
-      : `Based on ~${formatMinutesToXhXX(learnedPee.intervalMins)} age bladder capacity`;
+      ? `Learned average: ~${formatMinutesToXhXX(learnedPee.intervalMins)} bladder interval`
+      : `Standard bladder interval (~${formatMinutesToXhXX(learnedPee.intervalMins)})`;
   }
 
   const diffMins = (nextExpectedAt.getTime() - now.getTime()) / 60000;
@@ -735,18 +737,18 @@ export function predictNextPoop(
     mode = 'daytime_baseline';
     const elapsedHours = Math.floor((now.getTime() - lastPoopTime) / (60 * 60 * 1000));
     nextExpectedAt = new Date(lastPoopTime + (elapsedHours + 1) * 60 * 60 * 1000);
-    reason = 'GI Upset Alert: Liquid/diarrhea stool recorded. Frequent potty checks recommended (60m window).';
+    reason = 'Digestive alert: frequent checks recommended';
   } else if (isLastPoopConstipated && hoursSinceLastPoop < 16) {
     mode = 'daytime_baseline';
     const refractoryMinutes = Math.max(learnedPoop.intervalMins * 1.4, 480);
     nextExpectedAt = new Date(lastPoopTime + refractoryMinutes * 60 * 1000);
-    reason = 'Digestive system recovering from recent hard stool. Colon refilling after meals.';
+    reason = 'Digestive recovery: pause after hard stool';
   } else if (isNightTime) {
     mode = 'night_sleep';
     const targetWakeup = getNextOccurrenceOfClockTime(now, sleepSchedule.wakeupHour, tz);
     nextExpectedAt = new Date(targetWakeup.getTime() + offsets.morningPoopOffsetMins * 60 * 1000);
     const targetTimeStr = formatLocalTime(nextExpectedAt, tz);
-    reason = `Night mode: Sleeping until morning outing (~${targetTimeStr})`;
+    reason = `Morning outing (~${targetTimeStr})`;
   } else if (todayPoops.length === 0 && !isSameLocalDate(lastPoopDate, now, tz)) {
     // New day has started, puppy woke up after overnight sleep and has not pooped yet today
     const todayMealsSorted = past
@@ -765,19 +767,19 @@ export function predictNextPoop(
       if (shouldApplyPostMealOverride(months, learnedPostMealPoop) && minsSinceMeal <= postMealPoopDelay + 45) {
         mode = 'post_meal_override';
         nextExpectedAt = new Date(foodTime + postMealPoopDelay * 60 * 1000);
-        reason = `Pup fed recently (${formatMinutesToXhXX(minsSinceMeal)} ago). Poop break expected ~${postMealPoopDelay}m post-meal.`;
+        reason = `Post-meal poop break (~${postMealPoopDelay}m after food)`;
       } else {
         mode = 'daytime_baseline';
         const digestiveTransitMins = Math.max(240, learnedPoop.intervalMins);
         nextExpectedAt = new Date(foodTime + digestiveTransitMins * 60 * 1000);
         reason = learnedPoop.isLearned
-          ? `Learned average: ~${formatMinutesToXhXX(digestiveTransitMins)} digestive interval (30-day history)`
+          ? `Learned average: ~${formatMinutesToXhXX(digestiveTransitMins)} digestive interval`
           : `Standard digestive interval (~${formatMinutesToXhXX(digestiveTransitMins)})`;
       }
     } else {
       mode = 'daytime_baseline';
       nextExpectedAt = todayMorningPoop;
-      reason = `Morning wake-up: First bowel movement expected during morning outing (~${targetTimeStr})`;
+      reason = `Morning outing (~${targetTimeStr})`;
     }
   } else {
     let postMealOverride = false;
@@ -793,7 +795,7 @@ export function predictNextPoop(
         postMealOverride = true;
         mode = 'post_meal_override';
         nextExpectedAt = new Date(foodTime + postMealPoopDelay * 60 * 1000);
-        reason = `Pup fed recently (${formatMinutesToXhXX(minsSinceMeal)} ago). Poop break expected ~${postMealPoopDelay}m post-meal.`;
+        reason = `Post-meal poop break (~${postMealPoopDelay}m after food)`;
       }
     }
 
@@ -804,11 +806,11 @@ export function predictNextPoop(
         const nextWakeup = getNextOccurrenceOfClockTime(now, sleepSchedule.wakeupHour, tz);
         nextExpectedAt = new Date(nextWakeup.getTime() + offsets.morningPoopOffsetMins * 60 * 1000);
         const targetTimeStr = formatLocalTime(nextExpectedAt, tz);
-        reason = `Night mode: Sleeping until morning outing (~${targetTimeStr})`;
+        reason = `Morning outing (~${targetTimeStr})`;
       } else {
         nextExpectedAt = standardExpectedAt;
         reason = learnedPoop.isLearned
-          ? `Learned average: ~${formatMinutesToXhXX(learnedPoop.intervalMins)} digestive interval (30-day history)`
+          ? `Learned average: ~${formatMinutesToXhXX(learnedPoop.intervalMins)} digestive interval`
           : 'Standard digestive interval (~6h)';
       }
     }
@@ -900,25 +902,26 @@ export function predictNextFood(
   if (isNightTime) {
     mode = 'night_sleep';
     nextExpectedAt = nextBreakfast;
-    reason = `Night mode: Sleeping until morning breakfast (~${nextBfastStr})`;
-  } else if (isGoalReached || isLateEveningCutoff) {
+    reason = `Breakfast (~${nextBfastStr}, Meal 1 of ${targetMeals})`;
+  } else if (isGoalReached) {
     mode = 'goal_reached';
     nextExpectedAt = nextBreakfast;
-    reason = isGoalReached
-      ? `Today's food goal reached (${todayGramTotal}g logged). Next: Breakfast tomorrow ~${nextBfastStr}`
-      : `Evening mode: Next meal is breakfast tomorrow ~${nextBfastStr}`;
+    reason = `Daily goal reached (${todayGramTotal}g)`;
+  } else if (isLateEveningCutoff) {
+    mode = 'goal_reached';
+    nextExpectedAt = nextBreakfast;
+    reason = `Breakfast (~${nextBfastStr}, Meal 1 of ${targetMeals})`;
   } else if (todayMeals.length === 0) {
     nextExpectedAt = todayBreakfast;
     const minsUntilBreakfast = (todayBreakfast.getTime() - now.getTime()) / 60000;
-    if (minsUntilBreakfast > 30) {
-      reason = `Breakfast scheduled at ~${todayBfastStr} (Meal 1 of ${targetMeals})`;
-    } else if (minsUntilBreakfast >= -60) {
-      urgency = minsUntilBreakfast <= 15 ? 'soon' : 'safe';
-      reason = `Morning breakfast due (~${todayBfastStr}, Meal 1 of ${targetMeals})`;
-    } else {
+    if (minsUntilBreakfast <= 0) {
       urgency = 'overdue';
-      reason = `Breakfast overdue (expected ~${todayBfastStr}, Meal 1 of ${targetMeals})`;
+    } else if (minsUntilBreakfast <= 15) {
+      urgency = 'soon';
+    } else {
+      urgency = 'safe';
     }
+    reason = `Breakfast (~${todayBfastStr}, Meal 1 of ${targetMeals})`;
   } else {
     // Spaced daytime schedule for remaining meals
     const lastMealToday = todayMeals.reduce((latest, curr) =>
@@ -940,7 +943,7 @@ export function predictNextFood(
     if (minsUntil <= 0) urgency = 'overdue';
     else if (minsUntil <= 30) urgency = 'soon';
 
-    reason = `Daytime meal schedule: Meal ${todayMeals.length + 1} of ${targetMeals} (spaced ~${idealIntervalHours.toFixed(1)}h)`;
+    reason = `Meal ${todayMeals.length + 1} of ${targetMeals} (spaced ~${idealIntervalHours.toFixed(1)}h)`;
   }
 
   const portionGrams = calculateNextMealPortion(

@@ -71,14 +71,14 @@ describe('Veterinary & Behavioral Scenario Test Suite (Classic Rules)', () => {
     ];
 
     const earlyPred = calculatePredictions(activities, profile, earlyRef, 'UTC');
-    expect(earlyPred.poopReason).toContain('GI Upset Alert');
+    expect(earlyPred.poopReason).toContain('Digestive alert');
     const earlyMinutes = (earlyPred.nextPoopExpectedAt!.getTime() - lastPoopTime.getTime()) / 60000;
     expect(earlyMinutes).toBe(60);
 
     // After first hour: sliding window advances to next hourly boundary
     const lateRef = new Date('2026-08-10T11:15:00Z');
     const latePred = calculatePredictions(activities, profile, lateRef, 'UTC');
-    expect(latePred.poopReason).toContain('GI Upset Alert');
+    expect(latePred.poopReason).toContain('Digestive alert');
     const lateMinutes = (latePred.nextPoopExpectedAt!.getTime() - lastPoopTime.getTime()) / 60000;
     expect(lateMinutes).toBe(120);
   });
@@ -116,6 +116,6 @@ describe('Veterinary & Behavioral Scenario Test Suite (Classic Rules)', () => {
     const pred = calculatePredictions(activities, profile, refTime, 'UTC');
 
     expect(pred.peeMode).toBe('night_sleep');
-    expect(pred.peeReason).toContain('Night mode');
+    expect(pred.peeReason).toContain('Morning outing');
   });
 });

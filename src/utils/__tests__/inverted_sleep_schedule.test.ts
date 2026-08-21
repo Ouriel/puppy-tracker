@@ -34,6 +34,6 @@ describe('Inverted Day-Sleep / Night-Active Dog Test Suite', () => {
     const sleepPred = calculatePredictions(activities, invertedProfile, sleepDayTime, 'UTC', customSleepSchedule);
 
     expect(sleepPred.peeMode).toBe('night_sleep');
-    expect(sleepPred.peeReason).toContain('Night mode');
+    expect(sleepPred.peeReason).toContain('Morning outing');
   });
 });

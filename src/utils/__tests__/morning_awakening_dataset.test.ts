@@ -159,7 +159,7 @@ describe('Balma Morning Awakening & Overnight Transition Dataset Test Suite', ()
     const poopTimeStr = formatLocalTime(poopExpectedDate, 'Europe/Paris');
 
     expect(poopHour).toBe(7); // Morning wake-up window (07:xx AM)
-    expect(predictions.poopReason).toContain('Morning wake-up: First bowel movement expected');
+    expect(predictions.poopReason).toContain('Morning outing');
     expect(poopTimeStr).toMatch(/^07:\d{2}$/);
 
     // Ensure urgency is reasonable (due ~20-30 mins ago upon waking, NOT 3h42m overdue from 03:52 AM)
@@ -175,7 +175,7 @@ describe('Balma Morning Awakening & Overnight Transition Dataset Test Suite', ()
 
     // 4. French Translations match UI display
     const frPoopReason = translatePredictionReason(predictions.poopReason, 'fr');
-    expect(frPoopReason).toContain('Réveil matinal : Premier besoin attendu lors de la sortie du matin');
+    expect(frPoopReason).toContain('Sortie du matin');
   });
 
   it('handles early morning check at 06:45 AM (during sleep before wakeup): predicts upcoming 07:xx AM morning potty', () => {
@@ -206,6 +206,6 @@ describe('Balma Morning Awakening & Overnight Transition Dataset Test Suite', ()
     expect(predictions.nextPeeExpectedAt).toBeDefined();
     const peeHour = getLocalHour(predictions.nextPeeExpectedAt!, 'Europe/Paris');
     expect(peeHour).toBe(7);
-    expect(predictions.peeReason).toContain('Morning wake-up: First outing of the day due');
+    expect(predictions.peeReason).toContain('Morning outing');
   });
 });

@@ -191,7 +191,7 @@ describe('predictions utility — comprehensive test suite', () => {
 
         const predictions = calculatePredictions(customDataset, mockProfile, referenceTime, 'Europe/Paris');
         expect(predictions.peeMode).toBe('post_meal_override');
-        expect(predictions.peeReason).toContain('fed recently');
+        expect(predictions.peeReason).toContain('Post-meal potty break');
       });
 
       it('expires post-meal pee trigger after 60 minutes and reverts to daytime baseline', () => {
@@ -207,7 +207,7 @@ describe('predictions utility — comprehensive test suite', () => {
         const predictions = calculatePredictions(dataset, mockProfile, referenceTime, 'Europe/Paris');
 
         expect(predictions.peeMode).toBe('night_sleep');
-        expect(predictions.peeReason).toContain('Night mode');
+        expect(predictions.peeReason).toContain('Morning outing');
         expect(predictions.peeUrgency).toBe('safe');
       });
 
@@ -255,7 +255,7 @@ describe('predictions utility — comprehensive test suite', () => {
 
         const predictions = calculatePredictions(simplePostMealDataset, mockProfile, referenceTime, 'Europe/Paris');
         expect(predictions.poopMode).toBe('post_meal_override');
-        expect(predictions.poopReason).toContain('Poop break expected');
+        expect(predictions.poopReason).toContain('Post-meal poop break');
       });
 
       it('predicts daytime baseline poop based on learned interval when puppy ate today', () => {
@@ -281,7 +281,7 @@ describe('predictions utility — comprehensive test suite', () => {
 
         const predictions = calculatePredictions(constipationDataset, mockProfile, referenceTime, 'Europe/Paris');
         expect(predictions.poopUrgency).toBe('safe');
-        expect(predictions.poopReason).toContain('recovering from recent hard stool');
+        expect(predictions.poopReason).toContain('Digestive recovery');
       });
 
       it('enters night sleep mode for poop during overnight hours', () => {
@@ -289,7 +289,7 @@ describe('predictions utility — comprehensive test suite', () => {
         const predictions = calculatePredictions(dataset, mockProfile, referenceTime, 'Europe/Paris');
 
         expect(predictions.poopMode).toBe('night_sleep');
-        expect(predictions.poopReason).toMatch(/morning outing|post-breakfast/i);
+        expect(predictions.poopReason).toMatch(/morning outing/i);
       });
 
       it('disables post-meal poop trigger for older puppies (age >= 8 months)', () => {
@@ -348,7 +348,7 @@ describe('predictions utility — comprehensive test suite', () => {
 
         const predictions = calculatePredictions(noMealsToday, mockProfile, referenceTime, 'Europe/Paris');
         expect(predictions.foodMode).toBe('daytime_schedule');
-        expect(predictions.foodReason).toMatch(/breakfast due|Breakfast scheduled|Breakfast overdue/i);
+        expect(predictions.foodReason).toContain('Breakfast');
       });
 
       it('spaces remaining daytime meals evenly when partial meals have been logged today', () => {
@@ -357,7 +357,7 @@ describe('predictions utility — comprehensive test suite', () => {
 
         const predictions = calculatePredictions(singleMealToday, mockProfile, referenceTime, 'Europe/Paris');
         expect(predictions.foodMode).toBe('daytime_schedule');
-        expect(predictions.foodReason).toContain('Daytime meal schedule');
+        expect(predictions.foodReason).toContain('Meal 2 of 3');
       });
 
       it('flags goal reached when daily food gram goal or target meal count is reached', () => {
@@ -366,7 +366,7 @@ describe('predictions utility — comprehensive test suite', () => {
 
         expect(predictions.foodMode).toBe('goal_reached');
         expect(predictions.foodUrgency).toBe('safe');
-        expect(predictions.foodReason).toContain('goal reached');
+        expect(predictions.foodReason).toContain('Daily goal reached');
       });
 
       it('enters night sleep mode for food during overnight hours', () => {
@@ -653,7 +653,7 @@ describe('predictions utility — comprehensive test suite', () => {
 
       expect(foodPrediction.mode).toBe('daytime_schedule');
       expect(foodPrediction.urgency).toBe('overdue');
-      expect(foodPrediction.reason).toContain('Breakfast overdue');
+      expect(foodPrediction.reason).toContain('Breakfast');
       // Next expected should be this morning (07:xx AM today), NOT tomorrow morning (+21h)
       expect(foodPrediction.nextExpectedAt).not.toBeNull();
       expect(formatLocalDate(foodPrediction.nextExpectedAt!, 'Europe/Paris')).toBe('2026-08-10');
@@ -699,7 +699,7 @@ describe('predictions utility — comprehensive test suite', () => {
 
       const pred = predictNextPee(activities, mockProfile, now, { timeZone: 'UTC' });
       expect(pred.mode).toBe('daytime_baseline');
-      expect(pred.reason).toContain('Bladder emptied before meal');
+      expect(pred.reason).toMatch(/Learned average|bladder interval/);
     });
 
     it('triggers post-meal pee override when pee was NOT recent (> 30m before eating)', () => {
@@ -714,7 +714,7 @@ describe('predictions utility — comprehensive test suite', () => {
 
       const pred = predictNextPee(activities, mockProfile, now, { timeZone: 'UTC' });
       expect(pred.mode).toBe('post_meal_override');
-      expect(pred.reason).toContain('Pup fed recently');
+      expect(pred.reason).toContain('Post-meal potty break');
     });
 
     it('overrides night sleep mode when last poop is diarrhea during night hours', () => {
@@ -735,7 +735,7 @@ describe('predictions utility — comprehensive test suite', () => {
       const pred = predictNextPoop(activities, mockProfile, nightTime, { timeZone: 'UTC' });
       // Should NOT be 'night_sleep'
       expect(pred.mode).toBe('daytime_baseline');
-      expect(pred.reason).toContain('GI Upset Alert');
+      expect(pred.reason).toContain('Digestive alert');
       expect(pred.nextExpectedAt).toBeDefined();
       // Should be 60m after the diarrhea stool (02:30 UTC)
       expect(pred.nextExpectedAt?.toISOString()).toBe(new Date(recentDiarrhea.getTime() + 60 * 60 * 1000).toISOString());
@@ -807,7 +807,7 @@ describe('predictions utility — comprehensive test suite', () => {
       const pred = predictNextPee(activities, adolescentProfile, now, { timeZone: 'Europe/Paris' });
       // Should NOT force post_meal_override (~20m)
       expect(pred.mode).toBe('daytime_baseline');
-      expect(pred.reason).toMatch(/Learned average|bladder capacity/);
+      expect(pred.reason).toMatch(/Learned average|bladder interval/);
     });
 
     it('triggers post-meal pee override for an 8-week-old young puppy after eating', () => {
@@ -824,7 +824,7 @@ describe('predictions utility — comprehensive test suite', () => {
 
       const pred = predictNextPee(activities, youngPuppyProfile, now, { timeZone: 'Europe/Paris' });
       expect(pred.mode).toBe('post_meal_override');
-      expect(pred.reason).toContain('Pup fed recently');
+      expect(pred.reason).toContain('Post-meal potty break');
     });
   });
 
@@ -870,7 +870,7 @@ describe('predictions utility — comprehensive test suite', () => {
       expect(predictions.nextPeeExpectedAt).toBeDefined();
       const peeHour = getLocalHour(predictions.nextPeeExpectedAt!, 'Europe/Paris');
       expect(peeHour).toBe(7);
-      expect(predictions.peeReason).toContain('Morning wake-up: First outing of the day due');
+      expect(predictions.peeReason).toContain('Morning outing');
     });
   });
 });
