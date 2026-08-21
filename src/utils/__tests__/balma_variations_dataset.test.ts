@@ -182,4 +182,48 @@ describe('Balma Derived Variations Test Suite (5 Multi-Scenario Datasets)', () =
     // Breakfast time across transition calculates 495 mins (08:15 AM)
     expect(mealSchedule.breakfastMins).toBe(495);
   });
+
+  it('Scenario 6: Balma Morning Awakening After Overnight Sleep Dataset (Screenshot 07:34 AM Reproduction)', () => {
+    const refDate = new Date('2026-08-21T07:34:00Z');
+    const yesterdayDate = new Date('2026-08-20T12:00:00Z');
+    const days = createDayTimestamps(14, yesterdayDate);
+    const activities: Activity[] = [];
+
+    days.forEach((dayDate, dayIdx) => {
+      const y = dayDate.getUTCFullYear();
+      const m = dayDate.getUTCMonth();
+      const d = dayDate.getUTCDate();
+
+      // Morning wake pee 07:15, poop 07:30, breakfast 08:15
+      activities.push({ id: `p-wake-${dayIdx}`, puppyId: balmaBaseProfile.id, type: 'pee', timestamp: new Date(Date.UTC(y, m, d, 7, 15)).toISOString(), loggedBy: 'Matthieu' });
+      activities.push({ id: `po-wake-${dayIdx}`, puppyId: balmaBaseProfile.id, type: 'poop', timestamp: new Date(Date.UTC(y, m, d, 7, 30)).toISOString(), loggedBy: 'Matthieu' });
+      activities.push({ id: `f-bfast-${dayIdx}`, puppyId: balmaBaseProfile.id, type: 'food', timestamp: new Date(Date.UTC(y, m, d, 8, 15)).toISOString(), quantityGrams: 80, loggedBy: 'Matthieu' });
+
+      // Evening poop 17:38, dinner 19:30, bedtime pee 22:30
+      activities.push({ id: `po-eve-${dayIdx}`, puppyId: balmaBaseProfile.id, type: 'poop', timestamp: new Date(Date.UTC(y, m, d, 17, 38)).toISOString(), loggedBy: 'Matthieu' });
+      activities.push({ id: `f-din-${dayIdx}`, puppyId: balmaBaseProfile.id, type: 'food', timestamp: new Date(Date.UTC(y, m, d, 19, 30)).toISOString(), quantityGrams: 80, loggedBy: 'Matthieu' });
+      activities.push({ id: `p-bed-${dayIdx}`, puppyId: balmaBaseProfile.id, type: 'pee', timestamp: new Date(Date.UTC(y, m, d, 22, 30)).toISOString(), loggedBy: 'Matthieu' });
+    });
+
+    // On test morning Aug 21, pee logged at 07:34 AM
+    activities.push({
+      id: 'p-today-0734',
+      puppyId: balmaBaseProfile.id,
+      type: 'pee',
+      timestamp: '2026-08-21T07:34:00Z',
+      loggedBy: 'Matthieu',
+    });
+
+    const pred = calculatePredictions(activities, balmaBaseProfile, refDate, 'UTC');
+
+    // Next pee in ~5h at 12:34 PM (Safe Zone)
+    expect(pred.peeUrgency).toBe('safe');
+    expect(pred.peeMode).toBe('daytime_baseline');
+
+    // Next poop expected for morning outing (~07:30 AM), NOT middle of the night (03:52 AM)
+    expect(pred.nextPoopExpectedAt).toBeDefined();
+    const poopUtcHours = pred.nextPoopExpectedAt!.getUTCHours();
+    expect(poopUtcHours).toBe(7);
+    expect(pred.poopReason).toContain('Morning wake-up: First bowel movement expected');
+  });
 });
