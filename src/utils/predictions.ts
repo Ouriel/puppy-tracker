@@ -56,6 +56,31 @@ export function isApproachingBedtime(hour: number, wakeupHour: number, bedtimeHo
 }
 
 /**
+ * Evaluates whether the puppy is currently in night sleep mode (or approaching bedtime),
+ * taking into account dynamic morning awakening relative to the learned wakeup schedule.
+ */
+export function isNightTimeMode(
+  now: Date,
+  activities: Activity[],
+  sleepSchedule: SleepSchedule,
+  timeZone?: string
+): boolean {
+  const tz = timeZone || getUserTimezone();
+  const currentHour = getLocalDecimalHour(now, tz);
+
+  const isMorningWindow = currentHour >= (sleepSchedule.wakeupHour - 2) && currentHour < (sleepSchedule.wakeupHour + 3);
+  const hasAwokenToday = activities.some((a) => {
+    const d = parseIsoDate(a.timestamp);
+    return isSameLocalDate(d, now, tz) && getLocalHour(d, tz) >= (sleepSchedule.wakeupHour - 2);
+  });
+
+  const isApproaching = isApproachingBedtime(currentHour, sleepSchedule.wakeupHour, sleepSchedule.bedtimeHour);
+  const isCurrentlyNight = isNighttimeHour(currentHour, sleepSchedule.wakeupHour, sleepSchedule.bedtimeHour);
+
+  return (isMorningWindow ? !hasAwokenToday : true) && (isCurrentlyNight || isApproaching);
+}
+
+/**
  * Calculates puppy age in weeks and months from birth date.
  */
 export function getPuppyAge(
@@ -176,7 +201,7 @@ export function detectSleepSchedule(
       const last = sortedLogs[sortedLogs.length - 1];
 
       const firstM = Math.round(getLocalDecimalHour(firstMorning, tz) * 60);
-      let lastM = Math.round(getLocalDecimalHour(last, tz) * 60);
+      const lastHour = getLocalDecimalHour(last, tz);
 
       // Exponential time decay (7-day half-life so full week sets the schedule smoothly)
       const daysAgo = Math.max(0, (nowTime - last.getTime()) / (1000 * 60 * 60 * 24));
@@ -184,11 +209,14 @@ export function detectSleepSchedule(
 
       morningData.push({ mins: firstM, weight });
 
-      // Wrap bedtime if past midnight
-      if (lastM < 12 * 60) {
-        lastM += 24 * 60;
+      // Only consider last activity as bedtime candidate if it occurred in the evening/night
+      if (lastHour >= 18 || lastHour < 5) {
+        let lastM = Math.round(lastHour * 60);
+        if (lastM < 12 * 60) {
+          lastM += 24 * 60;
+        }
+        eveningData.push({ mins: lastM, weight });
       }
-      eveningData.push({ mins: lastM, weight });
     }
   });
 
@@ -437,21 +465,13 @@ export function shouldApplyPostMealOverride(
   ageMonths: number,
   learnedPostMeal: { isLearned: boolean; postMealRatio: number; foodCount?: number }
 ): boolean {
-  // Young puppy (< 3.5 months / < 14 weeks): reflex is active by default
   if (ageMonths < 3.5) return true;
-
-  // Transition puppy (3.5 to 5 months / 14 to 20 weeks):
-  // If at least 3 meals are logged, use empirical ratio (>= 40%). If brand new with no meal history, default to active.
-  if (ageMonths < 5.0) {
-    if (learnedPostMeal.foodCount && learnedPostMeal.foodCount >= 3) {
-      return learnedPostMeal.postMealRatio >= 0.40;
-    }
-    return learnedPostMeal.isLearned ? learnedPostMeal.postMealRatio >= 0.40 : true;
+  const foodCount = learnedPostMeal.foodCount ?? (learnedPostMeal.isLearned ? 3 : 0);
+  const threshold = ageMonths < 5.0 ? 0.40 : 0.50;
+  if (foodCount >= 3) {
+    return learnedPostMeal.postMealRatio >= threshold;
   }
-
-  // Older puppy / adult (>= 5 months / >= 20 weeks): voluntary cortical control
-  // Only override if data statistically proves an established post-meal habit (>= 50%)
-  return learnedPostMeal.isLearned && learnedPostMeal.postMealRatio >= 0.50;
+  return ageMonths < 5.0;
 }
 
 /**
@@ -533,7 +553,6 @@ export function predictNextPee(
   options?: PredictorOptions
 ): SinglePredictionResult {
   const tz = options?.timeZone || getUserTimezone();
-  const currentHour = getLocalDecimalHour(now, tz);
   const sleepSchedule = options?.sleepSchedule || detectSleepSchedule(activities, tz);
 
   const past = activities.filter((a) => parseIsoDate(a.timestamp).getTime() <= now.getTime());
@@ -567,16 +586,7 @@ export function predictNextPee(
   const lastPeeTime = lastPeeDate.getTime();
   const standardExpectedAt = new Date(lastPeeTime + learnedPee.intervalMins * 60 * 1000);
 
-  // Dynamic morning awakening window: relative to learned wakeup hour
-  const isMorningWindow = currentHour >= (sleepSchedule.wakeupHour - 2) && currentHour < (sleepSchedule.wakeupHour + 3);
-  const hasAwokenToday = sorted.some((a) => {
-    const d = parseIsoDate(a.timestamp);
-    return isSameLocalDate(d, now, tz) && getLocalHour(d, tz) >= (sleepSchedule.wakeupHour - 2);
-  });
-
-  const isApproaching = isApproachingBedtime(currentHour, sleepSchedule.wakeupHour, sleepSchedule.bedtimeHour);
-  const isCurrentlyNight = isNighttimeHour(currentHour, sleepSchedule.wakeupHour, sleepSchedule.bedtimeHour);
-  const isNightTime = (isMorningWindow ? !hasAwokenToday : true) && (isCurrentlyNight || isApproaching);
+  const isNightTime = isNightTimeMode(now, sorted, sleepSchedule, tz);
 
   let nextExpectedAt: Date = standardExpectedAt;
   let mode: ScheduleMode = 'daytime_baseline';
@@ -643,6 +653,16 @@ export function predictNextPee(
       : `Standard bladder interval (~${formatMinutesToXhXX(learnedPee.intervalMins)})`;
   }
 
+  // Prevent standard daytime calculations from landing in the middle of overnight sleep
+  if (mode === 'daytime_baseline') {
+    const expectedHour = getLocalDecimalHour(nextExpectedAt, tz);
+    if (isNighttimeHour(expectedHour, sleepSchedule.wakeupHour, sleepSchedule.bedtimeHour)) {
+      const nextWakeup = getNextOccurrenceOfClockTime(now, sleepSchedule.wakeupHour, tz);
+      nextExpectedAt = nextWakeup;
+      reason = `Morning outing (~${wakeupStr})`;
+    }
+  }
+
   const diffMins = (nextExpectedAt.getTime() - now.getTime()) / 60000;
   let urgency: 'safe' | 'soon' | 'overdue' = 'safe';
   if (mode !== 'night_sleep') {
@@ -672,7 +692,6 @@ export function predictNextPoop(
   options?: PredictorOptions
 ): SinglePredictionResult {
   const tz = options?.timeZone || getUserTimezone();
-  const currentHour = getLocalDecimalHour(now, tz);
   const sleepSchedule = options?.sleepSchedule || detectSleepSchedule(activities, tz);
   const offsets = calculateMorningSequenceOffsets(activities, tz);
 
@@ -707,15 +726,7 @@ export function predictNextPoop(
 
   const todayPoops = past.filter((a) => a.type === 'poop' && isSameLocalDate(parseIsoDate(a.timestamp), now, tz));
 
-  const isMorningWindow = currentHour >= (sleepSchedule.wakeupHour - 2) && currentHour < (sleepSchedule.wakeupHour + 3);
-  const hasAwokenToday = sorted.some((a) => {
-    const d = parseIsoDate(a.timestamp);
-    return isSameLocalDate(d, now, tz) && getLocalHour(d, tz) >= (sleepSchedule.wakeupHour - 2);
-  });
-
-  const isApproaching = isApproachingBedtime(currentHour, sleepSchedule.wakeupHour, sleepSchedule.bedtimeHour);
-  const isCurrentlyNight = isNighttimeHour(currentHour, sleepSchedule.wakeupHour, sleepSchedule.bedtimeHour);
-  const isNightTime = (isMorningWindow ? !hasAwokenToday : true) && (isCurrentlyNight || isApproaching);
+  const isNightTime = isNightTimeMode(now, sorted, sleepSchedule, tz);
 
   const isLastPoopConstipated =
     lastPoop.stoolConsistency === 'hard' ||
@@ -864,16 +875,7 @@ export function predictNextFood(
   const isGramGoalMet = profile.dailyFoodGramGoal > 0 && todayGramTotal >= profile.dailyFoodGramGoal * 0.90;
   const isGoalReached = isGramGoalMet || (profile.dailyFoodGramGoal === 0 && todayMeals.length >= targetMeals);
 
-  // Dynamic morning awakening window
-  const isMorningWindow = currentHour >= (sleepSchedule.wakeupHour - 2) && currentHour < (sleepSchedule.wakeupHour + 3);
-  const hasAwokenToday = sorted.some((a) => {
-    const d = parseIsoDate(a.timestamp);
-    return isSameLocalDate(d, now, tz) && getLocalHour(d, tz) >= (sleepSchedule.wakeupHour - 2);
-  });
-
-  const isApproaching = isApproachingBedtime(currentHour, sleepSchedule.wakeupHour, sleepSchedule.bedtimeHour);
-  const isCurrentlyNight = isNighttimeHour(currentHour, sleepSchedule.wakeupHour, sleepSchedule.bedtimeHour);
-  const isNightTime = (isMorningWindow ? !hasAwokenToday : true) && (isCurrentlyNight || isApproaching);
+  const isNightTime = isNightTimeMode(now, sorted, sleepSchedule, tz);
 
   // Today's scheduled breakfast time (for daytime schedule)
   const todayWakeup = getOccurrenceOfClockTimeInTimezone(now, sleepSchedule.wakeupHour, tz, 0);
