@@ -42,22 +42,8 @@ export function isNighttimeHour(hour: number, wakeupHour: number, bedtimeHour: n
 }
 
 /**
- * Wrap-aware check: is the given hour approaching bedtime (within ~1 hour prior to sleep)?
- */
-export function isApproachingBedtime(hour: number, wakeupHour: number, bedtimeHour: number): boolean {
-  const windowStart = Math.floor((bedtimeHour - 1 + 24) % 24);
-  if (bedtimeHour > wakeupHour) {
-    return hour >= windowStart && hour < bedtimeHour;
-  }
-  if (windowStart > bedtimeHour) {
-    return hour >= windowStart || hour < bedtimeHour;
-  }
-  return hour >= windowStart && hour < bedtimeHour;
-}
-
-/**
- * Evaluates whether the puppy is currently in night sleep mode (or approaching bedtime),
- * taking into account dynamic morning awakening relative to the learned wakeup schedule.
+ * Evaluates whether the puppy is currently in night sleep mode,
+ * taking into account actual nighttime sleep hours and early morning awakening.
  */
 export function isNightTimeMode(
   now: Date,
@@ -67,17 +53,28 @@ export function isNightTimeMode(
 ): boolean {
   const tz = timeZone || getUserTimezone();
   const currentHour = getLocalDecimalHour(now, tz);
-
-  const isMorningWindow = currentHour >= (sleepSchedule.wakeupHour - 2) && currentHour < (sleepSchedule.wakeupHour + 3);
-  const hasAwokenToday = activities.some((a) => {
-    const d = parseIsoDate(a.timestamp);
-    return isSameLocalDate(d, now, tz) && getLocalHour(d, tz) >= (sleepSchedule.wakeupHour - 2);
-  });
-
-  const isApproaching = isApproachingBedtime(currentHour, sleepSchedule.wakeupHour, sleepSchedule.bedtimeHour);
   const isCurrentlyNight = isNighttimeHour(currentHour, sleepSchedule.wakeupHour, sleepSchedule.bedtimeHour);
 
-  return (isMorningWindow ? !hasAwokenToday : true) && (isCurrentlyNight || isApproaching);
+  if (!isCurrentlyNight) {
+    return false;
+  }
+
+  // Find when the current sleep period began
+  let lastBedtime = getOccurrenceOfClockTimeInTimezone(now, sleepSchedule.bedtimeHour, tz, 0);
+  if (lastBedtime.getTime() > now.getTime()) {
+    lastBedtime = getOccurrenceOfClockTimeInTimezone(now, sleepSchedule.bedtimeHour, tz, -1);
+  }
+
+  // During sleep hours: check if puppy already woke up early (a log that occurred after bedtime in the waking window)
+  const hasAwokenToday = activities.some((activity) => {
+    const activityDate = parseIsoDate(activity.timestamp);
+    const logTime = activityDate.getTime();
+    if (logTime <= lastBedtime.getTime()) return false;
+    const logHour = getLocalDecimalHour(activityDate, tz);
+    return isDaytimeHour(logHour, Math.max(4.0, sleepSchedule.wakeupHour - 3), sleepSchedule.bedtimeHour);
+  });
+
+  return !hasAwokenToday;
 }
 
 /**
@@ -603,7 +600,7 @@ export function predictNextPee(
 
     if (months < 2.5) {
       const midNightPee = new Date(lastPeeTime + 4 * 60 * 60 * 1000);
-      if (midNightPee > now) {
+      if (midNightPee > now && midNightPee.getTime() < targetWakeup.getTime() - 45 * 60 * 1000) {
         nextExpectedAt = midNightPee;
         reason = 'Night mode: Young puppy mid-night potty break';
       } else {
@@ -657,9 +654,20 @@ export function predictNextPee(
   if (mode === 'daytime_baseline') {
     const expectedHour = getLocalDecimalHour(nextExpectedAt, tz);
     if (isNighttimeHour(expectedHour, sleepSchedule.wakeupHour, sleepSchedule.bedtimeHour)) {
-      const nextWakeup = getNextOccurrenceOfClockTime(now, sleepSchedule.wakeupHour, tz);
-      nextExpectedAt = nextWakeup;
-      reason = `Morning outing (~${wakeupStr})`;
+      const lastPeeHour = getLocalDecimalHour(lastPeeDate, tz);
+      const isEveningBedtimeApproach = (
+        !isSameLocalDate(lastPeeDate, now, tz) ||
+        lastPeeHour < Math.floor(sleepSchedule.bedtimeHour - 2)
+      ) && (now.getTime() - lastPeeTime) >= 2.5 * 60 * 60 * 1000;
+
+      // If the puppy hasn't peed since afternoon/dinner, keep the pre-bed walk tonight
+      if (isEveningBedtimeApproach && expectedHour < (sleepSchedule.bedtimeHour + 1.5)) {
+        // Keep tonight's pre-bedtime walk
+      } else {
+        const nextWakeup = getNextOccurrenceOfClockTime(now, sleepSchedule.wakeupHour, tz);
+        nextExpectedAt = nextWakeup;
+        reason = `Morning outing (~${wakeupStr})`;
+      }
     }
   }
 
@@ -856,7 +864,6 @@ export function predictNextFood(
   options?: PredictorOptions
 ): FoodPredictionResult {
   const tz = options?.timeZone || getUserTimezone();
-  const currentHour = getLocalDecimalHour(now, tz);
   const sleepSchedule = options?.sleepSchedule || detectSleepSchedule(activities, tz);
   const offsets = calculateMorningSequenceOffsets(activities, tz);
 
@@ -886,16 +893,6 @@ export function predictNextFood(
   const nextWakeup = getNextOccurrenceOfClockTime(now, sleepSchedule.wakeupHour, tz);
   const nextBreakfast = new Date(nextWakeup.getTime() + offsets.morningFoodOffsetMins * 60 * 1000);
   const nextBfastStr = formatLocalTime(nextBreakfast, tz);
-
-  const effectiveBedtimeHour = sleepSchedule.bedtimeHour < sleepSchedule.wakeupHour
-    ? sleepSchedule.bedtimeHour + 24
-    : sleepSchedule.bedtimeHour;
-  const lateEveningThresholdHour = Math.max(20, Math.floor(effectiveBedtimeHour - 1));
-  const effectiveCurrentHour = (sleepSchedule.bedtimeHour < sleepSchedule.wakeupHour && currentHour < sleepSchedule.wakeupHour)
-    ? currentHour + 24
-    : currentHour;
-  const isLateEveningCutoff = effectiveCurrentHour >= lateEveningThresholdHour;
-
   let nextExpectedAt: Date = todayBreakfast;
   let mode: FoodScheduleMode = 'daytime_schedule';
   let urgency: 'safe' | 'soon' | 'overdue' = 'safe';
@@ -909,10 +906,6 @@ export function predictNextFood(
     mode = 'goal_reached';
     nextExpectedAt = nextBreakfast;
     reason = `Daily goal reached (${todayGramTotal}g)`;
-  } else if (isLateEveningCutoff) {
-    mode = 'goal_reached';
-    nextExpectedAt = nextBreakfast;
-    reason = `Breakfast (~${nextBfastStr}, Meal 1 of ${targetMeals})`;
   } else if (todayMeals.length === 0) {
     nextExpectedAt = todayBreakfast;
     const minsUntilBreakfast = (todayBreakfast.getTime() - now.getTime()) / 60000;

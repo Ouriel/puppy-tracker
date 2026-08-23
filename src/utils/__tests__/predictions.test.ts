@@ -224,11 +224,11 @@ describe('predictions utility — comprehensive test suite', () => {
         expect(predictions.peeReason).toContain('Young puppy mid-night potty break');
       });
 
-      it('enters night mode when approaching bedtime (within 1 hour of bedtime)', () => {
+      it('keeps daytime mode active in the evening until bedtime is reached and pre-bed pee is logged', () => {
         const referenceTime = new Date('2026-08-07T21:45:00+02:00'); // 21:45 PM Paris (bedtime is 22:30)
         const predictions = calculatePredictions(dataset, mockProfile, referenceTime, 'Europe/Paris');
 
-        expect(predictions.peeMode).toBe('night_sleep');
+        expect(predictions.peeMode).toBe('daytime_baseline');
       });
 
       it('disables post-meal pee trigger for older puppies (age >= 8 months)', () => {
