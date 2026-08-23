@@ -179,8 +179,8 @@ describe('Balma Derived Variations Test Suite (5 Multi-Scenario Datasets)', () =
 
     const mealSchedule = detectMealSchedule(activities, 'UTC');
 
-    // Breakfast time across transition calculates 495 mins (08:15 AM)
-    expect(mealSchedule.breakfastMins).toBe(495);
+    // Weighted median across transition: recent 3-meal days (08:30 AM = 510m) dominate over older 4-meal days (08:00 AM = 480m)
+    expect(mealSchedule.breakfastMins).toBe(510);
   });
 
   it('Scenario 6: Balma Morning Awakening After Overnight Sleep Dataset (Screenshot 07:34 AM Reproduction)', () => {

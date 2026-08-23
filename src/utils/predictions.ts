@@ -254,7 +254,7 @@ export function calculateMorningSequenceOffsets(
   const byDate: Record<string, Activity[]> = {};
   recentActivities.forEach((act) => {
     const d = parseIsoDate(act.timestamp);
-    const dateStr = formatLocalDate(d, tz);
+    const dateStr = formatLogicalDate(d, tz);
     if (!byDate[dateStr]) byDate[dateStr] = [];
     byDate[dateStr].push(act);
   });
@@ -310,6 +310,7 @@ export function calculateMorningSequenceOffsets(
 
 /**
  * Learns puppy's historical typical meal times (breakfast, lunch, dinner) from food logs
+ * using exponential time-decay weighted medians (consistent with all other schedule detectors).
  */
 export function detectMealSchedule(
   activities: Activity[],
@@ -327,21 +328,23 @@ export function detectMealSchedule(
   if (foodLogs.length < 3) return defaultMeals;
 
   const tz = timeZone || getUserTimezone();
-  const bfasts: number[] = [];
-  const lunches: number[] = [];
-  const dinners: number[] = [];
+  const bfasts: { mins: number; weight: number }[] = [];
+  const lunches: { mins: number; weight: number }[] = [];
+  const dinners: { mins: number; weight: number }[] = [];
 
   foodLogs.forEach((f) => {
     const d = parseIsoDate(f.timestamp);
     const m = Math.round(getLocalDecimalHour(d, tz) * 60);
-    if (m >= 5 * 60 && m < 11 * 60) bfasts.push(m);
-    else if (m >= 11 * 60 && m < 16 * 60) lunches.push(m);
-    else if (m >= 16 * 60 && m <= 23 * 60 + 59) dinners.push(m);
+    const daysAgo = Math.max(0, (nowTime - d.getTime()) / (1000 * 60 * 60 * 24));
+    const weight = Math.exp(-daysAgo / 7);
+    if (m >= 5 * 60 && m < 11 * 60) bfasts.push({ mins: m, weight });
+    else if (m >= 11 * 60 && m < 16 * 60) lunches.push({ mins: m, weight });
+    else if (m >= 16 * 60 && m <= 23 * 60 + 59) dinners.push({ mins: m, weight });
   });
 
-  const breakfastMins = bfasts.length ? Math.round(bfasts.reduce((a, b) => a + b, 0) / bfasts.length) : defaultMeals.breakfastMins;
-  const lunchMins = lunches.length ? Math.round(lunches.reduce((a, b) => a + b, 0) / lunches.length) : defaultMeals.lunchMins;
-  const dinnerMins = dinners.length ? Math.round(dinners.reduce((a, b) => a + b, 0) / dinners.length) : defaultMeals.dinnerMins;
+  const breakfastMins = Math.round(calculateWeightedMedian(bfasts, defaultMeals.breakfastMins));
+  const lunchMins = Math.round(calculateWeightedMedian(lunches, defaultMeals.lunchMins));
+  const dinnerMins = Math.round(calculateWeightedMedian(dinners, defaultMeals.dinnerMins));
 
   return { breakfastMins, lunchMins, dinnerMins };
 }
@@ -453,8 +456,6 @@ export function calculateLearnedIntervalMinutes(
 }
 
 /**
- * Calculates adaptive learned delay between eating a meal and subsequent potty event (pee / poop).
-/**
  * Evaluates whether a puppy is eligible for post-meal potty override
  * based on canine neurological maturity (pudendal nerve myelination) and empirical data.
  */
@@ -531,10 +532,20 @@ export function calculateLearnedPostMealDelayMinutes(
     )
   );
 
-  // Semi-IQR for dynamic tolerance
-  const values = samples.map((s) => s.diffMinutes).sort((a, b) => a - b);
-  const q1 = values[Math.floor(values.length * 0.25)];
-  const q3 = values[Math.floor(values.length * 0.75)];
+  // Semi-IQR for dynamic tolerance (weighted percentiles, consistent with weighted median)
+  const sortedSamples = [...samples].sort((a, b) => a.diffMinutes - b.diffMinutes);
+  const totalSampleWeight = sortedSamples.reduce((sum, item) => sum + item.weight, 0);
+  const getWeightedPctl = (p: number): number => {
+    const target = totalSampleWeight * p;
+    let acc = 0;
+    for (const item of sortedSamples) {
+      acc += item.weight;
+      if (acc >= target) return item.diffMinutes;
+    }
+    return sortedSamples[sortedSamples.length - 1].diffMinutes;
+  };
+  const q1 = getWeightedPctl(0.25);
+  const q3 = getWeightedPctl(0.75);
   const semiIqr = Math.round(Math.max(5, Math.min(25, (q3 - q1) / 2 || defaultDelta)));
 
   return { delayMins, deltaMins: semiIqr, sampleCount: samples.length, foodCount: foodLogs.length, postMealRatio, isLearned: true };
@@ -754,8 +765,10 @@ export function predictNextPoop(
 
   if (isLastPoopDiarrhea && hoursSinceLastPoop < 12) {
     mode = 'daytime_baseline';
-    const elapsedHours = Math.floor((now.getTime() - lastPoopTime) / (60 * 60 * 1000));
-    nextExpectedAt = new Date(lastPoopTime + (elapsedHours + 1) * 60 * 60 * 1000);
+    // Smooth 60-minute rolling window: always target lastPoop + next 60m boundary
+    const elapsedMins = (now.getTime() - lastPoopTime) / (60 * 1000);
+    const nextBoundaryMins = Math.ceil(Math.max(elapsedMins, 1) / 60) * 60;
+    nextExpectedAt = new Date(lastPoopTime + nextBoundaryMins * 60 * 1000);
     reason = 'Digestive alert: frequent checks recommended';
   } else if (isLastPoopConstipated && hoursSinceLastPoop < 16) {
     mode = 'daytime_baseline';
@@ -898,7 +911,24 @@ export function predictNextFood(
   let urgency: 'safe' | 'soon' | 'overdue' = 'safe';
   let reason = '';
 
-  if (isNightTime) {
+  if (isNightTime && !isGoalReached && todayMeals.length > 0 && todayMeals.length < targetMeals) {
+    // Pre-bedtime meal preservation: daily goal not yet met, keep tonight's overdue meal
+    mode = 'daytime_schedule';
+    const lastMealToday = todayMeals.reduce((latest, curr) =>
+      parseIsoDate(curr.timestamp).getTime() > parseIsoDate(latest.timestamp).getTime() ? curr : latest
+    , todayMeals[0]);
+    const lastMealTime = parseIsoDate(lastMealToday.timestamp).getTime();
+    const remainingMealsCount = Math.max(1, targetMeals - todayMeals.length);
+    const effectiveBedtime = sleepSchedule.bedtimeHour < sleepSchedule.wakeupHour
+      ? sleepSchedule.bedtimeHour + 24
+      : sleepSchedule.bedtimeHour;
+    const lastMealHour = getLocalDecimalHour(new Date(lastMealTime), tz);
+    const wakingHoursLeft = Math.max(1, effectiveBedtime - lastMealHour);
+    const idealIntervalHours = Math.max(2.5, Math.min(5.5, wakingHoursLeft / (remainingMealsCount + 1)));
+    nextExpectedAt = new Date(lastMealTime + idealIntervalHours * 60 * 60 * 1000);
+    urgency = 'overdue';
+    reason = `Meal ${todayMeals.length + 1} of ${targetMeals} — late dinner (${todayGramTotal}g of ${profile.dailyFoodGramGoal}g)`;
+  } else if (isNightTime) {
     mode = 'night_sleep';
     nextExpectedAt = nextBreakfast;
     reason = `Breakfast (~${nextBfastStr}, Meal 1 of ${targetMeals})`;

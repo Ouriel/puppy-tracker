@@ -16,7 +16,7 @@
   [![Vite](https://img.shields.io/badge/Vite-8.x-646cff?logo=vite&logoColor=white)](https://vitejs.dev/)
   [![Tailwind CSS](https://img.shields.io/badge/Tailwind-4.x-38bdf8?logo=tailwindcss&logoColor=white)](https://tailwindcss.com/)
   [![Neon PostgreSQL](https://img.shields.io/badge/Neon-Serverless_PostgreSQL-00e599?logo=postgresql&logoColor=white)](https://neon.tech/)
-  [![Vitest](https://img.shields.io/badge/Tests-144_Passing-green?logo=vitest&logoColor=white)](https://vitest.dev/)
+  [![Vitest](https://img.shields.io/badge/Tests-178_Passing-green?logo=vitest&logoColor=white)](https://vitest.dev/)
   [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 </div>
 
@@ -37,6 +37,7 @@
 - [How It Works (Under the Hood)](#-how-it-works-under-the-hood)
   - [The Potty & Sleep Biological Pipeline](#the-potty--sleep-biological-pipeline)
   - [The Age-Graduated Gastrocolic Maturation Model](#the-age-graduated-gastrocolic-maturation-model)
+  - [Prediction Engine State Machine](#prediction-engine-state-machine)
   - [Nutritional Mathematics (RER & MER)](#nutritional-mathematics-rer--mer)
 - [Project Architecture](#-project-architecture)
 - [Getting Started](#-getting-started)
@@ -127,6 +128,69 @@ flowchart TD
 - **Stool Quality Feedback**:
   - `diarrhea` / `liquid` $\rightarrow$ Triggers rapid 60m GI Upset check interval.
   - `hard` / `constipated` $\rightarrow$ Adds a 20% refractory extension to the learned median.
+
+### Prediction Engine State Machine
+
+The engine operates as **three independent, decoupled prediction pipelines** that share a common learned sleep schedule and empirical morning-sequence offsets. Each pipeline resolves to exactly one discrete mode per evaluation.
+
+```mermaid
+stateDiagram-v2
+    direction TB
+
+    state "Pee Pipeline" as PEE {
+        [*] --> NightSleep_P: isNightTimeMode
+        NightSleep_P --> MidNightBreak: age < 2.5mo
+        NightSleep_P --> MorningWakeup_P: else
+        [*] --> NewDayNoLogs_P: todayPees = 0
+        NewDayNoLogs_P --> MorningWakeup_P
+        [*] --> PostMealCheck_P: food after lastPee
+        PostMealCheck_P --> PreMealVoid_P: peed within 30m before food
+        PreMealVoid_P --> DaytimeBaseline_P
+        PostMealCheck_P --> PostMealOverride_P: within delay window
+        PostMealCheck_P --> DaytimeBaseline_P: expired
+        [*] --> DaytimeBaseline_P: default
+        DaytimeBaseline_P --> PreBedWalk: evening approach
+        DaytimeBaseline_P --> MorningWakeup_P: lands in night
+    }
+
+    state "Poop Pipeline" as POOP {
+        [*] --> DiarrheaAlert: diarrhea < 12h
+        [*] --> ConstipationPause: hard stool < 16h
+        [*] --> NightSleep_Po: isNightTimeMode
+        NightSleep_Po --> MorningPoop: wakeup + offset
+        [*] --> NewDayNoPoop: todayPoops = 0
+        NewDayNoPoop --> PostMealOverride_Po: has meals today
+        NewDayNoPoop --> MorningPoop: no meals
+        [*] --> PostMealOverride_Po: food after lastPoop
+        [*] --> DaytimeBaseline_Po: default
+        DaytimeBaseline_Po --> MorningPoop: lands in night
+    }
+
+    state "Food Pipeline" as FOOD {
+        [*] --> NightSleep_F: isNightTimeMode
+        NightSleep_F --> NextBreakfast
+        [*] --> GoalReached: grams >= 90% goal
+        GoalReached --> NextBreakfast
+        [*] --> BreakfastDue: no meals today
+        [*] --> SpacedSchedule: meals logged today
+        SpacedSchedule --> PreBedMeal: evening + goal not met
+    }
+```
+
+**Mode Resolution Priority** (evaluated top-to-bottom, first match wins):
+
+| Pipeline | Priority | Modes |
+|----------|----------|-------|
+| **Pee** | 1→3 | `night_sleep` → `post_meal_override` → `daytime_baseline` |
+| **Poop** | 1→5 | GI overrides (diarrhea/constipation) → `night_sleep` → new-day morning → `post_meal_override` → `daytime_baseline` |
+| **Food** | 1→4 | `night_sleep` → `goal_reached` → breakfast due → `daytime_schedule` (spaced) |
+
+**Key Transition Rules:**
+- **Night → Day**: `isNightTimeMode` returns `false` as soon as any activity is logged in the early-morning wakeup window (`max(4:00 AM, wakeupHour − 3h)` to bedtime).
+- **Pre-Bed Walk Preservation**: When the learned interval lands slightly past bedtime and the puppy hasn't been out since afternoon, the Pee pipeline preserves tonight's pre-bedtime outing instead of jumping to morning.
+- **Pre-Bed Meal Preservation**: When the daily food goal is not yet met and bedtime is approaching, the Food pipeline preserves tonight's late meal instead of deferring to tomorrow's breakfast.
+- **GI Health Overrides**: Diarrhea (hourly check-in for 12h) and constipation (refractory pause) take absolute priority — they override even night sleep mode.
+- **Pre-Meal Void Detection**: If the puppy emptied bladder/bowels ≤ 30 minutes before eating, the post-meal override is skipped (fresh bladder doesn't need immediate re-emptying).
 
 ### Nutritional Mathematics (RER & MER)
 
