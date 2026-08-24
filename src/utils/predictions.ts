@@ -655,30 +655,27 @@ export function predictNextPee(
     }
   } else {
     mode = 'daytime_baseline';
-    nextExpectedAt = standardExpectedAt;
-    reason = learnedPee.isLearned
-      ? `Learned average: ~${formatMinutesToXhXX(learnedPee.intervalMins)} bladder interval`
-      : `Standard bladder interval (~${formatMinutesToXhXX(learnedPee.intervalMins)})`;
-  }
-
-  // Prevent standard daytime calculations from landing in the middle of overnight sleep
-  if (mode === 'daytime_baseline') {
-    const expectedHour = getLocalDecimalHour(nextExpectedAt, tz);
+    const expectedHour = getLocalDecimalHour(standardExpectedAt, tz);
     if (isNighttimeHour(expectedHour, sleepSchedule.wakeupHour, sleepSchedule.bedtimeHour)) {
       const lastPeeHour = getLocalDecimalHour(lastPeeDate, tz);
-      const isEveningBedtimeApproach = (
-        !isSameLocalDate(lastPeeDate, now, tz) ||
-        lastPeeHour < Math.floor(sleepSchedule.bedtimeHour - 2)
-      ) && (now.getTime() - lastPeeTime) >= 2.5 * 60 * 60 * 1000;
+      const isPreBedPottyDone = isSameLocalDate(lastPeeDate, now, tz) && lastPeeHour >= (sleepSchedule.bedtimeHour - 2.0);
 
-      // If the puppy hasn't peed since afternoon/dinner, keep the pre-bed walk tonight
-      if (isEveningBedtimeApproach && expectedHour < (sleepSchedule.bedtimeHour + 1.5)) {
-        // Keep tonight's pre-bedtime walk
-      } else {
+      // If the puppy already emptied bladder right before bed, roll over to morning wakeup
+      if (isPreBedPottyDone) {
         const nextWakeup = getNextOccurrenceOfClockTime(now, sleepSchedule.wakeupHour, tz);
         nextExpectedAt = nextWakeup;
         reason = `Morning outing (~${wakeupStr})`;
+      } else {
+        nextExpectedAt = standardExpectedAt;
+        reason = learnedPee.isLearned
+          ? `Learned average: ~${formatMinutesToXhXX(learnedPee.intervalMins)} bladder interval`
+          : `Standard bladder interval (~${formatMinutesToXhXX(learnedPee.intervalMins)})`;
       }
+    } else {
+      nextExpectedAt = standardExpectedAt;
+      reason = learnedPee.isLearned
+        ? `Learned average: ~${formatMinutesToXhXX(learnedPee.intervalMins)} bladder interval`
+        : `Standard bladder interval (~${formatMinutesToXhXX(learnedPee.intervalMins)})`;
     }
   }
 
@@ -835,10 +832,21 @@ export function predictNextPoop(
       mode = 'daytime_baseline';
       const expectedHour = getLocalDecimalHour(standardExpectedAt, tz);
       if (isNighttimeHour(expectedHour, sleepSchedule.wakeupHour, sleepSchedule.bedtimeHour)) {
-        const nextWakeup = getNextOccurrenceOfClockTime(now, sleepSchedule.wakeupHour, tz);
-        nextExpectedAt = new Date(nextWakeup.getTime() + offsets.morningPoopOffsetMins * 60 * 1000);
-        const targetTimeStr = formatLocalTime(nextExpectedAt, tz);
-        reason = `Morning outing (~${targetTimeStr})`;
+        const lastPoopHour = getLocalDecimalHour(lastPoopDate, tz);
+        const isPreBedPottyDone = isSameLocalDate(lastPoopDate, now, tz) && lastPoopHour >= (sleepSchedule.bedtimeHour - 2.0);
+
+        // If the puppy already emptied bowels right before bed, roll over to morning wakeup
+        if (isPreBedPottyDone) {
+          const nextWakeup = getNextOccurrenceOfClockTime(now, sleepSchedule.wakeupHour, tz);
+          nextExpectedAt = new Date(nextWakeup.getTime() + offsets.morningPoopOffsetMins * 60 * 1000);
+          const targetTimeStr = formatLocalTime(nextExpectedAt, tz);
+          reason = `Morning outing (~${targetTimeStr})`;
+        } else {
+          nextExpectedAt = standardExpectedAt;
+          reason = learnedPoop.isLearned
+            ? `Learned average: ~${formatMinutesToXhXX(learnedPoop.intervalMins)} digestive interval`
+            : 'Standard digestive interval (~6h)';
+        }
       } else {
         nextExpectedAt = standardExpectedAt;
         reason = learnedPoop.isLearned
