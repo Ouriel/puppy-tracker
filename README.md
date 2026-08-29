@@ -93,7 +93,7 @@ flowchart TD
     A[Household Activity Logs] --> B[detectSleepSchedule Engine]
     B -->|Timezone-Aware Decimal Hours| C[Wakeup & Bedtime Anchor]
     A --> D[Exponential Time-Decay Filter]
-    D -->|7-Day Half-Life Weighting| E[Waking Intervals Median]
+    D -->|10-Day Half-Life Weighting| E[70th Percentile Retention Estimator]
     C --> F[predictNextPee Pipeline]
     E --> F
     F --> G[Dynamic Target Time ± Semi-IQR]
@@ -101,10 +101,12 @@ flowchart TD
 
 1. **Sleep Schedule Detection (`detectSleepSchedule`)**:
    Analyzes nighttime gaps in activity logs using floating-point decimal hours (`getLocalDecimalHour`) to determine exact household bedtime and wakeup times without hardcoded assumptions.
-2. **Exponential Recency Weighting**:
-   Recent days carry higher weight than logs from two weeks ago ($w_i = 0.5^{\Delta t / 7\text{d}}$), allowing the model to smoothly follow your puppy's growing bladder capacity.
-3. **Night Boundary Filtering**:
-   Filters out night sleep intervals so morning pee intervals reflect real awake bladder retention rather than 8-hour overnight holds.
+2. **Exponential Recency Weighting (10-Day Half-Life)**:
+   Weights recent days with a 10-day half-life ($w_i = e^{-\Delta t / 10\text{d}}$), allowing the model to steadily track puppy growth while remaining resilient against temporary 3–4 day vacation disruptions.
+3. **Capacity-Aware Retention Estimator (70th Percentile)**:
+   For Pee, the engine uses the **70th percentile** of daytime intervals rather than a simple median. Potty data is right-censored: short intervals reflect human walking opportunities (e.g. taking the dog out to a café), whereas the 70th percentile captures true biological holding capacity. For Poop, the 50th percentile (median) tracks continuous 24/7 GI transit.
+4. **Night Boundary Filtering**:
+   Filters out night sleep intervals so daytime pee intervals reflect real awake bladder retention rather than 8-hour overnight holds.
 
 ### The Age-Graduated Gastrocolic Maturation Model
 
@@ -186,9 +188,9 @@ stateDiagram-v2
 | **Food** | 1→4 | `night_sleep` → `goal_reached` → breakfast due → `daytime_schedule` (spaced) |
 
 **Key Transition Rules:**
-- **Night → Day**: `isNightTimeMode` returns `false` as soon as any activity is logged in the early-morning wakeup window (`max(4:00 AM, wakeupHour − 3h)` to bedtime).
-- **Pre-Bed Walk Preservation**: When the learned interval lands slightly past bedtime and the puppy hasn't been out since afternoon, the Pee pipeline preserves tonight's pre-bedtime outing instead of jumping to morning.
-- **Pre-Bed Meal Preservation**: When the daily food goal is not yet met and bedtime is approaching, the Food pipeline preserves tonight's late meal instead of deferring to tomorrow's breakfast.
+- **Night → Day**: `isNightTimeMode` returns `false` as soon as any activity is logged after bedtime in the early-morning wakeup window (`max(4:00 AM, wakeupHour − 3h)` to bedtime), instantly exiting night sleep.
+- **Symmetric Pre-Bed Potty Awareness (`isPreBedPottyDone`)**: When an expected potty lands in nighttime sleep hours, the engine checks if the puppy already emptied their bladder/bowels in the pre-bed window ($\ge \text{bedtime} - 2\text{h}$). If yes, it smoothly rolls over to morning wakeup; if no (last potty was afternoon/early evening), it preserves tonight's pre-bed outing.
+- **Dynamic Daytime Meal Spacing & Overflow Handling**: The food pipeline divides the remaining waking hours until bedtime (`wakingHoursLeft / (remainingMeals + 1)`). If snacks or split meals cause `todayMeals.length >= targetMeals` before the 90% daily gram goal is met, it gracefully formats the schedule as `Remaining portion (spaced ~X.Xh)` rather than an invalid meal count ratio.
 - **GI Health Overrides**: Diarrhea (hourly check-in for 12h) and constipation (refractory pause) take absolute priority — they override even night sleep mode.
 - **Pre-Meal Void Detection**: If the puppy emptied bladder/bowels ≤ 30 minutes before eating, the post-meal override is skipped (fresh bladder doesn't need immediate re-emptying).
 

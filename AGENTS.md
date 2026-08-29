@@ -65,8 +65,16 @@ PupPace — Smart Household Puppy Activity Tracker & Potty Predictor. React 19 +
 
 ### Testing & Verification
 
-- Every test must exercise real code — zero placeholder assertions (144/144 tests passing across 16 test files).
-- Multi-day 30-day realistic dataset test suite (`src/utils/__tests__/realistic_dataset.test.ts` & `predictions.test.ts`) verifies predictions, sleep bounds, age-graduated gastrocolic reflex maturation, and protocols.
+- Every test must exercise real code — zero placeholder assertions (178/178 tests passing across 20 test files).
+- Multi-day 30-day realistic dataset test suite (`src/utils/__tests__/realistic_dataset.test.ts`, `predictions.test.ts`, and `night_mode_and_age_transitions.test.ts`) verifies predictions, sleep bounds, age-graduated gastrocolic reflex maturation, and protocols.
+
+### Predictive Engine & Statistical Standards
+
+- **10-Day Half-Life Decay**: `calculateLearnedIntervalMinutes` uses a 10-day exponential half-life ($e^{-\Delta t / 10\text{d}}$) to steadily reflect puppy maturation without getting distorted by short 3–4 day vacation disruptions or weekend trips.
+- **Capacity-Aware Pee Estimation (70th Percentile)**: Potty logs are right-censored by human walking opportunities. For Daytime Pee intervals, the engine estimates the 70th percentile of daytime intervals to filter out short opportunistic walks and capture true biological retention capacity.
+- **Continuous 24/7 Poop Transit (50th Percentile / Median)**: Defecation is bolus-driven; the engine maintains the median to track true gastrointestinal transit time without delaying alerts.
+- **Dynamic Diurnal Meal Pacing**: The food engine divides the remaining waking hours until bedtime (`wakingHoursLeft / (remainingMeals + 1)`). When split meals or treats result in `todayMeals.length >= targetMeals` before the 90% daily gram goal is met, format as `Remaining portion (spaced ~X.Xh)` (in French: `Portion restante (espacée de ~X.Xh)`).
+- **Symmetric Pre-Bed Void Awareness (`isPreBedPottyDone`)**: When an expected void lands in night hours, roll over to morning only if the puppy already emptied their bladder/bowels in the pre-bed window ($\ge \text{bedtime} - 2\text{h}$). Otherwise, preserve tonight's pre-bed outing.
 
 ### Safe Database Inspection
 
