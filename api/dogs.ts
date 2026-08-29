@@ -20,10 +20,9 @@ const DogSchema = z.object({
   avatarUrl: z.string().nullable().optional(),
 });
 
-function getDb() {
-  const sql = neon(process.env.POSTGRES_URL || process.env.DATABASE_URL || '');
-  return drizzle(sql);
-}
+const connectionString = process.env.POSTGRES_URL || process.env.DATABASE_URL || '';
+const sql = neon(connectionString);
+const db = drizzle(sql);
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   setCorsHeaders(req, res, 'GET, POST, PUT, DELETE, OPTIONS');
@@ -40,7 +39,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const householdId = auth.householdId;
-  const db = getDb();
 
   try {
     // GET /api/dogs

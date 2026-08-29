@@ -65,7 +65,7 @@ PupPace — Smart Household Puppy Activity Tracker & Potty Predictor. React 19 +
 
 ### Testing & Verification
 
-- Every test must exercise real code — zero placeholder assertions (178/178 tests passing across 20 test files).
+- Every test must exercise real code — zero placeholder assertions (181/181 tests passing across 21 test files).
 - Multi-day 30-day realistic dataset test suite (`src/utils/__tests__/realistic_dataset.test.ts`, `predictions.test.ts`, and `night_mode_and_age_transitions.test.ts`) verifies predictions, sleep bounds, age-graduated gastrocolic reflex maturation, and protocols.
 
 ### Predictive Engine & Statistical Standards
@@ -86,6 +86,7 @@ PupPace — Smart Household Puppy Activity Tracker & Potty Predictor. React 19 +
 | ------------------------------------- | ------------------------------------------------------------------------------------- |
 | `src/types/index.ts`                  | Canonical domain interfaces (`Activity`, `PuppyProfile`, `PredictionResult`)         |
 | `src/db/schema.ts`                    | Single source of truth Drizzle ORM database tables                                    |
+| `api/dashboard.ts`                    | Backend-for-Frontend (BFF) single-roundtrip boot endpoint (dogs + caretakers + acts)   |
 | `src/data/healthProtocols.json`       | Dataset for vaccine types, antiparasitics (Credelio Plus, etc.), and ESCCAP rules     |
 | `src/services/api.ts`                 | SWR-cached REST API client & fetch helpers                                            |
 | `scripts/inspect_db.ts`               | Safe database inspection & live prediction engine diagnostics script                    |
@@ -99,8 +100,9 @@ PupPace — Smart Household Puppy Activity Tracker & Potty Predictor. React 19 +
 - App-wide state (language, theme, active tenant) must be provided via a root React Context (`I18nProvider`) wrapped at `main.tsx`.
 - Never use local `useState(getStoredLanguage)` in individual components; this causes desynchronized state and fails to re-render sibling components upon language switch.
 
-### API Caching, In-Flight Deduplication & Network Discipline
+### API Caching, In-Flight Deduplication & BFF Boot Discipline
 
+- **Single Boot Roundtrip (`/api/dashboard`)**: The initial dashboard view loads via `GET /api/dashboard`, executing puppies, caretakers, and recent activities in one single concurrent database execution. Eliminates cold-start waterfalls.
 - `src/services/api.ts` maintains an `inflightRequests` map to de-duplicate simultaneous requests for identical URLs across mounting components.
 - Within the in-memory TTL window (60s), serve from cache directly without spawning redundant background `fetch()` requests on every tab switch.
 - Clear cache synchronously on mutations (`createActivity`, `updateActivity`, `deleteActivity`, `createDog`, etc.).

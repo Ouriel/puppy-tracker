@@ -35,8 +35,11 @@ export const Navbar: React.FC<NavbarProps> = ({
         <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
           <div className="flex items-center gap-2">
             <img
-              src="/puppace_logo.png"
+              src="/puppace_logo.webp"
               alt="PupPace Logo"
+              width="36"
+              height="36"
+              fetchPriority="high"
               className="w-8 h-8 sm:w-9 sm:h-9 object-contain shrink-0"
             />
             <span className="text-base font-extrabold tracking-tight bg-gradient-to-r from-amber-300 via-indigo-300 to-pink-300 bg-clip-text text-transparent hidden md:inline">

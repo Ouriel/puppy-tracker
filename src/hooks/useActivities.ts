@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import type { Activity, PuppyProfile } from '../types';
 import { fetchActivities, createActivity, updateActivity as apiUpdateActivity, deleteActivity as apiDeleteActivity } from '../services/api';
 import { showToast } from '../utils/toast';
@@ -10,22 +10,35 @@ export function useActivities(activePuppy: PuppyProfile | null) {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isFetchingMore, setIsFetchingMore] = useState(false);
   const [hasMoreRemote, setHasMoreRemote] = useState(true);
+  const loadedPuppyIdRef = useRef<string | null>(null);
 
-  // Fetch activities when active puppy changes
+  const setActivitiesForPuppy = useCallback((newActivities: Activity[], puppyId: string) => {
+    loadedPuppyIdRef.current = puppyId;
+    setActivities(newActivities);
+    setIsLoading(false);
+    setHasMoreRemote(newActivities.length >= 150);
+  }, []);
+
+  // Fetch activities when active puppy changes (skips duplicate fetch if already loaded via dashboard BFF)
   useEffect(() => {
     if (!activePuppy?.id) {
       setIsLoading(false);
       return;
     }
 
+    if (loadedPuppyIdRef.current === activePuppy.id) {
+      return;
+    }
+
     let isMounted = true;
     async function loadActivities() {
       setIsLoading(true);
-      // Fetch initial 30-day window (matches prediction learning history & 7-day timeline view)
-      const result = await fetchActivities(activePuppy!.id, { days: 30, limit: 300, offset: 0 });
+      // Fetch initial 14-day window (matches 10-day decay learning history & 7-day timeline view)
+      const result = await fetchActivities(activePuppy!.id, { days: 14, limit: 150, offset: 0 });
       if (isMounted && result.ok) {
+        loadedPuppyIdRef.current = activePuppy!.id;
         setActivities(result.data);
-        setHasMoreRemote(result.data.length >= 300);
+        setHasMoreRemote(result.data.length >= 150);
       }
       if (isMounted) {
         setIsLoading(false);
@@ -148,6 +161,7 @@ export function useActivities(activePuppy: PuppyProfile | null) {
   return {
     activities,
     setActivities,
+    setActivitiesForPuppy,
     isLoadingActivities: isLoading,
     hasMoreRemoteActivities: hasMoreRemote,
     isFetchingMoreActivities: isFetchingMore,

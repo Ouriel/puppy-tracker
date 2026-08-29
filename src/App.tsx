@@ -3,6 +3,7 @@ import type { Activity, UserAccount, ActivityType, PottyLocation, FamilyRole } f
 import { getAuthToken, setAuthToken, getStoredAuthUser, setStoredAuthUser } from './utils/auth';
 import { isSuperAdminEmail } from './constants/auth';
 import {
+  fetchDashboard,
   fetchDogs,
   fetchHousehold,
   exchangeSessionToken,
@@ -108,21 +109,41 @@ export function App() {
       }
 
       try {
-        // Parallel data loading: dogs and household in 1 concurrent roundtrip
-        const [dogsRes, householdRes] = await Promise.all([
-          fetchDogs(),
-          fetchHousehold(),
-        ]);
-
-        if (dogsRes.ok && dogsRes.data.length > 0) {
-          puppyState.setPuppies(dogsRes.data);
-          if (!puppyState.activePuppyId || !dogsRes.data.some((puppy) => puppy.id === puppyState.activePuppyId)) {
-            puppyState.selectPuppy(dogsRes.data[0].id);
+        const initialView = getViewFromPath();
+        if (initialView === 'dashboard') {
+          // Single BFF roundtrip: puppies, caretakers, and recent 14d activities in 1 cold start
+          const dashboardRes = await fetchDashboard(puppyState.activePuppyId || undefined, 14);
+          if (dashboardRes.ok) {
+            const { puppies, caretakers, activities } = dashboardRes.data;
+            if (puppies && puppies.length > 0) {
+              puppyState.setPuppies(puppies);
+              const targetPuppyId = (puppyState.activePuppyId && puppies.some((puppy) => puppy.id === puppyState.activePuppyId))
+                ? puppyState.activePuppyId
+                : puppies[0].id;
+              puppyState.selectPuppy(targetPuppyId);
+              activityState.setActivitiesForPuppy(activities, targetPuppyId);
+            }
+            if (caretakers && caretakers.length > 0) {
+              caretakerState.setCaretakers(caretakers);
+            }
           }
-        }
+        } else {
+          // Secondary views (Health Passport, Settings): load dogs and household only, never wait for potty logs
+          const [dogsRes, householdRes] = await Promise.all([
+            fetchDogs(),
+            fetchHousehold(),
+          ]);
 
-        if (householdRes.ok && householdRes.data?.caretakers && householdRes.data.caretakers.length > 0) {
-          caretakerState.setCaretakers(householdRes.data.caretakers);
+          if (dogsRes.ok && dogsRes.data.length > 0) {
+            puppyState.setPuppies(dogsRes.data);
+            if (!puppyState.activePuppyId || !dogsRes.data.some((puppy) => puppy.id === puppyState.activePuppyId)) {
+              puppyState.selectPuppy(dogsRes.data[0].id);
+            }
+          }
+
+          if (householdRes.ok && householdRes.data?.caretakers && householdRes.data.caretakers.length > 0) {
+            caretakerState.setCaretakers(householdRes.data.caretakers);
+          }
         }
       } catch (err) {
         console.error('Failed to load initial PupPace data', err);
@@ -279,7 +300,7 @@ export function App() {
     return { success: true };
   };
 
-  if (isLoading || (user && activityState.isLoadingActivities && puppyState.puppies.length > 0)) {
+  if (isLoading || (currentView === 'dashboard' && user && activityState.isLoadingActivities && puppyState.puppies.length > 0)) {
     return (
       <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center">
         <div className="text-center space-y-3">

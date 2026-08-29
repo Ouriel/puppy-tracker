@@ -127,8 +127,11 @@ export const AuthLockScreen: React.FC<AuthLockScreenProps> = ({
           <div className="text-center space-y-2 relative z-10">
             <div className="relative inline-block">
               <img
-                src="/puppace_logo.png"
+                src="/puppace_logo.webp"
                 alt="PupPace Logo"
+                width="80"
+                height="80"
+                fetchPriority="high"
                 className="w-20 h-20 object-contain mx-auto drop-shadow-xl"
               />
               <div className="absolute bottom-0 right-0 p-1.5 bg-indigo-600 text-white rounded-full shadow-lg ring-2 ring-slate-900">

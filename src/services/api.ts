@@ -92,6 +92,22 @@ async function request<T>(url: string, options: RequestInit = {}): Promise<ApiRe
   return fetchPromise;
 }
 
+// ── Dashboard BFF API ──
+
+export interface DashboardPayload {
+  puppies: PuppyProfile[];
+  caretakers: Caretaker[];
+  activities: Activity[];
+}
+
+export async function fetchDashboard(puppyId?: string, days: number = 14): Promise<ApiResult<DashboardPayload>> {
+  const params = new URLSearchParams();
+  if (puppyId) params.set('puppyId', puppyId);
+  if (days) params.set('days', days.toString());
+  const queryString = params.toString();
+  return request<DashboardPayload>(queryString ? `/api/dashboard?${queryString}` : '/api/dashboard');
+}
+
 // ── Dogs API ──
 
 export async function fetchDogs(): Promise<ApiResult<PuppyProfile[]>> {
