@@ -390,7 +390,7 @@ export function calculateLearnedIntervalMinutes(
       if (type === 'poop') {
         // Gastrointestinal transit operates continuously 24/7 across consecutive bowel movements
         const daysAgo = Math.max(0, (nowTime - currTime.getTime()) / (1000 * 60 * 60 * 24));
-        const weight = Math.exp(-daysAgo / 3);
+        const weight = Math.exp(-daysAgo / 10);
         intervals.push({ diffMinutes, weight });
       } else {
         const prevHour = getLocalDecimalHour(prevTime, timeZone);
@@ -408,9 +408,9 @@ export function calculateLearnedIntervalMinutes(
 
         // Allow valid waking retention intervals (including pre-bedtime outings around midnight)
         if (isPrevDay && isCurrDay && !crossesNight && diffMinutes <= 8 * 60) {
-          // Exponential time decay: 3-day half-life so recent days count significantly more
+          // Exponential time decay: 10-day half-life tracks growth without getting hijacked by short vacations
           const daysAgo = Math.max(0, (nowTime - currTime.getTime()) / (1000 * 60 * 60 * 24));
-          const weight = Math.exp(-daysAgo / 3);
+          const weight = Math.exp(-daysAgo / 10);
           intervals.push({ diffMinutes, weight });
         }
       }
@@ -421,11 +421,11 @@ export function calculateLearnedIntervalMinutes(
     return { intervalMins: fallbackMinutes, deltaMins: defaultDelta, sampleCount: 0, isLearned: false };
   }
 
-  intervals.sort((a, b) => a.diffMinutes - b.diffMinutes);
+  intervals.sort((itemA, itemB) => itemA.diffMinutes - itemB.diffMinutes);
   const totalWeight = intervals.reduce((sum, item) => sum + item.weight, 0);
 
-  const getWeightedPercentile = (p: number): number => {
-    const targetWeight = totalWeight * p;
+  const getWeightedPercentile = (percentile: number): number => {
+    const targetWeight = totalWeight * percentile;
     let accumulated = 0;
     for (const item of intervals) {
       accumulated += item.weight;
@@ -435,7 +435,10 @@ export function calculateLearnedIntervalMinutes(
   };
 
   const p25 = getWeightedPercentile(0.25);
-  const medianMinutes = Math.round(getWeightedPercentile(0.50));
+  // For pee, 70th percentile captures true biological bladder capacity by filtering out short opportunistic walks.
+  // For poop, 50th percentile (median) tracks continuous 24/7 gastrointestinal transit.
+  const targetPercentile = type === 'pee' ? 0.70 : 0.50;
+  const learnedMinutes = Math.round(getWeightedPercentile(targetPercentile));
   const p75 = getWeightedPercentile(0.75);
 
   // Semi-IQR for dynamic ± delta margin
@@ -448,7 +451,7 @@ export function calculateLearnedIntervalMinutes(
   const maxInterval = type === 'pee' ? 360 : 1440;
 
   return {
-    intervalMins: Math.max(minInterval, Math.min(medianMinutes, maxInterval)),
+    intervalMins: Math.max(minInterval, Math.min(learnedMinutes, maxInterval)),
     deltaMins,
     sampleCount: intervals.length,
     isLearned: true,
