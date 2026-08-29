@@ -68,6 +68,12 @@ export function translatePredictionReason(reason: string, lang: Language): strin
       "Repas $1 sur $2 (espacés de ~$3h)"
     );
   }
+  if (reason.startsWith("Remaining portion (spaced ~")) {
+    return reason.replace(
+      /Remaining portion \(spaced ~([0-9.]+)h\)/,
+      "Portion restante (espacée de ~$1h)"
+    );
+  }
   if (reason.startsWith("Daily goal reached (")) {
     return reason.replace(
       /Daily goal reached \((\d+g)\)/,

@@ -458,6 +458,7 @@ describe('predictions utility — comprehensive test suite', () => {
 
       // Should still be in daytime schedule because 120g is only 50% of the 240g goal
       expect(predictions.foodMode).toBe('daytime_schedule');
+      expect(predictions.foodReason).toContain('Remaining portion');
     });
 
     it('Bug 5: detectSleepSchedule adapts rapidly to shifted bedtime in recent days', () => {

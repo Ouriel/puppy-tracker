@@ -935,7 +935,9 @@ export function predictNextFood(
     const idealIntervalHours = Math.max(2.5, Math.min(5.5, wakingHoursLeft / (remainingMealsCount + 1)));
     nextExpectedAt = new Date(lastMealTime + idealIntervalHours * 60 * 60 * 1000);
     urgency = 'overdue';
-    reason = `Meal ${todayMeals.length + 1} of ${targetMeals} (spaced ~${idealIntervalHours.toFixed(1)}h)`;
+    reason = todayMeals.length >= targetMeals
+      ? `Remaining portion (spaced ~${idealIntervalHours.toFixed(1)}h)`
+      : `Meal ${todayMeals.length + 1} of ${targetMeals} (spaced ~${idealIntervalHours.toFixed(1)}h)`;
   } else if (isNightTime) {
     mode = 'night_sleep';
     nextExpectedAt = nextBreakfast;
@@ -976,7 +978,9 @@ export function predictNextFood(
     if (minsUntil <= 0) urgency = 'overdue';
     else if (minsUntil <= 30) urgency = 'soon';
 
-    reason = `Meal ${todayMeals.length + 1} of ${targetMeals} (spaced ~${idealIntervalHours.toFixed(1)}h)`;
+    reason = todayMeals.length >= targetMeals
+      ? `Remaining portion (spaced ~${idealIntervalHours.toFixed(1)}h)`
+      : `Meal ${todayMeals.length + 1} of ${targetMeals} (spaced ~${idealIntervalHours.toFixed(1)}h)`;
   }
 
   const portionGrams = calculateNextMealPortion(
