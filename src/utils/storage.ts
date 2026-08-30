@@ -1,18 +1,8 @@
-import type { Caretaker, PuppyProfile, UserAccount } from '../types';
-import { SUPER_ADMIN_EMAIL } from '../constants/auth';
+import type { Caretaker, PuppyProfile } from '../types';
 
 const STORAGE_KEY_ACTIVE_PUPPY = 'puppace_active_puppy';
 
 export const DEFAULT_PUPPIES: PuppyProfile[] = [];
-
-export const DEFAULT_USER: UserAccount = {
-  id: 'usr-default',
-  name: 'Matthieu',
-  email: SUPER_ADMIN_EMAIL,
-  role: 'Member',
-  avatarColor: '#6366F1',
-  familyPackId: 'FAMILY-COCKER-2026',
-};
 
 export const DEFAULT_CARETAKERS: Caretaker[] = [
   { id: '1', name: 'Matthieu', role: 'Member', color: '#6366F1' },
@@ -20,10 +10,6 @@ export const DEFAULT_CARETAKERS: Caretaker[] = [
 
 const STORAGE_KEY_CACHED_PUPPIES = 'puppace_cached_puppies';
 const STORAGE_KEY_CACHED_CARETAKERS = 'puppace_cached_caretakers';
-
-export function getStoredUser(): UserAccount {
-  return DEFAULT_USER;
-}
 
 export function getStoredPuppies(): PuppyProfile[] {
   if (typeof localStorage === 'undefined') return DEFAULT_PUPPIES;

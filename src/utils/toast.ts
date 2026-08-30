@@ -18,7 +18,3 @@ export function showToast(msg: string, type: ToastType = 'info') {
       break;
   }
 }
-
-export function onToast(_callback: (msg: string, type: ToastType) => void) {
-  // No-op: HeroUI ToastProvider handles toast rendering
-}

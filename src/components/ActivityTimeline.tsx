@@ -6,11 +6,10 @@ import { Button, Card } from '@heroui/react';
 import { useI18n } from '../i18n';
 import { formatRelativeTime, formatLogicalDate, getUserTimezone } from '../utils/date';
 import { resolveCaretakerName } from '../utils/caretakers';
-import { sortByTimestampDesc } from '../utils/activities';
 import { exportActivitiesToCSV, printActivitiesReport } from '../utils/export';
 import { ConfirmationModal } from './common/ConfirmationModal';
 
-const EditActivityModal = lazy(() => import('./EditActivityModal').then((m) => ({ default: m.EditActivityModal })));
+const QuickLogModal = lazy(() => import('./QuickLogModal').then((m) => ({ default: m.QuickLogModal })));
 
 interface ActivityTimelineProps {
   activities: Activity[];
@@ -107,10 +106,9 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
 
   // Filter to core activities sorted chronologically descending
   const sortedCoreActivities = useMemo(() => {
-    const filtered = activities.filter(
-      (act) => act.type === 'pee' || act.type === 'poop' || act.type === 'food' || act.type === 'medication' || act.type === 'weight'
-    );
-    return sortByTimestampDesc(filtered);
+    return activities
+      .filter((act) => act.type === 'pee' || act.type === 'poop' || act.type === 'food' || act.type === 'medication' || act.type === 'weight')
+      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
   }, [activities]);
 
   // Progression steps: 7 -> 14 -> 30 -> 90 -> 180 -> All Time (Infinity)
@@ -633,14 +631,16 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
 
         {editingActivity && onUpdateActivity && (
           <Suspense fallback={null}>
-            <EditActivityModal
+            <QuickLogModal
               key={`edit-${editingActivity.id}`}
-              activity={editingActivity}
-              onSave={(updated) => {
-                onUpdateActivity(updated);
+              isOpen={true}
+              activityToEdit={editingActivity}
+              currentUser={editingActivity.loggedBy}
+              onClose={() => setEditingActivity(null)}
+              onSave={(activityData) => {
+                onUpdateActivity({ id: editingActivity.id, ...activityData });
                 setEditingActivity(null);
               }}
-              onClose={() => setEditingActivity(null)}
             />
           </Suspense>
         )}

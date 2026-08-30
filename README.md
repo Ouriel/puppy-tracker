@@ -221,7 +221,7 @@ puppy-tracker/
 │   └── health/            # Medical records (vaccinations, deworming)
 ├── src/
 │   ├── components/        # UI components (PredictorWidget, Timeline, HealthSummary)
-│   │   └── common/        # Shared primitives (StatusBadge, AppModal, ConfirmationModal)
+│   │   └── common/        # Shared primitives (StatusBadge, ConfirmationModal)
 │   ├── hooks/             # Domain state hooks (usePuppies, useCaretakers, useActivities)
 │   ├── views/             # Lazy-loaded major routes (Dashboard, CarnetDeSante, Settings)
 │   ├── utils/             # Core mathematical & biological logic
