@@ -59,7 +59,7 @@ function formatDayHeading(
   return dateObj.toLocaleDateString(locale, { weekday: 'long', month: 'short', day: 'numeric' });
 }
 
-export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
+export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
   activities,
   caretakers,
   activePuppy,
@@ -657,5 +657,5 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
       </Card.Content>
     </Card>
   );
-};
+});
 
