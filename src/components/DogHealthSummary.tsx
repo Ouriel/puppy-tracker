@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import type { PuppyProfile, Activity, HealthRecord, PredictionResult } from '../types';
 import { Syringe, Pill, Dog, Scale, ExternalLink, Moon, Sunrise, Utensils, Clock, Sparkles } from 'lucide-react';
 import { Card, Button, Chip } from '@heroui/react';
@@ -6,7 +6,6 @@ import { useI18n, type Language } from '../i18n';
 import { formatBreedName } from '../utils/breeds';
 import { calculateProjectedAdultWeightRange, getEffectivePuppyWeight } from '../utils/weight';
 import { getPuppyAge } from '../utils/predictions';
-import { fetchHealthRecords } from '../services/api';
 import { calculateNextVaccineBooster, calculateNextDewormingDate } from '../utils/health';
 import { formatShortDate } from '../utils/date';
 
@@ -14,51 +13,37 @@ interface DogHealthSummaryProps {
   profile: PuppyProfile;
   activities: Activity[];
   predictions?: PredictionResult | null;
+  healthRecords?: HealthRecord[];
   onOpenHealthPassport: () => void;
   lang: string;
 }
 
-export const DogHealthSummary: React.FC<DogHealthSummaryProps> = ({
+export const DogHealthSummary: React.FC<DogHealthSummaryProps> = React.memo(({
   profile,
   activities,
   predictions,
+  healthRecords = [],
   onOpenHealthPassport,
   lang,
 }) => {
   const { t } = useI18n();
 
-  const [lastVaccine, setLastVaccine] = useState<HealthRecord | null>(null);
-  const [lastDeworming, setLastDeworming] = useState<HealthRecord | null>(null);
+  // Derive last vaccine and deworming from BFF-provided health records (no secondary fetch needed)
+  const puppyRecords = useMemo(() => {
+    return healthRecords.filter((record) => record.puppyId === profile.id);
+  }, [healthRecords, profile.id]);
 
-  useEffect(() => {
-    let isMounted = true;
-    const loadHealth = async () => {
-      const res = await fetchHealthRecords(profile.id);
-      if (!isMounted) return;
+  const lastVaccine = useMemo(() => {
+    const vRecords = puppyRecords.filter((record) => record.type === 'vaccination');
+    if (vRecords.length === 0) return null;
+    return [...vRecords].sort((recordA, recordB) => new Date(recordB.date).getTime() - new Date(recordA.date).getTime())[0];
+  }, [puppyRecords]);
 
-      const allRecords = res.ok ? res.data : [];
-      const vRecords = allRecords.filter((r) => r.type === 'vaccination');
-      const dRecords = allRecords.filter((r) => r.type === 'deworming');
-
-      if (vRecords.length > 0) {
-        const sorted = [...vRecords].sort((recordA, recordB) => new Date(recordB.date).getTime() - new Date(recordA.date).getTime());
-        setLastVaccine(sorted[0]);
-      } else {
-        setLastVaccine(null);
-      }
-      if (dRecords.length > 0) {
-        const sorted = [...dRecords].sort((recordA, recordB) => new Date(recordB.date).getTime() - new Date(recordA.date).getTime());
-        setLastDeworming(sorted[0]);
-      } else {
-        setLastDeworming(null);
-      }
-    };
-
-    loadHealth();
-    return () => {
-      isMounted = false;
-    };
-  }, [profile.id]);
+  const lastDeworming = useMemo(() => {
+    const dRecords = puppyRecords.filter((record) => record.type === 'deworming');
+    if (dRecords.length === 0) return null;
+    return [...dRecords].sort((recordA, recordB) => new Date(recordB.date).getTime() - new Date(recordA.date).getTime())[0];
+  }, [puppyRecords]);
 
   // Calculate puppy age in weeks & months
   const ageInfo = useMemo(() => {
@@ -345,4 +330,4 @@ export const DogHealthSummary: React.FC<DogHealthSummaryProps> = ({
       </Card.Content>
     </Card>
   );
-};
+});

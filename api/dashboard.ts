@@ -2,7 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { neon } from '@neondatabase/serverless';
 import { drizzle } from 'drizzle-orm/neon-http';
 import { eq, and, desc, gte } from 'drizzle-orm';
-import { activitiesTable, caretakersTable, puppiesTable } from '../src/db/schema.js';
+import { activitiesTable, caretakersTable, puppiesTable, healthRecordsTable } from '../src/db/schema.js';
 import { verifyAuth, setCorsHeaders } from './_auth.js';
 
 // Module-level connection pooling to stay warm across invocations
@@ -48,8 +48,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       activitiesWhere = and(activitiesWhere, eq(activitiesTable.puppyId, puppyId));
     }
 
-    // Execute all 3 dashboard queries concurrently in parallel
-    const [puppies, caretakers, rawActivities] = await Promise.all([
+    // Execute all 4 dashboard queries concurrently in parallel
+    const [puppies, caretakers, rawActivities, healthRecords] = await Promise.all([
       db.select().from(puppiesTable).where(eq(puppiesTable.householdId, householdId)),
       db.select().from(caretakersTable).where(eq(caretakersTable.householdId, householdId)),
       db
@@ -58,6 +58,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         .where(activitiesWhere)
         .orderBy(desc(activitiesTable.timestamp))
         .limit(300),
+      db
+        .select()
+        .from(healthRecordsTable)
+        .where(eq(healthRecordsTable.householdId, householdId))
+        .orderBy(desc(healthRecordsTable.date)),
     ]);
 
     const formattedActivities = rawActivities.map((activity) => ({
@@ -69,6 +74,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       puppies,
       caretakers,
       activities: formattedActivities,
+      healthRecords,
     });
   } catch (err) {
     console.error('Error fetching dashboard payload:', err);

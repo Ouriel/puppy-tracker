@@ -98,6 +98,7 @@ export interface DashboardPayload {
   puppies: PuppyProfile[];
   caretakers: Caretaker[];
   activities: Activity[];
+  healthRecords?: HealthRecord[];
 }
 
 export async function fetchDashboard(puppyId?: string, days: number = 14): Promise<ApiResult<DashboardPayload>> {

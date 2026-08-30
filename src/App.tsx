@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, lazy, Suspense } from 'react';
-import type { Activity, UserAccount, ActivityType, PottyLocation, FamilyRole } from './types';
+import type { Activity, UserAccount, ActivityType, PottyLocation, FamilyRole, HealthRecord } from './types';
 import { getAuthToken, setAuthToken, getStoredAuthUser, setStoredAuthUser } from './utils/auth';
 import { isSuperAdminEmail } from './constants/auth';
 import {
@@ -40,6 +40,7 @@ export function App() {
   const puppyState = usePuppies();
   const caretakerState = useCaretakers(user);
   const activityState = useActivities(puppyState.activePuppy);
+  const [healthRecords, setHealthRecords] = useState<HealthRecord[]>([]);
 
   // URL-driven view routing helper
   const getViewFromPath = (): 'dashboard' | 'carnetdesante' | 'settings' => {
@@ -88,19 +89,6 @@ export function App() {
 
       if (currentToken && storedUser) {
         setUser(storedUser);
-        // Non-blocking background 90-day session extension
-        exchangeSessionToken(currentToken).then((sessionResult) => {
-          if (sessionResult.ok && sessionResult.data?.user) {
-            const userAccount: UserAccount = {
-              id: sessionResult.data.user.id || 'u-1',
-              email: sessionResult.data.user.email,
-              name: sessionResult.data.user.name,
-              role: (['Husband', 'Wife', 'Partner', 'Child', 'Dog Walker', 'Sitter', 'Relative', 'Member', 'SuperAdmin'].includes(sessionResult.data.user.role) ? sessionResult.data.user.role : 'Member') as FamilyRole,
-            };
-            setUser(userAccount);
-            setStoredAuthUser(userAccount);
-          }
-        }).catch(() => {});
       } else if (!currentToken) {
         setUser(null);
         setStoredAuthUser(null);
@@ -111,10 +99,10 @@ export function App() {
       try {
         const initialView = getViewFromPath();
         if (initialView === 'dashboard') {
-          // Single BFF roundtrip: puppies, caretakers, and recent 14d activities in 1 cold start
+          // Single BFF roundtrip: puppies, caretakers, recent 14d activities, and health records in 1 cold start
           const dashboardRes = await fetchDashboard(puppyState.activePuppyId || undefined, 14);
           if (dashboardRes.ok) {
-            const { puppies, caretakers, activities } = dashboardRes.data;
+            const { puppies, caretakers, activities, healthRecords: records } = dashboardRes.data;
             if (puppies && puppies.length > 0) {
               puppyState.setPuppies(puppies);
               const targetPuppyId = (puppyState.activePuppyId && puppies.some((puppy) => puppy.id === puppyState.activePuppyId))
@@ -125,6 +113,9 @@ export function App() {
             }
             if (caretakers && caretakers.length > 0) {
               caretakerState.setCaretakers(caretakers);
+            }
+            if (records && records.length > 0) {
+              setHealthRecords(records);
             }
           }
         } else {
@@ -149,12 +140,39 @@ export function App() {
         console.error('Failed to load initial PupPace data', err);
       } finally {
         setIsLoading(false);
+
+        // Deferred non-blocking session extension — runs after dashboard is interactive
+        // Avoids cold-starting a 2nd Vercel function during the critical boot path
+        if (currentToken) {
+          setTimeout(() => {
+            exchangeSessionToken(currentToken).then((sessionResult) => {
+              if (sessionResult.ok && sessionResult.data?.user) {
+                const userAccount: UserAccount = {
+                  id: sessionResult.data.user.id || 'u-1',
+                  email: sessionResult.data.user.email,
+                  name: sessionResult.data.user.name,
+                  role: (['Husband', 'Wife', 'Partner', 'Child', 'Dog Walker', 'Sitter', 'Relative', 'Member', 'SuperAdmin'].includes(sessionResult.data.user.role) ? sessionResult.data.user.role : 'Member') as FamilyRole,
+                };
+                setUser(userAccount);
+                setStoredAuthUser(userAccount);
+              }
+            }).catch(() => {});
+          }, 3000);
+        }
       }
     }
 
     init();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Prefetch QuickLogModal chunk after dashboard is interactive — eliminates INP spike on first "+" tap
+  useEffect(() => {
+    if (!isLoading && user && puppyState.puppies.length > 0) {
+      const timer = setTimeout(() => { import('./components/QuickLogModal'); }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [isLoading, user, puppyState.puppies.length]);
 
   const activePuppyActivities = useMemo(() => {
     if (!puppyState.activePuppy) return [];
@@ -302,11 +320,28 @@ export function App() {
 
   if (isLoading || (currentView === 'dashboard' && user && activityState.isLoadingActivities && puppyState.puppies.length > 0)) {
     return (
-      <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center">
-        <div className="text-center space-y-3">
-          <div className="w-10 h-10 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto" />
-          <p className="text-xs text-slate-400 font-mono">Syncing PupPace data...</p>
+      <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans antialiased">
+        {/* Skeleton Navbar */}
+        <div className="h-14 border-b border-slate-800 bg-slate-900/50 backdrop-blur flex items-center px-4 gap-3">
+          <div className="w-9 h-9 rounded-full bg-slate-800 animate-pulse" />
+          <div className="w-24 h-4 rounded bg-slate-800 animate-pulse" />
         </div>
+        {/* Skeleton PredictorWidget — 3 hero card placeholders */}
+        <main className="flex-1 max-w-6xl w-full mx-auto px-4 py-6 space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {[1, 2, 3].map((index) => (
+              <div key={index} className="h-48 rounded-2xl bg-slate-900 border border-slate-800 animate-pulse" />
+            ))}
+          </div>
+          {/* Skeleton Health Summary */}
+          <div className="h-32 rounded-2xl bg-slate-900 border border-slate-800 animate-pulse" />
+          {/* Skeleton Timeline */}
+          <div className="space-y-3">
+            {[1, 2, 3].map((index) => (
+              <div key={index} className="h-16 rounded-xl bg-slate-900 border border-slate-800 animate-pulse" />
+            ))}
+          </div>
+        </main>
       </div>
     );
   }
@@ -425,6 +460,7 @@ export function App() {
                 profile={puppyState.activePuppy}
                 activities={activePuppyActivities}
                 predictions={predictions}
+                healthRecords={healthRecords}
                 onOpenHealthPassport={() => handleNavigate('carnetdesante')}
                 lang={lang}
               />
