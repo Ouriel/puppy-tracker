@@ -6,6 +6,10 @@ import { healthRecordsTable, puppiesTable } from '../src/db/schema.js';
 import { verifyAuth, setCorsHeaders } from './_auth.js';
 import { z } from 'zod';
 
+const connectionString = process.env.POSTGRES_URL || process.env.DATABASE_URL || '';
+const sql = neon(connectionString);
+const db = drizzle(sql);
+
 const DeleteSchema = z.object({ id: z.string().min(1) });
 
 const HealthRecordSchema = z.object({
@@ -22,12 +26,6 @@ const HealthRecordSchema = z.object({
   notes: z.string().nullable().optional(),
 });
 
-function getDb() {
-  const connectionString = process.env.POSTGRES_URL || process.env.DATABASE_URL || '';
-  const sql = neon(connectionString);
-  return drizzle(sql);
-}
-
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   setCorsHeaders(req, res, 'GET, POST, PUT, DELETE, OPTIONS');
 
@@ -43,7 +41,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const householdId = auth.householdId;
-  const db = getDb();
 
   try {
     // GET /api/health-records?puppyId=xxx&type=xxx

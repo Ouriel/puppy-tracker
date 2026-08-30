@@ -6,6 +6,10 @@ import { caretakersTable, householdsTable } from '../src/db/schema.js';
 import { verifyAuth, setCorsHeaders } from './_auth.js';
 import { z } from 'zod';
 
+const connectionString = process.env.POSTGRES_URL || process.env.DATABASE_URL || '';
+const sql = neon(connectionString);
+const db = drizzle(sql);
+
 const CaretakerInputSchema = z.object({
   id: z.string().optional(),
   name: z.string().min(1, 'Name is required'),
@@ -13,12 +17,6 @@ const CaretakerInputSchema = z.object({
   color: z.string().optional(),
   email: z.string().email('Invalid email format').nullable().optional().or(z.literal('')),
 });
-
-function getDb() {
-  const connectionString = process.env.POSTGRES_URL || process.env.DATABASE_URL || '';
-  const sql = neon(connectionString);
-  return drizzle(sql);
-}
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   setCorsHeaders(req, res, 'GET, POST, PUT, DELETE, OPTIONS');
@@ -37,7 +35,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const householdId = auth.householdId;
-  const db = getDb();
 
   try {
     // GET /api/households — Fetch household details & members (or all households for SuperAdmin)

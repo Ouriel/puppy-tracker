@@ -7,6 +7,10 @@ import { SUPER_ADMIN_EMAIL } from '../src/constants/auth.js';
 import { verifyAuth, setCorsHeaders } from './_auth.js';
 import { z } from 'zod';
 
+const connectionString = process.env.POSTGRES_URL || process.env.DATABASE_URL || '';
+const sql = neon(connectionString);
+const db = drizzle(sql);
+
 const UserInputSchema = z.object({
   email: z.string().email('Valid email is required'),
   name: z.string().optional(),
@@ -14,11 +18,6 @@ const UserInputSchema = z.object({
   status: z.enum(['ACTIVE', 'PENDING_APPROVAL']).optional(),
   householdId: z.string().optional(),
 });
-
-function getDb() {
-  const sql = neon(process.env.POSTGRES_URL || process.env.DATABASE_URL || '');
-  return drizzle(sql);
-}
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   setCorsHeaders(req, res, 'GET, POST, PUT, DELETE, OPTIONS');
@@ -36,7 +35,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const householdId = auth.householdId;
   const isSuperAdmin = auth.role === 'SuperAdmin';
-  const db = getDb();
 
   try {
     // GET /api/users — List users for household (or all users for SuperAdmin), or look up by email
