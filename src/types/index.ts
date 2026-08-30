@@ -70,13 +70,6 @@ export interface RegisteredUserItem {
   status: 'ACTIVE' | 'PENDING_APPROVAL';
 }
 
-export interface HouseholdItem {
-  id: string;
-  familyPackId: string;
-  name: string;
-  createdAt?: string;
-}
-
 export type ScheduleMode = 'daytime_baseline' | 'post_meal_override' | 'night_sleep';
 export type FoodScheduleMode = 'daytime_schedule' | 'goal_reached' | 'night_sleep';
 
@@ -134,15 +127,6 @@ export interface PredictionResult {
   sleepSchedule?: SleepSchedule;
   mealSchedule?: { breakfastMins: number; lunchMins: number; dinnerMins: number };
   portionGrams?: number;
-}
-
-export interface PottyStats {
-  totalPee: number;
-  totalPoop: number;
-  outsideCount: number;
-  accidentCount: number;
-  successRatePercentage: number;
-  streakDays: number;
 }
 
 export interface HealthRecord {

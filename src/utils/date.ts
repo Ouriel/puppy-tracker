@@ -170,16 +170,9 @@ export function parseIsoDate(timestamp: string | Date): Date {
   return new Date(timestamp);
 }
 
-/**
- * Default hour cutoff for puppy waking/night cycles (04:00 AM)
- * Activities between 00:00 AM and 03:59 AM belong to previous waking day.
- */
-export const LOGICAL_DAY_CUTOFF_HOURS = 4;
+const LOGICAL_DAY_CUTOFF_HOURS = 4;
 
-/**
- * Returns a Date shifted back by cutoff hours to compute logical waking day
- */
-export function getLogicalDate(date: Date | string = new Date(), cutoffHours: number = LOGICAL_DAY_CUTOFF_HOURS): Date {
+function getLogicalDate(date: Date | string = new Date(), cutoffHours: number = LOGICAL_DAY_CUTOFF_HOURS): Date {
   const d = typeof date === 'string' ? parseIsoDate(date) : date;
   return new Date(d.getTime() - cutoffHours * 3600 * 1000);
 }

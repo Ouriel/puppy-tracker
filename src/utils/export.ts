@@ -497,19 +497,6 @@ export function printActivitiesReport(
 }
 
 /**
- * Backward compatibility alias for printActivitiesReport.
- */
-export function printVetReport(
-  activities: Activity[],
-  profile: PuppyProfile,
-  lang: 'en' | 'fr' = 'fr',
-  t?: TranslationKeys,
-  caretakers: Caretaker[] = []
-): boolean {
-  return printActivitiesReport(activities, profile, lang, t, caretakers);
-}
-
-/**
  * Exports puppy veterinary and health passport records to a formatted CSV file with UTF-8 BOM.
  */
 export function exportHealthPassportToCSV(
