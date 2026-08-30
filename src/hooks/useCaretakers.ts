@@ -43,7 +43,7 @@ export function useCaretakers(
         showToast(result.error || t.toasts.errorGeneric, 'error');
       }
     },
-    [caretakers, t.toasts.memberAdded, t.toasts.errorGeneric]
+    [caretakers, setCaretakers, t.toasts.memberAdded, t.toasts.errorGeneric]
   );
 
   const updateCaretaker = useCallback(async (id: string, updatedFields: Partial<Caretaker>) => {
@@ -56,7 +56,7 @@ export function useCaretakers(
       setCaretakers(previousCaretakers);
       showToast(result.error || t.toasts.errorGeneric, 'error');
     }
-  }, [caretakers, t.toasts.errorGeneric]);
+  }, [caretakers, setCaretakers, t.toasts.errorGeneric]);
 
   const deleteCaretaker = useCallback(
     async (id: string) => {
@@ -70,7 +70,7 @@ export function useCaretakers(
         showToast(result.error || t.toasts.errorGeneric, 'error');
       }
     },
-    [caretakers, t.toasts.memberRemoved, t.toasts.errorGeneric]
+    [caretakers, setCaretakers, t.toasts.memberRemoved, t.toasts.errorGeneric]
   );
 
   return {

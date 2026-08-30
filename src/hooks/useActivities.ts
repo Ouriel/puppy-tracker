@@ -60,7 +60,7 @@ export function useActivities(
     return () => {
       isMounted = false;
     };
-  }, [activePuppy?.id]);
+  }, [activePuppy?.id, options?.skipInitialFetch]);
 
   const loadMoreActivities = useCallback(async (targetDays?: number) => {
     if (!activePuppy?.id || isFetchingMore) return;

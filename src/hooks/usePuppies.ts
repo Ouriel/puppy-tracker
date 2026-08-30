@@ -66,7 +66,7 @@ export function usePuppies(initialPuppies?: PuppyProfile[]) {
         showToast(result.error || t.toasts.errorGeneric, 'error');
       }
     },
-    [puppies, t.toasts.dogUpdated, t.toasts.errorGeneric]
+    [puppies, setPuppies, t.toasts.dogUpdated, t.toasts.errorGeneric]
   );
 
   const deletePuppy = useCallback(
@@ -88,7 +88,7 @@ export function usePuppies(initialPuppies?: PuppyProfile[]) {
         showToast(result.error || t.toasts.errorGeneric, 'error');
       }
     },
-    [activePuppyId, puppies, t.toasts.dogDeleted, t.toasts.errorGeneric]
+    [activePuppyId, puppies, setPuppies, t.toasts.dogDeleted, t.toasts.errorGeneric]
   );
 
   return {
