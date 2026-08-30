@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Shield, Send, Users, AlertCircle, UserCheck, UserX, Trash2, RefreshCw, Home } from 'lucide-react';
 import {
   fetchUsers,
@@ -31,13 +31,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail }) => {
   const [statusMessage, setStatusMessage] = useState('');
   const [userToDelete, setUserToDelete] = useState<RegisteredUserItem | null>(null);
 
-  useEffect(() => {
-    if (isSuperAdmin) {
-      loadData();
-    }
-  }, [isSuperAdmin]);
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     setIsLoading(true);
     try {
       const [remoteUsers, remoteHouseholds] = await Promise.all([
@@ -56,7 +50,13 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail }) => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    if (isSuperAdmin) {
+      loadData();
+    }
+  }, [isSuperAdmin, loadData]);
 
   const handleActivate = async (email: string) => {
     const targetHouseholdId = targetHouseholds[email] || 'FAMILY-COCKER-2026';

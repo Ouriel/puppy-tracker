@@ -4,7 +4,11 @@ import { Syringe, Pill, Dog, Scale, ExternalLink, Moon, Sunrise, Utensils, Clock
 import { Card, Button, Chip } from '@heroui/react';
 import { useI18n, type Language } from '../i18n';
 import { formatBreedName } from '../utils/breeds';
-import { calculateProjectedAdultWeightRange, getEffectivePuppyWeight } from '../utils/weight';
+import {
+  calculateProjectedAdultWeightRange,
+  getEffectivePuppyWeight,
+  getUnifiedWeightEntries,
+} from '../utils/weight';
 import { getPuppyAge } from '../utils/predictions';
 import { calculateNextVaccineBooster, calculateNextDewormingDate } from '../utils/health';
 import { formatShortDate } from '../utils/date';
@@ -53,16 +57,19 @@ export const DogHealthSummary: React.FC<DogHealthSummaryProps> = React.memo(({
 
   // Extract weight metrics (Last Logged, Assumed Current, Probable Adult Range via empirical trajectory)
   const weightData = useMemo(() => {
-    const weightLogs = activities
-      .filter((act) => act.type === 'weight' && act.weightKg && act.weightKg > 0)
-      .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+    const unifiedLogs = getUnifiedWeightEntries(activities, puppyRecords);
+    const lastEntry = unifiedLogs.length > 0 ? unifiedLogs[unifiedLogs.length - 1] : null;
+    const lastLogDateStr = lastEntry ? formatShortDate(lastEntry.timestamp, lang as 'en' | 'fr') : null;
+    const lastLogAgeWeeks = lastEntry && profile.birthDate ? getPuppyAge(profile.birthDate, lastEntry.timestamp).weeks : null;
 
-    const lastLog = weightLogs.length > 0 ? weightLogs[weightLogs.length - 1] : null;
-    const lastLogDateStr = lastLog ? formatShortDate(lastLog.timestamp, lang as 'en' | 'fr') : null;
-    const lastLogAgeWeeks = lastLog && profile.birthDate ? getPuppyAge(profile.birthDate, lastLog.timestamp).weeks : null;
-
-    const projectedWeight = calculateProjectedAdultWeightRange(profile.breed, weightLogs, ageInfo.weeks, profile.weightKg);
-    const weightInfo = getEffectivePuppyWeight(profile, activities);
+    const projectedWeight = calculateProjectedAdultWeightRange(
+      profile.breed,
+      unifiedLogs,
+      profile.birthDate,
+      profile.weightKg,
+      profile.gender
+    );
+    const weightInfo = getEffectivePuppyWeight(profile, activities, undefined, puppyRecords);
 
     return {
       lastWeightKg: weightInfo.lastLoggedWeight,
@@ -71,8 +78,10 @@ export const DogHealthSummary: React.FC<DogHealthSummaryProps> = React.memo(({
       assumedCurrentKg: weightInfo.estimatedCurrentWeight,
       adultTargetKg: projectedWeight.projectedAdultKg,
       adultRangeStr: `${projectedWeight.minAdultKg}–${projectedWeight.maxAdultKg} kg`,
+      dailyGainGrams: weightInfo.dailyGainGrams,
+      walthamCategory: projectedWeight.walthamCategory,
     };
-  }, [activities, profile, ageInfo.weeks, lang]);
+  }, [activities, puppyRecords, profile, lang]);
 
   // Reuses the core prediction metadata (sleep schedule & meal schedule) calculated for the main 3 cards
   const scheduleData = useMemo(() => {
@@ -188,7 +197,14 @@ export const DogHealthSummary: React.FC<DogHealthSummaryProps> = React.memo(({
               </div>
 
               <div className="bg-slate-950/60 p-2.5 rounded-lg border border-slate-800/80">
-                <div className="text-xs text-slate-400 font-semibold">{t.health.assumedCurrent}</div>
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-slate-400 font-semibold">{t.health.assumedCurrent}</span>
+                  {weightData.dailyGainGrams ? (
+                    <span className="text-[10px] text-emerald-400 font-bold bg-emerald-950/60 border border-emerald-800/50 px-1.5 py-0.5 rounded">
+                      +{weightData.dailyGainGrams}g/j
+                    </span>
+                  ) : null}
+                </div>
                 <div className="font-extrabold text-pink-400">~{weightData.assumedCurrentKg} kg</div>
                 <div className="text-xs text-slate-400 mt-0.5 truncate">
                   {t.dashboard.today} ({ageInfo.weeks}w)

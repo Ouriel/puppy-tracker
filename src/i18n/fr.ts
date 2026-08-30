@@ -301,6 +301,9 @@ export const fr: TranslationKeys = {
     adultRangeEst: 'Poids Adulte (Est.)',
     noWeightEntries: 'Aucun poids enregistré. Cliquez sur "+ Peser" pour enregistrer le premier poids.',
     old: 'âgé',
+    dailyGain: 'Gain quotidien',
+    vetRecord: 'Visite Vétérinaire',
+    benchmarks: 'Repères WALTHAM',
   },
   admin: {
     title: 'Centre de Contrôle Super Admin',

@@ -62,14 +62,16 @@ export function useActivities(
     };
   }, [activePuppy?.id, options?.skipInitialFetch]);
 
+  const activePuppyId = activePuppy?.id;
+
   const loadMoreActivities = useCallback(async (targetDays?: number) => {
-    if (!activePuppy?.id || isFetchingMore) return;
+    if (!activePuppyId || isFetchingMore) return;
     setIsFetchingMore(true);
 
     const isAllTime = targetDays === Infinity;
     const requestedDays = isAllTime ? undefined : (targetDays || 90);
 
-    const result = await fetchActivities(activePuppy.id, {
+    const result = await fetchActivities(activePuppyId, {
       days: requestedDays,
       limit: 500,
       offset: 0,
@@ -86,7 +88,7 @@ export function useActivities(
       setHasMoreRemote(false);
     }
     setIsFetchingMore(false);
-  }, [activePuppy?.id, isFetchingMore]);
+  }, [activePuppyId, isFetchingMore]);
 
   const addActivity = useCallback(
     async (activityData: Omit<Activity, 'id'>) => {

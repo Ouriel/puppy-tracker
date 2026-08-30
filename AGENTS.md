@@ -65,8 +65,8 @@ PupPace — Smart Household Puppy Activity Tracker & Potty Predictor. React 19 +
 
 ### Testing & Verification
 
-- Every test must exercise real code — zero placeholder assertions (196/196 tests passing across 22 test files).
-- Multi-day 30-day realistic dataset test suite (`src/utils/__tests__/realistic_dataset.test.ts`, `predictions.test.ts`, and `night_mode_and_age_transitions.test.ts`) verifies predictions, sleep bounds, age-graduated gastrocolic reflex maturation, and protocols.
+- Every test must exercise real code — zero placeholder assertions (207/207 tests passing across 23 test files).
+- Multi-day 30-day realistic dataset test suite (`src/utils/__tests__/realistic_dataset.test.ts`, `predictions.test.ts`, `night_mode_and_age_transitions.test.ts`, and `weight_growth_engine.test.ts`) verifies predictions, sleep bounds, age-graduated gastrocolic reflex maturation, and protocols.
 
 ### Predictive Engine & Statistical Standards
 
@@ -75,6 +75,14 @@ PupPace — Smart Household Puppy Activity Tracker & Potty Predictor. React 19 +
 - **Continuous 24/7 Poop Transit (50th Percentile / Median)**: Defecation is bolus-driven; the engine maintains the median to track true gastrointestinal transit time without delaying alerts.
 - **Dynamic Diurnal Meal Pacing**: The food engine divides the remaining waking hours until bedtime (`wakingHoursLeft / (remainingMeals + 1)`). When split meals or treats result in `todayMeals.length >= targetMeals` before the 90% daily gram goal is met, format as `Remaining portion (spaced ~X.Xh)` (in French: `Portion restante (espacée de ~X.Xh)`).
 - **Symmetric Pre-Bed Void Awareness (`isPreBedPottyDone`)**: When an expected void lands in night hours, roll over to morning only if the puppy already emptied their bladder/bowels in the pre-bed window ($\ge \text{bedtime} - 2\text{h}$). Otherwise, preserve tonight's pre-bed outing.
+
+### Canine Weight Prediction & WALTHAM Growth Engine Standards
+
+- **WALTHAM™ 5-Category Growth Curves (*Salt et al., PLOS ONE 2017*)**: Categorizes canine development into 5 adult size tiers (I: <6.5kg, II: 6.5–9kg, III: 9–16kg, IV: 16–30kg, V: 30–45kg) interpolated with smooth Hermite splines across clinical anchors.
+- **Timestamp-Synchronized Regression**: Evaluates each weigh-in log at the puppy's exact age on the day of the log ($t_{\text{log}} = (\text{timestamp}_{\text{log}} - \text{birthDate}) / 7\text{d}$), eliminating prediction decay when days or weeks elapse between weigh-ins.
+- **Multi-Point Exponential Time-Weighting**: Weights historical logs with a 30-day exponential half-life ($w_i = e^{-\Delta t / 30\text{d}}$), dynamically blending 15–35% breed baseline with 65–85% empirical trajectory depending on data density ($\ge 6$ logs achieves 85% empirical weight).
+- **Gompertz Growth Velocity Derivative ($dW/dt$)**: Computes physiologically authentic daily weight gain ($dW/dt = W(t) \cdot B \cdot e^{-B(t-M)}$), yielding 50–65 g/day for 5-month medium puppies (e.g. Balma at ~53 g/day) rather than stagnant linear estimates.
+- **Unified Health Records & Activity Stream**: Transparently unifies veterinary checkup weigh-ins (`health_records.weight_at_time`, e.g. Credelio Plus doses) with home weigh-in logs (`activities.weight_kg`), displaying dedicated vet verification badges.
 
 ### Safe Database Inspection
 

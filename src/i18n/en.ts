@@ -299,6 +299,9 @@ export const en = {
     adultRangeEst: 'Adult Range (Est.)',
     noWeightEntries: 'No weight entries logged yet. Click "+ Log Weight" to record your puppy\'s first weight.',
     old: 'old',
+    dailyGain: 'Daily growth',
+    vetRecord: 'Vet Record',
+    benchmarks: 'WALTHAM Milestones',
   },
   admin: {
     title: 'Super Admin Control Center',

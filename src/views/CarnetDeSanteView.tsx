@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import type { PuppyProfile, Activity, HealthRecord, ActivityType } from '../types';
 import { Syringe, ArrowLeft, Printer, Download, FileSpreadsheet, ChevronDown } from 'lucide-react';
 import { useI18n } from '../i18n';
@@ -63,6 +63,11 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({
     if (!activePuppy) return;
     exportHealthPassportToCSV(activePuppy, vaccinations, dewormingLogs, activities, lang as 'en' | 'fr');
   }, [activePuppy, vaccinations, dewormingLogs, activities, lang]);
+
+  const healthRecords = useMemo(
+    () => [...vaccinations, ...dewormingLogs],
+    [vaccinations, dewormingLogs]
+  );
 
   useEffect(() => {
     if (activePuppy?.id) {
@@ -206,6 +211,7 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({
       <WeightGrowthChart
         activities={activities}
         profile={activePuppy}
+        healthRecords={healthRecords}
         onOpenQuickLogModal={onOpenQuickLogModal || (() => {})}
         onDeleteActivity={onDeleteActivity}
       />

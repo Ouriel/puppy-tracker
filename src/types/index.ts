@@ -34,6 +34,7 @@ export interface PuppyProfile {
   birthDate: string; // YYYY-MM-DD
   weightKg?: number;
   avatarUrl?: string;
+  gender?: 'male' | 'female';
   targetMealsPerDay: number;
   dailyFoodGramGoal: number;
   notes?: string;
@@ -164,4 +165,24 @@ export interface DashboardPayload {
   caretakers: Caretaker[];
   activities: Activity[];
   healthRecords?: HealthRecord[];
+}
+
+export interface EffectiveWeightInfo {
+  lastLoggedWeight: number;
+  lastLoggedTimestamp?: string;
+  estimatedCurrentWeight: number;
+  daysSinceLastLog: number;
+  isEstimated: boolean;
+  dailyGainGrams?: number;
+  centileDescription?: string;
+}
+
+export interface WeightProjectionResult {
+  projectedAdultKg: number;
+  minAdultKg: number;
+  maxAdultKg: number;
+  isTrajectoryBased: boolean;
+  confidencePercent?: number;
+  walthamCategory?: 'I' | 'II' | 'III' | 'IV' | 'V';
+  growthVelocityGramsPerDay?: number;
 }
