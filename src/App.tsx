@@ -321,11 +321,25 @@ export function App() {
   if (isLoading || (currentView === 'dashboard' && user && activityState.isLoadingActivities && puppyState.puppies.length > 0)) {
     return (
       <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans antialiased">
-        {/* Skeleton Navbar */}
-        <div className="h-14 border-b border-slate-800 bg-slate-900/50 backdrop-blur flex items-center px-4 gap-3">
-          <div className="w-9 h-9 rounded-full bg-slate-800 animate-pulse" />
-          <div className="w-24 h-4 rounded bg-slate-800 animate-pulse" />
-        </div>
+        {/* Real Navbar if cached profile present, otherwise Skeleton Navbar */}
+        {puppyState.puppies.length > 0 && user ? (
+          <Navbar
+            puppies={puppyState.puppies}
+            activePuppy={puppyState.activePuppy}
+            onSelectPuppy={puppyState.selectPuppy}
+            user={user}
+            onOpenSettings={() => handleNavigate('settings')}
+            onOpenQuickLog={() => handleOpenQuickLogModal('pee')}
+            lang={lang}
+            onLanguageChange={changeLanguage}
+            t={t}
+          />
+        ) : (
+          <div className="h-14 border-b border-slate-800 bg-slate-900/50 backdrop-blur flex items-center px-4 gap-3">
+            <div className="w-9 h-9 rounded-full bg-slate-800 animate-pulse" />
+            <div className="w-24 h-4 rounded bg-slate-800 animate-pulse" />
+          </div>
+        )}
         {/* Skeleton PredictorWidget — 3 hero card placeholders */}
         <main className="flex-1 max-w-6xl w-full mx-auto px-4 py-6 space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

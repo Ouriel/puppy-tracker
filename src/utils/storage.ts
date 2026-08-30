@@ -18,12 +18,47 @@ export const DEFAULT_CARETAKERS: Caretaker[] = [
   { id: '1', name: 'Matthieu', role: 'Member', color: '#6366F1' },
 ];
 
+const STORAGE_KEY_CACHED_PUPPIES = 'puppace_cached_puppies';
+const STORAGE_KEY_CACHED_CARETAKERS = 'puppace_cached_caretakers';
+
 export function getStoredUser(): UserAccount {
   return DEFAULT_USER;
 }
 
+export function getStoredPuppies(): PuppyProfile[] {
+  if (typeof localStorage === 'undefined') return DEFAULT_PUPPIES;
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY_CACHED_PUPPIES);
+    return raw ? JSON.parse(raw) : DEFAULT_PUPPIES;
+  } catch {
+    return DEFAULT_PUPPIES;
+  }
+}
+
+export function setStoredPuppies(puppies: PuppyProfile[]): void {
+  if (typeof localStorage !== 'undefined') {
+    try {
+      localStorage.setItem(STORAGE_KEY_CACHED_PUPPIES, JSON.stringify(puppies));
+    } catch {}
+  }
+}
+
 export function getStoredCaretakers(): Caretaker[] {
-  return DEFAULT_CARETAKERS;
+  if (typeof localStorage === 'undefined') return DEFAULT_CARETAKERS;
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY_CACHED_CARETAKERS);
+    return raw ? JSON.parse(raw) : DEFAULT_CARETAKERS;
+  } catch {
+    return DEFAULT_CARETAKERS;
+  }
+}
+
+export function setStoredCaretakers(caretakers: Caretaker[]): void {
+  if (typeof localStorage !== 'undefined') {
+    try {
+      localStorage.setItem(STORAGE_KEY_CACHED_CARETAKERS, JSON.stringify(caretakers));
+    } catch {}
+  }
 }
 
 export function getActivePuppyId(): string {
@@ -40,6 +75,8 @@ export function setActivePuppyId(id: string): void {
 export function clearAllData(): void {
   if (typeof localStorage !== 'undefined') {
     localStorage.removeItem(STORAGE_KEY_ACTIVE_PUPPY);
+    localStorage.removeItem(STORAGE_KEY_CACHED_PUPPIES);
+    localStorage.removeItem(STORAGE_KEY_CACHED_CARETAKERS);
   }
 }
 

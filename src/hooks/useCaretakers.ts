@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo } from 'react';
 import type { Caretaker, UserAccount } from '../types';
-import { getStoredCaretakers } from '../utils/storage';
+import { getStoredCaretakers, setStoredCaretakers } from '../utils/storage';
 import { createCaretaker, updateCaretaker as apiUpdateCaretaker, deleteCaretaker as apiDeleteCaretaker } from '../services/api';
 import { showToast } from '../utils/toast';
 import { useI18n } from '../i18n';
@@ -10,7 +10,15 @@ export function useCaretakers(
   initialCaretakers: Caretaker[] = getStoredCaretakers()
 ) {
   const { t } = useI18n();
-  const [caretakers, setCaretakers] = useState<Caretaker[]>(initialCaretakers);
+  const [caretakers, setCaretakersState] = useState<Caretaker[]>(initialCaretakers);
+
+  const setCaretakers = useCallback((updaterOrValue: Caretaker[] | ((previous: Caretaker[]) => Caretaker[])) => {
+    setCaretakersState((previous) => {
+      const next = typeof updaterOrValue === 'function' ? updaterOrValue(previous) : updaterOrValue;
+      setStoredCaretakers(next);
+      return next;
+    });
+  }, []);
 
   const currentUser = useMemo(() => {
     if (!user) return 'Unknown';

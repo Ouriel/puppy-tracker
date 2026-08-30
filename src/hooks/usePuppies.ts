@@ -1,15 +1,26 @@
 import { useState, useCallback, useTransition } from 'react';
 import type { PuppyProfile } from '../types';
-import { getActivePuppyId, setActivePuppyId as saveActivePuppyId } from '../utils/storage';
+import { getActivePuppyId, setActivePuppyId as saveActivePuppyId, getStoredPuppies, setStoredPuppies } from '../utils/storage';
 import { createDog, updateDog, deleteDog } from '../services/api';
 import { showToast } from '../utils/toast';
 import { useI18n } from '../i18n';
 
-export function usePuppies(initialPuppies: PuppyProfile[] = []) {
+export function usePuppies(initialPuppies?: PuppyProfile[]) {
   const { t } = useI18n();
   const [, startTransition] = useTransition();
-  const [puppies, setPuppies] = useState<PuppyProfile[]>(initialPuppies);
+  const [puppies, setPuppiesState] = useState<PuppyProfile[]>(() => {
+    if (initialPuppies && initialPuppies.length > 0) return initialPuppies;
+    return getStoredPuppies();
+  });
   const [activePuppyId, setActivePuppyIdState] = useState<string>(getActivePuppyId());
+
+  const setPuppies = useCallback((updaterOrValue: PuppyProfile[] | ((previous: PuppyProfile[]) => PuppyProfile[])) => {
+    setPuppiesState((previous) => {
+      const next = typeof updaterOrValue === 'function' ? updaterOrValue(previous) : updaterOrValue;
+      setStoredPuppies(next);
+      return next;
+    });
+  }, []);
 
   const activePuppy = puppies.find((puppy) => puppy.id === activePuppyId) || puppies[0] || null;
 
@@ -25,7 +36,11 @@ export function usePuppies(initialPuppies: PuppyProfile[] = []) {
       const result = await createDog(newPup);
       if (result.ok) {
         const saved = result.data;
-        setPuppies((previous) => [...previous, saved]);
+        setPuppiesState((previous) => {
+          const updated = [...previous, saved];
+          setStoredPuppies(updated);
+          return updated;
+        });
         setActivePuppyIdState(saved.id);
         saveActivePuppyId(saved.id);
         showToast(t.toasts.dogRegistered.replace('{name}', saved.name), 'success');

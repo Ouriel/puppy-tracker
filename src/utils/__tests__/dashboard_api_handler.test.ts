@@ -58,6 +58,7 @@ vi.mock('drizzle-orm/neon-http', () => ({
         return queryChain;
       }),
     })),
+    batch: vi.fn((queries: any[]) => Promise.all(queries)),
   })),
 }));
 

@@ -59,8 +59,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       activitiesWhere = and(activitiesWhere, eq(activitiesTable.puppyId, puppyId));
     }
 
-    // Execute all 4 dashboard queries concurrently in parallel
-    const [puppies, caretakers, rawActivities, healthRecords] = await Promise.all([
+    // Execute all 4 dashboard queries concurrently in a single HTTP batch pipe to Neon
+    const [puppies, caretakers, rawActivities, healthRecords] = await db.batch([
       db.select().from(puppiesTable).where(eq(puppiesTable.householdId, householdId)),
       db.select().from(caretakersTable).where(eq(caretakersTable.householdId, householdId)),
       db
