@@ -7,7 +7,7 @@ PupPace — Smart Household Puppy Activity Tracker & Potty Predictor. React 19 +
 ## Before Making Changes
 
 1. `npx tsc -b` — must pass clean with 0 errors
-2. `npm test` — Vitest suite (165 tests across 18 files), all tests must pass
+2. `npm test` — Vitest suite (181 tests across 21 files), all tests must pass
 3. Check `src/types/index.ts` before defining any type locally
 
 ## Critical Rules
@@ -86,7 +86,7 @@ PupPace — Smart Household Puppy Activity Tracker & Potty Predictor. React 19 +
 | ------------------------------------- | ------------------------------------------------------------------------------------- |
 | `src/types/index.ts`                  | Canonical domain interfaces (`Activity`, `PuppyProfile`, `PredictionResult`)         |
 | `src/db/schema.ts`                    | Single source of truth Drizzle ORM database tables                                    |
-| `api/dashboard.ts`                    | Backend-for-Frontend (BFF) single-roundtrip boot endpoint (dogs + caretakers + acts)   |
+| `api/dashboard.ts`                    | Backend-for-Frontend (BFF) single-roundtrip boot endpoint (dogs + caretakers + acts + health records) |
 | `src/data/healthProtocols.json`       | Dataset for vaccine types, antiparasitics (Credelio Plus, etc.), and ESCCAP rules     |
 | `src/services/api.ts`                 | SWR-cached REST API client & fetch helpers                                            |
 | `scripts/inspect_db.ts`               | Safe database inspection & live prediction engine diagnostics script                    |
@@ -102,11 +102,17 @@ PupPace — Smart Household Puppy Activity Tracker & Potty Predictor. React 19 +
 
 ### API Caching, In-Flight Deduplication & BFF Boot Discipline
 
-- **Single Boot Roundtrip (`/api/dashboard`)**: The initial dashboard view loads via `GET /api/dashboard`, executing puppies, caretakers, and recent activities in one single concurrent database execution. Eliminates cold-start waterfalls.
+- **Single Boot Roundtrip (`/api/dashboard`)**: The initial dashboard view loads via `GET /api/dashboard`, executing puppies, caretakers, recent activities, **and health records** in one single concurrent `Promise.all` (4 queries). Eliminates cold-start waterfalls — DogHealthSummary receives health records as props, never fetches independently.
+- **Deferred Session Extension**: `exchangeSessionToken()` runs 3 seconds after dashboard renders (via `setTimeout`), avoiding a 2nd concurrent Vercel function cold start during the critical boot path.
+- **Skeleton Shell Loading State**: During data fetch, App.tsx renders a skeleton shell (navbar + 3 card placeholders + timeline rows) instead of a full-screen spinner, improving perceived LCP.
+- **QuickLogModal Prefetch**: The QuickLogModal chunk is prefetched 2 seconds after mount via dynamic `import()`, eliminating the INP spike on first "+" button tap.
 - `src/services/api.ts` maintains an `inflightRequests` map to de-duplicate simultaneous requests for identical URLs across mounting components.
 - Within the in-memory TTL window (60s), serve from cache directly without spawning redundant background `fetch()` requests on every tab switch.
 - Clear cache synchronously on mutations (`createActivity`, `updateActivity`, `deleteActivity`, `createDog`, etc.).
-- Consolidate related entities: query `/api/health-records?puppyId=...` in a single unified request rather than issuing separate HTTP requests for `vaccination` and `deworming`. Filter client-side.
+
+### HeroUI CSS Performance
+
+- `src/index.css` uses a **targeted `@source` directive** scanning only the 8 HeroUI components used in the app (`button,card,chip,input,modal,select,listbox,toast`). Never use the wildcard `@source "../node_modules/@heroui/theme/dist/**/*"` — it pulls in ~40+ component stylesheets (611KB render-blocking CSS).
 
 ### SQL-Side Date Filtering & Progressive Timeline Pagination
 
@@ -131,3 +137,6 @@ PupPace — Smart Household Puppy Activity Tracker & Potty Predictor. React 19 +
 - Don't run `sleep` commands or poll deployment CLI after `git push` — inform the user immediately
 - Don't write tests that assert `null === null` or `true === true` — exercise real domain code
 - Don't write or commit code when asked to research — present options and wait for explicit user choice first
+- Don't add secondary `useEffect` fetches in dashboard components — fold data into the BFF `/api/dashboard` `Promise.all`
+- Don't use `@source` wildcards for HeroUI theme scanning — list only the components actually imported
+- Don't use per-request `getDb()` in API handlers — use module-level `neon()`/`drizzle()` for connection reuse across warm invocations
