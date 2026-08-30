@@ -1,7 +1,7 @@
-import type { Activity, PuppyProfile, Caretaker, RegisteredUserItem, HealthRecord } from '../types';
+import type { Activity, PuppyProfile, Caretaker, RegisteredUserItem, HealthRecord, DashboardPayload } from '../types';
 import { getAuthToken, setAuthToken, clearAuthToken } from '../utils/auth';
 
-export type { RegisteredUserItem };
+export type { RegisteredUserItem, DashboardPayload };
 
 export type ApiResult<T> =
   | { ok: true; data: T }
@@ -93,13 +93,6 @@ async function request<T>(url: string, options: RequestInit = {}): Promise<ApiRe
 }
 
 // ── Dashboard BFF API ──
-
-export interface DashboardPayload {
-  puppies: PuppyProfile[];
-  caretakers: Caretaker[];
-  activities: Activity[];
-  healthRecords?: HealthRecord[];
-}
 
 export async function fetchDashboard(puppyId?: string, days: number = 14): Promise<ApiResult<DashboardPayload>> {
   const params = new URLSearchParams();

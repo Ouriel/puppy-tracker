@@ -9,6 +9,9 @@ import {
   DogInputSchema,
   HealthRecordInputSchema,
   CaretakerInputSchema,
+  DeleteSchema,
+  DashboardPayloadSchema,
+  DashboardQuerySchema,
 } from '../schemas';
 
 describe('Zod Schemas Validation', () => {
@@ -135,6 +138,55 @@ describe('Zod Schemas Validation', () => {
       email: 'matthieu@example.com',
     };
     expect(CaretakerInputSchema.safeParse(inputCaretaker).success).toBe(true);
+  });
+
+  it('should validate DeleteSchema with valid id and reject empty id', () => {
+    expect(DeleteSchema.safeParse({ id: 'act-123' }).success).toBe(true);
+    expect(DeleteSchema.safeParse({ id: '' }).success).toBe(false);
+    expect(DeleteSchema.safeParse({}).success).toBe(false);
+  });
+
+  it('should validate DashboardPayloadSchema with empty arrays and full datasets', () => {
+    const emptyPayload = {
+      puppies: [],
+      caretakers: [],
+      activities: [],
+      healthRecords: [],
+    };
+    expect(DashboardPayloadSchema.safeParse(emptyPayload).success).toBe(true);
+
+    const missingHealthRecordsPayload = {
+      puppies: [],
+      caretakers: [],
+      activities: [],
+    };
+    expect(DashboardPayloadSchema.safeParse(missingHealthRecordsPayload).success).toBe(true);
+
+    const invalidPayload = {
+      puppies: [{ id: 123 }], // invalid id type
+      caretakers: [],
+      activities: [],
+    };
+    expect(DashboardPayloadSchema.safeParse(invalidPayload).success).toBe(false);
+  });
+
+  it('should validate DashboardQuerySchema parsing and sanitization', () => {
+    const parsed = DashboardQuerySchema.safeParse({
+      puppyId: 'pup-balma',
+      days: 30,
+    });
+    expect(parsed.success).toBe(true);
+    if (parsed.success) {
+      expect(parsed.data.puppyId).toBe('pup-balma');
+      expect(parsed.data.days).toBe(30);
+    }
+
+    const defaultParsed = DashboardQuerySchema.safeParse({});
+    expect(defaultParsed.success).toBe(true);
+    if (defaultParsed.success) {
+      expect(defaultParsed.data.days).toBe(14);
+      expect(defaultParsed.data.puppyId).toBeUndefined();
+    }
   });
 });
 

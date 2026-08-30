@@ -4,6 +4,15 @@ import { drizzle } from 'drizzle-orm/neon-http';
 import { eq, and, desc, gte } from 'drizzle-orm';
 import { activitiesTable, caretakersTable, puppiesTable, healthRecordsTable } from '../src/db/schema.js';
 import { verifyAuth, setCorsHeaders } from './_auth.js';
+import { z } from 'zod';
+
+const DashboardQuerySchema = z.object({
+  puppyId: z.string().optional().transform((val) => (val && val.trim().length > 0 ? val.trim() : undefined)),
+  days: z.preprocess(
+    (val) => (val === undefined || val === null || val === '' ? 14 : Number(val)),
+    z.number().int().min(1).max(90).catch(14)
+  ),
+});
 
 // Module-level connection pooling to stay warm across invocations
 const connectionString = process.env.POSTGRES_URL || process.env.DATABASE_URL || '';
@@ -34,9 +43,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Cache-Control', 'private, max-age=10, stale-while-revalidate=60');
 
   try {
-    const puppyId = req.query.puppyId as string | undefined;
-    const daysParam = req.query.days ? parseInt(req.query.days as string, 10) : 14;
-    const days = isNaN(daysParam) ? 14 : Math.min(Math.max(1, daysParam), 90);
+    const queryParsed = DashboardQuerySchema.safeParse(req.query);
+    if (!queryParsed.success) {
+      return res.status(400).json({ error: 'Invalid query parameters', details: queryParsed.error.issues });
+    }
+    const { puppyId, days } = queryParsed.data;
     const cutoffDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
 
     let activitiesWhere = and(

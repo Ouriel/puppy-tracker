@@ -158,3 +158,10 @@ export interface HealthRecord {
   weightAtTime?: number;
   notes?: string;
 }
+
+export interface DashboardPayload {
+  puppies: PuppyProfile[];
+  caretakers: Caretaker[];
+  activities: Activity[];
+  healthRecords?: HealthRecord[];
+}

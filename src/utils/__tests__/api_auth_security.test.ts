@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { signAppSessionToken, verifyAppSessionToken } from '../../../api/_auth.js';
-import { ActivityInputSchema, DogInputSchema, CaretakerInputSchema } from '../schemas';
+import { signAppSessionToken, verifyAppSessionToken, verifyAuth } from '../../../api/_auth.js';
+import { ActivityInputSchema, DogInputSchema, CaretakerInputSchema, HealthRecordInputSchema, DashboardQuerySchema } from '../schemas';
 
 describe('API Security & Session Token Validation Test Suite', () => {
   const originalEnv = process.env.SESSION_SECRET;
@@ -118,5 +118,74 @@ describe('API Security & Session Token Validation Test Suite', () => {
       role: 'Husband',
     };
     expect(CaretakerInputSchema.safeParse(validCaretaker).success).toBe(true);
+
+    // HealthRecord schema validates required fields
+    const validHealth = {
+      puppyId: 'pup-1',
+      type: 'vaccination',
+      name: 'CHPPi',
+      date: '2026-08-01',
+    };
+    expect(HealthRecordInputSchema.safeParse(validHealth).success).toBe(true);
+
+    const invalidHealth = {
+      type: 'invalid_type',
+      name: 'Test',
+    };
+    expect(HealthRecordInputSchema.safeParse(invalidHealth).success).toBe(false);
+
+    // DashboardQuerySchema sanitizes inputs
+    const validQuery = DashboardQuerySchema.safeParse({ puppyId: 'pup-1', days: '30' });
+    expect(validQuery.success).toBe(true);
+    if (validQuery.success) {
+      expect(validQuery.data.days).toBe(30);
+      expect(validQuery.data.puppyId).toBe('pup-1');
+    }
+  });
+
+  describe('verifyAuth Request Middleware', () => {
+    it('authenticates valid Bearer App Session Token on 0ms fast path', async () => {
+      const payload = {
+        email: 'user@example.com',
+        name: 'Matthieu',
+        householdId: 'hh-family-123',
+        role: 'Husband',
+      };
+      const token = signAppSessionToken(payload, 30);
+      const mockReq = {
+        headers: {
+          authorization: `Bearer ${token}`,
+        },
+      } as any;
+
+      const auth = await verifyAuth(mockReq);
+      expect(auth).toBeDefined();
+      expect(auth.email).toBe('user@example.com');
+      expect(auth.householdId).toBe('hh-family-123');
+    });
+
+    it('rejects requests with missing Authorization header with status 401', async () => {
+      const mockReq = {
+        headers: {},
+      } as any;
+
+      await expect(verifyAuth(mockReq)).rejects.toEqual({
+        status: 401,
+        message: 'Missing Authorization header',
+      });
+    });
+
+    it('rejects requests with non-Bearer Authorization header with status 401', async () => {
+      const mockReq = {
+        headers: {
+          authorization: 'Basic dXNlcjpwYXNz',
+        },
+      } as any;
+
+      await expect(verifyAuth(mockReq)).rejects.toEqual({
+        status: 401,
+        message: 'Missing Authorization header',
+      });
+    });
   });
 });

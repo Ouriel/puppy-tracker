@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { fetchDashboard, clearApiCache } from '../../services/api';
+import { DashboardPayloadSchema, DashboardQuerySchema } from '../schemas';
 
 describe('Dashboard BFF API Service Suite', () => {
   const originalFetch = global.fetch;
@@ -39,6 +40,18 @@ describe('Dashboard BFF API Service Suite', () => {
           loggedBy: 'Daria',
         },
       ],
+      healthRecords: [
+        {
+          id: 'hr-1',
+          householdId: 'hh-1',
+          puppyId: 'pup-1',
+          type: 'vaccination',
+          name: 'DHPP Booster',
+          date: '2026-06-15',
+          boosterDate: '2027-06-15',
+          vetClinic: 'Clinique Vétérinaire',
+        },
+      ],
     };
 
     let calledUrl = '';
@@ -58,6 +71,8 @@ describe('Dashboard BFF API Service Suite', () => {
       expect(result.data.puppies[0].name).toBe('Balma');
       expect(result.data.caretakers.length).toBe(2);
       expect(result.data.activities.length).toBe(1);
+      expect(result.data.healthRecords?.length).toBe(1);
+      expect(result.data.healthRecords?.[0].name).toBe('DHPP Booster');
     }
     expect(calledUrl).toContain('/api/dashboard?');
     expect(calledUrl).toContain('puppyId=pup-1');
@@ -71,7 +86,7 @@ describe('Dashboard BFF API Service Suite', () => {
       return Promise.resolve({
         ok: true,
         status: 200,
-        json: () => Promise.resolve({ puppies: [], caretakers: [], activities: [] }),
+        json: () => Promise.resolve({ puppies: [], caretakers: [], activities: [], healthRecords: [] }),
       } as Response);
     });
 
@@ -89,7 +104,7 @@ describe('Dashboard BFF API Service Suite', () => {
           resolve({
             ok: true,
             status: 200,
-            json: () => Promise.resolve({ puppies: [], caretakers: [], activities: [] }),
+            json: () => Promise.resolve({ puppies: [], caretakers: [], activities: [], healthRecords: [] }),
           } as Response);
         }, 20);
       });
@@ -104,5 +119,87 @@ describe('Dashboard BFF API Service Suite', () => {
     expect(resultA.ok).toBe(true);
     expect(resultB.ok).toBe(true);
     expect(fetchCount).toBe(1); // De-duplicated into 1 single HTTP request
+  });
+
+  it('validates DashboardPayloadSchema structure with healthRecords', () => {
+    const validPayload = {
+      puppies: [
+        {
+          id: 'pup-1',
+          name: 'Balma',
+          breed: 'English Cocker Spaniel',
+          birthDate: '2026-03-27T00:00:00.000Z',
+          weightKg: 7.8,
+          dailyFoodGramGoal: 240,
+          targetMealsPerDay: 3,
+        },
+      ],
+      caretakers: [
+        { id: 'ct-1', name: 'Matthieu', role: 'Husband' as const, color: '#6366F1' },
+      ],
+      activities: [
+        {
+          id: 'act-1',
+          puppyId: 'pup-1',
+          type: 'pee' as const,
+          timestamp: '2026-08-29T18:57:00.000Z',
+          loggedBy: 'Matthieu',
+        },
+      ],
+      healthRecords: [
+        {
+          id: 'hr-1',
+          householdId: 'hh-1',
+          puppyId: 'pup-1',
+          type: 'vaccination' as const,
+          name: 'Rabies Booster',
+          date: '2026-08-01',
+        },
+      ],
+    };
+
+    const parsed = DashboardPayloadSchema.safeParse(validPayload);
+    expect(parsed.success).toBe(true);
+  });
+
+  it('validates and coerces DashboardQuerySchema parameters correctly', () => {
+    // Default values when empty query provided
+    const emptyResult = DashboardQuerySchema.safeParse({});
+    expect(emptyResult.success).toBe(true);
+    if (emptyResult.success) {
+      expect(emptyResult.data.puppyId).toBeUndefined();
+      expect(emptyResult.data.days).toBe(14);
+    }
+
+    // String days coercion and puppyId trimming
+    const customResult = DashboardQuerySchema.safeParse({
+      puppyId: '  pup-alpha  ',
+      days: '30',
+    });
+    expect(customResult.success).toBe(true);
+    if (customResult.success) {
+      expect(customResult.data.puppyId).toBe('pup-alpha');
+      expect(customResult.data.days).toBe(30);
+    }
+
+    // Empty or whitespace-only puppyId transforms to undefined
+    const whitespaceResult = DashboardQuerySchema.safeParse({
+      puppyId: '   ',
+      days: '7',
+    });
+    expect(whitespaceResult.success).toBe(true);
+    if (whitespaceResult.success) {
+      expect(whitespaceResult.data.puppyId).toBeUndefined();
+      expect(whitespaceResult.data.days).toBe(7);
+    }
+
+    // Invalid days falls back safely to default 14
+    const invalidDaysResult = DashboardQuerySchema.safeParse({
+      days: 'invalid_number',
+    });
+    expect(invalidDaysResult.success).toBe(true);
+    if (invalidDaysResult.success) {
+      expect(invalidDaysResult.data.days).toBe(14);
+    }
   });
 });

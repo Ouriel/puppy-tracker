@@ -7,7 +7,7 @@ PupPace — Smart Household Puppy Activity Tracker & Potty Predictor. React 19 +
 ## Before Making Changes
 
 1. `npx tsc -b` — must pass clean with 0 errors
-2. `npm test` — Vitest suite (181 tests across 21 files), all tests must pass
+2. `npm test` — Vitest suite (194 tests across 22 files), all tests must pass
 3. Check `src/types/index.ts` before defining any type locally
 
 ## Critical Rules

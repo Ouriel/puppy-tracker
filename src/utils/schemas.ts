@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import type { Activity, Caretaker, PuppyProfile, UserAccount, HealthRecord } from '../types';
+import type { Activity, Caretaker, PuppyProfile, UserAccount, HealthRecord, DashboardPayload } from '../types';
 
 export const ActivityTypeSchema = z.enum([
   'pee',
@@ -87,6 +87,21 @@ export const HealthRecordSchema: z.ZodType<HealthRecord> = z.object({
   productName: z.string().optional(),
   weightAtTime: z.number().optional(),
   notes: z.string().optional(),
+});
+
+export const DashboardPayloadSchema: z.ZodType<DashboardPayload> = z.object({
+  puppies: z.array(PuppyProfileSchema),
+  caretakers: z.array(CaretakerSchema),
+  activities: z.array(ActivitySchema),
+  healthRecords: z.array(HealthRecordSchema).optional(),
+});
+
+export const DashboardQuerySchema = z.object({
+  puppyId: z.string().optional().transform((val) => (val && val.trim().length > 0 ? val.trim() : undefined)),
+  days: z.preprocess(
+    (val) => (val === undefined || val === null || val === '' ? 14 : Number(val)),
+    z.number().int().min(1).max(90).catch(14)
+  ),
 });
 
 // ── API Input Mutation Schemas ──
