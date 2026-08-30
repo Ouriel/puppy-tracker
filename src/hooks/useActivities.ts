@@ -4,13 +4,17 @@ import { fetchActivities, createActivity, updateActivity as apiUpdateActivity, d
 import { showToast } from '../utils/toast';
 import { useI18n } from '../i18n';
 
-export function useActivities(activePuppy: PuppyProfile | null) {
+export function useActivities(
+  activePuppy: PuppyProfile | null,
+  options?: { skipInitialFetch?: boolean }
+) {
   const { t } = useI18n();
   const [activities, setActivities] = useState<Activity[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isFetchingMore, setIsFetchingMore] = useState(false);
   const [hasMoreRemote, setHasMoreRemote] = useState(true);
   const loadedPuppyIdRef = useRef<string | null>(null);
+  const isInitialMountRef = useRef(true);
 
   const setActivitiesForPuppy = useCallback((newActivities: Activity[], puppyId: string) => {
     loadedPuppyIdRef.current = puppyId;
@@ -24,6 +28,13 @@ export function useActivities(activePuppy: PuppyProfile | null) {
     if (!activePuppy?.id) {
       setIsLoading(false);
       return;
+    }
+
+    if (isInitialMountRef.current) {
+      isInitialMountRef.current = false;
+      if (options?.skipInitialFetch) {
+        return;
+      }
     }
 
     if (loadedPuppyIdRef.current === activePuppy.id) {

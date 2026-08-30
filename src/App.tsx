@@ -39,7 +39,7 @@ export function App() {
   // Domain state hooks
   const puppyState = usePuppies();
   const caretakerState = useCaretakers(user);
-  const activityState = useActivities(puppyState.activePuppy);
+  const activityState = useActivities(puppyState.activePuppy, { skipInitialFetch: true });
   const [healthRecords, setHealthRecords] = useState<HealthRecord[]>([]);
 
   // URL-driven view routing helper
