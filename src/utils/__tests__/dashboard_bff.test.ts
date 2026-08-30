@@ -121,6 +121,30 @@ describe('Dashboard BFF API Service Suite', () => {
     expect(fetchCount).toBe(1); // De-duplicated into 1 single HTTP request
   });
 
+  it('allows immediate fresh dashboard fetch when clearApiCache is invoked', async () => {
+    let fetchCount = 0;
+    global.fetch = vi.fn().mockImplementation(() => {
+      fetchCount += 1;
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ puppies: [], caretakers: [], activities: [], healthRecords: [] }),
+      } as Response);
+    });
+
+    await fetchDashboard('pup-1', 14);
+    expect(fetchCount).toBe(1);
+
+    // Call again within TTL - should hit cache
+    await fetchDashboard('pup-1', 14);
+    expect(fetchCount).toBe(1);
+
+    // After clearing cache (e.g. app foreground resume), issues fresh network request
+    clearApiCache();
+    await fetchDashboard('pup-1', 14);
+    expect(fetchCount).toBe(2);
+  });
+
   it('validates DashboardPayloadSchema structure with healthRecords', () => {
     const validPayload = {
       puppies: [

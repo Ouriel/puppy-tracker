@@ -28,6 +28,7 @@ interface PredictorWidgetProps {
   todayMealsCount: number;
   onQuickAction: (type: ActivityType, pottyLocation?: PottyLocation) => void;
   onOpenQuickLogModal: (type?: ActivityType) => void;
+  referenceTime?: Date;
 }
 
 export const PredictorWidget: React.FC<PredictorWidgetProps> = React.memo(({
@@ -38,10 +39,11 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = React.memo(({
   todayMealsCount,
   onQuickAction,
   onOpenQuickLogModal,
+  referenceTime,
 }) => {
   const { t, lang } = useI18n();
 
-  const now = new Date();
+  const now = referenceTime || new Date();
 
   const { todayLogs: todayPeeLogs, lastMinsAgo: lastPeeMinsAgo } = getActivityStats(activities, 'pee', now);
   const { todayLogs: todayPoopLogs, lastMinsAgo: lastPoopMinsAgo } = getActivityStats(activities, 'poop', now);
@@ -63,7 +65,7 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = React.memo(({
 
   const formatCountdown = (dateObj: Date | null) => {
     if (!dateObj) return 'N/A';
-    const diffMins = Math.round((dateObj.getTime() - Date.now()) / 60000);
+    const diffMins = Math.round((dateObj.getTime() - now.getTime()) / 60000);
 
     if (diffMins < 0) {
       const overdueMins = Math.abs(diffMins);

@@ -7,6 +7,7 @@ import {
   fetchDogs,
   fetchHousehold,
   exchangeSessionToken,
+  clearApiCache,
 } from './services/api';
 import { calculatePredictions, calculateNextMealPortion } from './utils/predictions';
 import { getEffectivePuppyWeight } from './utils/weight';
@@ -41,6 +42,7 @@ export function App() {
   const caretakerState = useCaretakers(user);
   const activityState = useActivities(puppyState.activePuppy, { skipInitialFetch: true });
   const [healthRecords, setHealthRecords] = useState<HealthRecord[]>([]);
+  const [now, setNow] = useState<Date>(() => new Date());
 
   // URL-driven view routing helper
   const getViewFromPath = (): 'dashboard' | 'carnetdesante' | 'settings' => {
@@ -166,6 +168,42 @@ export function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Refresh dashboard data when PWA returns to foreground + heartbeat ticker
+  useEffect(() => {
+    const refreshData = () => {
+      setNow(new Date());
+      if (document.visibilityState === 'visible' && getAuthToken()) {
+        clearApiCache();
+        fetchDashboard(puppyState.activePuppyId || undefined, 14).then((res) => {
+          if (res.ok) {
+            const { puppies, caretakers, activities, healthRecords: records } = res.data;
+            if (puppies?.length) puppyState.setPuppies(puppies);
+            if (caretakers?.length) caretakerState.setCaretakers(caretakers);
+            if (records?.length) setHealthRecords(records);
+            if (activities) {
+              const targetId = puppyState.activePuppyId || puppies?.[0]?.id;
+              if (targetId) activityState.setActivitiesForPuppy(activities, targetId);
+            }
+          }
+        }).catch(() => {});
+      }
+    };
+
+    const interval = setInterval(() => {
+      if (document.visibilityState === 'visible') setNow(new Date());
+    }, 60000);
+
+    document.addEventListener('visibilitychange', refreshData);
+    window.addEventListener('focus', refreshData);
+    window.addEventListener('pageshow', refreshData);
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', refreshData);
+      window.removeEventListener('focus', refreshData);
+      window.removeEventListener('pageshow', refreshData);
+    };
+  }, [puppyState.activePuppyId, puppyState.setPuppies, caretakerState.setCaretakers, activityState.setActivitiesForPuppy]);
+
   // Prefetch QuickLogModal chunk after dashboard is interactive — eliminates INP spike on first "+" tap
   useEffect(() => {
     if (!isLoading && user && puppyState.puppies.length > 0) {
@@ -181,22 +219,20 @@ export function App() {
 
   const predictions = useMemo(() => {
     if (!puppyState.activePuppy) return null;
-    return calculatePredictions(activePuppyActivities, puppyState.activePuppy);
-  }, [activePuppyActivities, puppyState.activePuppy]);
+    return calculatePredictions(activePuppyActivities, puppyState.activePuppy, now);
+  }, [activePuppyActivities, puppyState.activePuppy, now]);
 
   const todayFoodLoggedGrams = useMemo(() => {
-    const today = new Date();
     return activePuppyActivities
-      .filter((activity) => activity.type === 'food' && isSameLogicalDate(activity.timestamp, today))
+      .filter((activity) => activity.type === 'food' && isSameLogicalDate(activity.timestamp, now))
       .reduce((sum, activity) => sum + (activity.quantityGrams || 0), 0);
-  }, [activePuppyActivities]);
+  }, [activePuppyActivities, now]);
 
   const todayMealsCount = useMemo(() => {
-    const today = new Date();
     return activePuppyActivities.filter(
-      (activity) => activity.type === 'food' && isSameLogicalDate(activity.timestamp, today)
+      (activity) => activity.type === 'food' && isSameLogicalDate(activity.timestamp, now)
     ).length;
-  }, [activePuppyActivities]);
+  }, [activePuppyActivities, now]);
 
   const nextMealPortionGrams = useMemo(() => {
     if (!puppyState.activePuppy) return 70;
@@ -465,6 +501,7 @@ export function App() {
                 todayMealsCount={todayMealsCount}
                 onQuickAction={handleQuickAction}
                 onOpenQuickLogModal={handleOpenQuickLogModal}
+                referenceTime={now}
               />
             )}
 
