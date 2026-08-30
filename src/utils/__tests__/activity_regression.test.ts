@@ -290,6 +290,17 @@ describe('Activity & CRUD Regression Tests', () => {
       expect(medicationLogs.length).toBe(1);
       expect(medicationLogs[0].medicationName).toBe('Amoxicillin');
     });
+
+    it('should sort activities by timestamp descending with native sort and ISO strings', () => {
+      const unsorted = [
+        { id: '1', timestamp: '2026-08-29T10:00:00.000Z' },
+        { id: '3', timestamp: '2026-08-29T18:00:00.000Z' },
+        { id: '2', timestamp: '2026-08-29T14:30:00.000Z' },
+      ];
+
+      const sorted = [...unsorted].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+      expect(sorted.map((item) => item.id)).toEqual(['3', '2', '1']);
+    });
   });
 });
 
