@@ -278,6 +278,13 @@ export const en = {
     deleteDogMessage: "Are you sure you want to delete this dog's profile? This action cannot be undone.",
     meals: 'meals',
     unknownDate: 'Unknown',
+    sex: 'Sex',
+    female: 'Female',
+    male: 'Male',
+    expectedAdultWeight: 'Estimated Adult Weight',
+    expectedWeightHint: 'Calibrates the WALTHAM growth curve for crossbreed and mixed puppies.',
+    searchBreedPlaceholder: 'Search a breed...',
+    noBreedFound: 'No breed found',
   },
   weightChart: {
     title: 'Weight & Growth Curve Chart',

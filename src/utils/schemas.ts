@@ -50,11 +50,13 @@ export const PuppyProfileSchema: z.ZodType<PuppyProfile> = z.object({
   name: z.string().min(1),
   breed: z.string(),
   birthDate: z.string(),
-  weightKg: z.number(),
+  weightKg: z.number().optional(),
   dailyFoodGramGoal: z.number(),
   targetMealsPerDay: z.number(),
   avatarUrl: z.string().optional(),
   notes: z.string().optional(),
+  gender: z.enum(['male', 'female']).optional(),
+  expectedAdultWeightKg: z.number().positive().optional(),
 });
 
 export const CaretakerSchema: z.ZodType<Caretaker> = z.object({

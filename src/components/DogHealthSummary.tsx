@@ -67,7 +67,8 @@ export const DogHealthSummary: React.FC<DogHealthSummaryProps> = React.memo(({
       unifiedLogs,
       profile.birthDate,
       profile.weightKg,
-      profile.gender
+      profile.gender,
+      profile.expectedAdultWeightKg
     );
     const weightInfo = getEffectivePuppyWeight(profile, activities, undefined, puppyRecords);
 
@@ -170,7 +171,14 @@ export const DogHealthSummary: React.FC<DogHealthSummaryProps> = React.memo(({
         {/* Dog Profile & Weight Card */}
         <div className="bg-slate-950/60 p-3 sm:p-4 rounded-xl border border-slate-800 space-y-3">
           <div className="flex items-center justify-between gap-2 flex-wrap">
-            <span className="text-xs font-bold text-white">{profile.name}</span>
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs font-bold text-white">{profile.name}</span>
+              {profile.gender && (
+                <span className={`text-xs font-bold ${profile.gender === 'female' ? 'text-pink-400' : 'text-blue-400'}`}>
+                  {profile.gender === 'female' ? '♀' : '♂'}
+                </span>
+              )}
+            </div>
             <Chip size="sm" variant="soft" color="accent" className="font-bold">
               {localizedBreed}
             </Chip>

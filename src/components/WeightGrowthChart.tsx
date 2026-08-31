@@ -46,9 +46,10 @@ export const WeightGrowthChart: React.FC<WeightGrowthChartProps> = ({
       unifiedLogs,
       profile.birthDate,
       profile.weightKg,
-      profile.gender
+      profile.gender,
+      profile.expectedAdultWeightKg
     );
-  }, [profile.breed, unifiedLogs, profile.birthDate, profile.weightKg, profile.gender]);
+  }, [profile.breed, unifiedLogs, profile.birthDate, profile.weightKg, profile.gender, profile.expectedAdultWeightKg]);
 
   // Centralized effective puppy weight from WALTHAM growth velocity curve
   const effectiveWeight = React.useMemo(() => {

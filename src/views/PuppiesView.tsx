@@ -16,6 +16,55 @@ interface PuppiesViewProps {
   onDeletePuppy: (id: string) => void;
 }
 
+const DogGenderAndWeightFields: React.FC<{
+  gender?: 'female' | 'male';
+  expectedWeightKg?: number;
+  onChange: (patch: { gender?: 'female' | 'male'; expectedAdultWeightKg?: number }) => void;
+  t: ReturnType<typeof useI18n>['t'];
+}> = ({ gender, expectedWeightKg, onChange, t }) => (
+  <>
+    <div>
+      <label className="block text-xs font-semibold text-slate-400 mb-1">{t.puppies.sex}</label>
+      <div className="grid grid-cols-2 gap-2">
+        {(['female', 'male'] as const).map((s) => (
+          <button
+            key={s}
+            type="button"
+            onClick={() => onChange({ gender: gender === s ? undefined : s })}
+            className={`py-2 px-3 rounded-xl text-xs font-bold border transition-colors flex items-center justify-center gap-1.5 ${
+              gender === s
+                ? s === 'female'
+                  ? 'bg-pink-950/60 border-pink-500 text-pink-300 ring-2 ring-pink-500/20'
+                  : 'bg-blue-950/60 border-blue-500 text-blue-300 ring-2 ring-blue-500/20'
+                : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <span>{s === 'female' ? '♀' : '♂'}</span>
+            <span>{s === 'female' ? t.puppies.female : t.puppies.male}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+
+    <div>
+      <label className="block text-xs font-semibold text-slate-400 mb-1">
+        {t.puppies.expectedAdultWeight} (kg)
+      </label>
+      <Input
+        type="number"
+        step="0.5"
+        min="1"
+        max="100"
+        placeholder="ex: 14"
+        className="bg-slate-950 border-slate-800 text-slate-100"
+        value={expectedWeightKg ?? ''}
+        onChange={(event) => onChange({ expectedAdultWeightKg: event.target.valueAsNumber || undefined })}
+      />
+      <p className="text-[10px] text-slate-500 mt-1">{t.puppies.expectedWeightHint}</p>
+    </div>
+  </>
+);
+
 export const PuppiesView: React.FC<PuppiesViewProps> = ({
   puppies,
   activePuppyId,
@@ -33,6 +82,8 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
     name: '',
     breed: DOG_BREEDS[0],
     customBreed: '',
+    gender: undefined as 'female' | 'male' | undefined,
+    expectedAdultWeightKg: undefined as number | undefined,
     birthDate: '2026-05-01',
     dailyFoodGramGoal: 200,
     targetMealsPerDay: 3,
@@ -44,6 +95,8 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
       name: '',
       breed: DOG_BREEDS[0],
       customBreed: '',
+      gender: undefined,
+      expectedAdultWeightKg: undefined,
       birthDate: '2026-05-01',
       dailyFoodGramGoal: 200,
       targetMealsPerDay: 3,
@@ -61,6 +114,8 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
       name: pup.name,
       breed: isStandard ? pup.breed : 'Other',
       customBreed: isStandard ? '' : pup.breed,
+      gender: pup.gender || undefined,
+      expectedAdultWeightKg: pup.expectedAdultWeightKg,
       birthDate: pup.birthDate || '2026-05-01',
       dailyFoodGramGoal: pup.dailyFoodGramGoal || 200,
       targetMealsPerDay: pup.targetMealsPerDay || 3,
@@ -76,25 +131,26 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
       ? formData.customBreed.trim() || t.puppies.customBreed
       : formData.breed;
 
+    const puppyData = {
+      name: formData.name.trim(),
+      breed: finalBreed,
+      gender: formData.gender,
+      expectedAdultWeightKg: formData.expectedAdultWeightKg,
+      birthDate: formData.birthDate,
+      dailyFoodGramGoal: formData.dailyFoodGramGoal,
+      targetMealsPerDay: formData.targetMealsPerDay,
+      notes: formData.notes.trim() || undefined,
+    };
+
     if (editingPuppy) {
       onUpdatePuppy({
         ...editingPuppy,
-        name: formData.name.trim(),
-        breed: finalBreed,
-        birthDate: formData.birthDate,
-        dailyFoodGramGoal: formData.dailyFoodGramGoal,
-        targetMealsPerDay: formData.targetMealsPerDay,
-        notes: formData.notes.trim() || undefined,
+        ...puppyData,
       });
     } else {
       onAddPuppy({
         id: `pup-${Date.now()}`,
-        name: formData.name.trim(),
-        breed: finalBreed,
-        birthDate: formData.birthDate,
-        dailyFoodGramGoal: formData.dailyFoodGramGoal,
-        targetMealsPerDay: formData.targetMealsPerDay,
-        notes: formData.notes.trim() || undefined,
+        ...puppyData,
       });
     }
     resetForm();
@@ -150,6 +206,13 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
                   />
                 </div>
 
+                <DogGenderAndWeightFields
+                  gender={formData.gender}
+                  expectedWeightKg={formData.expectedAdultWeightKg}
+                  onChange={(patch) => setFormData((prev) => ({ ...prev, ...patch }))}
+                  t={t}
+                />
+
                 <div>
                   <label className="block text-xs font-semibold text-slate-400 mb-1">{t.puppies.breed}</label>
                   <Select value={formData.breed} onChange={(val) => setFormData((prev) => ({ ...prev, breed: val as string }))}>
@@ -157,7 +220,7 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
                       <Select.Value />
                       <Select.Indicator />
                     </Select.Trigger>
-                    <Select.Popover className="bg-slate-900 border-slate-800 text-slate-100">
+                    <Select.Popover className="bg-slate-900 border-slate-800 text-slate-100 max-h-60 overflow-y-auto">
                       <ListBox>
                         {DOG_BREEDS.map((breedOption) => (
                           <ListBoxItem key={breedOption} id={breedOption} textValue={formatBreedName(breedOption, lang)}>
@@ -285,6 +348,13 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
                           />
                         </div>
 
+                        <DogGenderAndWeightFields
+                          gender={formData.gender}
+                          expectedWeightKg={formData.expectedAdultWeightKg}
+                          onChange={(patch) => setFormData((prev) => ({ ...prev, ...patch }))}
+                          t={t}
+                        />
+
                         <div>
                           <label className="block text-xs font-semibold text-slate-400 mb-1">{t.puppies.breed}</label>
                           <Select value={formData.breed} onChange={(val) => setFormData((prev) => ({ ...prev, breed: val as string }))}>
@@ -292,7 +362,7 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
                               <Select.Value />
                               <Select.Indicator />
                             </Select.Trigger>
-                            <Select.Popover className="bg-slate-900 border-slate-800 text-slate-100">
+                            <Select.Popover className="bg-slate-900 border-slate-800 text-slate-100 max-h-60 overflow-y-auto">
                               <ListBox>
                                 {DOG_BREEDS.map((breedOption) => (
                                   <ListBoxItem key={breedOption} id={breedOption} textValue={formatBreedName(breedOption, lang)}>
@@ -398,6 +468,11 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
                       <div className="min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           <h3 className="text-base sm:text-lg font-bold text-white truncate">{pup.name}</h3>
+                          {pup.gender && (
+                            <span className={`text-xs font-bold ${pup.gender === 'female' ? 'text-pink-400' : 'text-blue-400'}`}>
+                              {pup.gender === 'female' ? '♀' : '♂'}
+                            </span>
+                          )}
                           {isActive && (
                             <Chip color="success" variant="soft" size="sm">
                               {t.puppies.active}

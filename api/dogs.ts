@@ -18,6 +18,8 @@ const DogSchema = z.object({
   targetMealsPerDay: z.number().or(z.string()).optional(),
   notes: z.string().nullable().optional(),
   avatarUrl: z.string().nullable().optional(),
+  gender: z.enum(['female', 'male']).optional(),
+  expectedAdultWeightKg: z.number().positive().max(120).optional(),
 });
 
 const connectionString = process.env.POSTGRES_URL || process.env.DATABASE_URL || '';
@@ -89,6 +91,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             targetMealsPerDay: Number(body.targetMealsPerDay) || existing.targetMealsPerDay,
             notes: body.notes ?? existing.notes,
             avatarUrl: body.avatarUrl ?? existing.avatarUrl,
+            gender: body.gender ?? existing.gender,
+            expectedAdultWeightKg: body.expectedAdultWeightKg ?? existing.expectedAdultWeightKg,
             updatedAt: new Date(),
           })
           .where(and(eq(puppiesTable.id, id), eq(puppiesTable.householdId, householdId)))
@@ -109,6 +113,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           targetMealsPerDay: Number(body.targetMealsPerDay) || 3,
           notes: body.notes || '',
           avatarUrl: body.avatarUrl || '',
+          gender: body.gender || null,
+          expectedAdultWeightKg: body.expectedAdultWeightKg || null,
         })
         .returning();
       return res.status(201).json(created);
@@ -123,21 +129,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (!parsed.success) {
         return res.status(400).json({ error: 'Invalid dog payload', details: parsed.error.issues });
       }
-      const body = parsed.data;
-      const id = body.id;
+      const { id, weightKg, dailyFoodGramGoal, targetMealsPerDay, ...rest } = parsed.data;
       if (!id) return res.status(400).json({ error: 'id is required' });
 
       const [updated] = await db
         .update(puppiesTable)
         .set({
-          name: body.name,
-          breed: body.breed,
-          ...(body.birthDate ? { birthDate: body.birthDate } : {}),
-          ...(body.weightKg !== undefined ? { weightKg: Number(body.weightKg) } : {}),
-          ...(body.dailyFoodGramGoal !== undefined ? { dailyFoodGramGoal: Number(body.dailyFoodGramGoal) } : {}),
-          ...(body.targetMealsPerDay !== undefined ? { targetMealsPerDay: Number(body.targetMealsPerDay) } : {}),
-          ...(body.notes !== undefined ? { notes: body.notes } : {}),
-          ...(body.avatarUrl !== undefined ? { avatarUrl: body.avatarUrl } : {}),
+          ...rest,
+          ...(weightKg !== undefined ? { weightKg: Number(weightKg) } : {}),
+          ...(dailyFoodGramGoal !== undefined ? { dailyFoodGramGoal: Number(dailyFoodGramGoal) } : {}),
+          ...(targetMealsPerDay !== undefined ? { targetMealsPerDay: Number(targetMealsPerDay) } : {}),
           updatedAt: new Date(),
         })
         .where(and(eq(puppiesTable.id, id), eq(puppiesTable.householdId, householdId)))

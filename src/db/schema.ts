@@ -18,6 +18,8 @@ export const puppiesTable = pgTable('puppies', {
   targetMealsPerDay: integer('target_meals_per_day').notNull().default(3),
   avatarUrl: text('avatar_url'),
   notes: text('notes'),
+  gender: text('gender'),
+  expectedAdultWeightKg: doublePrecision('expected_adult_weight_kg'),
   createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true, mode: 'date' }).defaultNow(),
 }, (table) => [

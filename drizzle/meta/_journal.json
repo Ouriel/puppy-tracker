@@ -8,6 +8,13 @@
       "when": 1785249221581,
       "tag": "0000_smart_greymalkin",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1788170792034,
+      "tag": "0001_unusual_living_tribunal",
+      "breakpoints": true
     }
   ]
 }

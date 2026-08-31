@@ -280,6 +280,13 @@ export const fr: TranslationKeys = {
     deleteDogMessage: 'Êtes-vous sûr de vouloir supprimer le profil de ce chien ? Cette action est irréversible.',
     meals: 'repas',
     unknownDate: 'Inconnue',
+    sex: 'Sexe',
+    female: 'Femelle',
+    male: 'Mâle',
+    expectedAdultWeight: 'Poids adulte estimé',
+    expectedWeightHint: 'Ajuste la courbe de croissance WALTHAM pour les chiots croisés et bâtards.',
+    searchBreedPlaceholder: 'Rechercher une race...',
+    noBreedFound: 'Aucune race trouvée',
   },
   weightChart: {
     title: 'Courbe de Croissance & Poids',

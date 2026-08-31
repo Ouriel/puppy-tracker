@@ -35,6 +35,7 @@ export interface PuppyProfile {
   weightKg?: number;
   avatarUrl?: string;
   gender?: 'male' | 'female';
+  expectedAdultWeightKg?: number;
   targetMealsPerDay: number;
   dailyFoodGramGoal: number;
   notes?: string;

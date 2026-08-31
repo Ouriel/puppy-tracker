@@ -6,6 +6,7 @@ import type {
   WeightProjectionResult,
 } from '../types';
 import { getPuppyAge } from './predictions';
+import { findBreed } from '../data/breedsCatalog';
 
 export type { EffectiveWeightInfo, WeightProjectionResult };
 
@@ -22,45 +23,26 @@ export interface UnifiedWeightEntry {
  * Returns baseline expected adult weight for a breed, with gender awareness.
  * References: FCI / AKC / Société Centrale Canine breed standards.
  */
-export function getExpectedAdultWeight(breed: string, gender?: 'male' | 'female'): number {
-  const breedLower = breed.toLowerCase();
+export function getExpectedAdultWeight(
+  breed: string,
+  gender?: 'male' | 'female',
+  customExpectedWeight?: number
+): number {
+  // Priority 1: User-provided custom expected weight (mixed breeds)
+  if (customExpectedWeight && customExpectedWeight >= 1.0) {
+    return customExpectedWeight;
+  }
 
-  // Small breeds (3-9 kg adult)
-  if (breedLower.includes('chihuahua')) return 3;
-  if (breedLower.includes('jack russell')) return gender === 'female' ? 6 : 7;
-  if (breedLower.includes('cavalier')) return 7.5;
-  if (breedLower.includes('dachshund') || breedLower.includes('teckel')) return 9;
+  // Priority 2: Veterinary catalog lookup
+  const entry = findBreed(breed);
+  if (entry) {
+    if (gender === 'female') return entry.femaleWeightKg;
+    if (gender === 'male') return entry.maleWeightKg;
+    if (entry.defaultWeightKg !== undefined) return entry.defaultWeightKg;
+    return Math.round(((entry.femaleWeightKg + entry.maleWeightKg) / 2) * 10) / 10;
+  }
 
-  // Medium breeds (10-18 kg adult)
-  if (breedLower.includes('cocker anglais') || breedLower.includes('english cocker')) {
-    if (gender === 'female') return 13;
-    if (gender === 'male') return 14.5;
-    return 13; // Default 13 for backward compatibility with existing tests
-  }
-  if (breedLower.includes('cocker')) {
-    if (gender === 'female') return 12.5;
-    if (gender === 'male') return 14.5;
-    return 13;
-  }
-  if (breedLower.includes('beagle')) return gender === 'female' ? 11 : 13;
-  if (breedLower.includes('poodle') || breedLower.includes('caniche')) return 14;
-  if (breedLower.includes('french bulldog') || breedLower.includes('bouledogue')) {
-    return gender === 'female' ? 11.5 : 13;
-  }
-  if (breedLower.includes('border collie')) return gender === 'female' ? 17 : 20;
-
-  // Large breeds (20-35 kg adult)
-  if (breedLower.includes('australian shepherd') || breedLower.includes('berger australien')) {
-    return gender === 'female' ? 22 : gender === 'male' ? 27 : 25;
-  }
-  if (breedLower.includes('german shepherd') || breedLower.includes('berger allemand')) {
-    return gender === 'female' ? 30 : gender === 'male' ? 36 : 32;
-  }
-  if (breedLower.includes('labrador')) return gender === 'female' ? 28 : gender === 'male' ? 33 : 30;
-  if (breedLower.includes('golden')) return gender === 'female' ? 28 : gender === 'male' ? 32 : 30;
-  if (breedLower.includes('husky')) return 23;
-
-  // Default medium
+  // Priority 3: Fallback — medium breed default
   return 13;
 }
 
@@ -246,9 +228,10 @@ export function calculateProjectedAdultWeightRange(
   weightLogs: Array<Activity | UnifiedWeightEntry | { timestamp: string; weightKg: number }>,
   ageWeeksOrBirthDate?: number | string,
   fallbackProfileWeight?: number,
-  gender?: 'male' | 'female'
+  gender?: 'male' | 'female',
+  customExpectedWeight?: number
 ): WeightProjectionResult {
-  const breedBaselineKg = getExpectedAdultWeight(breed, gender);
+  const breedBaselineKg = getExpectedAdultWeight(breed, gender, customExpectedWeight);
   const initialCategory = getWalthamCategory(breedBaselineKg);
 
   const validLogs = (weightLogs || []).filter(
@@ -405,7 +388,7 @@ export function getEffectivePuppyWeight(
   );
 
   const breed = profile?.breed || 'English Cocker Spaniel';
-  const adultBaseline = getExpectedAdultWeight(breed, profile?.gender);
+  const adultBaseline = getExpectedAdultWeight(breed, profile?.gender, profile?.expectedAdultWeightKg);
   const dailyGainGrams = getWalthamGrowthVelocity(adultBaseline, ageWeeks);
 
   if (daysSinceLastLog <= 0.5) {

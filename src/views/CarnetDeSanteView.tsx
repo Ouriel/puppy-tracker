@@ -196,8 +196,13 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({
             <Syringe className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
           </div>
           <div className="flex-1 min-w-0">
-            <h2 className="text-base sm:text-lg font-black text-slate-100 leading-tight sm:leading-snug break-words">
-              {t.health.healthPassportFor.replace('{name}', activePuppy.name)}
+            <h2 className="text-base sm:text-lg font-black text-slate-100 leading-tight sm:leading-snug break-words flex items-center gap-1.5 flex-wrap">
+              <span>{t.health.healthPassportFor.replace('{name}', activePuppy.name)}</span>
+              {activePuppy.gender && (
+                <span className={`text-sm font-bold ${activePuppy.gender === 'female' ? 'text-pink-400' : 'text-blue-400'}`}>
+                  {activePuppy.gender === 'female' ? '♀' : '♂'}
+                </span>
+              )}
             </h2>
             <p className="text-xs text-slate-400 mt-0.5 sm:mt-1 leading-normal break-words">
               {t.health.carnetSubtitle} &bull; <span className="text-slate-300 font-semibold">{activePuppy.name}</span> ({formatBreedName(activePuppy.breed, lang)})
