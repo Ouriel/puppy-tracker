@@ -3,7 +3,7 @@ import { en } from './en';
 import { fr } from './fr';
 
 export type Language = 'en' | 'fr';
-export type TranslationDictionary = typeof en;
+type TranslationDictionary = typeof en;
 
 const STORAGE_KEY = 'puppace_lang_v1';
 

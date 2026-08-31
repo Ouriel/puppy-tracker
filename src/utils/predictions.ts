@@ -26,7 +26,7 @@ import {
  * Wrap-aware check: is the given hour within daytime (between wakeup and bedtime)?
  * Correctly handles schedules where bedtime wraps past midnight (e.g., bedtime=1, wakeup=7).
  */
-export function isDaytimeHour(hour: number, wakeupHour: number, bedtimeHour: number): boolean {
+function isDaytimeHour(hour: number, wakeupHour: number, bedtimeHour: number): boolean {
   if (bedtimeHour > wakeupHour) {
     return hour >= wakeupHour && hour < bedtimeHour;
   }
@@ -34,18 +34,11 @@ export function isDaytimeHour(hour: number, wakeupHour: number, bedtimeHour: num
   return hour >= wakeupHour || hour < bedtimeHour;
 }
 
-/**
- * Wrap-aware check: is the given hour within nighttime?
- */
-export function isNighttimeHour(hour: number, wakeupHour: number, bedtimeHour: number): boolean {
+function isNighttimeHour(hour: number, wakeupHour: number, bedtimeHour: number): boolean {
   return !isDaytimeHour(hour, wakeupHour, bedtimeHour);
 }
 
-/**
- * Evaluates whether the puppy is currently in night sleep mode,
- * taking into account actual nighttime sleep hours and early morning awakening.
- */
-export function isNightTimeMode(
+function isNightTimeMode(
   now: Date,
   activities: Activity[],
   sleepSchedule: SleepSchedule,
@@ -134,7 +127,7 @@ export function calculateNextMealPortion(
 /**
  * Calculates the next upcoming occurrence of a decimal clock hour (e.g. 7.61 -> 07:37 AM) strictly after referenceDate.
  */
-export function getNextOccurrenceOfClockTime(referenceDate: Date, targetHourDecimal: number, timeZone?: string): Date {
+function getNextOccurrenceOfClockTime(referenceDate: Date, targetHourDecimal: number, timeZone?: string): Date {
   const tz = timeZone || getUserTimezone();
   let candidate = getOccurrenceOfClockTimeInTimezone(referenceDate, targetHourDecimal, tz, 0);
   if (candidate.getTime() <= referenceDate.getTime()) {

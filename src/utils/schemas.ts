@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import type { Activity, Caretaker, PuppyProfile, UserAccount, HealthRecord, DashboardPayload } from '../types';
 
-export const ActivityTypeSchema = z.enum([
+const ActivityTypeSchema = z.enum([
   'pee',
   'poop',
   'food',
@@ -9,13 +9,13 @@ export const ActivityTypeSchema = z.enum([
   'medication',
 ]);
 
-export const PottyLocationSchema = z.enum(['outside', 'indoor_accident']);
+const PottyLocationSchema = z.enum(['outside', 'indoor_accident']);
 
-export const StoolConsistencySchema = z.enum(['hard', 'normal', 'diarrhea', 'soft', 'runny']);
+const StoolConsistencySchema = z.enum(['hard', 'normal', 'diarrhea', 'soft', 'runny']);
 
-export const FoodTypeSchema = z.enum(['kibble', 'wet', 'raw', 'treats', 'topper']);
+const FoodTypeSchema = z.enum(['kibble', 'wet', 'raw', 'treats', 'topper']);
 
-export const FamilyRoleSchema = z.enum([
+const FamilyRoleSchema = z.enum([
   'Husband',
   'Wife',
   'Partner',

@@ -3,7 +3,7 @@ import { Chip } from '@heroui/react';
 import { AlertTriangle, Clock, CheckCircle2, ShieldCheck } from 'lucide-react';
 import { useI18n } from '../../i18n';
 
-export type StatusUrgency = 'safe' | 'upToDate' | 'soon' | 'overdue' | 'expired';
+type StatusUrgency = 'safe' | 'upToDate' | 'soon' | 'overdue' | 'expired';
 
 interface StatusBadgeProps {
   status: StatusUrgency | string;

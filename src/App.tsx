@@ -28,7 +28,7 @@ import { usePuppies } from './hooks/usePuppies';
 import { useCaretakers } from './hooks/useCaretakers';
 import { useActivities } from './hooks/useActivities';
 
-export function App() {
+function App() {
   const { lang, changeLanguage, t } = useI18n();
 
   const [isLoading, setIsLoading] = useState<boolean>(true);
