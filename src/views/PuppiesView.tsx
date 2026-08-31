@@ -3,6 +3,7 @@ import type { PuppyProfile } from '../types';
 import { Dog, Plus, Trash2, Pencil, Utensils, Calendar } from 'lucide-react';
 import { useI18n } from '../i18n';
 import { formatBreedName } from '../utils/breeds';
+import { getExpectedAdultWeight } from '../utils/weight';
 import { Card, Button, Input, Select, ListBox, ListBoxItem, Chip } from '@heroui/react';
 import { DOG_BREEDS } from '../constants/breeds';
 import { ConfirmationModal } from '../components/common/ConfirmationModal';
@@ -17,53 +18,74 @@ interface PuppiesViewProps {
 }
 
 const DogGenderAndWeightFields: React.FC<{
+  breed: string;
   gender?: 'female' | 'male';
   expectedWeightKg?: number;
   onChange: (patch: { gender?: 'female' | 'male'; expectedAdultWeightKg?: number }) => void;
   t: ReturnType<typeof useI18n>['t'];
-}> = ({ gender, expectedWeightKg, onChange, t }) => (
-  <>
-    <div>
-      <label className="block text-xs font-semibold text-slate-400 mb-1">{t.puppies.sex}</label>
-      <div className="grid grid-cols-2 gap-2">
-        {(['female', 'male'] as const).map((s) => (
-          <button
-            key={s}
-            type="button"
-            onClick={() => onChange({ gender: gender === s ? undefined : s })}
-            className={`py-2 px-3 rounded-xl text-xs font-bold border transition-colors flex items-center justify-center gap-1.5 ${
-              gender === s
-                ? s === 'female'
-                  ? 'bg-pink-950/60 border-pink-500 text-pink-300 ring-2 ring-pink-500/20'
-                  : 'bg-blue-950/60 border-blue-500 text-blue-300 ring-2 ring-blue-500/20'
-                : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            <span>{s === 'female' ? '♀' : '♂'}</span>
-            <span>{s === 'female' ? t.puppies.female : t.puppies.male}</span>
-          </button>
-        ))}
-      </div>
-    </div>
+}> = ({ breed, gender, expectedWeightKg, onChange, t }) => {
+  const isCustomOrMixed =
+    breed === 'Other' ||
+    breed === 'Mixed Breed' ||
+    breed.toLowerCase().includes('crois') ||
+    breed.toLowerCase().includes('bâtard') ||
+    breed.toLowerCase().includes('batard') ||
+    breed.toLowerCase().includes('mutt');
 
-    <div>
-      <label className="block text-xs font-semibold text-slate-400 mb-1">
-        {t.puppies.expectedAdultWeight} (kg)
-      </label>
-      <Input
-        type="number"
-        step="0.5"
-        min="1"
-        max="100"
-        placeholder="ex: 14"
-        className="bg-slate-950 border-slate-800 text-slate-100"
-        value={expectedWeightKg ?? ''}
-        onChange={(event) => onChange({ expectedAdultWeightKg: event.target.valueAsNumber || undefined })}
-      />
-      <p className="text-[10px] text-slate-500 mt-1">{t.puppies.expectedWeightHint}</p>
-    </div>
-  </>
-);
+  const standardWeight = getExpectedAdultWeight(breed, gender);
+
+  return (
+    <>
+      <div>
+        <label className="block text-xs font-semibold text-slate-400 mb-1">{t.puppies.sex}</label>
+        <div className="grid grid-cols-2 gap-2">
+          {(['female', 'male'] as const).map((s) => (
+            <button
+              key={s}
+              type="button"
+              onClick={() => onChange({ gender: gender === s ? undefined : s })}
+              className={`py-2 px-3 rounded-xl text-xs font-bold border transition-colors flex items-center justify-center gap-1.5 ${
+                gender === s
+                  ? s === 'female'
+                    ? 'bg-pink-950/60 border-pink-500 text-pink-300 ring-2 ring-pink-500/20'
+                    : 'bg-blue-950/60 border-blue-500 text-blue-300 ring-2 ring-blue-500/20'
+                  : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <span>{s === 'female' ? '♀' : '♂'}</span>
+              <span>{s === 'female' ? t.puppies.female : t.puppies.male}</span>
+            </button>
+          ))}
+        </div>
+        {!isCustomOrMixed && (
+          <p className="text-[11px] text-slate-400 mt-1.5 flex items-center gap-1">
+            <span>{t.puppies.standardAdultWeight}:</span>
+            <span className="font-semibold text-slate-200">~{standardWeight} kg</span>
+          </p>
+        )}
+      </div>
+
+      {isCustomOrMixed && (
+        <div>
+          <label className="block text-xs font-semibold text-slate-400 mb-1">
+            {t.puppies.expectedAdultWeight} (kg)
+          </label>
+          <Input
+            type="number"
+            step="0.5"
+            min="1"
+            max="100"
+            placeholder="ex: 14"
+            className="bg-slate-950 border-slate-800 text-slate-100"
+            value={expectedWeightKg ?? ''}
+            onChange={(event) => onChange({ expectedAdultWeightKg: event.target.valueAsNumber || undefined })}
+          />
+          <p className="text-[10px] text-slate-500 mt-1">{t.puppies.expectedWeightHint}</p>
+        </div>
+      )}
+    </>
+  );
+};
 
 export const PuppiesView: React.FC<PuppiesViewProps> = ({
   puppies,
@@ -206,13 +228,6 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
                   />
                 </div>
 
-                <DogGenderAndWeightFields
-                  gender={formData.gender}
-                  expectedWeightKg={formData.expectedAdultWeightKg}
-                  onChange={(patch) => setFormData((prev) => ({ ...prev, ...patch }))}
-                  t={t}
-                />
-
                 <div>
                   <label className="block text-xs font-semibold text-slate-400 mb-1">{t.puppies.breed}</label>
                   <Select value={formData.breed} onChange={(val) => setFormData((prev) => ({ ...prev, breed: val as string }))}>
@@ -241,6 +256,14 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
                     />
                   )}
                 </div>
+
+                <DogGenderAndWeightFields
+                  breed={formData.breed === 'Other' ? formData.customBreed || 'Other' : formData.breed}
+                  gender={formData.gender}
+                  expectedWeightKg={formData.expectedAdultWeightKg}
+                  onChange={(patch) => setFormData((prev) => ({ ...prev, ...patch }))}
+                  t={t}
+                />
 
                 <div>
                   <label className="block text-xs font-semibold text-slate-400 mb-1">{t.puppies.birthDate}</label>
@@ -348,13 +371,6 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
                           />
                         </div>
 
-                        <DogGenderAndWeightFields
-                          gender={formData.gender}
-                          expectedWeightKg={formData.expectedAdultWeightKg}
-                          onChange={(patch) => setFormData((prev) => ({ ...prev, ...patch }))}
-                          t={t}
-                        />
-
                         <div>
                           <label className="block text-xs font-semibold text-slate-400 mb-1">{t.puppies.breed}</label>
                           <Select value={formData.breed} onChange={(val) => setFormData((prev) => ({ ...prev, breed: val as string }))}>
@@ -383,6 +399,14 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
                             />
                           )}
                         </div>
+
+                        <DogGenderAndWeightFields
+                          breed={formData.breed === 'Other' ? formData.customBreed || 'Other' : formData.breed}
+                          gender={formData.gender}
+                          expectedWeightKg={formData.expectedAdultWeightKg}
+                          onChange={(patch) => setFormData((prev) => ({ ...prev, ...patch }))}
+                          t={t}
+                        />
 
                         <div>
                           <label className="block text-xs font-semibold text-slate-400 mb-1">{t.puppies.birthDate}</label>

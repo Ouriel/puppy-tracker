@@ -285,6 +285,7 @@ export const fr: TranslationKeys = {
     male: 'Mâle',
     expectedAdultWeight: 'Poids adulte estimé',
     expectedWeightHint: 'Ajuste la courbe de croissance WALTHAM pour les chiots croisés et bâtards.',
+    standardAdultWeight: 'Poids adulte standard',
     searchBreedPlaceholder: 'Rechercher une race...',
     noBreedFound: 'Aucune race trouvée',
   },

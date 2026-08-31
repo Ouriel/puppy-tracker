@@ -283,6 +283,7 @@ export const en = {
     male: 'Male',
     expectedAdultWeight: 'Estimated Adult Weight',
     expectedWeightHint: 'Calibrates the WALTHAM growth curve for crossbreed and mixed puppies.',
+    standardAdultWeight: 'Standard adult weight',
     searchBreedPlaceholder: 'Search a breed...',
     noBreedFound: 'No breed found',
   },
