@@ -58,11 +58,51 @@ export function setActivePuppyId(id: string): void {
   }
 }
 
+const STORAGE_KEY_CACHED_ACTIVITIES = 'puppace_cached_activities_recent';
+const ACTIVITIES_CACHE_TTL_MS = 15 * 60 * 1000; // 15 minutes safety TTL for multi-user households
+
+interface StoredActivitiesPayload {
+  puppyId: string;
+  activities: import('../types').Activity[];
+  savedAt: number;
+}
+
+export function getStoredRecentActivities(puppyId: string): import('../types').Activity[] | null {
+  if (typeof localStorage === 'undefined' || !puppyId) return null;
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY_CACHED_ACTIVITIES);
+    if (!raw) return null;
+    const parsed: StoredActivitiesPayload = JSON.parse(raw);
+    if (parsed.puppyId !== puppyId) return null;
+    if (Date.now() - parsed.savedAt > ACTIVITIES_CACHE_TTL_MS) {
+      localStorage.removeItem(STORAGE_KEY_CACHED_ACTIVITIES);
+      return null;
+    }
+    return parsed.activities;
+  } catch {
+    return null;
+  }
+}
+
+export function setStoredRecentActivities(puppyId: string, activities: import('../types').Activity[]): void {
+  if (typeof localStorage !== 'undefined' && puppyId && activities) {
+    try {
+      const payload: StoredActivitiesPayload = {
+        puppyId,
+        activities: activities.slice(0, 100), // store up to 100 recent activities for instant render
+        savedAt: Date.now(),
+      };
+      localStorage.setItem(STORAGE_KEY_CACHED_ACTIVITIES, JSON.stringify(payload));
+    } catch {}
+  }
+}
+
 export function clearAllData(): void {
   if (typeof localStorage !== 'undefined') {
     localStorage.removeItem(STORAGE_KEY_ACTIVE_PUPPY);
     localStorage.removeItem(STORAGE_KEY_CACHED_PUPPIES);
     localStorage.removeItem(STORAGE_KEY_CACHED_CARETAKERS);
+    localStorage.removeItem(STORAGE_KEY_CACHED_ACTIVITIES);
   }
 }
 

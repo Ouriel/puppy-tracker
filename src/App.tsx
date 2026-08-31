@@ -28,10 +28,11 @@ import { usePuppies } from './hooks/usePuppies';
 import { useCaretakers } from './hooks/useCaretakers';
 import { useActivities } from './hooks/useActivities';
 
+import { getStoredRecentActivities } from './utils/storage';
+
 function App() {
   const { lang, changeLanguage, t } = useI18n();
 
-  const [isLoading, setIsLoading] = useState<boolean>(true);
   const [user, setUser] = useState<UserAccount | null>(() => {
     const token = getAuthToken();
     return token ? getStoredAuthUser() : null;
@@ -43,6 +44,18 @@ function App() {
   const activityState = useActivities(puppyState.activePuppy, { skipInitialFetch: true });
   const [healthRecords, setHealthRecords] = useState<HealthRecord[]>([]);
   const [now, setNow] = useState<Date>(() => new Date());
+
+  const [isLoading, setIsLoading] = useState<boolean>(() => {
+    // If not authenticated, lock screen handles it
+    const token = getAuthToken();
+    if (!token) return false;
+    // If we have active puppy and fresh activities (< 15 mins), render dashboard immediately (Frame 1)!
+    if (puppyState.activePuppy?.id) {
+      const cached = getStoredRecentActivities(puppyState.activePuppy.id);
+      if (cached && cached.length > 0) return false;
+    }
+    return true;
+  });
 
   // URL-driven view routing helper
   const getViewFromPath = (): 'dashboard' | 'carnetdesante' | 'settings' => {

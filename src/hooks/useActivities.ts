@@ -1,16 +1,27 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef, startTransition } from 'react';
 import type { Activity, PuppyProfile } from '../types';
 import { fetchActivities, createActivity, updateActivity as apiUpdateActivity, deleteActivity as apiDeleteActivity } from '../services/api';
 import { showToast } from '../utils/toast';
 import { useI18n } from '../i18n';
+import { getStoredRecentActivities, setStoredRecentActivities } from '../utils/storage';
 
 export function useActivities(
   activePuppy: PuppyProfile | null,
   options?: { skipInitialFetch?: boolean }
 ) {
   const { t } = useI18n();
-  const [activities, setActivities] = useState<Activity[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(() => !!activePuppy?.id);
+  const [activities, setActivities] = useState<Activity[]>(() => {
+    if (activePuppy?.id) {
+      return getStoredRecentActivities(activePuppy.id) || [];
+    }
+    return [];
+  });
+  const [isLoading, setIsLoading] = useState<boolean>(() => {
+    if (!activePuppy?.id) return false;
+    // If we have fresh cached activities for this puppy (< 15 mins), start with isLoading: false!
+    const cached = getStoredRecentActivities(activePuppy.id);
+    return !cached || cached.length === 0;
+  });
   const [isFetchingMore, setIsFetchingMore] = useState(false);
   const [hasMoreRemote, setHasMoreRemote] = useState(true);
   const loadedPuppyIdRef = useRef<string | null>(null);
@@ -18,9 +29,12 @@ export function useActivities(
 
   const setActivitiesForPuppy = useCallback((newActivities: Activity[], puppyId: string) => {
     loadedPuppyIdRef.current = puppyId;
-    setActivities(newActivities);
-    setIsLoading(false);
-    setHasMoreRemote(newActivities.length >= 150);
+    setStoredRecentActivities(puppyId, newActivities);
+    startTransition(() => {
+      setActivities(newActivities);
+      setIsLoading(false);
+      setHasMoreRemote(newActivities.length >= 150);
+    });
   }, []);
 
   // Fetch activities when active puppy changes (skips duplicate fetch if already loaded via dashboard BFF)
@@ -103,14 +117,20 @@ export function useActivities(
         puppyId: activePuppy.id,
       };
 
-      setActivities((previous) => [newActivity, ...previous]);
+      startTransition(() => {
+        setActivities((previous) => [newActivity, ...previous]);
+      });
 
       const result = await createActivity(newActivity);
       if (result.ok) {
-        setActivities((previous) => previous.map((activity) => (activity.id === newActivity.id ? result.data : activity)));
+        startTransition(() => {
+          setActivities((previous) => previous.map((activity) => (activity.id === newActivity.id ? result.data : activity)));
+        });
         showToast(t.toasts.activityLogged, 'success');
       } else {
-        setActivities(previousActivities);
+        startTransition(() => {
+          setActivities(previousActivities);
+        });
         showToast(result.error || t.toasts.errorGeneric, 'error');
       }
     },
