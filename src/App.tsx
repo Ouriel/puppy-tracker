@@ -46,15 +46,9 @@ function App() {
   const [now, setNow] = useState<Date>(() => new Date());
 
   const [isLoading, setIsLoading] = useState<boolean>(() => {
-    // If not authenticated, lock screen handles it
-    const token = getAuthToken();
-    if (!token) return false;
-    // If we have active puppy and fresh activities (< 15 mins), render dashboard immediately (Frame 1)!
-    if (puppyState.activePuppy?.id) {
-      const cached = getStoredRecentActivities(puppyState.activePuppy.id);
-      if (cached && cached.length > 0) return false;
-    }
-    return true;
+    if (!getAuthToken()) return false;
+    const cached = puppyState.activePuppy?.id ? getStoredRecentActivities(puppyState.activePuppy.id) : null;
+    return !cached || cached.length === 0;
   });
 
   // URL-driven view routing helper

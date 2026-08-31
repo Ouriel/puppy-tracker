@@ -72,29 +72,21 @@ export function getStoredRecentActivities(puppyId: string): import('../types').A
   try {
     const raw = localStorage.getItem(STORAGE_KEY_CACHED_ACTIVITIES);
     if (!raw) return null;
-    const parsed: StoredActivitiesPayload = JSON.parse(raw);
-    if (parsed.puppyId !== puppyId) return null;
-    if (Date.now() - parsed.savedAt > ACTIVITIES_CACHE_TTL_MS) {
-      localStorage.removeItem(STORAGE_KEY_CACHED_ACTIVITIES);
-      return null;
-    }
-    return parsed.activities;
+    const { puppyId: id, activities, savedAt }: StoredActivitiesPayload = JSON.parse(raw);
+    return id === puppyId && Date.now() - savedAt < ACTIVITIES_CACHE_TTL_MS ? activities : null;
   } catch {
     return null;
   }
 }
 
 export function setStoredRecentActivities(puppyId: string, activities: import('../types').Activity[]): void {
-  if (typeof localStorage !== 'undefined' && puppyId && activities) {
-    try {
-      const payload: StoredActivitiesPayload = {
-        puppyId,
-        activities: activities.slice(0, 100), // store up to 100 recent activities for instant render
-        savedAt: Date.now(),
-      };
-      localStorage.setItem(STORAGE_KEY_CACHED_ACTIVITIES, JSON.stringify(payload));
-    } catch {}
-  }
+  if (typeof localStorage === 'undefined' || !puppyId || !activities) return;
+  try {
+    localStorage.setItem(
+      STORAGE_KEY_CACHED_ACTIVITIES,
+      JSON.stringify({ puppyId, activities: activities.slice(0, 100), savedAt: Date.now() })
+    );
+  } catch {}
 }
 
 export function clearAllData(): void {
