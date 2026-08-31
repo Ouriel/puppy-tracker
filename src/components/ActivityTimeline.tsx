@@ -20,6 +20,7 @@ interface ActivityTimelineProps {
   onLoadMore?: (targetDays?: number) => Promise<void>;
   isLoadingMore?: boolean;
   hasMoreRemote?: boolean;
+  referenceTime?: Date;
 }
 
 interface DayGroup {
@@ -67,6 +68,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
   onLoadMore,
   isLoadingMore = false,
   hasMoreRemote = true,
+  referenceTime,
 }) => {
   const { t, lang } = useI18n();
   const [editingActivity, setEditingActivity] = useState<Activity | null>(null);
@@ -78,8 +80,17 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
   const exportMenuRef = useRef<HTMLDivElement>(null);
   const tz = getUserTimezone();
 
-  const todayDateKey = useMemo(() => formatLogicalDate(new Date(), tz), [tz]);
-  const yesterdayDateKey = useMemo(() => formatLogicalDate(new Date(Date.now() - 24 * 3600 * 1000), tz), [tz]);
+  const targetTime = referenceTime ? referenceTime.getTime() : null;
+  const todayDateKey = useMemo(() => {
+    const baseDate = targetTime ? new Date(targetTime) : new Date();
+    return formatLogicalDate(baseDate, tz);
+  }, [targetTime, tz]);
+
+  const yesterdayDateKey = useMemo(() => {
+    const baseDate = targetTime ? new Date(targetTime) : new Date();
+    baseDate.setDate(baseDate.getDate() - 1);
+    return formatLogicalDate(baseDate, tz);
+  }, [targetTime, tz]);
 
   const getIcon = (type: ActivityType) => {
     switch (type) {
@@ -120,13 +131,12 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
     return Infinity;
   }, [daysLimit]);
 
-  // Filter by calendar day window (Last N days or All Time)
   const cutoffDateKey = useMemo(() => {
     if (daysLimit === Infinity) return null;
-    const now = new Date();
-    const cutoffDate = new Date(now.getTime() - (daysLimit - 1) * 24 * 60 * 60 * 1000);
+    const baseDate = targetTime ? new Date(targetTime) : new Date();
+    const cutoffDate = new Date(baseDate.getTime() - (daysLimit - 1) * 24 * 60 * 60 * 1000);
     return formatLogicalDate(cutoffDate, tz);
-  }, [daysLimit, tz]);
+  }, [daysLimit, targetTime, tz]);
 
   const visibleActivities = useMemo(() => {
     if (!cutoffDateKey) return sortedCoreActivities;

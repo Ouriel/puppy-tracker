@@ -10,7 +10,7 @@ export function useActivities(
 ) {
   const { t } = useI18n();
   const [activities, setActivities] = useState<Activity[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isLoading, setIsLoading] = useState<boolean>(() => !!activePuppy?.id);
   const [isFetchingMore, setIsFetchingMore] = useState(false);
   const [hasMoreRemote, setHasMoreRemote] = useState(true);
   const loadedPuppyIdRef = useRef<string | null>(null);
@@ -26,7 +26,6 @@ export function useActivities(
   // Fetch activities when active puppy changes (skips duplicate fetch if already loaded via dashboard BFF)
   useEffect(() => {
     if (!activePuppy?.id) {
-      setIsLoading(false);
       return;
     }
 

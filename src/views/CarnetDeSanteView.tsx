@@ -40,17 +40,6 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({
     );
   };
 
-  const loadHealthRecords = useCallback(async () => {
-    if (!activePuppy?.id) return;
-    const response = await fetchHealthRecords(activePuppy.id);
-    if (response.ok) {
-      const allRecords = response.data;
-      const vRecords = allRecords.filter((record) => record.type === 'vaccination');
-      const dRecords = allRecords.filter((record) => record.type === 'deworming');
-      setVaccinations(sortByDateDesc(vRecords));
-      setDewormingLogs(sortByDateDesc(dRecords));
-    }
-  }, [activePuppy?.id]);
 
   const handleExportPdf = useCallback(() => {
     setIsExportMenuOpen(false);
@@ -70,10 +59,20 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({
   );
 
   useEffect(() => {
+    let isMounted = true;
     if (activePuppy?.id) {
-      loadHealthRecords();
+      void fetchHealthRecords(activePuppy.id).then((response) => {
+        if (isMounted && response.ok) {
+          const allRecords = response.data;
+          setVaccinations(sortByDateDesc(allRecords.filter((r) => r.type === 'vaccination')));
+          setDewormingLogs(sortByDateDesc(allRecords.filter((r) => r.type === 'deworming')));
+        }
+      });
     }
-  }, [activePuppy?.id, loadHealthRecords]);
+    return () => {
+      isMounted = false;
+    };
+  }, [activePuppy?.id]);
 
   // Close Export dropdown on outside click or Escape key
   useEffect(() => {

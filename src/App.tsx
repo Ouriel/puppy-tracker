@@ -169,20 +169,24 @@ function App() {
   }, []);
 
   // Refresh dashboard data when PWA returns to foreground + heartbeat ticker
+  const { activePuppyId, setPuppies } = puppyState;
+  const { setCaretakers } = caretakerState;
+  const { setActivitiesForPuppy } = activityState;
+
   useEffect(() => {
     const refreshData = () => {
       setNow(new Date());
       if (document.visibilityState === 'visible' && getAuthToken()) {
         clearApiCache();
-        fetchDashboard(puppyState.activePuppyId || undefined, 14).then((res) => {
+        fetchDashboard(activePuppyId || undefined, 14).then((res) => {
           if (res.ok) {
             const { puppies, caretakers, activities, healthRecords: records } = res.data;
-            if (puppies?.length) puppyState.setPuppies(puppies);
-            if (caretakers?.length) caretakerState.setCaretakers(caretakers);
+            if (puppies?.length) setPuppies(puppies);
+            if (caretakers?.length) setCaretakers(caretakers);
             if (records?.length) setHealthRecords(records);
             if (activities) {
-              const targetId = puppyState.activePuppyId || puppies?.[0]?.id;
-              if (targetId) activityState.setActivitiesForPuppy(activities, targetId);
+              const targetId = activePuppyId || puppies?.[0]?.id;
+              if (targetId) setActivitiesForPuppy(activities, targetId);
             }
           }
         }).catch(() => {});
@@ -202,7 +206,7 @@ function App() {
       window.removeEventListener('focus', refreshData);
       window.removeEventListener('pageshow', refreshData);
     };
-  }, [puppyState.activePuppyId, puppyState.setPuppies, caretakerState.setCaretakers, activityState.setActivitiesForPuppy]);
+  }, [activePuppyId, setPuppies, setCaretakers, setActivitiesForPuppy]);
 
   // Prefetch QuickLogModal chunk after dashboard is interactive — eliminates INP spike on first "+" tap
   useEffect(() => {
@@ -527,6 +531,7 @@ function App() {
               hasMoreRemote={activityState.hasMoreRemoteActivities}
               onLoadMore={activityState.loadMoreActivities}
               isLoadingMore={activityState.isFetchingMoreActivities}
+              referenceTime={now}
             />
           </div>
         )}

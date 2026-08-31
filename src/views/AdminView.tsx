@@ -38,13 +38,8 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail }) => {
         fetchUsers(),
         fetchAllHouseholds(),
       ]);
-
-      if (remoteUsers.ok) {
-        setUsers(remoteUsers.data);
-      }
-      if (remoteHouseholds.ok && remoteHouseholds.data.length > 0) {
-        setHouseholds(remoteHouseholds.data);
-      }
+      if (remoteUsers.ok) setUsers(remoteUsers.data);
+      if (remoteHouseholds.ok && remoteHouseholds.data.length > 0) setHouseholds(remoteHouseholds.data);
     } catch (err) {
       console.error('Failed to load admin data', err);
     } finally {
@@ -54,7 +49,10 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail }) => {
 
   useEffect(() => {
     if (isSuperAdmin) {
-      loadData();
+      const timer = setTimeout(() => {
+        void loadData();
+      }, 0);
+      return () => clearTimeout(timer);
     }
   }, [isSuperAdmin, loadData]);
 
