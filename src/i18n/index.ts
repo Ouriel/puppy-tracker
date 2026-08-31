@@ -7,7 +7,7 @@ type TranslationDictionary = typeof en;
 
 const STORAGE_KEY = 'puppace_lang_v1';
 
-export function getStoredLanguage(): Language {
+function getStoredLanguage(): Language {
   try {
     if (typeof window !== 'undefined' && window.localStorage) {
       const stored = localStorage.getItem(STORAGE_KEY);
@@ -19,7 +19,7 @@ export function getStoredLanguage(): Language {
   return 'en'; // default English
 }
 
-export function setStoredLanguage(lang: Language) {
+function setStoredLanguage(lang: Language) {
   try {
     if (typeof window !== 'undefined' && window.localStorage) {
       localStorage.setItem(STORAGE_KEY, lang);

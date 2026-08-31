@@ -29,80 +29,75 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
   const [editingPuppy, setEditingPuppy] = useState<PuppyProfile | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<{id: string; type: string} | null>(null);
 
-  // New Puppy Form State
-  const [name, setName] = useState('');
-  const [breed, setBreed] = useState(DOG_BREEDS[0]);
-  const [customBreed, setCustomBreed] = useState('');
-  const [birthDate, setBirthDate] = useState('2026-05-01');
-  const [dailyFoodGramGoal, setDailyFoodGramGoal] = useState<number>(200);
-  const [targetMealsPerDay, setTargetMealsPerDay] = useState<number>(3);
-  const [notes, setNotes] = useState('');
+  const [formData, setFormData] = useState({
+    name: '',
+    breed: DOG_BREEDS[0],
+    customBreed: '',
+    birthDate: '2026-05-01',
+    dailyFoodGramGoal: 200,
+    targetMealsPerDay: 3,
+    notes: '',
+  });
 
-  // Edit Form State
-  const [editName, setEditName] = useState('');
-  const [editBreed, setEditBreed] = useState(DOG_BREEDS[0]);
-  const [editCustomBreed, setEditCustomBreed] = useState('');
-  const [editBirthDate, setEditBirthDate] = useState('');
-  const [editFoodGramGoal, setEditFoodGramGoal] = useState<number>(200);
-  const [editMealsPerDay, setEditMealsPerDay] = useState<number>(3);
-  const [editNotes, setEditNotes] = useState('');
-
-  const handleCreateSubmit = (event: React.FormEvent) => {
-    event.preventDefault();
-    if (!name.trim()) return;
-
-    const finalBreed = breed === 'Other' ? customBreed.trim() || t.puppies.customBreed : breed;
-
-    const newPup: PuppyProfile = {
-      id: `pup-${Date.now()}`,
-      name: name.trim(),
-      breed: finalBreed,
-      birthDate,
-      dailyFoodGramGoal,
-      targetMealsPerDay,
-      notes: notes.trim() || undefined,
-    };
-
-    onAddPuppy(newPup);
+  const resetForm = () => {
+    setFormData({
+      name: '',
+      breed: DOG_BREEDS[0],
+      customBreed: '',
+      birthDate: '2026-05-01',
+      dailyFoodGramGoal: 200,
+      targetMealsPerDay: 3,
+      notes: '',
+    });
     setIsAdding(false);
-    setName('');
-    setNotes('');
+    setEditingPuppy(null);
   };
 
   const handleStartEdit = (pup: PuppyProfile) => {
+    setIsAdding(false);
     setEditingPuppy(pup);
-    setEditName(pup.name);
-    if (DOG_BREEDS.includes(pup.breed)) {
-      setEditBreed(pup.breed);
-      setEditCustomBreed('');
-    } else {
-      setEditBreed('Other');
-      setEditCustomBreed(pup.breed);
-    }
-    setEditBirthDate(pup.birthDate || '2026-05-01');
-    setEditFoodGramGoal(pup.dailyFoodGramGoal || 200);
-    setEditMealsPerDay(pup.targetMealsPerDay || 3);
-    setEditNotes(pup.notes || '');
+    const isStandard = DOG_BREEDS.includes(pup.breed);
+    setFormData({
+      name: pup.name,
+      breed: isStandard ? pup.breed : 'Other',
+      customBreed: isStandard ? '' : pup.breed,
+      birthDate: pup.birthDate || '2026-05-01',
+      dailyFoodGramGoal: pup.dailyFoodGramGoal || 200,
+      targetMealsPerDay: pup.targetMealsPerDay || 3,
+      notes: pup.notes || '',
+    });
   };
 
-  const handleEditSubmit = (event: React.FormEvent) => {
+  const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault();
-    if (!editingPuppy || !editName.trim()) return;
+    if (!formData.name.trim()) return;
 
-    const finalBreed = editBreed === 'Other' ? editCustomBreed.trim() || t.puppies.customBreed : editBreed;
+    const finalBreed = formData.breed === 'Other'
+      ? formData.customBreed.trim() || t.puppies.customBreed
+      : formData.breed;
 
-    const updatedPup: PuppyProfile = {
-      ...editingPuppy,
-      name: editName.trim(),
-      breed: finalBreed,
-      birthDate: editBirthDate,
-      dailyFoodGramGoal: editFoodGramGoal,
-      targetMealsPerDay: editMealsPerDay,
-      notes: editNotes.trim() || undefined,
-    };
-
-    onUpdatePuppy(updatedPup);
-    setEditingPuppy(null);
+    if (editingPuppy) {
+      onUpdatePuppy({
+        ...editingPuppy,
+        name: formData.name.trim(),
+        breed: finalBreed,
+        birthDate: formData.birthDate,
+        dailyFoodGramGoal: formData.dailyFoodGramGoal,
+        targetMealsPerDay: formData.targetMealsPerDay,
+        notes: formData.notes.trim() || undefined,
+      });
+    } else {
+      onAddPuppy({
+        id: `pup-${Date.now()}`,
+        name: formData.name.trim(),
+        breed: finalBreed,
+        birthDate: formData.birthDate,
+        dailyFoodGramGoal: formData.dailyFoodGramGoal,
+        targetMealsPerDay: formData.targetMealsPerDay,
+        notes: formData.notes.trim() || undefined,
+      });
+    }
+    resetForm();
   };
 
   return (
@@ -123,7 +118,7 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
           <Button
             variant="primary"
             size="sm"
-            onPress={() => setIsAdding(!isAdding)}
+            onPress={() => (isAdding ? resetForm() : (setEditingPuppy(null), setIsAdding(true)))}
             className="bg-indigo-600 hover:bg-indigo-500 font-bold text-xs shadow-sm"
           >
             <Plus className="w-4 h-4 mr-1 inline" />
@@ -135,7 +130,7 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
       {/* Add Dog Form */}
       {isAdding && (
         <Card className="bg-slate-900 border-slate-800 text-slate-100">
-          <form onSubmit={handleCreateSubmit}>
+          <form onSubmit={handleSubmit}>
             <Card.Header className="p-4 sm:p-6 pb-0">
               <Card.Title className="text-white font-bold text-sm sm:text-base">{t.puppies.registerNewDog}</Card.Title>
             </Card.Header>
@@ -149,15 +144,15 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
                     type="text"
                     placeholder={t.puppies.namePlaceholder}
                     className="bg-slate-950 border-slate-800 text-slate-100"
-                    value={name}
-                    onChange={(event) => setName(event.target.value)}
+                    value={formData.name}
+                    onChange={(event) => setFormData((prev) => ({ ...prev, name: event.target.value }))}
                     required
                   />
                 </div>
 
                 <div>
                   <label className="block text-xs font-semibold text-slate-400 mb-1">{t.puppies.breed}</label>
-                  <Select value={breed} onChange={(val) => setBreed(val as string)}>
+                  <Select value={formData.breed} onChange={(val) => setFormData((prev) => ({ ...prev, breed: val as string }))}>
                     <Select.Trigger className="bg-slate-950 border-slate-800 text-slate-100">
                       <Select.Value />
                       <Select.Indicator />
@@ -173,12 +168,12 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
                     </Select.Popover>
                   </Select>
 
-                  {breed === 'Other' && (
+                  {formData.breed === 'Other' && (
                     <Input
                       type="text"
                       placeholder={t.puppies.specifyCustomBreed}
-                      value={customBreed}
-                      onChange={(event) => setCustomBreed(event.target.value)}
+                      value={formData.customBreed}
+                      onChange={(event) => setFormData((prev) => ({ ...prev, customBreed: event.target.value }))}
                       className="mt-2 bg-slate-950 border-slate-800 text-slate-100"
                     />
                   )}
@@ -189,8 +184,8 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
                   <Input
                     type="date"
                     className="bg-slate-950 border-slate-800 text-slate-100"
-                    value={birthDate}
-                    onChange={(event) => setBirthDate(event.target.value)}
+                    value={formData.birthDate}
+                    onChange={(event) => setFormData((prev) => ({ ...prev, birthDate: event.target.value }))}
                   />
                 </div>
 
@@ -199,8 +194,8 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
                   <Input
                     type="number"
                     className="bg-slate-950 border-slate-800 text-slate-100"
-                    value={String(dailyFoodGramGoal)}
-                    onChange={(event) => setDailyFoodGramGoal(Number(event.target.value))}
+                    value={String(formData.dailyFoodGramGoal)}
+                    onChange={(event) => setFormData((prev) => ({ ...prev, dailyFoodGramGoal: Number(event.target.value) }))}
                   />
                 </div>
 
@@ -211,8 +206,8 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
                     min="1"
                     max="6"
                     className="bg-slate-950 border-slate-800 text-slate-100"
-                    value={String(targetMealsPerDay)}
-                    onChange={(event) => setTargetMealsPerDay(Number(event.target.value))}
+                    value={String(formData.targetMealsPerDay)}
+                    onChange={(event) => setFormData((prev) => ({ ...prev, targetMealsPerDay: Number(event.target.value) }))}
                   />
                 </div>
 
@@ -222,8 +217,8 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
                     type="text"
                     placeholder={t.puppies.notesPlaceholder}
                     className="bg-slate-950 border-slate-800 text-slate-100"
-                    value={notes}
-                    onChange={(event) => setNotes(event.target.value)}
+                    value={formData.notes}
+                    onChange={(event) => setFormData((prev) => ({ ...prev, notes: event.target.value }))}
                   />
                 </div>
               </div>
@@ -231,7 +226,7 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
               <div className="flex justify-end gap-2 pt-2">
                 <Button
                   variant="tertiary"
-                  onPress={() => setIsAdding(false)}
+                  onPress={resetForm}
                 >
                   {t.potty.cancel}
                 </Button>
@@ -277,22 +272,22 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
                       </h3>
                     </div>
 
-                    <form onSubmit={handleEditSubmit} className="space-y-3">
+                    <form onSubmit={handleSubmit} className="space-y-3">
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div>
                           <label className="block text-xs font-semibold text-slate-400 mb-1">{t.puppies.dogName}</label>
                           <Input
                             type="text"
                             className="bg-slate-950 border-slate-800 text-slate-100"
-                            value={editName}
-                            onChange={(event) => setEditName(event.target.value)}
+                            value={formData.name}
+                            onChange={(event) => setFormData((prev) => ({ ...prev, name: event.target.value }))}
                             required
                           />
                         </div>
 
                         <div>
                           <label className="block text-xs font-semibold text-slate-400 mb-1">{t.puppies.breed}</label>
-                          <Select value={editBreed} onChange={(val) => setEditBreed(val as string)}>
+                          <Select value={formData.breed} onChange={(val) => setFormData((prev) => ({ ...prev, breed: val as string }))}>
                             <Select.Trigger className="bg-slate-950 border-slate-800 text-slate-100">
                               <Select.Value />
                               <Select.Indicator />
@@ -308,13 +303,13 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
                             </Select.Popover>
                           </Select>
 
-                          {editBreed === 'Other' && (
+                          {formData.breed === 'Other' && (
                             <Input
                               type="text"
                               placeholder={t.puppies.specifyCustomBreed}
                               className="bg-slate-950 border-slate-800 text-slate-100 mt-2"
-                              value={editCustomBreed}
-                              onChange={(event) => setEditCustomBreed(event.target.value)}
+                              value={formData.customBreed}
+                              onChange={(event) => setFormData((prev) => ({ ...prev, customBreed: event.target.value }))}
                             />
                           )}
                         </div>
@@ -324,8 +319,8 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
                           <Input
                             type="date"
                             className="bg-slate-950 border-slate-800 text-slate-100"
-                            value={editBirthDate}
-                            onChange={(event) => setEditBirthDate(event.target.value)}
+                            value={formData.birthDate}
+                            onChange={(event) => setFormData((prev) => ({ ...prev, birthDate: event.target.value }))}
                           />
                         </div>
 
@@ -334,8 +329,8 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
                           <Input
                             type="number"
                             className="bg-slate-950 border-slate-800 text-slate-100"
-                            value={String(editFoodGramGoal)}
-                            onChange={(event) => setEditFoodGramGoal(Number(event.target.value))}
+                            value={String(formData.dailyFoodGramGoal)}
+                            onChange={(event) => setFormData((prev) => ({ ...prev, dailyFoodGramGoal: Number(event.target.value) }))}
                           />
                         </div>
 
@@ -346,8 +341,8 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
                             min="1"
                             max="6"
                             className="bg-slate-950 border-slate-800 text-slate-100"
-                            value={String(editMealsPerDay)}
-                            onChange={(event) => setEditMealsPerDay(Number(event.target.value))}
+                            value={String(formData.targetMealsPerDay)}
+                            onChange={(event) => setFormData((prev) => ({ ...prev, targetMealsPerDay: Number(event.target.value) }))}
                           />
                         </div>
 
@@ -356,8 +351,8 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
                           <Input
                             type="text"
                             className="bg-slate-950 border-slate-800 text-slate-100"
-                            value={editNotes}
-                            onChange={(event) => setEditNotes(event.target.value)}
+                            value={formData.notes}
+                            onChange={(event) => setFormData((prev) => ({ ...prev, notes: event.target.value }))}
                           />
                         </div>
                       </div>
@@ -366,7 +361,7 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
                         <Button
                           size="sm"
                           type="button"
-                          onPress={() => setEditingPuppy(null)}
+                          onPress={resetForm}
                           className="bg-slate-950 border border-slate-800 text-slate-300 font-bold"
                         >
                           {t.potty.cancel}

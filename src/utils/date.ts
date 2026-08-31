@@ -104,7 +104,7 @@ export function formatLocalTime(date: Date, timeZone?: string): string {
 /**
  * Creates a Date object for a specific YYYY-MM-DD and HH:mm in a specified IANA timezone
  */
-export function createDateInTimezone(dateStr: string, timeStr: string, timeZone?: string): Date {
+function createDateInTimezone(dateStr: string, timeStr: string, timeZone?: string): Date {
   const tz = timeZone || getUserTimezone();
   const [year, month, day] = dateStr.split('-').map(Number);
   const [hours, minutes] = timeStr.split(':').map(Number);
