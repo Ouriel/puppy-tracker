@@ -1,4 +1,4 @@
-import type { UserAccount } from '../types';
+import type { UserAccount } from '../types/index.js';
 
 const getSuperAdminEmail = (): string => {
   const globalEnv = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env;
