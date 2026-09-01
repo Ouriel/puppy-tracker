@@ -3,7 +3,7 @@ import { neon } from '@neondatabase/serverless';
 import { drizzle } from 'drizzle-orm/neon-http';
 import { eq, and } from 'drizzle-orm';
 import { usersTable } from '../src/db/schema.js';
-import { SUPER_ADMIN_EMAIL } from '../src/constants/auth.js';
+import { SUPER_ADMIN_EMAIL } from '../src/utils/auth.js';
 import { verifyAuth, setCorsHeaders } from './_auth.js';
 import { z } from 'zod';
 

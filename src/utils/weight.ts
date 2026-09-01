@@ -8,8 +8,6 @@ import type {
 import { getPuppyAge } from './predictions';
 import { findBreed } from '../data/breedsCatalog';
 
-export type { EffectiveWeightInfo, WeightProjectionResult };
-
 export interface UnifiedWeightEntry {
   id: string;
   timestamp: string; // ISO date string

@@ -10,7 +10,7 @@ import {
 import type { RegisteredUserItem } from '../types';
 import { useI18n } from '../i18n';
 import { Button, Input, Card, Chip, Modal } from '@heroui/react';
-import { SUPER_ADMIN_EMAIL, isSuperAdminEmail } from '../constants/auth';
+import { SUPER_ADMIN_EMAIL, isSuperAdminEmail } from '../utils/auth';
 
 interface AdminViewProps {
   currentUserEmail: string;

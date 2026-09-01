@@ -3,7 +3,7 @@ import { neon } from '@neondatabase/serverless';
 import { drizzle } from 'drizzle-orm/neon-http';
 import { eq } from 'drizzle-orm';
 import { usersTable } from '../../src/db/schema.js';
-import { isSuperAdminEmail } from '../../src/constants/auth.js';
+import { isSuperAdminEmail } from '../../src/utils/auth.js';
 import { verifyAuth, signAppSessionToken, setCorsHeaders } from '../_auth.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {

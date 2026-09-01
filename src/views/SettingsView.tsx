@@ -6,7 +6,7 @@ import { PuppiesView } from './PuppiesView';
 import { HouseholdView } from './HouseholdView';
 import { AdminView } from './AdminView';
 import { useI18n } from '../i18n';
-import { isSuperAdminEmail } from '../constants/auth';
+import { isSuperAdminEmail } from '../utils/auth';
 
 interface SettingsViewProps {
   user: UserAccount;

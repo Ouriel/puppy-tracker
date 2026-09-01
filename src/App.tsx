@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo, lazy, Suspense } from 'react';
 import type { Activity, UserAccount, ActivityType, PottyLocation, FamilyRole, HealthRecord } from './types';
 import { getAuthToken, setAuthToken, getStoredAuthUser, setStoredAuthUser } from './utils/auth';
-import { isSuperAdminEmail } from './constants/auth';
+import { isSuperAdminEmail } from './utils/auth';
 import {
   fetchDashboard,
   fetchDogs,

@@ -1,5 +1,7 @@
 import type { Language } from '../i18n';
-import { findBreed } from '../data/breedsCatalog';
+import { BREED_CATALOG, findBreed } from '../data/breedsCatalog';
+
+export const DOG_BREEDS = BREED_CATALOG.map((b) => b.nameEn);
 
 /**
  * Formats breed name according to active language using the veterinary catalog.
