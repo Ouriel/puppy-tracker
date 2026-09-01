@@ -548,6 +548,38 @@ export function calculateLearnedPostMealDelayMinutes(
 }
 
 /**
+ * Determines whether tonight's pre-bed potty outing must be preserved instead of entering night sleep.
+ * Returns true if the puppy has not emptied bladder/bowels during the evening pre-bed window (bedtime ± 2h).
+ */
+function shouldPreservePreBedPotty(
+  lastLogTime: number,
+  now: Date,
+  sleepSchedule: SleepSchedule,
+  timeZone: string
+): boolean {
+  // Find when tonight's sleep period begins/began
+  let bedtime = getOccurrenceOfClockTimeInTimezone(now, sleepSchedule.bedtimeHour, timeZone, 0);
+  if (bedtime.getTime() > now.getTime() + 2 * 60 * 60 * 1000) {
+    bedtime = getOccurrenceOfClockTimeInTimezone(now, sleepSchedule.bedtimeHour, timeZone, -1);
+  }
+
+  const hoursFromBedtime = (now.getTime() - bedtime.getTime()) / (1000 * 60 * 60);
+
+  // Pre-bed preservation only applies during the evening bedtime window (from 2h before to 2h after bedtime)
+  const isEveningWindow = hoursFromBedtime >= -2.0 && hoursFromBedtime <= 2.0;
+  if (!isEveningWindow) return false;
+
+  // Check if puppy emptied bladder/bowels in pre-bed window (>= bedtime - 2h)
+  const preBedWindowStart = bedtime.getTime() - 2 * 60 * 60 * 1000;
+  const hasPreBedPotty = lastLogTime >= preBedWindowStart;
+
+  // Only preserve if last log was from today's waking cycle (within 12h of bedtime), not days ago
+  const isFromToday = lastLogTime >= bedtime.getTime() - 12 * 60 * 60 * 1000;
+
+  return isFromToday && !hasPreBedPotty;
+}
+
+/**
  * Predicts the next expected Pee event using the decoupled Pee Pipeline.
  */
 export function predictNextPee(
@@ -591,6 +623,7 @@ export function predictNextPee(
   const standardExpectedAt = new Date(lastPeeTime + learnedPee.intervalMins * 60 * 1000);
 
   const isNightTime = isNightTimeMode(now, sorted, sleepSchedule, tz);
+  const preservePreBed = shouldPreservePreBedPotty(lastPeeTime, now, sleepSchedule, tz);
 
   let nextExpectedAt: Date = standardExpectedAt;
   let mode: ScheduleMode = 'daytime_baseline';
@@ -601,7 +634,7 @@ export function predictNextPee(
 
   const todayPees = past.filter((a) => a.type === 'pee' && isSameLocalDate(parseIsoDate(a.timestamp), now, tz));
 
-  if (isNightTime) {
+  if (isNightTime && !preservePreBed) {
     mode = 'night_sleep';
     const targetWakeup = getNextOccurrenceOfClockTime(now, sleepSchedule.wakeupHour, tz);
 
@@ -618,7 +651,7 @@ export function predictNextPee(
       nextExpectedAt = targetWakeup;
       reason = `Morning outing (~${wakeupStr})`;
     }
-  } else if (todayPees.length === 0 && !isSameLocalDate(lastPeeDate, now, tz)) {
+  } else if (todayPees.length === 0 && !isSameLocalDate(lastPeeDate, now, tz) && !isNightTime) {
     // New day has started, puppy woke up after overnight sleep and hasn't peed yet today
     mode = 'daytime_baseline';
     const todayWakeup = getOccurrenceOfClockTimeInTimezone(now, sleepSchedule.wakeupHour, tz, 0);
@@ -652,21 +685,10 @@ export function predictNextPee(
   } else {
     mode = 'daytime_baseline';
     const expectedHour = getLocalDecimalHour(standardExpectedAt, tz);
-    if (isNighttimeHour(expectedHour, sleepSchedule.wakeupHour, sleepSchedule.bedtimeHour)) {
-      const lastPeeHour = getLocalDecimalHour(lastPeeDate, tz);
-      const isPreBedPottyDone = isSameLocalDate(lastPeeDate, now, tz) && lastPeeHour >= (sleepSchedule.bedtimeHour - 2.0);
-
-      // If the puppy already emptied bladder right before bed, roll over to morning wakeup
-      if (isPreBedPottyDone) {
-        const nextWakeup = getNextOccurrenceOfClockTime(now, sleepSchedule.wakeupHour, tz);
-        nextExpectedAt = nextWakeup;
-        reason = `Morning outing (~${wakeupStr})`;
-      } else {
-        nextExpectedAt = standardExpectedAt;
-        reason = learnedPee.isLearned
-          ? `Learned average: ~${formatMinutesToXhXX(learnedPee.intervalMins)} bladder interval`
-          : `Standard bladder interval (~${formatMinutesToXhXX(learnedPee.intervalMins)})`;
-      }
+    if ((isNighttimeHour(expectedHour, sleepSchedule.wakeupHour, sleepSchedule.bedtimeHour) || isNightTime) && !preservePreBed) {
+      const nextWakeup = getNextOccurrenceOfClockTime(now, sleepSchedule.wakeupHour, tz);
+      nextExpectedAt = nextWakeup;
+      reason = `Morning outing (~${wakeupStr})`;
     } else {
       nextExpectedAt = standardExpectedAt;
       reason = learnedPee.isLearned
@@ -739,6 +761,7 @@ export function predictNextPoop(
   const todayPoops = past.filter((a) => a.type === 'poop' && isSameLocalDate(parseIsoDate(a.timestamp), now, tz));
 
   const isNightTime = isNightTimeMode(now, sorted, sleepSchedule, tz);
+  const preservePreBed = shouldPreservePreBedPotty(lastPoopTime, now, sleepSchedule, tz);
 
   const isLastPoopConstipated =
     lastPoop.stoolConsistency === 'hard' ||
@@ -768,13 +791,13 @@ export function predictNextPoop(
     const refractoryMinutes = Math.max(learnedPoop.intervalMins * 1.4, 480);
     nextExpectedAt = new Date(lastPoopTime + refractoryMinutes * 60 * 1000);
     reason = 'Digestive recovery: pause after hard stool';
-  } else if (isNightTime) {
+  } else if (isNightTime && !preservePreBed) {
     mode = 'night_sleep';
     const targetWakeup = getNextOccurrenceOfClockTime(now, sleepSchedule.wakeupHour, tz);
     nextExpectedAt = new Date(targetWakeup.getTime() + offsets.morningPoopOffsetMins * 60 * 1000);
     const targetTimeStr = formatLocalTime(nextExpectedAt, tz);
     reason = `Morning outing (~${targetTimeStr})`;
-  } else if (todayPoops.length === 0 && !isSameLocalDate(lastPoopDate, now, tz)) {
+  } else if (todayPoops.length === 0 && !isSameLocalDate(lastPoopDate, now, tz) && !isNightTime) {
     // New day has started, puppy woke up after overnight sleep and has not pooped yet today
     const todayMealsSorted = past
       .filter((a) => a.type === 'food' && isSameLocalDate(parseIsoDate(a.timestamp), now, tz))
@@ -827,22 +850,11 @@ export function predictNextPoop(
     if (!postMealOverride) {
       mode = 'daytime_baseline';
       const expectedHour = getLocalDecimalHour(standardExpectedAt, tz);
-      if (isNighttimeHour(expectedHour, sleepSchedule.wakeupHour, sleepSchedule.bedtimeHour)) {
-        const lastPoopHour = getLocalDecimalHour(lastPoopDate, tz);
-        const isPreBedPottyDone = isSameLocalDate(lastPoopDate, now, tz) && lastPoopHour >= (sleepSchedule.bedtimeHour - 2.0);
-
-        // If the puppy already emptied bowels right before bed, roll over to morning wakeup
-        if (isPreBedPottyDone) {
-          const nextWakeup = getNextOccurrenceOfClockTime(now, sleepSchedule.wakeupHour, tz);
-          nextExpectedAt = new Date(nextWakeup.getTime() + offsets.morningPoopOffsetMins * 60 * 1000);
-          const targetTimeStr = formatLocalTime(nextExpectedAt, tz);
-          reason = `Morning outing (~${targetTimeStr})`;
-        } else {
-          nextExpectedAt = standardExpectedAt;
-          reason = learnedPoop.isLearned
-            ? `Learned average: ~${formatMinutesToXhXX(learnedPoop.intervalMins)} digestive interval`
-            : 'Standard digestive interval (~6h)';
-        }
+      if ((isNighttimeHour(expectedHour, sleepSchedule.wakeupHour, sleepSchedule.bedtimeHour) || isNightTime) && !preservePreBed) {
+        const nextWakeup = getNextOccurrenceOfClockTime(now, sleepSchedule.wakeupHour, tz);
+        nextExpectedAt = new Date(nextWakeup.getTime() + offsets.morningPoopOffsetMins * 60 * 1000);
+        const targetTimeStr = formatLocalTime(nextExpectedAt, tz);
+        reason = `Morning outing (~${targetTimeStr})`;
       } else {
         nextExpectedAt = standardExpectedAt;
         reason = learnedPoop.isLearned

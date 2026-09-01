@@ -263,10 +263,12 @@ function App() {
 
   const handleQuickAction = useCallback((type: ActivityType, pottyLocation?: PottyLocation) => {
     if (!puppyState.activePuppy) return;
+    const actionTime = new Date();
+    setNow(actionTime);
     const newAct: Omit<Activity, 'id'> = {
       puppyId: puppyState.activePuppy.id,
       type,
-      timestamp: new Date().toISOString(),
+      timestamp: actionTime.toISOString(),
       loggedBy: caretakerState.currentUser,
     };
 
@@ -552,7 +554,10 @@ function App() {
             isOpen={true}
             onClose={() => setIsQuickLogOpen(false)}
             initialType={quickLogType}
-            onSave={activityState.addActivity}
+            onSave={(activity) => {
+              setNow(new Date());
+              return activityState.addActivity(activity);
+            }}
             currentUser={caretakerState.currentUser}
             defaultMealPortionGrams={nextMealPortionGrams}
             defaultWeightKg={lastWeightLogKg}

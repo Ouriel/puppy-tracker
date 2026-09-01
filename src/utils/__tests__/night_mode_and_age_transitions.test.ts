@@ -139,4 +139,113 @@ describe('Night Mode, Evening Outings, and Age Transitions Comprehensive Test Su
     expect(pred.portionGrams).toBe(75); // 240 - 165 = 75g remaining
     expect(pred.foodReason).toContain('Meal 3 of 3');
   });
+
+  // 7. Evening Pre-Bed Pee Preservation past Bedtime (Bug 1)
+  it('preserves pre-bed pee at 22:45 PM past bedtime (22:35) when last pee was at 17:36 PM without jumping to morning', () => {
+    const activities: Activity[] = [
+      { id: '1', puppyId: balmaProfile.id, type: 'pee', timestamp: '2026-08-23T17:36:00+02:00', loggedBy: 'Daria' },
+    ];
+
+    const refTime = new Date('2026-08-23T22:45:00+02:00'); // Past bedtime (22:35)
+    const pred = calculatePredictions(activities, balmaProfile, refTime, 'Europe/Paris', balmaSleepSchedule);
+
+    expect(pred.peeMode).toBe('daytime_baseline');
+    expect(pred.nextPeeExpectedAt).not.toBeNull();
+    const expDate = pred.nextPeeExpectedAt!;
+    expect(expDate.getDate()).toBe(23); // Tonight (August 23), NOT August 24
+    expect(pred.peeUrgency).toBe('overdue');
+  });
+
+  // 8. Evening Pre-Bed Poop Preservation past Bedtime (Bug 1)
+  it('preserves pre-bed poop at 22:45 PM past bedtime (22:35) when last poop was at 12:34 PM without jumping to morning', () => {
+    const activities: Activity[] = [
+      { id: '1', puppyId: balmaProfile.id, type: 'poop', timestamp: '2026-08-23T12:34:00+02:00', loggedBy: 'Daria' },
+    ];
+
+    const refTime = new Date('2026-08-23T22:45:00+02:00'); // Past bedtime (22:35)
+    const pred = calculatePredictions(activities, balmaProfile, refTime, 'Europe/Paris', balmaSleepSchedule);
+
+    expect(pred.poopMode).toBe('daytime_baseline');
+    expect(pred.nextPoopExpectedAt).not.toBeNull();
+    const expDate = pred.nextPoopExpectedAt!;
+    expect(expDate.getDate()).toBe(23); // Tonight (August 23), NOT August 24
+  });
+
+  // 9. Quick action logging smoothly transitions from overdue pre-bed to night sleep (Bug 2)
+  it('smoothly transitions to night mode when bedtime poop is logged at 22:48 PM', () => {
+    const refTime = new Date('2026-08-23T22:48:15+02:00');
+    const activities: Activity[] = [
+      { id: '1', puppyId: balmaProfile.id, type: 'poop', timestamp: '2026-08-23T12:34:00+02:00', loggedBy: 'Daria' },
+      { id: '2', puppyId: balmaProfile.id, type: 'poop', timestamp: '2026-08-23T22:48:15+02:00', loggedBy: 'Matthieu' },
+    ];
+
+    const pred = calculatePredictions(activities, balmaProfile, refTime, 'Europe/Paris', balmaSleepSchedule);
+
+    expect(pred.poopMode).toBe('night_sleep');
+    expect(pred.poopUrgency).toBe('safe');
+    expect(pred.nextPoopExpectedAt!.getDate()).toBe(24); // Rolled over to morning because 22:48:15 poop was recognized
+  });
+
+  // 10. Split Pre-Bed Outing: Pee logged, Poop still pending
+  it('decouples pee and poop: pee enters night_sleep while overdue poop remains daytime_baseline', () => {
+    const activities: Activity[] = [
+      { id: '1', puppyId: balmaProfile.id, type: 'pee', timestamp: '2026-08-23T22:42:00+02:00', loggedBy: 'Matthieu' }, // Pre-bed pee done
+      { id: '2', puppyId: balmaProfile.id, type: 'poop', timestamp: '2026-08-23T12:34:00+02:00', loggedBy: 'Daria' },    // Poop pending since noon
+    ];
+
+    const refTime = new Date('2026-08-23T22:45:00+02:00');
+    const pred = calculatePredictions(activities, balmaProfile, refTime, 'Europe/Paris', balmaSleepSchedule);
+
+    expect(pred.peeMode).toBe('night_sleep');
+    expect(pred.peeUrgency).toBe('safe');
+    expect(pred.nextPeeExpectedAt!.getDate()).toBe(24); // Morning outing (August 24)
+
+    expect(pred.poopMode).toBe('daytime_baseline');
+    expect(pred.nextPoopExpectedAt!.getDate()).toBe(23); // Preserved for tonight (August 23)
+  });
+
+  // 11. Midnight-Wrapping Bedtime Schedule (Bedtime 00:30, Wakeup 08:30)
+  it('handles midnight-wrapping bedtime schedule (00:30 AM) with pre-bed preservation across midnight', () => {
+    const midnightSchedule: SleepSchedule = {
+      bedtimeHour: 0.5, // 00:30 AM
+      wakeupHour: 8.5,  // 08:30 AM
+      bedtimeStr: '00:30',
+      wakeupStr: '08:30',
+    };
+
+    // Case 1: At 23:45 (before bedtime 00:30), last pee was 18:00 -> preserves tonight
+    const acts1: Activity[] = [
+      { id: '1', puppyId: balmaProfile.id, type: 'pee', timestamp: '2026-08-23T18:00:00+02:00', loggedBy: 'Matthieu' },
+    ];
+    const pred1 = calculatePredictions(acts1, balmaProfile, new Date('2026-08-23T23:45:00+02:00'), 'Europe/Paris', midnightSchedule);
+    expect(pred1.peeMode).toBe('daytime_baseline');
+    expect(pred1.nextPeeExpectedAt!.getDate()).toBe(23);
+
+    // Case 2: At 00:45 (after bedtime 00:30), last pee was 18:00 (no pre-bed pee in >= 22:30) -> preserves pre-bed
+    const pred2 = calculatePredictions(acts1, balmaProfile, new Date('2026-08-24T00:45:00+02:00'), 'Europe/Paris', midnightSchedule);
+    expect(pred2.peeMode).toBe('daytime_baseline');
+    expect(pred2.peeUrgency).toBe('overdue');
+
+    // Case 3: At 00:45, pre-bed pee was logged at 23:30 (>= 22:30 window) -> enters night_sleep
+    const acts3: Activity[] = [
+      { id: '1', puppyId: balmaProfile.id, type: 'pee', timestamp: '2026-08-23T23:30:00+02:00', loggedBy: 'Matthieu' },
+    ];
+    const pred3 = calculatePredictions(acts3, balmaProfile, new Date('2026-08-24T00:45:00+02:00'), 'Europe/Paris', midnightSchedule);
+    expect(pred3.peeMode).toBe('night_sleep');
+    expect(pred3.nextPeeExpectedAt!.getHours()).toBe(8); // Morning outing ~08:30
+  });
+
+  // 12. Indoor Accident in Pre-Bed Window
+  it('recognizes indoor accident in pre-bed window as emptied bladder for overnight sleep', () => {
+    const activities: Activity[] = [
+      { id: '1', puppyId: balmaProfile.id, type: 'pee', timestamp: '2026-08-23T22:20:00+02:00', pottyLocation: 'indoor_accident', loggedBy: 'Matthieu' },
+    ];
+
+    const refTime = new Date('2026-08-23T22:45:00+02:00'); // After bedtime (22:35)
+    const pred = calculatePredictions(activities, balmaProfile, refTime, 'Europe/Paris', balmaSleepSchedule);
+
+    expect(pred.peeMode).toBe('night_sleep');
+    expect(pred.nextPeeExpectedAt!.getDate()).toBe(24);
+  });
 });
+
