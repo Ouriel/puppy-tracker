@@ -7,18 +7,8 @@ import { useI18n } from '../i18n';
 import { formatMinutesToXhXX, isSameLogicalDate, parseIsoDate } from '../utils/date';
 import { calculateNextMealPortion } from '../utils/predictions';
 import { translatePredictionReason } from '../utils/predictionsTranslation';
+import { useMemo } from 'react';
 import { StatusBadge } from './common/StatusBadge';
-
-function getActivityStats(activities: Activity[], type: string, now: Date) {
-  const typeLogs = activities.filter((activity) => activity.type === type).sort(
-    (activityA, activityB) => parseIsoDate(activityB.timestamp).getTime() - parseIsoDate(activityA.timestamp).getTime()
-  );
-  const todayLogs = typeLogs.filter((activity) => isSameLogicalDate(parseIsoDate(activity.timestamp), now));
-  const lastMinsAgo = typeLogs.length > 0
-    ? Math.max(0, Math.floor((now.getTime() - parseIsoDate(typeLogs[0].timestamp).getTime()) / 60000))
-    : null;
-  return { typeLogs, todayLogs, lastMinsAgo };
-}
 
 interface PredictorWidgetProps {
   predictions: PredictionResult;
@@ -45,9 +35,37 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = React.memo(({
 
   const now = referenceTime || new Date();
 
-  const { todayLogs: todayPeeLogs, lastMinsAgo: lastPeeMinsAgo } = getActivityStats(activities, 'pee', now);
-  const { todayLogs: todayPoopLogs, lastMinsAgo: lastPoopMinsAgo } = getActivityStats(activities, 'poop', now);
-  const { lastMinsAgo: lastFoodMinsAgo } = getActivityStats(activities, 'food', now);
+  const { todayPeeCount, lastPeeMinsAgo, todayPoopCount, lastPoopMinsAgo, lastFoodMinsAgo } = useMemo(() => {
+    let todayPee = 0;
+    let lastPee: number | null = null;
+    let todayPoop = 0;
+    let lastPoop: number | null = null;
+    let lastFood: number | null = null;
+    const nowTime = now.getTime();
+
+    for (const activity of activities) {
+      const actTime = parseIsoDate(activity.timestamp).getTime();
+      const isToday = isSameLogicalDate(parseIsoDate(activity.timestamp), now);
+
+      if (activity.type === 'pee') {
+        if (isToday) todayPee++;
+        if (lastPee === null) lastPee = Math.max(0, Math.floor((nowTime - actTime) / 60000));
+      } else if (activity.type === 'poop') {
+        if (isToday) todayPoop++;
+        if (lastPoop === null) lastPoop = Math.max(0, Math.floor((nowTime - actTime) / 60000));
+      } else if (activity.type === 'food') {
+        if (lastFood === null) lastFood = Math.max(0, Math.floor((nowTime - actTime) / 60000));
+      }
+    }
+
+    return {
+      todayPeeCount: todayPee,
+      lastPeeMinsAgo: lastPee,
+      todayPoopCount: todayPoop,
+      lastPoopMinsAgo: lastPoop,
+      lastFoodMinsAgo: lastFood,
+    };
+  }, [activities, now]);
 
   const dailyGoal = profile.dailyFoodGramGoal || 200;
   const targetMeals = profile.targetMealsPerDay || 3;
@@ -135,7 +153,7 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = React.memo(({
             <div className="bg-slate-950/60 p-2.5 rounded-xl border border-slate-800/80 text-[11px] space-y-1 text-slate-400">
               <div className="flex justify-between font-medium">
                 <span>{t.dashboard.peesToday}</span>
-                <span className="font-bold text-sky-300">{todayPeeLogs.length}</span>
+                <span className="font-bold text-sky-300">{todayPeeCount}</span>
               </div>
               <div className="flex justify-between font-medium">
                 <span>{t.dashboard.lastPee}</span>
@@ -220,7 +238,7 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = React.memo(({
             <div className="bg-slate-950/60 p-2.5 rounded-xl border border-slate-800/80 text-[11px] space-y-1 text-slate-400">
               <div className="flex justify-between font-medium">
                 <span>{t.dashboard.poopsToday}</span>
-                <span className="font-bold text-amber-300">{todayPoopLogs.length}</span>
+                <span className="font-bold text-amber-300">{todayPoopCount}</span>
               </div>
               <div className="flex justify-between font-medium">
                 <span>{t.dashboard.lastPoop}</span>

@@ -86,5 +86,6 @@ export const healthRecordsTable = pgTable('health_records', {
   notes: text('notes'),
   createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).defaultNow(),
 }, (table) => [
+  index('idx_health_records_household_date').on(table.householdId, table.date.desc()),
   index('idx_health_records_tenant_pup_date').on(table.householdId, table.puppyId, table.date.desc()),
 ]);

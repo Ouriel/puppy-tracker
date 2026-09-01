@@ -264,7 +264,6 @@ function App() {
   const handleQuickAction = useCallback((type: ActivityType, pottyLocation?: PottyLocation) => {
     if (!puppyState.activePuppy) return;
     const actionTime = new Date();
-    setNow(actionTime);
     const newAct: Omit<Activity, 'id'> = {
       puppyId: puppyState.activePuppy.id,
       type,
@@ -555,7 +554,6 @@ function App() {
             onClose={() => setIsQuickLogOpen(false)}
             initialType={quickLogType}
             onSave={(activity) => {
-              setNow(new Date());
               return activityState.addActivity(activity);
             }}
             currentUser={caretakerState.currentUser}
