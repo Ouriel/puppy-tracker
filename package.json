@@ -33,7 +33,7 @@
     "@types/node": "^26.4.0",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.5",
-    "@vercel/node": "^5.10.2",
+    "@vercel/node": "^9.0.1",
     "@vitejs/plugin-react": "^6.1.1",
     "drizzle-kit": "^0.31.10",
     "jsdom": "^30.0.1",
