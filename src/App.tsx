@@ -264,6 +264,7 @@ function App() {
   const handleQuickAction = useCallback((type: ActivityType, pottyLocation?: PottyLocation) => {
     if (!puppyState.activePuppy) return;
     const actionTime = new Date();
+    setNow(actionTime);
     const newAct: Omit<Activity, 'id'> = {
       puppyId: puppyState.activePuppy.id,
       type,

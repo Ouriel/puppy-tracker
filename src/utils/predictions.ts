@@ -591,7 +591,8 @@ export function predictNextPee(
   const tz = options?.timeZone || getUserTimezone();
   const sleepSchedule = options?.sleepSchedule || detectSleepSchedule(activities, tz);
 
-  const past = activities.filter((a) => parseIsoDate(a.timestamp).getTime() <= now.getTime());
+  const maxAllowedTime = now.getTime() + 60 * 1000;
+  const past = activities.filter((a) => parseIsoDate(a.timestamp).getTime() <= maxAllowedTime);
   const sorted = [...past].sort((a, b) => parseIsoDate(b.timestamp).getTime() - parseIsoDate(a.timestamp).getTime());
 
   const lastPee = sorted.find((a) => a.type === 'pee');
@@ -729,7 +730,8 @@ export function predictNextPoop(
   const sleepSchedule = options?.sleepSchedule || detectSleepSchedule(activities, tz);
   const offsets = calculateMorningSequenceOffsets(activities, tz);
 
-  const past = activities.filter((a) => parseIsoDate(a.timestamp).getTime() <= now.getTime());
+  const maxAllowedTime = now.getTime() + 60 * 1000;
+  const past = activities.filter((a) => parseIsoDate(a.timestamp).getTime() <= maxAllowedTime);
   const sorted = [...past].sort((a, b) => parseIsoDate(b.timestamp).getTime() - parseIsoDate(a.timestamp).getTime());
 
   const lastPoop = sorted.find((a) => a.type === 'poop');
@@ -803,8 +805,14 @@ export function predictNextPoop(
       .filter((a) => a.type === 'food' && isSameLocalDate(parseIsoDate(a.timestamp), now, tz))
       .sort((a, b) => parseIsoDate(a.timestamp).getTime() - parseIsoDate(b.timestamp).getTime());
 
-    const todayWakeup = getOccurrenceOfClockTimeInTimezone(now, sleepSchedule.wakeupHour, tz, 0);
-    const todayMorningPoop = new Date(todayWakeup.getTime() + offsets.morningPoopOffsetMins * 60 * 1000);
+    const firstMorningPee = past.find(
+      (a) => a.type === 'pee' && isSameLocalDate(parseIsoDate(a.timestamp), now, tz)
+    );
+    const morningAnchor = firstMorningPee
+      ? parseIsoDate(firstMorningPee.timestamp)
+      : getOccurrenceOfClockTimeInTimezone(now, sleepSchedule.wakeupHour, tz, 0);
+
+    const todayMorningPoop = new Date(morningAnchor.getTime() + offsets.morningPoopOffsetMins * 60 * 1000);
     const targetTimeStr = formatLocalTime(todayMorningPoop, tz);
 
     if (todayMealsSorted.length > 0) {
@@ -896,7 +904,8 @@ export function predictNextFood(
   const sleepSchedule = options?.sleepSchedule || detectSleepSchedule(activities, tz);
   const offsets = calculateMorningSequenceOffsets(activities, tz);
 
-  const past = activities.filter((a) => parseIsoDate(a.timestamp).getTime() <= now.getTime());
+  const maxAllowedTime = now.getTime() + 60 * 1000;
+  const past = activities.filter((a) => parseIsoDate(a.timestamp).getTime() <= maxAllowedTime);
   const sorted = [...past].sort((a, b) => parseIsoDate(b.timestamp).getTime() - parseIsoDate(a.timestamp).getTime());
 
   const { months } = getPuppyAge(profile.birthDate, now);
@@ -914,8 +923,14 @@ export function predictNextFood(
   const isNightTime = isNightTimeMode(now, sorted, sleepSchedule, tz);
 
   // Today's scheduled breakfast time (for daytime schedule)
-  const todayWakeup = getOccurrenceOfClockTimeInTimezone(now, sleepSchedule.wakeupHour, tz, 0);
-  const todayBreakfast = new Date(todayWakeup.getTime() + offsets.morningFoodOffsetMins * 60 * 1000);
+  const firstMorningPee = past.find(
+    (a) => a.type === 'pee' && isSameLocalDate(parseIsoDate(a.timestamp), now, tz)
+  );
+  const morningAnchor = firstMorningPee
+    ? parseIsoDate(firstMorningPee.timestamp)
+    : getOccurrenceOfClockTimeInTimezone(now, sleepSchedule.wakeupHour, tz, 0);
+
+  const todayBreakfast = new Date(morningAnchor.getTime() + offsets.morningFoodOffsetMins * 60 * 1000);
   const todayBfastStr = formatLocalTime(todayBreakfast, tz);
 
   // Next upcoming morning breakfast (strictly in the future, for night sleep or goal reached)

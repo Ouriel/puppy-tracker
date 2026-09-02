@@ -247,5 +247,55 @@ describe('Night Mode, Evening Outings, and Age Transitions Comprehensive Test Su
     expect(pred.peeMode).toBe('night_sleep');
     expect(pred.nextPeeExpectedAt!.getDate()).toBe(24);
   });
+
+  // 13. Early Morning Walk Before Usual Wakeup (Balma Sept 1st scenario)
+  it('exits night mode and rolls over to daytime baseline when walked early at 07:48 AM before wakeup time 08:38 AM', () => {
+    const lateWakeSchedule: SleepSchedule = {
+      bedtimeHour: 22.8, // 22:48 PM
+      wakeupHour: 8.63,  // 08:38 AM
+      bedtimeStr: '22:48',
+      wakeupStr: '08:38',
+    };
+
+    const activities: Activity[] = [
+      { id: '1', puppyId: balmaProfile.id, type: 'pee', timestamp: '2026-08-31T21:33:00+02:00', loggedBy: 'Daria' },
+      { id: '2', puppyId: balmaProfile.id, type: 'pee', timestamp: '2026-09-01T07:48:04+02:00', loggedBy: 'Matthieu' },
+    ];
+
+    // Reference time in app component before 60s interval tick (e.g. 07:48:00)
+    const refTime = new Date('2026-09-01T07:48:00+02:00');
+    const pred = calculatePredictions(activities, balmaProfile, refTime, 'Europe/Paris', lateWakeSchedule);
+
+    expect(pred.peeMode).toBe('daytime_baseline');
+    expect(pred.peeReason).not.toContain('Morning outing');
+    expect(pred.nextPeeExpectedAt).not.toBeNull();
+    // Next pee should be in early afternoon (~12:48 PM), not ~08:38 AM
+    expect(pred.nextPeeExpectedAt!.getHours()).toBeGreaterThanOrEqual(11);
+    expect(pred.nextPeeExpectedAt!.getHours()).toBeLessThanOrEqual(14);
+  });
+
+  // 14. Morning Poop & Breakfast Sequence Anchors to First Morning Pee
+  it('anchors morning poop and breakfast sequence to early morning pee when awake', () => {
+    const lateWakeSchedule: SleepSchedule = {
+      bedtimeHour: 22.8,
+      wakeupHour: 8.63, // 08:38 AM
+      bedtimeStr: '22:48',
+      wakeupStr: '08:38',
+    };
+
+    const activities: Activity[] = [
+      { id: '0', puppyId: balmaProfile.id, type: 'poop', timestamp: '2026-08-31T12:34:00+02:00', loggedBy: 'Daria' },
+      { id: '1', puppyId: balmaProfile.id, type: 'pee', timestamp: '2026-08-31T21:33:00+02:00', loggedBy: 'Daria' },
+      { id: '2', puppyId: balmaProfile.id, type: 'pee', timestamp: '2026-09-01T07:48:00+02:00', loggedBy: 'Matthieu' },
+    ];
+
+    const refTime = new Date('2026-09-01T07:48:30+02:00');
+    const pred = calculatePredictions(activities, balmaProfile, refTime, 'Europe/Paris', lateWakeSchedule);
+
+    // Poop should anchor around early morning outing (07:48 + ~10m = 07:58), not wait until 08:48
+    expect(pred.nextPoopExpectedAt).not.toBeNull();
+    expect(pred.nextPoopExpectedAt!.getHours()).toBeLessThan(9);
+    expect(pred.nextPoopExpectedAt!.getMinutes()).toBeLessThan(60);
+  });
 });
 

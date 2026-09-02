@@ -166,11 +166,11 @@ describe('Balma Morning Awakening & Overnight Transition Dataset Test Suite', ()
     const overdueMins = (now.getTime() - poopExpectedDate.getTime()) / 60000;
     expect(overdueMins).toBeLessThan(45); // Due around ~07:15-07:30 AM, ~4 to 24 mins overdue
 
-    // 3. Next Meal Prediction (breakfast upcoming at ~08:15-08:20 AM):
+    // 3. Next Meal Prediction (breakfast upcoming at ~08:15-08:45 AM):
     expect(predictions.nextFoodExpectedAt).toBeDefined();
     const foodHour = getLocalDecimalHour(predictions.nextFoodExpectedAt!, 'Europe/Paris');
     expect(foodHour).toBeGreaterThanOrEqual(8.0);
-    expect(foodHour).toBeLessThanOrEqual(8.5);
+    expect(foodHour).toBeLessThanOrEqual(9.0);
     expect(predictions.foodUrgency).toBe('safe');
 
     // 4. French Translations match UI display
