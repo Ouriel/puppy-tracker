@@ -62,6 +62,5 @@ export function clearAuthToken(): void {
   if (typeof localStorage !== 'undefined') {
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(USER_KEY);
-    localStorage.removeItem('puppace_unlocked_v4');
   }
 }

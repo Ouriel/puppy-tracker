@@ -9,6 +9,7 @@ import {
   DogInputSchema,
   HealthRecordInputSchema,
   CaretakerInputSchema,
+  UserInputSchema,
   DeleteSchema,
   DashboardPayloadSchema,
   DashboardQuerySchema,
@@ -187,6 +188,21 @@ describe('Zod Schemas Validation', () => {
       expect(defaultParsed.data.days).toBe(14);
       expect(defaultParsed.data.puppyId).toBeUndefined();
     }
+  });
+
+  it('should validate UserInputSchema', () => {
+    const validUser = {
+      email: 'matthieu@example.com',
+      name: 'Matthieu',
+      role: 'SuperAdmin',
+      status: 'ACTIVE' as const,
+    };
+    expect(UserInputSchema.safeParse(validUser).success).toBe(true);
+
+    const invalidEmail = {
+      email: 'not-an-email',
+    };
+    expect(UserInputSchema.safeParse(invalidEmail).success).toBe(false);
   });
 });
 

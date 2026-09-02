@@ -4,20 +4,12 @@ import { drizzle } from 'drizzle-orm/neon-http';
 import { eq, and } from 'drizzle-orm';
 import { usersTable } from '../src/db/schema.js';
 import { SUPER_ADMIN_EMAIL } from '../src/utils/auth.js';
+import { UserInputSchema } from '../src/utils/schemas.js';
 import { verifyAuth, setCorsHeaders } from './_auth.js';
-import { z } from 'zod';
 
 const connectionString = process.env.POSTGRES_URL || process.env.DATABASE_URL || '';
 const sql = neon(connectionString);
 const db = drizzle(sql);
-
-const UserInputSchema = z.object({
-  email: z.string().email('Valid email is required'),
-  name: z.string().optional(),
-  role: z.string().optional(),
-  status: z.enum(['ACTIVE', 'PENDING_APPROVAL']).optional(),
-  householdId: z.string().optional(),
-});
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   setCorsHeaders(req, res, 'GET, POST, PUT, DELETE, OPTIONS');

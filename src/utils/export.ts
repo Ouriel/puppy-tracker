@@ -4,6 +4,18 @@ import { formatLocalDate, parseIsoDate, formatLogicalDate, getUserTimezone } fro
 import { resolveCaretakerName } from './caretakers';
 import { formatBreedName } from './breeds';
 
+function downloadCsvFile(content: string, filename: string): void {
+  const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.setAttribute('href', url);
+  link.setAttribute('download', filename);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
 /**
  * Exports puppy activity logs to a formatted CSV file with UTF-8 BOM for Excel/Numbers compatibility.
  */
@@ -114,17 +126,8 @@ export function exportActivitiesToCSV(
   // UTF-8 BOM prefix (\uFEFF) ensures Excel and Apple Numbers properly decode French accents (é, è, ê, etc.)
   const escapedHeaders = headers.map(escapeCsvField).join(',');
   const csvContent = '\uFEFF' + [escapedHeaders, ...rows].join('\r\n');
-  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const downloadLink = document.createElement('a');
-
   const safeDogName = (profile?.name || 'puppy').toLowerCase().replace(/[^a-z0-9_-]/gi, '_');
-  downloadLink.setAttribute('href', url);
-  downloadLink.setAttribute('download', `${safeDogName}_activities_${formatLocalDate()}.csv`);
-  document.body.appendChild(downloadLink);
-  downloadLink.click();
-  document.body.removeChild(downloadLink);
-  URL.revokeObjectURL(url);
+  downloadCsvFile(csvContent, `${safeDogName}_activities_${formatLocalDate()}.csv`);
 
   return true;
 }
@@ -603,17 +606,8 @@ export function exportHealthPassportToCSV(
 
   const escapedHeaders = headers.map(escapeCsvField).join(',');
   const csvContent = '\uFEFF' + [escapedHeaders, ...rows].join('\r\n');
-  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const downloadLink = document.createElement('a');
-
   const safeDogName = (profile?.name || 'puppy').toLowerCase().replace(/[^a-z0-9_-]/gi, '_');
-  downloadLink.setAttribute('href', url);
-  downloadLink.setAttribute('download', `${safeDogName}_carnet_de_sante_${formatLocalDate()}.csv`);
-  document.body.appendChild(downloadLink);
-  downloadLink.click();
-  document.body.removeChild(downloadLink);
-  URL.revokeObjectURL(url);
+  downloadCsvFile(csvContent, `${safeDogName}_carnet_de_sante_${formatLocalDate()}.csv`);
 
   return true;
 }

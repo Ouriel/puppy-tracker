@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import type { Activity, Caretaker, PuppyProfile, UserAccount, HealthRecord, DashboardPayload } from '../types';
+import type { Activity, Caretaker, PuppyProfile, UserAccount, HealthRecord, DashboardPayload } from '../types/index.js';
 
 const ActivityTypeSchema = z.enum([
   'pee',
@@ -155,9 +155,17 @@ export const HealthRecordInputSchema = z.object({
 export const CaretakerInputSchema = z.object({
   id: z.string().optional(),
   name: z.string().min(1, 'Name is required'),
+  role: z.string().min(1, 'Role must not be empty').optional(),
   color: z.string().optional(),
+  email: z.string().email('Invalid email format').nullable().optional().or(z.literal('')),
+});
+
+export const UserInputSchema = z.object({
+  email: z.string().email('Valid email is required'),
+  name: z.string().optional(),
   role: z.string().optional(),
-  email: z.string().email().optional(),
+  status: z.enum(['ACTIVE', 'PENDING_APPROVAL']).optional(),
+  householdId: z.string().optional(),
 });
 
 export const DeleteSchema = z.object({
