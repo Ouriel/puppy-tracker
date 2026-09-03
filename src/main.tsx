@@ -7,6 +7,14 @@ import { Analytics } from '@vercel/analytics/react';
 import './index.css';
 import App from './App.tsx';
 import { I18nProvider } from './i18n';
+import { registerSW } from 'virtual:pwa-register';
+
+registerSW({
+  immediate: true,
+  onNeedRefresh() {
+    window.location.reload();
+  },
+});
 
 interface ErrorBoundaryState {
   hasError: boolean;
