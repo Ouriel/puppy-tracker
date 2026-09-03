@@ -3,18 +3,10 @@ import { neon, neonConfig } from '@neondatabase/serverless';
 import { drizzle } from 'drizzle-orm/neon-http';
 import { eq, and, desc, gte } from 'drizzle-orm';
 import { activitiesTable, caretakersTable, puppiesTable, healthRecordsTable } from '../src/db/schema.js';
+import { DashboardQuerySchema } from '../src/utils/schemas.js';
 import { verifyAuth, setCorsHeaders } from './_auth.js';
-import { z } from 'zod';
 
 neonConfig.fetchConnectionCache = true;
-
-const DashboardQuerySchema = z.object({
-  puppyId: z.string().optional().transform((val) => (val && val.trim().length > 0 ? val.trim() : undefined)),
-  days: z.preprocess(
-    (val) => (val === undefined || val === null || val === '' ? 14 : Number(val)),
-    z.number().int().min(1).max(90).catch(14)
-  ),
-});
 
 // Module-level connection pooling to stay warm across invocations
 const connectionString = process.env.POSTGRES_URL || process.env.DATABASE_URL || '';

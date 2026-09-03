@@ -3,24 +3,8 @@ import { neon } from '@neondatabase/serverless';
 import { drizzle } from 'drizzle-orm/neon-http';
 import { eq, and } from 'drizzle-orm';
 import { puppiesTable } from '../src/db/schema.js';
+import { DogInputSchema, DeleteSchema } from '../src/utils/schemas.js';
 import { verifyAuth, setCorsHeaders } from './_auth.js';
-import { z } from 'zod';
-
-const DeleteSchema = z.object({ id: z.string().min(1) });
-
-const DogSchema = z.object({
-  id: z.string().optional(),
-  name: z.string().min(1, 'Name is required'),
-  breed: z.string().min(1, 'Breed is required'),
-  birthDate: z.string().optional(),
-  weightKg: z.number().or(z.string()).optional(),
-  dailyFoodGramGoal: z.number().or(z.string()).optional(),
-  targetMealsPerDay: z.number().or(z.string()).optional(),
-  notes: z.string().nullable().optional(),
-  avatarUrl: z.string().nullable().optional(),
-  gender: z.enum(['female', 'male']).optional(),
-  expectedAdultWeightKg: z.number().positive().max(120).optional(),
-});
 
 const connectionString = process.env.POSTGRES_URL || process.env.DATABASE_URL || '';
 const sql = neon(connectionString);
@@ -67,7 +51,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (auth.role !== 'Admin' && auth.role !== 'SuperAdmin') {
         return res.status(403).json({ error: 'Only admins can manage dog profiles' });
       }
-      const parsed = DogSchema.safeParse(req.body);
+      const parsed = DogInputSchema.safeParse(req.body);
       if (!parsed.success) {
         return res.status(400).json({ error: 'Invalid dog payload', details: parsed.error.issues });
       }
@@ -106,7 +90,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           id,
           householdId,
           name: body.name,
-          breed: body.breed,
+          breed: body.breed || 'Unknown',
           birthDate: body.birthDate || new Date().toISOString().slice(0, 10),
           weightKg: Number(body.weightKg) || 4.5,
           dailyFoodGramGoal: Number(body.dailyFoodGramGoal) || 200,
@@ -125,7 +109,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (auth.role !== 'Admin' && auth.role !== 'SuperAdmin') {
         return res.status(403).json({ error: 'Only admins can manage dog profiles' });
       }
-      const parsed = DogSchema.partial().safeParse(req.body);
+      const parsed = DogInputSchema.partial().safeParse(req.body);
       if (!parsed.success) {
         return res.status(400).json({ error: 'Invalid dog payload', details: parsed.error.issues });
       }

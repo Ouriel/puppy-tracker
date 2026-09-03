@@ -1,5 +1,5 @@
 import React from 'react';
-import type { PuppyProfile, UserAccount } from '../types';
+import type { PuppyProfile } from '../types';
 import { Plus, Settings, Globe } from 'lucide-react';
 import { Button, Select, ListBox, ListBoxItem } from '@heroui/react';
 import type { Language } from '../i18n';
@@ -10,7 +10,6 @@ interface NavbarProps {
   puppies: PuppyProfile[];
   activePuppy: PuppyProfile | null;
   onSelectPuppy: (puppyId: string) => void;
-  user: UserAccount;
   onOpenQuickLog: () => void;
   onOpenSettings: () => void;
   lang: Language;

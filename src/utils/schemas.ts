@@ -128,20 +128,22 @@ export const ActivityInputSchema = z.object({
 export const DogInputSchema = z.object({
   id: z.string().optional(),
   name: z.string().min(1, 'Name is required'),
-  breed: z.string().optional(),
-  birthDate: z.string().nullable().optional(),
-  weightKg: z.number().or(z.string()).nullable().optional(),
-  dailyFoodGramGoal: z.number().or(z.string()).nullable().optional(),
-  targetMealsPerDay: z.number().or(z.string()).nullable().optional(),
+  breed: z.string().min(1, 'Breed is required').optional(),
+  birthDate: z.string().optional(),
+  weightKg: z.number().or(z.string()).optional(),
+  dailyFoodGramGoal: z.number().or(z.string()).optional(),
+  targetMealsPerDay: z.number().or(z.string()).optional(),
   careInstructions: z.string().nullable().optional(),
   avatarUrl: z.string().nullable().optional(),
   notes: z.string().nullable().optional(),
+  gender: z.enum(['female', 'male']).optional(),
+  expectedAdultWeightKg: z.number().positive().max(120).optional(),
 });
 
 export const HealthRecordInputSchema = z.object({
   id: z.string().optional(),
   puppyId: z.string().min(1, 'puppyId is required'),
-  type: z.enum(['vaccination', 'deworming']),
+  type: z.string().min(1, 'type is required'),
   name: z.string().min(1, 'Name is required'),
   date: z.string().min(1, 'Date is required'),
   boosterDate: z.string().nullable().optional(),

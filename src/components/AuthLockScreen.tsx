@@ -7,8 +7,6 @@ import { useI18n } from '../i18n';
 
 interface AuthLockScreenProps {
   onUnlockWithSSO: (email: string, name: string, token: string) => Promise<{ success: boolean; message?: string }> | { success: boolean; message?: string };
-  onUnlockWithPassword: (email: string, pass: string) => { success: boolean; message?: string };
-  onRegisterAccount: (email: string, pass: string, name: string, role: string) => { success: boolean; message?: string; isPending?: boolean };
 }
 
 export const AuthLockScreen: React.FC<AuthLockScreenProps> = ({

@@ -345,28 +345,6 @@ function App() {
     return { success: false, message: 'Account pending activation by Super Admin.' };
   };
 
-  const handleUnlockWithPassword = (email: string) => {
-    const newUser: UserAccount = {
-      id: `u-${Date.now()}`,
-      email,
-      name: email.split('@')[0],
-      role: isSuperAdminEmail(email) ? 'SuperAdmin' : 'Member',
-    };
-    setUser(newUser);
-    return { success: true };
-  };
-
-  const handleRegisterAccount = (email: string, _pass: string, name: string, role: string) => {
-    const newUser: UserAccount = {
-      id: `u-${Date.now()}`,
-      email,
-      name: name || email.split('@')[0],
-      role: (['Husband', 'Wife', 'Partner', 'Child', 'Dog Walker', 'Sitter', 'Relative', 'Member', 'SuperAdmin'].includes(role) ? role : 'Member') as FamilyRole,
-    };
-    setUser(newUser);
-    return { success: true };
-  };
-
   if (isLoading || (currentView === 'dashboard' && user && activityState.isLoadingActivities && puppyState.puppies.length > 0)) {
     return (
       <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans antialiased">
@@ -376,7 +354,6 @@ function App() {
             puppies={puppyState.puppies}
             activePuppy={puppyState.activePuppy}
             onSelectPuppy={puppyState.selectPuppy}
-            user={user}
             onOpenSettings={() => handleNavigate('settings')}
             onOpenQuickLog={() => handleOpenQuickLogModal('pee')}
             lang={lang}
@@ -418,11 +395,7 @@ function App() {
           </div>
         }
       >
-        <AuthLockScreen
-          onUnlockWithSSO={handleUnlockWithSSO}
-          onUnlockWithPassword={handleUnlockWithPassword}
-          onRegisterAccount={handleRegisterAccount}
-        />
+        <AuthLockScreen onUnlockWithSSO={handleUnlockWithSSO} />
       </Suspense>
     );
   }
@@ -434,7 +407,6 @@ function App() {
         puppies={puppyState.puppies}
         activePuppy={puppyState.activePuppy}
         onSelectPuppy={puppyState.selectPuppy}
-        user={user}
         onOpenSettings={() => handleNavigate('settings')}
         onOpenQuickLog={() => handleOpenQuickLogModal('pee')}
         lang={lang}

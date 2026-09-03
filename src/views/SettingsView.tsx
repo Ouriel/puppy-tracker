@@ -135,7 +135,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
         {selectedTab === 'household' && (
           <HouseholdView
-            user={user}
             caretakers={caretakers}
             currentUser={currentUser}
             onAddCaretaker={onAddCaretaker}

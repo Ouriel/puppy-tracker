@@ -3,28 +3,12 @@ import { neon } from '@neondatabase/serverless';
 import { drizzle } from 'drizzle-orm/neon-http';
 import { eq, and, desc } from 'drizzle-orm';
 import { healthRecordsTable, puppiesTable } from '../src/db/schema.js';
+import { HealthRecordInputSchema, DeleteSchema } from '../src/utils/schemas.js';
 import { verifyAuth, setCorsHeaders } from './_auth.js';
-import { z } from 'zod';
 
 const connectionString = process.env.POSTGRES_URL || process.env.DATABASE_URL || '';
 const sql = neon(connectionString);
 const db = drizzle(sql);
-
-const DeleteSchema = z.object({ id: z.string().min(1) });
-
-const HealthRecordSchema = z.object({
-  id: z.string().optional(),
-  puppyId: z.string().min(1, 'puppyId is required'),
-  type: z.string().min(1, 'type is required'),
-  name: z.string().min(1, 'name is required'),
-  date: z.string().min(1, 'date is required'),
-  boosterDate: z.string().nullable().optional(),
-  batchNumber: z.string().nullable().optional(),
-  vetClinic: z.string().nullable().optional(),
-  productName: z.string().nullable().optional(),
-  weightAtTime: z.number().or(z.string()).nullable().optional(),
-  notes: z.string().nullable().optional(),
-});
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   setCorsHeaders(req, res, 'GET, POST, PUT, DELETE, OPTIONS');
@@ -65,7 +49,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // POST /api/health-records
     if (req.method === 'POST') {
-      const parsed = HealthRecordSchema.safeParse(req.body);
+      const parsed = HealthRecordInputSchema.safeParse(req.body);
       if (!parsed.success) {
         return res.status(400).json({ error: 'Invalid health record payload', details: parsed.error.issues });
       }
@@ -104,7 +88,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // PUT /api/health-records
     if (req.method === 'PUT') {
-      const parsed = HealthRecordSchema.partial().safeParse(req.body);
+      const parsed = HealthRecordInputSchema.partial().safeParse(req.body);
       if (!parsed.success) {
         return res.status(400).json({ error: 'Invalid health record payload', details: parsed.error.issues });
       }

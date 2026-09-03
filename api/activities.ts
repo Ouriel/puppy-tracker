@@ -3,29 +3,10 @@ import { neon, neonConfig } from '@neondatabase/serverless';
 import { drizzle } from 'drizzle-orm/neon-http';
 import { eq, and, desc, gte } from 'drizzle-orm';
 import { activitiesTable, puppiesTable } from '../src/db/schema.js';
+import { ActivityInputSchema, DeleteSchema } from '../src/utils/schemas.js';
 import { verifyAuth, setCorsHeaders } from './_auth.js';
-import { z } from 'zod';
 
 neonConfig.fetchConnectionCache = true;
-
-const DeleteSchema = z.object({ id: z.string().min(1) });
-
-const ActivitySchema = z.object({
-  id: z.string().optional(),
-  puppyId: z.string().min(1, 'puppyId is required'),
-  type: z.enum(['pee', 'poop', 'food', 'walk', 'weight', 'medication']),
-  timestamp: z.string().optional(),
-  loggedBy: z.string().optional(),
-  pottyLocation: z.string().nullable().optional(),
-  stoolConsistency: z.string().nullable().optional(),
-  foodType: z.string().nullable().optional(),
-  quantityGrams: z.number().or(z.string()).nullable().optional(),
-  quantityCups: z.number().or(z.string()).nullable().optional(),
-  durationMinutes: z.number().or(z.string()).nullable().optional(),
-  weightKg: z.number().or(z.string()).nullable().optional(),
-  medicationName: z.string().nullable().optional(),
-  notes: z.string().nullable().optional(),
-});
 
 const connectionString = process.env.POSTGRES_URL || process.env.DATABASE_URL || '';
 const sql = neon(connectionString);
@@ -93,7 +74,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // POST /api/activities
     if (req.method === 'POST') {
-      const parsed = ActivitySchema.safeParse(req.body);
+      const parsed = ActivityInputSchema.safeParse(req.body);
       if (!parsed.success) {
         return res.status(400).json({ error: 'Invalid activity payload', details: parsed.error.issues });
       }
@@ -145,7 +126,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // PUT /api/activities
     if (req.method === 'PUT') {
-      const parsed = ActivitySchema.partial().safeParse(req.body);
+      const parsed = ActivityInputSchema.partial().safeParse(req.body);
       if (!parsed.success) {
         return res.status(400).json({ error: 'Invalid activity payload', details: parsed.error.issues });
       }

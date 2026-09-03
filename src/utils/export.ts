@@ -16,6 +16,12 @@ function downloadCsvFile(content: string, filename: string): void {
   URL.revokeObjectURL(url);
 }
 
+export function escapeCsvField(value: string | number | null | undefined): string {
+  if (value === null || value === undefined) return '""';
+  const stringValue = String(value).trim().replace(/"/g, '""');
+  return `"${stringValue}"`;
+}
+
 /**
  * Exports puppy activity logs to a formatted CSV file with UTF-8 BOM for Excel/Numbers compatibility.
  */
@@ -61,12 +67,6 @@ export function exportActivitiesToCSV(
         'Logged By',
         'Notes',
       ];
-
-  const escapeCsvField = (value: string | number | null | undefined): string => {
-    if (value === null || value === undefined) return '""';
-    const stringValue = String(value).trim().replace(/"/g, '""');
-    return `"${stringValue}"`;
-  };
 
   const sortedActivities = [...activities].sort(
     (activityA, activityB) => new Date(activityB.timestamp).getTime() - new Date(activityA.timestamp).getTime()
@@ -538,12 +538,6 @@ export function exportHealthPassportToCSV(
         'Logged By',
         'Notes',
       ];
-
-  const escapeCsvField = (value: string | number | null | undefined): string => {
-    if (value === null || value === undefined) return '""';
-    const stringValue = String(value).trim().replace(/"/g, '""');
-    return `"${stringValue}"`;
-  };
 
   const rows: string[] = [];
 

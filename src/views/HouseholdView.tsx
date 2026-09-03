@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import type { Caretaker, UserAccount } from '../types';
+import type { Caretaker } from '../types';
 import { Home, Users, UserPlus, Trash2, Mail, Send, CheckCircle2, UserCheck, Copy, Pencil, X, Check } from 'lucide-react';
 import { createUser } from '../services/api';
 import { showToast } from '../utils/toast';
@@ -7,7 +7,6 @@ import { useI18n } from '../i18n';
 import { Card, Button, Input, Chip } from '@heroui/react';
 
 interface HouseholdViewProps {
-  user: UserAccount;
   caretakers: Caretaker[];
   currentUser: string;
   onAddCaretaker: (caretaker: Caretaker) => void;
