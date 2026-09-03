@@ -297,5 +297,91 @@ describe('Night Mode, Evening Outings, and Age Transitions Comprehensive Test Su
     expect(pred.nextPoopExpectedAt!.getHours()).toBeLessThan(9);
     expect(pred.nextPoopExpectedAt!.getMinutes()).toBeLessThan(60);
   });
+
+  // 15. Afternoon Poop Prediction Targets Tonight's Evening Walk (No 18h Skip to Morning)
+  it('predicts evening/bedtime outing tonight when puppy poops in early afternoon (~13:52) with ~9.5h interval', () => {
+    const lateWakeSchedule: SleepSchedule = {
+      bedtimeHour: 22.81, // 22:49 PM
+      wakeupHour: 8.63,   // 08:38 AM
+      bedtimeStr: '22:49',
+      wakeupStr: '08:38',
+    };
+
+    const activities: Activity[] = [
+      { id: '1', puppyId: balmaProfile.id, type: 'pee', timestamp: '2026-09-03T08:37:00+02:00', loggedBy: 'Matthieu' },
+      { id: '2', puppyId: balmaProfile.id, type: 'poop', timestamp: '2026-09-03T08:43:00+02:00', loggedBy: 'Matthieu' },
+      { id: '3', puppyId: balmaProfile.id, type: 'food', timestamp: '2026-09-03T09:29:00+02:00', quantityGrams: 100, loggedBy: 'Matthieu' },
+      { id: '4', puppyId: balmaProfile.id, type: 'pee', timestamp: '2026-09-03T13:46:00+02:00', loggedBy: 'Matthieu' },
+      { id: '5', puppyId: balmaProfile.id, type: 'poop', timestamp: '2026-09-03T13:52:00+02:00', loggedBy: 'Matthieu' },
+    ];
+
+    // Reference time in afternoon (14:12 PM)
+    const refTime = new Date('2026-09-03T14:12:25+02:00');
+    const pred = calculatePredictions(activities, balmaProfile, refTime, 'Europe/Paris', lateWakeSchedule);
+
+    expect(pred.poopMode).toBe('daytime_baseline');
+    expect(pred.poopReason).not.toContain('Morning outing');
+    expect(pred.nextPoopExpectedAt).not.toBeNull();
+
+    // Next poop must be tonight between 19:00 and 23:59 (e.g. ~19:52 fallback or ~23:32 learned), NOT next morning (~08:44)
+    const nextDate = pred.nextPoopExpectedAt!;
+    expect(nextDate.getDate()).toBe(3); // Same day (Sept 3)
+    expect(nextDate.getHours()).toBeGreaterThanOrEqual(19);
+    expect(nextDate.getHours()).toBeLessThanOrEqual(23);
+  });
+
+  // 16. Pre-bed Poop Rolls Over to Morning Once Outing Is Logged
+  it('transitions poop prediction to morning outing once pre-bed walk is logged at 23:17', () => {
+    const lateWakeSchedule: SleepSchedule = {
+      bedtimeHour: 22.81, // 22:49 PM
+      wakeupHour: 8.63,   // 08:38 AM
+      bedtimeStr: '22:49',
+      wakeupStr: '08:38',
+    };
+
+    const activities: Activity[] = [
+      { id: '1', puppyId: balmaProfile.id, type: 'pee', timestamp: '2026-09-03T08:37:00+02:00', loggedBy: 'Matthieu' },
+      { id: '2', puppyId: balmaProfile.id, type: 'poop', timestamp: '2026-09-03T08:43:00+02:00', loggedBy: 'Matthieu' },
+      { id: '3', puppyId: balmaProfile.id, type: 'pee', timestamp: '2026-09-03T13:46:00+02:00', loggedBy: 'Matthieu' },
+      { id: '4', puppyId: balmaProfile.id, type: 'poop', timestamp: '2026-09-03T13:52:00+02:00', loggedBy: 'Matthieu' },
+      { id: '5', puppyId: balmaProfile.id, type: 'poop', timestamp: '2026-09-03T23:17:00+02:00', loggedBy: 'Matthieu' },
+      { id: '6', puppyId: balmaProfile.id, type: 'pee', timestamp: '2026-09-03T23:18:00+02:00', loggedBy: 'Matthieu' },
+    ];
+
+    const refTime = new Date('2026-09-03T23:25:00+02:00');
+    const pred = calculatePredictions(activities, balmaProfile, refTime, 'Europe/Paris', lateWakeSchedule);
+
+    expect(pred.poopMode).toBe('night_sleep');
+    expect(pred.poopReason).toContain('Morning outing');
+    expect(pred.nextPoopExpectedAt).not.toBeNull();
+    expect(pred.nextPoopExpectedAt!.getDate()).toBe(4); // Next day (Sept 4)
+    expect(pred.nextPoopExpectedAt!.getHours()).toBe(8);
+  });
+
+  // 17. Breakfast Syncs with Meal Schedule
+  it('synchronizes big breakfast card target time with calculated mealSchedule.breakfastMins', () => {
+    const lateWakeSchedule: SleepSchedule = {
+      bedtimeHour: 22.81,
+      wakeupHour: 8.63, // 08:38 AM
+      bedtimeStr: '22:49',
+      wakeupStr: '08:38',
+    };
+
+    // Historical breakfast at 09:35 AM (>= 3 samples for learned schedule)
+    const activities: Activity[] = [
+      { id: '0', puppyId: balmaProfile.id, type: 'food', timestamp: '2026-08-31T09:35:00+02:00', quantityGrams: 90, loggedBy: 'Matthieu' },
+      { id: '1', puppyId: balmaProfile.id, type: 'food', timestamp: '2026-09-01T09:35:00+02:00', quantityGrams: 90, loggedBy: 'Matthieu' },
+      { id: '2', puppyId: balmaProfile.id, type: 'food', timestamp: '2026-09-02T09:35:00+02:00', quantityGrams: 90, loggedBy: 'Matthieu' },
+      { id: '3', puppyId: balmaProfile.id, type: 'pee', timestamp: '2026-09-03T08:37:00+02:00', loggedBy: 'Matthieu' },
+    ];
+
+    const refTime = new Date('2026-09-03T09:01:49+02:00');
+    const pred = calculatePredictions(activities, balmaProfile, refTime, 'Europe/Paris', lateWakeSchedule);
+
+    expect(pred.nextFoodExpectedAt).not.toBeNull();
+    expect(pred.nextFoodExpectedAt!.getHours()).toBe(9);
+    expect(pred.nextFoodExpectedAt!.getMinutes()).toBe(35);
+    expect(pred.foodReason).toContain('09:35');
+  });
 });
 

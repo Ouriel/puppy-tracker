@@ -84,6 +84,7 @@ export interface SleepSchedule {
 export interface PredictorOptions {
   timeZone?: string;
   sleepSchedule?: SleepSchedule;
+  mealSchedule?: { breakfastMins: number; lunchMins: number; dinnerMins: number };
 }
 
 export interface SinglePredictionResult {
