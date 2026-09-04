@@ -77,8 +77,6 @@ export type FoodScheduleMode = 'daytime_schedule' | 'goal_reached' | 'night_slee
 export interface SleepSchedule {
   bedtimeHour: number;
   wakeupHour: number;
-  bedtimeDeltaMins?: number;
-  wakeupDeltaMins?: number;
   bedtimeStr?: string;
   wakeupStr?: string;
 }

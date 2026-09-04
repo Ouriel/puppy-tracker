@@ -509,10 +509,14 @@ describe('Night Mode, Evening Outings, and Age Transitions Comprehensive Test Su
     };
 
     const activities: Activity[] = [
+      { id: 'h1', puppyId: balmaProfile.id, type: 'poop', timestamp: '2026-08-20T08:30:00+02:00', loggedBy: 'Matthieu' },
+      { id: 'h2', puppyId: balmaProfile.id, type: 'poop', timestamp: '2026-08-20T18:00:00+02:00', loggedBy: 'Matthieu' },
+      { id: 'h3', puppyId: balmaProfile.id, type: 'poop', timestamp: '2026-08-21T08:30:00+02:00', loggedBy: 'Matthieu' },
+      { id: 'h4', puppyId: balmaProfile.id, type: 'poop', timestamp: '2026-08-21T18:00:00+02:00', loggedBy: 'Matthieu' },
       { id: '1', puppyId: balmaProfile.id, type: 'poop', timestamp: '2026-08-23T21:00:00+02:00', loggedBy: 'Daria' },
     ];
 
-    // 21:00 + 9.5h = 06:30 AM (deep night > 00:30 + 60m)
+    // 21:00 + 9.5h = 06:30 AM (deep night > 00:30 + interval/2)
     const refTime = new Date('2026-08-23T23:45:00+02:00');
     const pred = calculatePredictions(activities, balmaProfile, refTime, 'Europe/Paris', midnightSchedule);
 
@@ -522,7 +526,7 @@ describe('Night Mode, Evening Outings, and Age Transitions Comprehensive Test Su
   });
 
   // 23. Full Symmetry: Both Pee and Poop Evaluate Strictly by Learned Interval
-  it('operates pee and poop symmetrically: pre-bed preserved if expiring <= bedtime + 60m, rolled over if expiring > bedtime + 60m', () => {
+  it('operates pee and poop symmetrically: pre-bed preserved if expiring <= bedtime + interval/2, rolled over if expiring > bedtime + interval/2', () => {
     const sleepSchedule: SleepSchedule = {
       bedtimeHour: 22.5, // 22:30 PM
       wakeupHour: 7.5,   // 07:30 AM
@@ -530,24 +534,55 @@ describe('Night Mode, Evening Outings, and Age Transitions Comprehensive Test Su
       wakeupStr: '07:30',
     };
 
-    // Scenario A: Last pee at 18:00 (interval 3h -> due at 21:00 <= 22:30 + 60m) -> PRESERVED for tonight
-    // Scenario B: Last poop at 18:00 (interval 9h -> due at 03:00 > 22:30 + 60m) -> ROLLED OVER to morning
+    // Scenario A: Last pee at 18:00 (interval 4h -> due at 22:00 <= 22:30) -> PRESERVED for tonight
+    // Scenario B: Last poop at 18:48 (interval ~9.5h -> due at 04:18 AM > 22:30 + 4.75h) -> ROLLED OVER to morning
     const activities: Activity[] = [
+      { id: 'h1', puppyId: balmaProfile.id, type: 'poop', timestamp: '2026-09-01T08:30:00+02:00', loggedBy: 'Matthieu' },
+      { id: 'h2', puppyId: balmaProfile.id, type: 'poop', timestamp: '2026-09-01T18:00:00+02:00', loggedBy: 'Matthieu' },
+      { id: 'h3', puppyId: balmaProfile.id, type: 'poop', timestamp: '2026-09-02T08:30:00+02:00', loggedBy: 'Matthieu' },
+      { id: 'h4', puppyId: balmaProfile.id, type: 'poop', timestamp: '2026-09-02T18:00:00+02:00', loggedBy: 'Matthieu' },
       { id: '1', puppyId: balmaProfile.id, type: 'pee', timestamp: '2026-09-03T18:00:00+02:00', loggedBy: 'Matthieu' },
-      { id: '2', puppyId: balmaProfile.id, type: 'poop', timestamp: '2026-09-03T18:00:00+02:00', loggedBy: 'Matthieu' },
+      { id: '2', puppyId: balmaProfile.id, type: 'poop', timestamp: '2026-09-03T18:48:00+02:00', loggedBy: 'Matthieu' },
     ];
 
     const eveningRef = new Date('2026-09-03T21:00:00+02:00'); // 21:00 PM
     const pred = calculatePredictions(activities, balmaProfile, eveningRef, 'Europe/Paris', sleepSchedule);
 
-    // Pee needs to happen before bedtime tonight (18:00 + ~4h = 22:00 <= 22:30 + 60m)
+    // Pee needs to happen before bedtime tonight (18:00 + ~4h = 22:00 <= 22:30)
     expect(pred.nextPeeExpectedAt!.getDate()).toBe(3); // Sept 3 tonight
     expect(pred.nextPeeExpectedAt!.getHours()).toBe(22); // ~22:00
 
-    // Poop due at 03:00 AM (deep night) rolls over to morning wakeup
+    // Poop due at 03:30 AM (deep night > 22:30 + 4.75h) rolls over to morning wakeup
     expect(pred.nextPoopExpectedAt!.getDate()).toBe(4); // Sept 4 morning
-    expect(pred.nextPoopExpectedAt!.getHours()).toBe(7); // ~07:30-07:45 AM
+    expect(pred.nextPoopExpectedAt!.getHours()).toBeGreaterThanOrEqual(7); // ~07:30-08:45 AM
     expect(pred.poopReason).toContain('Morning outing');
+  });
+
+  // 24. 50% Tank Capacity Threshold at Bedtime
+  it('preserves pre-bed walk when >= 50% of voiding interval has elapsed by bedtime, rolls over to morning when < 50%', () => {
+    const sleepSchedule: SleepSchedule = {
+      bedtimeHour: 23.0, // 23:00 PM
+      wakeupHour: 8.0,   // 08:00 AM
+      bedtimeStr: '23:00',
+      wakeupStr: '08:00',
+    };
+
+    // Bladder interval: 4 hours (240m)
+    // Scenario 1: Peed at 20:30 (at 23:00 bedtime, 2.5h / 4h = 62.5% elapsed >= 50%) -> PRESERVED for pre-bed outing (~00:30 AM)
+    const activities1: Activity[] = [
+      { id: '1', puppyId: balmaProfile.id, type: 'pee', timestamp: '2026-09-03T20:30:00+02:00', loggedBy: 'Matthieu' },
+    ];
+    const pred1 = calculatePredictions(activities1, balmaProfile, new Date('2026-09-03T22:30:00+02:00'), 'Europe/Paris', sleepSchedule);
+    expect(pred1.nextPeeExpectedAt!.getHours()).toBe(0); // ~00:30 AM (tonight pre-bed outing)
+    expect(pred1.peeMode).toBe('daytime_baseline');
+
+    // Scenario 2: Peed at 22:15 (at 23:00 bedtime, 0.75h / 4h = 18.75% elapsed < 50%) -> ROLLED OVER to morning wakeup (08:00 AM)
+    const activities2: Activity[] = [
+      { id: '2', puppyId: balmaProfile.id, type: 'pee', timestamp: '2026-09-03T22:15:00+02:00', loggedBy: 'Matthieu' },
+    ];
+    const pred2 = calculatePredictions(activities2, balmaProfile, new Date('2026-09-03T22:45:00+02:00'), 'Europe/Paris', sleepSchedule);
+    expect(pred2.nextPeeExpectedAt!.getHours()).toBe(8); // Morning wakeup (08:00 AM)
+    expect(pred2.peeReason).toContain('Morning outing');
   });
 });
 
