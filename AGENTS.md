@@ -65,7 +65,7 @@ PupPace — Smart Household Puppy Activity Tracker & Potty Predictor. React 19 +
 
 ### Testing & Verification
 
-- Every test must exercise real code — zero placeholder assertions (207/207 tests passing across 23 test files).
+- Every test must exercise real code — zero placeholder assertions (244/244 tests passing across 25 test files).
 - Multi-day 30-day realistic dataset test suite (`src/utils/__tests__/realistic_dataset.test.ts`, `predictions.test.ts`, `night_mode_and_age_transitions.test.ts`, and `weight_growth_engine.test.ts`) verifies predictions, sleep bounds, age-graduated gastrocolic reflex maturation, and protocols.
 
 ### Predictive Engine & Statistical Standards
@@ -74,7 +74,7 @@ PupPace — Smart Household Puppy Activity Tracker & Potty Predictor. React 19 +
 - **Capacity-Aware Pee Estimation (70th Percentile)**: Potty logs are right-censored by human walking opportunities. For Daytime Pee intervals, the engine estimates the 70th percentile of daytime intervals to filter out short opportunistic walks and capture true biological retention capacity.
 - **Continuous 24/7 Poop Transit (50th Percentile / Median)**: Defecation is bolus-driven; the engine maintains the median to track true gastrointestinal transit time without delaying alerts.
 - **Dynamic Diurnal Meal Pacing**: The food engine divides the remaining waking hours until bedtime (`wakingHoursLeft / (remainingMeals + 1)`). When split meals or treats result in `todayMeals.length >= targetMeals` before the 90% daily gram goal is met, format as `Remaining portion (spaced ~X.Xh)` (in French: `Portion restante (espacée de ~X.Xh)`).
-- **Symmetric Pre-Bed Void Awareness (`isPreBedPottyDone`)**: When an expected void lands in night hours, roll over to morning only if the puppy already emptied their bladder/bowels in the pre-bed window ($\ge \text{bedtime} - 2\text{h}$). Otherwise, preserve tonight's pre-bed outing.
+- **Symmetric Interval-Driven Potty & Night Mode (`shouldPreservePreBedPotty` & `hasCompletedPreBedPotty`)**: Pee and poop operate symmetrically based on learned intervals ($T_{\text{last}} + \text{interval}$). When standard expectations land in deep night hours ($> \text{bedtime} + 60\text{m}$), predictions roll over to morning wakeup. If an urge expires before or around bedtime ($\le \text{bedtime} + 60\text{m}$), tonight's pre-bed outing is preserved.
 
 ### Canine Weight Prediction & WALTHAM Growth Engine Standards
 

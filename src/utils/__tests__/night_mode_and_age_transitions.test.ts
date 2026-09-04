@@ -520,5 +520,34 @@ describe('Night Mode, Evening Outings, and Age Transitions Comprehensive Test Su
     expect(pred.nextPoopExpectedAt!.getHours()).toBe(8); // Morning outing ~08:30
     expect(pred.poopReason).toContain('Morning outing');
   });
+
+  // 23. Full Symmetry: Both Pee and Poop Evaluate Strictly by Learned Interval
+  it('operates pee and poop symmetrically: pre-bed preserved if expiring <= bedtime + 60m, rolled over if expiring > bedtime + 60m', () => {
+    const sleepSchedule: SleepSchedule = {
+      bedtimeHour: 22.5, // 22:30 PM
+      wakeupHour: 7.5,   // 07:30 AM
+      bedtimeStr: '22:30',
+      wakeupStr: '07:30',
+    };
+
+    // Scenario A: Last pee at 18:00 (interval 3h -> due at 21:00 <= 22:30 + 60m) -> PRESERVED for tonight
+    // Scenario B: Last poop at 18:00 (interval 9h -> due at 03:00 > 22:30 + 60m) -> ROLLED OVER to morning
+    const activities: Activity[] = [
+      { id: '1', puppyId: balmaProfile.id, type: 'pee', timestamp: '2026-09-03T18:00:00+02:00', loggedBy: 'Matthieu' },
+      { id: '2', puppyId: balmaProfile.id, type: 'poop', timestamp: '2026-09-03T18:00:00+02:00', loggedBy: 'Matthieu' },
+    ];
+
+    const eveningRef = new Date('2026-09-03T21:00:00+02:00'); // 21:00 PM
+    const pred = calculatePredictions(activities, balmaProfile, eveningRef, 'Europe/Paris', sleepSchedule);
+
+    // Pee needs to happen before bedtime tonight (18:00 + ~4h = 22:00 <= 22:30 + 60m)
+    expect(pred.nextPeeExpectedAt!.getDate()).toBe(3); // Sept 3 tonight
+    expect(pred.nextPeeExpectedAt!.getHours()).toBe(22); // ~22:00
+
+    // Poop due at 03:00 AM (deep night) rolls over to morning wakeup
+    expect(pred.nextPoopExpectedAt!.getDate()).toBe(4); // Sept 4 morning
+    expect(pred.nextPoopExpectedAt!.getHours()).toBe(7); // ~07:30-07:45 AM
+    expect(pred.poopReason).toContain('Morning outing');
+  });
 });
 

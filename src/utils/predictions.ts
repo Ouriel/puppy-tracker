@@ -569,13 +569,12 @@ function getRelevantBedtime(now: Date, sleepSchedule: SleepSchedule, timeZone: s
 }
 
 /**
- * Determines whether tonight's pre-bed potty outing must be preserved instead of entering night sleep.
- * Returns true if the puppy has not emptied bladder/bowels during the evening pre-bed window (bedtime ± 2h),
- * AND the standard expected void time falls before or around bedtime (within 60m of bedtime).
+ * Determines whether tonight's pre-bed potty outing must be preserved based on the puppy's learned interval.
+ * Returns true if the puppy's learned voiding interval expires before or around bedtime (<= bedtime + 60m).
  */
 function shouldPreservePreBedPotty(
   lastLogTime: number,
-  standardExpectedTime: number,
+  intervalMins: number,
   now: Date,
   sleepSchedule: SleepSchedule,
   timeZone: string
@@ -583,23 +582,33 @@ function shouldPreservePreBedPotty(
   const bedtime = getRelevantBedtime(now, sleepSchedule, timeZone);
   const hoursFromBedtime = (now.getTime() - bedtime.getTime()) / (1000 * 60 * 60);
 
-  // Pre-bed preservation only applies during the evening bedtime window (from 2h before to 2h after bedtime)
-  const isEveningWindow = hoursFromBedtime >= -2.0 && hoursFromBedtime <= 2.0;
-  if (!isEveningWindow) return false;
+  // Pre-bed preservation only applies in the evening bedtime transition window (bedtime ± 2h)
+  // Deep into night sleep (e.g. 2h+ past bedtime), the dog is in overnight sleep mode
+  const isBedtimeWindow = hoursFromBedtime >= -2.0 && hoursFromBedtime <= 2.0;
+  if (!isBedtimeWindow) return false;
 
-  // Check if puppy emptied bladder/bowels in pre-bed window (>= bedtime - 2h)
-  const preBedWindowStart = bedtime.getTime() - 2 * 60 * 60 * 1000;
-  const hasPreBedPotty = lastLogTime >= preBedWindowStart;
+  const standardExpectedTime = lastLogTime + intervalMins * 60 * 1000;
 
-  // Only preserve if last log was from today's waking cycle (within 12h of bedtime), not days ago
-  const isFromToday = lastLogTime >= bedtime.getTime() - 12 * 60 * 60 * 1000;
+  // Only preserve if last log was from today's waking cycle (within 16h of bedtime)
+  const isFromToday = lastLogTime >= bedtime.getTime() - 16 * 60 * 60 * 1000;
 
-  // Only preserve if the expected voiding interval lands before bedtime or within 60m past bedtime.
-  // If the standard expected time lands deep into the night (e.g. > bedtime + 60m), the biological urge is overnight
-  // and holds until morning wakeup.
-  const isExpectedForTonight = standardExpectedTime <= bedtime.getTime() + 60 * 60 * 1000 || standardExpectedTime <= now.getTime();
+  // Pre-bed potty needs preservation if the learned interval expires before bedtime or within 60m buffer
+  const expiresBeforeSleep = standardExpectedTime <= bedtime.getTime() + 60 * 60 * 1000;
 
-  return isFromToday && !hasPreBedPotty && isExpectedForTonight;
+  return isFromToday && expiresBeforeSleep;
+}
+
+function hasCompletedPreBedPotty(
+  lastLogTime: number,
+  intervalMins: number,
+  now: Date,
+  sleepSchedule: SleepSchedule,
+  timeZone: string
+): boolean {
+  const bedtime = getRelevantBedtime(now, sleepSchedule, timeZone);
+  const standardExpectedTime = lastLogTime + intervalMins * 60 * 1000;
+  // Pre-bed potty is satisfied if the puppy's last log + learned interval extends safely past bedtime (+ 60m buffer)
+  return standardExpectedTime > bedtime.getTime() + 60 * 60 * 1000;
 }
 
 /**
@@ -625,20 +634,6 @@ function isDeepNightTime(
   }
 
   return true;
-}
-
-/**
- * Checks whether the puppy has completed their pre-bed potty in the pre-bed window (bedtime - 2h).
- */
-function hasCompletedPreBedPotty(
-  lastLogTime: number,
-  now: Date,
-  sleepSchedule: SleepSchedule,
-  timeZone: string
-): boolean {
-  const bedtime = getRelevantBedtime(now, sleepSchedule, timeZone);
-  const preBedWindowStart = bedtime.getTime() - 2 * 60 * 60 * 1000;
-  return lastLogTime >= preBedWindowStart;
 }
 
 /**
@@ -687,8 +682,8 @@ export function predictNextPee(
 
   const isNightTime = isNightTimeMode(now, sorted, sleepSchedule, tz);
   const isDeepNight = isDeepNightTime(standardExpectedAt, sleepSchedule, tz);
-  const preservePreBed = shouldPreservePreBedPotty(lastPeeTime, standardExpectedAt.getTime(), now, sleepSchedule, tz);
-  const preBedDone = hasCompletedPreBedPotty(lastPeeTime, now, sleepSchedule, tz);
+  const preservePreBed = shouldPreservePreBedPotty(lastPeeTime, learnedPee.intervalMins, now, sleepSchedule, tz);
+  const preBedDone = hasCompletedPreBedPotty(lastPeeTime, learnedPee.intervalMins, now, sleepSchedule, tz);
 
   let nextExpectedAt: Date = standardExpectedAt;
   let mode: ScheduleMode = 'daytime_baseline';
@@ -829,8 +824,8 @@ export function predictNextPoop(
 
   const isNightTime = isNightTimeMode(now, sorted, sleepSchedule, tz);
   const isDeepNight = isDeepNightTime(standardExpectedAt, sleepSchedule, tz);
-  const preservePreBed = shouldPreservePreBedPotty(lastPoopTime, standardExpectedAt.getTime(), now, sleepSchedule, tz);
-  const preBedDone = hasCompletedPreBedPotty(lastPoopTime, now, sleepSchedule, tz);
+  const preservePreBed = shouldPreservePreBedPotty(lastPoopTime, learnedPoop.intervalMins, now, sleepSchedule, tz);
+  const preBedDone = hasCompletedPreBedPotty(lastPoopTime, learnedPoop.intervalMins, now, sleepSchedule, tz);
 
   const isLastPoopConstipated =
     lastPoop.stoolConsistency === 'hard' ||
