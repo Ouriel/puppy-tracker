@@ -383,5 +383,142 @@ describe('Night Mode, Evening Outings, and Age Transitions Comprehensive Test Su
     expect(pred.nextFoodExpectedAt!.getMinutes()).toBe(35);
     expect(pred.foodReason).toContain('09:35');
   });
+
+  // 18. Evening Poop (18:48) with 9.5h Interval Rolls Over to Morning (NO 04:26 AM bug)
+  it('rolls over to morning outing when an evening poop (18:48) creates a deep night standard expectation (04:26 AM)', () => {
+    const lateWakeSchedule: SleepSchedule = {
+      bedtimeHour: 22.81, // 22:49 PM
+      wakeupHour: 8.63,   // 08:38 AM
+      bedtimeStr: '22:49',
+      wakeupStr: '08:38',
+    };
+
+    const activities: Activity[] = [
+      // 3 historical poops with ~9.5h learned interval
+      { id: 'h1', puppyId: balmaProfile.id, type: 'poop', timestamp: '2026-09-01T08:30:00+02:00', loggedBy: 'Matthieu' },
+      { id: 'h2', puppyId: balmaProfile.id, type: 'poop', timestamp: '2026-09-01T18:00:00+02:00', loggedBy: 'Matthieu' },
+      { id: 'h3', puppyId: balmaProfile.id, type: 'poop', timestamp: '2026-09-02T08:30:00+02:00', loggedBy: 'Matthieu' },
+      { id: 'h4', puppyId: balmaProfile.id, type: 'poop', timestamp: '2026-09-02T18:00:00+02:00', loggedBy: 'Matthieu' },
+      // Today Sept 3
+      { id: '1', puppyId: balmaProfile.id, type: 'pee', timestamp: '2026-09-03T18:41:00+02:00', loggedBy: 'Daria' },
+      { id: '2', puppyId: balmaProfile.id, type: 'poop', timestamp: '2026-09-03T18:48:00+02:00', loggedBy: 'Daria' },
+    ];
+
+    const refTime = new Date('2026-09-03T21:38:49+02:00'); // 21:38 PM (user screenshot time)
+    const pred = calculatePredictions(activities, balmaProfile, refTime, 'Europe/Paris', lateWakeSchedule);
+
+    // Poop: 18:48 + ~9.5h = ~04:26 AM -> DEEP NIGHT -> must roll over to morning!
+    expect(pred.nextPoopExpectedAt).not.toBeNull();
+    expect(pred.nextPoopExpectedAt!.getDate()).toBe(4); // Next morning (Sept 4)
+    expect(pred.nextPoopExpectedAt!.getHours()).toBe(8); // Morning outing ~08:38
+    expect(pred.poopReason).toContain('Morning outing');
+
+    // Pee: 18:41 + interval -> within 60m of bedtime 22:49 -> preserved for tonight pre-bed outing!
+    expect(pred.nextPeeExpectedAt).not.toBeNull();
+    expect(pred.nextPeeExpectedAt!.getDate()).toBe(3); // Tonight (Sept 3)
+    expect(pred.nextPeeExpectedAt!.getHours()).toBeGreaterThanOrEqual(22);
+  });
+
+  // 19. Afternoon Poop (13:52) with 9.5h Interval Preserves Tonight Pre-Bed Outing (23:30)
+  it('preserves pre-bed poop when afternoon poop (13:52) creates a pre-bedtime expectation (23:30 <= bedtime + 60m)', () => {
+    const lateWakeSchedule: SleepSchedule = {
+      bedtimeHour: 22.81, // 22:49 PM
+      wakeupHour: 8.63,   // 08:38 AM
+      bedtimeStr: '22:49',
+      wakeupStr: '08:38',
+    };
+
+    const activities: Activity[] = [
+      // Historical poops with 9h38m (578m) learned interval
+      { id: 'h1', puppyId: balmaProfile.id, type: 'poop', timestamp: '2026-09-01T08:30:00+02:00', loggedBy: 'Matthieu' },
+      { id: 'h2', puppyId: balmaProfile.id, type: 'poop', timestamp: '2026-09-01T18:08:00+02:00', loggedBy: 'Matthieu' },
+      { id: 'h3', puppyId: balmaProfile.id, type: 'poop', timestamp: '2026-09-02T08:30:00+02:00', loggedBy: 'Matthieu' },
+      { id: 'h4', puppyId: balmaProfile.id, type: 'poop', timestamp: '2026-09-02T18:08:00+02:00', loggedBy: 'Matthieu' },
+      { id: 'h5', puppyId: balmaProfile.id, type: 'poop', timestamp: '2026-09-03T08:30:00+02:00', loggedBy: 'Matthieu' },
+      // Today Sept 3 afternoon
+      { id: '1', puppyId: balmaProfile.id, type: 'poop', timestamp: '2026-09-03T13:52:00+02:00', loggedBy: 'Matthieu' },
+    ];
+
+    const refTime = new Date('2026-09-03T16:58:26+02:00'); // 16:58 PM
+    const pred = calculatePredictions(activities, balmaProfile, refTime, 'Europe/Paris', lateWakeSchedule);
+
+    // 13:52 + ~9h30m = ~23:22 (<= bedtime 22:49 + 60m = 23:49) -> Preserved for tonight
+    expect(pred.nextPoopExpectedAt).not.toBeNull();
+    expect(pred.nextPoopExpectedAt!.getDate()).toBe(3); // Tonight (Sept 3)
+    expect(pred.nextPoopExpectedAt!.getHours()).toBe(23); // ~23:22 PM
+  });
+
+  // 20. Late Evening Pee (21:30) with 5h Interval Rolls Over to Morning (NO 02:30 AM bug)
+  it('rolls over to morning when late evening pee (21:30) creates a deep night expectation (02:30 AM)', () => {
+    const lateWakeSchedule: SleepSchedule = {
+      bedtimeHour: 22.81, // 22:49 PM
+      wakeupHour: 8.63,   // 08:38 AM
+      bedtimeStr: '22:49',
+      wakeupStr: '08:38',
+    };
+
+    const activities: Activity[] = [
+      { id: '1', puppyId: balmaProfile.id, type: 'pee', timestamp: '2026-09-03T21:30:00+02:00', loggedBy: 'Matthieu' },
+    ];
+
+    const refTime = new Date('2026-09-03T22:45:00+02:00'); // 22:45 PM
+    const pred = calculatePredictions(activities, balmaProfile, refTime, 'Europe/Paris', lateWakeSchedule);
+
+    // 21:30 + 5h = 02:30 AM -> DEEP NIGHT -> rolls over to morning wakeup ~08:38
+    expect(pred.nextPeeExpectedAt).not.toBeNull();
+    expect(pred.nextPeeExpectedAt!.getDate()).toBe(4); // Next morning (Sept 4)
+    expect(pred.nextPeeExpectedAt!.getHours()).toBe(8); // Morning outing
+    expect(pred.peeReason).toContain('Morning outing');
+  });
+
+  // 21. Post-Bedtime Walk (00:10 Pee & 00:17 Poop) Enters Clean Overnight Sleep
+  it('enters clean overnight sleep with morning outings when bedtime walk occurs past midnight (00:10 / 00:17)', () => {
+    const lateWakeSchedule: SleepSchedule = {
+      bedtimeHour: 22.81, // 22:49 PM
+      wakeupHour: 8.63,   // 08:38 AM
+      bedtimeStr: '22:49',
+      wakeupStr: '08:38',
+    };
+
+    const activities: Activity[] = [
+      { id: '1', puppyId: balmaProfile.id, type: 'pee', timestamp: '2026-09-04T00:10:00+02:00', loggedBy: 'Daria' },
+      { id: '2', puppyId: balmaProfile.id, type: 'poop', timestamp: '2026-09-04T00:17:00+02:00', loggedBy: 'Daria' },
+    ];
+
+    const refTime = new Date('2026-09-04T00:30:00+02:00'); // 00:30 AM (in night sleep)
+    const pred = calculatePredictions(activities, balmaProfile, refTime, 'Europe/Paris', lateWakeSchedule);
+
+    expect(pred.peeMode).toBe('night_sleep');
+    expect(pred.nextPeeExpectedAt!.getDate()).toBe(4);
+    expect(pred.nextPeeExpectedAt!.getHours()).toBe(8);
+    expect(pred.peeReason).toContain('Morning outing');
+
+    expect(pred.poopMode).toBe('night_sleep');
+    expect(pred.nextPoopExpectedAt!.getDate()).toBe(4);
+    expect(pred.nextPoopExpectedAt!.getHours()).toBe(8);
+    expect(pred.poopReason).toContain('Morning outing');
+  });
+
+  // 22. Midnight Wrapping Schedule with Deep Night Rollover
+  it('handles midnight wrapping schedule (00:30 - 08:30) rolling over deep night predictions (06:30 AM) to morning', () => {
+    const midnightSchedule: SleepSchedule = {
+      bedtimeHour: 0.5, // 00:30 AM
+      wakeupHour: 8.5,  // 08:30 AM
+      bedtimeStr: '00:30',
+      wakeupStr: '08:30',
+    };
+
+    const activities: Activity[] = [
+      { id: '1', puppyId: balmaProfile.id, type: 'poop', timestamp: '2026-08-23T21:00:00+02:00', loggedBy: 'Daria' },
+    ];
+
+    // 21:00 + 9.5h = 06:30 AM (deep night > 00:30 + 60m)
+    const refTime = new Date('2026-08-23T23:45:00+02:00');
+    const pred = calculatePredictions(activities, balmaProfile, refTime, 'Europe/Paris', midnightSchedule);
+
+    expect(pred.nextPoopExpectedAt!.getDate()).toBe(24);
+    expect(pred.nextPoopExpectedAt!.getHours()).toBe(8); // Morning outing ~08:30
+    expect(pred.poopReason).toContain('Morning outing');
+  });
 });
 
