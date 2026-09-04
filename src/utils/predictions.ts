@@ -136,20 +136,35 @@ function getNextOccurrenceOfClockTime(referenceDate: Date, targetHourDecimal: nu
   return candidate;
 }
 
-/**
- * Helper to compute weighted median of a series of minute values with exponential decay weights.
- */
-function calculateWeightedMedian(data: { mins: number; weight: number }[], fallbackMins: number): number {
+function calculateWeightedPercentile(data: { mins: number; weight: number }[], percentile: number, fallbackMins: number): number {
   if (data.length === 0) return fallbackMins;
   const sorted = [...data].sort((a, b) => a.mins - b.mins);
   const totalWeight = sorted.reduce((sum, item) => sum + item.weight, 0);
-  const target = totalWeight * 0.5;
+  const target = totalWeight * percentile;
   let acc = 0;
   for (const item of sorted) {
     acc += item.weight;
     if (acc >= target) return item.mins;
   }
   return sorted[sorted.length - 1].mins;
+}
+
+/**
+ * Helper to compute weighted median of a series of minute values with exponential decay weights.
+ */
+function calculateWeightedMedian(data: { mins: number; weight: number }[], fallbackMins: number): number {
+  return calculateWeightedPercentile(data, 0.5, fallbackMins);
+}
+
+/**
+ * Helper to compute weighted semi-interquartile range (semi-IQR) to capture empirical dispersion.
+ */
+function calculateWeightedSemiIqr(data: { mins: number; weight: number }[], fallbackDelta: number): number {
+  if (data.length < 3) return fallbackDelta;
+  const p25 = calculateWeightedPercentile(data, 0.25, 0);
+  const p75 = calculateWeightedPercentile(data, 0.75, 0);
+  const semiIqr = Math.round((p75 - p25) / 2);
+  return Math.max(10, Math.min(60, semiIqr || fallbackDelta));
 }
 
 /**
@@ -160,7 +175,7 @@ export function detectSleepSchedule(
   activities: Activity[],
   timeZone?: string
 ): SleepSchedule {
-  const defaultSchedule: SleepSchedule = { bedtimeHour: 22, wakeupHour: 7, bedtimeStr: '22:00', wakeupStr: '07:00' };
+  const defaultSchedule: SleepSchedule = { bedtimeHour: 22, wakeupHour: 7, bedtimeDeltaMins: 30, wakeupDeltaMins: 30, bedtimeStr: '22:00', wakeupStr: '07:00' };
 
   const tz = timeZone || getUserTimezone();
   const maxLogTime = activities.reduce((max, act) => Math.max(max, parseIsoDate(act.timestamp).getTime()), 0);
@@ -214,6 +229,9 @@ export function detectSleepSchedule(
   const rawBedMins = calculateWeightedMedian(eveningData, 22 * 60);
   const avgBedMins = rawBedMins % (24 * 60);
 
+  const wakeupDeltaMins = calculateWeightedSemiIqr(morningData, 30);
+  const bedtimeDeltaMins = calculateWeightedSemiIqr(eveningData, 30);
+
   const wakeupHour = avgWakeMins / 60;
   const bedtimeHour = avgBedMins / 60;
 
@@ -225,7 +243,7 @@ export function detectSleepSchedule(
   const wakeupStr = `${String(wH).padStart(2, '0')}:${String(wM).padStart(2, '0')}`;
   const bedtimeStr = `${String(bH).padStart(2, '0')}:${String(bM).padStart(2, '0')}`;
 
-  return { bedtimeHour, wakeupHour, bedtimeStr, wakeupStr };
+  return { bedtimeHour, wakeupHour, bedtimeDeltaMins, wakeupDeltaMins, bedtimeStr, wakeupStr };
 }
 
 /**
@@ -569,31 +587,42 @@ function getRelevantBedtime(now: Date, sleepSchedule: SleepSchedule, timeZone: s
 }
 
 /**
+ * Calculates dynamic bedtime tolerance from activity Semi-IQR delta and household bedtime Semi-IQR variance.
+ * Eliminates arbitrary hardcoded buffer constants.
+ */
+function getBedtimeToleranceMins(activityDeltaMins: number, sleepSchedule: SleepSchedule): number {
+  return Math.max(activityDeltaMins, sleepSchedule.bedtimeDeltaMins ?? 30);
+}
+
+/**
  * Determines whether tonight's pre-bed potty outing must be preserved based on the puppy's learned interval.
- * Returns true if the puppy's learned voiding interval expires before or around bedtime (<= bedtime + 60m).
+ * Returns true if the puppy's learned voiding interval expires before or around bedtime (within learned tolerance).
  */
 function shouldPreservePreBedPotty(
   lastLogTime: number,
   intervalMins: number,
+  activityDeltaMins: number,
   now: Date,
   sleepSchedule: SleepSchedule,
   timeZone: string
 ): boolean {
   const bedtime = getRelevantBedtime(now, sleepSchedule, timeZone);
-  const hoursFromBedtime = (now.getTime() - bedtime.getTime()) / (1000 * 60 * 60);
+  const toleranceMins = getBedtimeToleranceMins(activityDeltaMins, sleepSchedule);
+  const toleranceMs = toleranceMins * 60 * 1000;
 
-  // Pre-bed preservation only applies in the evening bedtime transition window (bedtime ± 2h)
-  // Deep into night sleep (e.g. 2h+ past bedtime), the dog is in overnight sleep mode
-  const isBedtimeWindow = hoursFromBedtime >= -2.0 && hoursFromBedtime <= 2.0;
-  if (!isBedtimeWindow) return false;
+  // Pre-bed preservation only applies during waking evening or the immediate bedtime transition window.
+  // Once 'now' is past bedtime + tolerance, the household is already asleep in overnight sleep mode.
+  const isPastBedtimeTransition = now.getTime() > bedtime.getTime() + toleranceMs;
+  if (isPastBedtimeTransition) return false;
 
   const standardExpectedTime = lastLogTime + intervalMins * 60 * 1000;
 
-  // Only preserve if last log was from today's waking cycle (within 16h of bedtime)
-  const isFromToday = lastLogTime >= bedtime.getTime() - 16 * 60 * 60 * 1000;
+  // Only preserve if last log was from today's waking cycle
+  const wakingDurationHours = Math.max(12, 24 - ((sleepSchedule.bedtimeHour - sleepSchedule.wakeupHour + 24) % 24 || 9));
+  const isFromToday = lastLogTime >= bedtime.getTime() - (wakingDurationHours + 2) * 60 * 60 * 1000;
 
-  // Pre-bed potty needs preservation if the learned interval expires before bedtime or within 60m buffer
-  const expiresBeforeSleep = standardExpectedTime <= bedtime.getTime() + 60 * 60 * 1000;
+  // Pre-bed potty needs preservation if the learned interval expires before bedtime or within the learned tolerance buffer
+  const expiresBeforeSleep = standardExpectedTime <= bedtime.getTime() + toleranceMs;
 
   return isFromToday && expiresBeforeSleep;
 }
@@ -601,22 +630,25 @@ function shouldPreservePreBedPotty(
 function hasCompletedPreBedPotty(
   lastLogTime: number,
   intervalMins: number,
+  activityDeltaMins: number,
   now: Date,
   sleepSchedule: SleepSchedule,
   timeZone: string
 ): boolean {
   const bedtime = getRelevantBedtime(now, sleepSchedule, timeZone);
+  const toleranceMins = getBedtimeToleranceMins(activityDeltaMins, sleepSchedule);
   const standardExpectedTime = lastLogTime + intervalMins * 60 * 1000;
-  // Pre-bed potty is satisfied if the puppy's last log + learned interval extends safely past bedtime (+ 60m buffer)
-  return standardExpectedTime > bedtime.getTime() + 60 * 60 * 1000;
+  // Pre-bed potty is satisfied if the puppy's last log + learned interval extends safely past bedtime + learned tolerance
+  return standardExpectedTime > bedtime.getTime() + toleranceMins * 60 * 1000;
 }
 
 /**
- * Checks if a target time falls into the deep sleep hours (between bedtime + 60m buffer and wakeup).
+ * Checks if a target time falls into the deep sleep hours (between bedtime + learned tolerance buffer and wakeup).
  * Predictions falling into deep sleep hours are rolled over to the morning wakeup outing.
  */
 function isDeepNightTime(
   targetTime: Date,
+  activityDeltaMins: number,
   sleepSchedule: SleepSchedule,
   timeZone: string
 ): boolean {
@@ -624,12 +656,13 @@ function isDeepNightTime(
   const isNight = isNighttimeHour(targetHour, sleepSchedule.wakeupHour, sleepSchedule.bedtimeHour);
   if (!isNight) return false;
 
-  // Check if targetTime is within 60 minutes after bedtime (the pre-bed outing buffer)
+  // Check if targetTime is within learned bedtime tolerance
   const bedtime = getRelevantBedtime(targetTime, sleepSchedule, timeZone);
+  const toleranceMins = getBedtimeToleranceMins(activityDeltaMins, sleepSchedule);
   const diffFromBedtimeMins = (targetTime.getTime() - bedtime.getTime()) / (60 * 1000);
 
-  // If within 60 minutes of bedtime, it belongs to the evening pre-bed outing, not deep night
-  if (diffFromBedtimeMins >= 0 && diffFromBedtimeMins <= 60) {
+  // If within the learned bedtime tolerance, it belongs to the evening pre-bed outing, not deep night
+  if (diffFromBedtimeMins >= 0 && diffFromBedtimeMins <= toleranceMins) {
     return false;
   }
 
@@ -681,9 +714,9 @@ export function predictNextPee(
   const standardExpectedAt = new Date(lastPeeTime + learnedPee.intervalMins * 60 * 1000);
 
   const isNightTime = isNightTimeMode(now, sorted, sleepSchedule, tz);
-  const isDeepNight = isDeepNightTime(standardExpectedAt, sleepSchedule, tz);
-  const preservePreBed = shouldPreservePreBedPotty(lastPeeTime, learnedPee.intervalMins, now, sleepSchedule, tz);
-  const preBedDone = hasCompletedPreBedPotty(lastPeeTime, learnedPee.intervalMins, now, sleepSchedule, tz);
+  const isDeepNight = isDeepNightTime(standardExpectedAt, learnedPee.deltaMins, sleepSchedule, tz);
+  const preservePreBed = shouldPreservePreBedPotty(lastPeeTime, learnedPee.intervalMins, learnedPee.deltaMins, now, sleepSchedule, tz);
+  const preBedDone = hasCompletedPreBedPotty(lastPeeTime, learnedPee.intervalMins, learnedPee.deltaMins, now, sleepSchedule, tz);
 
   let nextExpectedAt: Date = standardExpectedAt;
   let mode: ScheduleMode = 'daytime_baseline';
@@ -823,9 +856,9 @@ export function predictNextPoop(
   const todayPoops = past.filter((a) => a.type === 'poop' && isSameLocalDate(parseIsoDate(a.timestamp), now, tz));
 
   const isNightTime = isNightTimeMode(now, sorted, sleepSchedule, tz);
-  const isDeepNight = isDeepNightTime(standardExpectedAt, sleepSchedule, tz);
-  const preservePreBed = shouldPreservePreBedPotty(lastPoopTime, learnedPoop.intervalMins, now, sleepSchedule, tz);
-  const preBedDone = hasCompletedPreBedPotty(lastPoopTime, learnedPoop.intervalMins, now, sleepSchedule, tz);
+  const isDeepNight = isDeepNightTime(standardExpectedAt, learnedPoop.deltaMins, sleepSchedule, tz);
+  const preservePreBed = shouldPreservePreBedPotty(lastPoopTime, learnedPoop.intervalMins, learnedPoop.deltaMins, now, sleepSchedule, tz);
+  const preBedDone = hasCompletedPreBedPotty(lastPoopTime, learnedPoop.intervalMins, learnedPoop.deltaMins, now, sleepSchedule, tz);
 
   const isLastPoopConstipated =
     lastPoop.stoolConsistency === 'hard' ||
