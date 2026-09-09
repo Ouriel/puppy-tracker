@@ -1,6 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { findBreed, BREED_CATALOG } from '../../data/breedsCatalog';
-import { formatBreedName } from '../breeds';
+import { findBreed, BREED_CATALOG, formatBreedName } from '../../data/breedsCatalog';
 import { getExpectedAdultWeight } from '../weight';
 import { PuppyProfileSchema } from '../schemas';
 

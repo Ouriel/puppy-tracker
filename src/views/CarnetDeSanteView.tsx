@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import type { PuppyProfile, Activity, HealthRecord, ActivityType } from '../types';
 import { Syringe, ArrowLeft, Printer, Download, FileSpreadsheet, ChevronDown } from 'lucide-react';
 import { useI18n } from '../i18n';
-import { formatBreedName } from '../utils/breeds';
+import { formatBreedName } from '../data/breedsCatalog';
 import { Card } from '@heroui/react';
 import { fetchHealthRecords } from '../services/api';
 import { WeightGrowthChart } from '../components/WeightGrowthChart';

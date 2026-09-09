@@ -2,7 +2,7 @@ import type { Activity, PuppyProfile, Caretaker, HealthRecord } from '../types';
 import type { TranslationKeys } from '../i18n/types';
 import { formatLocalDate, parseIsoDate, formatLogicalDate, getUserTimezone } from './date';
 import { resolveCaretakerName } from './caretakers';
-import { formatBreedName } from './breeds';
+import { formatBreedName } from '../data/breedsCatalog';
 
 function downloadCsvFile(content: string, filename: string): void {
   const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });

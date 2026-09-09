@@ -1,13 +1,12 @@
 import React, { useState } from 'react';
 import type { PuppyProfile, HealthRecord, Activity } from '../../types';
 import { Pill, Plus, Trash2, Pencil, Check } from 'lucide-react';
-import { Card, Button, Input, Select, ListBox, ListBoxItem, Chip } from '@heroui/react';
+import { Card, Button, Input, Select, ListBox, ListBoxItem, Chip, toast } from '@heroui/react';
 import { calculateNextAntiparasiticDate, getHealthProtocols, getHealthRecordStatus } from '../../utils/health';
 import { StatusBadge } from '../../components/common/StatusBadge';
 import { getEffectivePuppyWeight } from '../../utils/weight';
 import { getPuppyAge } from '../../utils/predictions';
 import { formatLocalDate } from '../../utils/date';
-import { showToast } from '../../utils/toast';
 import { createHealthRecord, updateHealthRecord, deleteHealthRecord } from '../../services/api';
 import { ConfirmationModal } from '../../components/common/ConfirmationModal';
 
@@ -75,7 +74,7 @@ export const DewormingSection: React.FC<DewormingSectionProps> = ({
       setIsAddingDeworming(false);
       setCustomDewormNextDate(null);
     } else {
-      showToast(result.error || t.toasts.errorGeneric, 'error');
+      toast.danger(result.error || t.toasts.errorGeneric);
     }
   };
 
@@ -105,9 +104,9 @@ export const DewormingSection: React.FC<DewormingSectionProps> = ({
         sortByDateDesc(previous.map((deworming) => (deworming.id === id ? { ...deworming, ...result.data } : deworming)))
       );
       setEditingDewormingId(null);
-      showToast(t.toasts.dewormingUpdated, 'success');
+      toast.success(t.toasts.dewormingUpdated);
     } else {
-      showToast(result.error || t.toasts.errorGeneric, 'error');
+      toast.danger(result.error || t.toasts.errorGeneric);
     }
   };
 
@@ -116,7 +115,7 @@ export const DewormingSection: React.FC<DewormingSectionProps> = ({
     if (result.ok) {
       setDewormingLogs((previous) => previous.filter((deworming) => deworming.id !== id));
     } else {
-      showToast(result.error || t.toasts.errorGeneric, 'error');
+      toast.danger(result.error || t.toasts.errorGeneric);
     }
   };
 

@@ -1,8 +1,8 @@
 import { useState, useCallback, useTransition } from 'react';
+import { toast } from '@heroui/react';
 import type { PuppyProfile } from '../types';
 import { getActivePuppyId, setActivePuppyId as saveActivePuppyId, getStoredPuppies, setStoredPuppies } from '../utils/storage';
 import { createDog, updateDog, deleteDog } from '../services/api';
-import { showToast } from '../utils/toast';
 import { useI18n } from '../i18n';
 
 export function usePuppies(initialPuppies?: PuppyProfile[]) {
@@ -43,10 +43,10 @@ export function usePuppies(initialPuppies?: PuppyProfile[]) {
         });
         setActivePuppyIdState(saved.id);
         saveActivePuppyId(saved.id);
-        showToast(t.toasts.dogRegistered.replace('{name}', saved.name), 'success');
+        toast.success(t.toasts.dogRegistered.replace('{name}', saved.name));
         return saved;
       } else {
-        showToast(result.error || t.toasts.errorGeneric, 'error');
+        toast.danger(result.error || t.toasts.errorGeneric);
         return null;
       }
     },
@@ -60,10 +60,10 @@ export function usePuppies(initialPuppies?: PuppyProfile[]) {
       const result = await updateDog(updatedPup);
       if (result.ok) {
         setPuppies((previous) => previous.map((puppy) => (puppy.id === updatedPup.id ? result.data : puppy)));
-        showToast(t.toasts.dogUpdated, 'success');
+        toast.success(t.toasts.dogUpdated);
       } else {
         setPuppies(previousPuppies);
-        showToast(result.error || t.toasts.errorGeneric, 'error');
+        toast.danger(result.error || t.toasts.errorGeneric);
       }
     },
     [puppies, setPuppies, t.toasts.dogUpdated, t.toasts.errorGeneric]
@@ -82,10 +82,10 @@ export function usePuppies(initialPuppies?: PuppyProfile[]) {
             saveActivePuppyId(remaining[0].id);
           }
         }
-        showToast(t.toasts.dogDeleted, 'info');
+        toast(t.toasts.dogDeleted);
       } else {
         setPuppies(previousPuppies);
-        showToast(result.error || t.toasts.errorGeneric, 'error');
+        toast.danger(result.error || t.toasts.errorGeneric);
       }
     },
     [activePuppyId, puppies, setPuppies, t.toasts.dogDeleted, t.toasts.errorGeneric]

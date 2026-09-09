@@ -3,7 +3,7 @@ import type { PuppyProfile, Activity, HealthRecord, PredictionResult } from '../
 import { Syringe, Pill, Dog, Scale, ExternalLink, Moon, Sunrise, Utensils, Clock, Sparkles } from 'lucide-react';
 import { Card, Button, Chip } from '@heroui/react';
 import { useI18n, type Language } from '../i18n';
-import { formatBreedName } from '../utils/breeds';
+import { formatBreedName } from '../data/breedsCatalog';
 import {
   calculateProjectedAdultWeightRange,
   getEffectivePuppyWeight,

@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect, useRef, startTransition } from 'react';
+import { toast } from '@heroui/react';
 import type { Activity, PuppyProfile } from '../types';
 import { fetchActivities, createActivity, updateActivity as apiUpdateActivity, deleteActivity as apiDeleteActivity } from '../services/api';
-import { showToast } from '../utils/toast';
 import { useI18n } from '../i18n';
 import { getStoredRecentActivities, setStoredRecentActivities } from '../utils/storage';
 
@@ -106,7 +106,7 @@ export function useActivities(
   const addActivity = useCallback(
     async (activityData: Omit<Activity, 'id'>) => {
       if (!activePuppy) {
-        showToast(t.toasts.selectPuppyFirst, 'error');
+        toast.danger(t.toasts.selectPuppyFirst);
         return;
       }
 
@@ -126,12 +126,12 @@ export function useActivities(
         startTransition(() => {
           setActivities((previous) => previous.map((activity) => (activity.id === newActivity.id ? result.data : activity)));
         });
-        showToast(t.toasts.activityLogged, 'success');
+        toast.success(t.toasts.activityLogged);
       } else {
         startTransition(() => {
           setActivities(previousActivities);
         });
-        showToast(result.error || t.toasts.errorGeneric, 'error');
+        toast.danger(result.error || t.toasts.errorGeneric);
       }
     },
     [activePuppy, activities, t]
@@ -167,10 +167,10 @@ export function useActivities(
     const result = await apiUpdateActivity(updatedFields);
     if (result.ok) {
       setActivities((previous) => previous.map((activity) => (activity.id === updatedFields.id ? result.data : activity)));
-      showToast(t.toasts.activityUpdated, 'success');
+      toast.success(t.toasts.activityUpdated);
     } else {
       setActivities(previousActivities);
-      showToast(result.error || t.toasts.errorGeneric, 'error');
+      toast.danger(result.error || t.toasts.errorGeneric);
     }
   }, [activities, t]);
 
@@ -181,10 +181,10 @@ export function useActivities(
 
       const result = await apiDeleteActivity(id);
       if (result.ok) {
-        showToast(t.toasts.activityDeleted, 'info');
+        toast(t.toasts.activityDeleted);
       } else {
         setActivities(previousActivities);
-        showToast(result.error || t.toasts.errorGeneric, 'error');
+        toast.danger(result.error || t.toasts.errorGeneric);
       }
     },
     [activities, t]

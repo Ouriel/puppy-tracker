@@ -188,14 +188,6 @@ export function formatLogicalDate(
   return formatLocalDate(getLogicalDate(date, cutoffHours), timeZone);
 }
 
-/**
- * Checks whether two Date objects (or ISO strings) fall on the exact same local calendar day
- */
-export function isSameLocalDate(dateA: Date | string, dateB: Date | string, timeZone?: string): boolean {
-  const dA = typeof dateA === 'string' ? parseIsoDate(dateA) : dateA;
-  const dB = typeof dateB === 'string' ? parseIsoDate(dateB) : dateB;
-  return formatLocalDate(dA, timeZone) === formatLocalDate(dB, timeZone);
-}
 
 /**
  * Checks whether two Date objects (or ISO strings) fall on the exact same logical waking day (4:00 AM cutoff)

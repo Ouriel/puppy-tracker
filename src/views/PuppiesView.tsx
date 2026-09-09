@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import type { PuppyProfile } from '../types';
 import { Dog, Plus, Trash2, Pencil, Utensils, Calendar } from 'lucide-react';
 import { useI18n } from '../i18n';
-import { formatBreedName, DOG_BREEDS } from '../utils/breeds';
+import { formatBreedName, DOG_BREEDS } from '../data/breedsCatalog';
 import { getExpectedAdultWeight } from '../utils/weight';
 import { Card, Button, Input, Select, ListBox, ListBoxItem, Chip } from '@heroui/react';
 import { ConfirmationModal } from '../components/common/ConfirmationModal';

@@ -1,8 +1,8 @@
 import { useState, useCallback, useMemo } from 'react';
+import { toast } from '@heroui/react';
 import type { Caretaker, UserAccount } from '../types';
 import { getStoredCaretakers, setStoredCaretakers } from '../utils/storage';
 import { createCaretaker, updateCaretaker as apiUpdateCaretaker, deleteCaretaker as apiDeleteCaretaker } from '../services/api';
-import { showToast } from '../utils/toast';
 import { useI18n } from '../i18n';
 
 export function useCaretakers(
@@ -37,10 +37,10 @@ export function useCaretakers(
       setCaretakers((previous) => [...previous, caretaker]);
       const result = await createCaretaker(caretaker);
       if (result.ok) {
-        showToast(t.toasts.memberAdded, 'success');
+        toast.success(t.toasts.memberAdded);
       } else {
         setCaretakers(previousCaretakers);
-        showToast(result.error || t.toasts.errorGeneric, 'error');
+        toast.danger(result.error || t.toasts.errorGeneric);
       }
     },
     [caretakers, setCaretakers, t.toasts.memberAdded, t.toasts.errorGeneric]
@@ -54,7 +54,7 @@ export function useCaretakers(
       setCaretakers((previous) => previous.map((caretaker) => (caretaker.id === id ? result.data : caretaker)));
     } else {
       setCaretakers(previousCaretakers);
-      showToast(result.error || t.toasts.errorGeneric, 'error');
+      toast.danger(result.error || t.toasts.errorGeneric);
     }
   }, [caretakers, setCaretakers, t.toasts.errorGeneric]);
 
@@ -64,10 +64,10 @@ export function useCaretakers(
       setCaretakers((previous) => previous.filter((caretaker) => caretaker.id !== id));
       const result = await apiDeleteCaretaker(id);
       if (result.ok) {
-        showToast(t.toasts.memberRemoved, 'info');
+        toast(t.toasts.memberRemoved);
       } else {
         setCaretakers(previousCaretakers);
-        showToast(result.error || t.toasts.errorGeneric, 'error');
+        toast.danger(result.error || t.toasts.errorGeneric);
       }
     },
     [caretakers, setCaretakers, t.toasts.memberRemoved, t.toasts.errorGeneric]

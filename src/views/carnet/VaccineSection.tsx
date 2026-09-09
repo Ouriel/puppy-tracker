@@ -1,12 +1,11 @@
 import React, { useState } from 'react';
 import type { PuppyProfile, HealthRecord } from '../../types';
 import { Syringe, ShieldCheck, Plus, Trash2, Pencil, Check } from 'lucide-react';
-import { Card, Button, Input, Select, ListBox, ListBoxItem, Chip } from '@heroui/react';
+import { Card, Button, Input, Select, ListBox, ListBoxItem, Chip, toast } from '@heroui/react';
 import { calculateNextVaccineBooster, getHealthProtocols, getHealthRecordStatus } from '../../utils/health';
 import { StatusBadge } from '../../components/common/StatusBadge';
 import { getPuppyAge } from '../../utils/predictions';
 import { formatLocalDate } from '../../utils/date';
-import { showToast } from '../../utils/toast';
 import { createHealthRecord, updateHealthRecord, deleteHealthRecord } from '../../services/api';
 import { ConfirmationModal } from '../../components/common/ConfirmationModal';
 
@@ -77,7 +76,7 @@ export const VaccineSection: React.FC<VaccineSectionProps> = ({
       setVetClinic('');
       setBatchNumber('');
     } else {
-      showToast(result.error || t.toasts.errorGeneric, 'error');
+      toast.danger(result.error || t.toasts.errorGeneric);
     }
   };
 
@@ -108,9 +107,9 @@ export const VaccineSection: React.FC<VaccineSectionProps> = ({
         sortByDateDesc(previous.map((vaccine) => (vaccine.id === id ? { ...vaccine, ...result.data } : vaccine)))
       );
       setEditingVaccineId(null);
-      showToast(t.toasts.vaccineUpdated, 'success');
+      toast.success(t.toasts.vaccineUpdated);
     } else {
-      showToast(result.error || t.toasts.errorGeneric, 'error');
+      toast.danger(result.error || t.toasts.errorGeneric);
     }
   };
 
@@ -119,7 +118,7 @@ export const VaccineSection: React.FC<VaccineSectionProps> = ({
     if (result.ok) {
       setVaccinations((previous) => previous.filter((vaccine) => vaccine.id !== id));
     } else {
-      showToast(result.error || t.toasts.errorGeneric, 'error');
+      toast.danger(result.error || t.toasts.errorGeneric);
     }
   };
 

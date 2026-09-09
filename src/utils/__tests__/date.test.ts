@@ -2,7 +2,6 @@ import { describe, it, expect } from 'vitest';
 import {
   formatLocalDate,
   formatLogicalDate,
-  isSameLocalDate,
   isSameLogicalDate,
   getLocalDatetimeString,
   formatRelativeTime,
@@ -35,15 +34,6 @@ describe('date utility module — comprehensive test suite', () => {
   it('getLocalDatetimeString formats date for datetime-local input', () => {
     const d = new Date(2026, 6, 29, 14, 15);
     expect(getLocalDatetimeString(d)).toBe('2026-07-29T14:15');
-  });
-
-  it('isSameLocalDate correctly identifies same local day', () => {
-    const d1 = new Date(2026, 6, 29, 1, 30);
-    const d2 = new Date(2026, 6, 29, 23, 45);
-    const d3 = new Date(2026, 6, 30, 0, 15);
-
-    expect(isSameLocalDate(d1, d2)).toBe(true);
-    expect(isSameLocalDate(d1, d3)).toBe(false);
   });
 
   it('formatRelativeTime returns Today and Yesterday correctly', () => {

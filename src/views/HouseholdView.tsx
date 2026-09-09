@@ -2,9 +2,8 @@ import React, { useState } from 'react';
 import type { Caretaker } from '../types';
 import { Home, Users, UserPlus, Trash2, Mail, Send, CheckCircle2, UserCheck, Copy, Pencil, X, Check } from 'lucide-react';
 import { createUser } from '../services/api';
-import { showToast } from '../utils/toast';
 import { useI18n } from '../i18n';
-import { Card, Button, Input, Chip } from '@heroui/react';
+import { Card, Button, Input, Chip, toast } from '@heroui/react';
 
 interface HouseholdViewProps {
   caretakers: Caretaker[];
@@ -58,7 +57,7 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
         });
       }
     } else {
-      showToast(result.error || t.toasts.errorGeneric, 'error');
+      toast.danger(result.error || t.toasts.errorGeneric);
     }
   };
 
@@ -79,7 +78,7 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
 
   const copyAppUrl = () => {
     navigator.clipboard.writeText(window.location.origin);
-    showToast(t.household.copiedSuccess, 'success');
+    toast.success(t.household.copiedSuccess);
   };
 
   return (
