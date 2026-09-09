@@ -36,6 +36,8 @@ import {
   setStoredPuppies,
   getStoredCaretakers,
   setStoredCaretakers,
+  getStoredRecentActivities,
+  setStoredRecentActivities,
   clearAllData,
   DEFAULT_PUPPIES,
   DEFAULT_CARETAKERS,
@@ -76,4 +78,27 @@ describe('Storage Helpers Cache Suite', () => {
     clearAllData();
     expect(getStoredPuppies()).toEqual(DEFAULT_PUPPIES);
   });
+
+  it('should persist and retrieve up to 300 recent activities within TTL window', () => {
+    expect(getStoredRecentActivities('pup-1')).toBeNull();
+
+    const mockActivities = Array.from({ length: 350 }, (_, index) => ({
+      id: `act-${index}`,
+      puppyId: 'pup-1',
+      householdId: 'hh-1',
+      type: 'pee' as const,
+      timestamp: new Date().toISOString(),
+      loggedBy: 'Matthieu',
+    }));
+
+    setStoredRecentActivities('pup-1', mockActivities);
+    const cached = getStoredRecentActivities('pup-1');
+    expect(cached).toBeDefined();
+    expect(cached?.length).toBe(300);
+    expect(cached?.[0].id).toBe('act-0');
+
+    // Query for different puppy should return null
+    expect(getStoredRecentActivities('pup-2')).toBeNull();
+  });
 });
+

@@ -84,7 +84,7 @@ export function setStoredRecentActivities(puppyId: string, activities: import('.
   try {
     localStorage.setItem(
       STORAGE_KEY_CACHED_ACTIVITIES,
-      JSON.stringify({ puppyId, activities: activities.slice(0, 100), savedAt: Date.now() })
+      JSON.stringify({ puppyId, activities: activities.slice(0, 300), savedAt: Date.now() })
     );
   } catch {}
 }
