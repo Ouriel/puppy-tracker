@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { calculatePredictions, detectSleepSchedule, calculateLearnedIntervalMinutes } from '../predictions';
 import { translatePredictionReason } from '../predictionsTranslation';
-import { formatLocalTime, getLocalHour, getLocalDecimalHour } from '../date';
+import { formatLocalTime, formatLocalDate, getLocalHour, getLocalDecimalHour } from '../date';
 import type { Activity, PuppyProfile } from '../../types';
 
 describe('Balma Morning Awakening & Overnight Transition Dataset Test Suite', () => {
@@ -197,15 +197,83 @@ describe('Balma Morning Awakening & Overnight Transition Dataset Test Suite', ()
     expect(predictions.poopUrgency).toBe('safe');
   });
 
-  it('handles wake-up at 07:15 AM before any potty logs: marks first morning pee as due now', () => {
+  it('handles midnight pre-bed poop followed by waking up without morning poop: does not push prediction to next day (+21h)', () => {
     const dataset = generateBalma14DayHistory();
-    const now = new Date('2026-08-21T07:15:00+02:00'); // 07:15 AM Paris (wake-up time)
 
-    const predictions = calculatePredictions(dataset, balmaProfile, now, 'Europe/Paris');
+    // Late night poop on Aug 20 at 00:12 AM (technically start of calendar day Aug 20, but logically Aug 19 bedtime)
+    dataset.push({
+      id: 'poop-midnight-aug21',
+      puppyId: balmaProfile.id,
+      type: 'poop',
+      timestamp: '2026-08-21T00:12:00+02:00',
+      loggedBy: 'Matthieu',
+    });
 
-    expect(predictions.nextPeeExpectedAt).toBeDefined();
-    const peeHour = getLocalHour(predictions.nextPeeExpectedAt!, 'Europe/Paris');
-    expect(peeHour).toBe(7);
-    expect(predictions.peeReason).toContain('Morning outing');
+    // Morning pee on Aug 21 at 07:52 AM (puppy woke up, peed, but did NOT poop)
+    dataset.push({
+      id: 'pee-morning-aug21',
+      puppyId: balmaProfile.id,
+      type: 'pee',
+      timestamp: '2026-08-21T07:52:00+02:00',
+      loggedBy: 'Matthieu',
+    });
+
+    // 1. Check at 08:30 AM (after morning walk, before breakfast)
+    const morningCheck = new Date('2026-08-21T08:30:00+02:00');
+    const morningPred = calculatePredictions(dataset, balmaProfile, morningCheck, 'Europe/Paris');
+
+    expect(morningPred.nextPoopExpectedAt).toBeDefined();
+    // Must target TODAY's morning outing (~07:5x-08:00 AM), NOT tomorrow Aug 22!
+    expect(formatLocalDate(morningPred.nextPoopExpectedAt!, 'Europe/Paris')).toBe('2026-08-21');
+    expect(morningPred.poopUrgency).toBe('overdue');
+    const diffHoursMorning = (morningPred.nextPoopExpectedAt!.getTime() - morningCheck.getTime()) / (1000 * 60 * 60);
+    expect(diffHoursMorning).toBeLessThanOrEqual(0); // Overdue in the past, not +21h in the future
+
+    // 2. Add breakfast at 09:30 AM
+    dataset.push({
+      id: 'food-bfast-aug21',
+      puppyId: balmaProfile.id,
+      type: 'food',
+      timestamp: '2026-08-21T09:30:00+02:00',
+      quantityGrams: 80,
+      loggedBy: 'Matthieu',
+    });
+
+    // 3. Check at 11:00 AM (midday): standard digestive transit from breakfast or daytime baseline
+    const middayCheck = new Date('2026-08-21T11:00:00+02:00');
+    const middayPred = calculatePredictions(dataset, balmaProfile, middayCheck, 'Europe/Paris');
+
+    expect(middayPred.nextPoopExpectedAt).toBeDefined();
+    // Must target TODAY Aug 21 afternoon/evening, NOT tomorrow Aug 22!
+    expect(formatLocalDate(middayPred.nextPoopExpectedAt!, 'Europe/Paris')).toBe('2026-08-21');
+    const hoursFromMidday = (middayPred.nextPoopExpectedAt!.getTime() - middayCheck.getTime()) / (1000 * 60 * 60);
+    // Expected within today (e.g. ~5-9 hours from midday = 16:00 to 20:00), definitely not >20 hours
+    expect(hoursFromMidday).toBeGreaterThan(0);
+    expect(hoursFromMidday).toBeLessThan(12);
+  });
+
+  it('verifies pee engine alignment: midnight pre-bed pee followed by waking up without morning pee also targets today, not next day', () => {
+    const dataset = generateBalma14DayHistory();
+
+    // Late night pee on Aug 21 at 00:10 AM
+    dataset.push({
+      id: 'pee-midnight-aug21',
+      puppyId: balmaProfile.id,
+      type: 'pee',
+      timestamp: '2026-08-21T00:10:00+02:00',
+      loggedBy: 'Matthieu',
+    });
+
+    // At 08:30 AM, puppy woke up but owner has not logged morning pee yet
+    const morningCheck = new Date('2026-08-21T08:30:00+02:00');
+    const morningPred = calculatePredictions(dataset, balmaProfile, morningCheck, 'Europe/Paris');
+
+    expect(morningPred.nextPeeExpectedAt).toBeDefined();
+    // Must target TODAY Aug 21 morning wake-up, NOT tomorrow Aug 22!
+    expect(formatLocalDate(morningPred.nextPeeExpectedAt!, 'Europe/Paris')).toBe('2026-08-21');
+    expect(morningPred.peeUrgency).toBe('overdue');
+    const diffHours = (morningPred.nextPeeExpectedAt!.getTime() - morningCheck.getTime()) / (1000 * 60 * 60);
+    expect(diffHours).toBeLessThanOrEqual(0); // Overdue today, not +24h
   });
 });
+

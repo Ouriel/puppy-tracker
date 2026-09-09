@@ -18,7 +18,7 @@ import {
   getLocalHour,
   getLocalDecimalHour,
   getUserTimezone,
-  isSameLocalDate,
+  isSameLogicalDate,
   getOccurrenceOfClockTimeInTimezone,
 } from './date';
 
@@ -599,8 +599,10 @@ function isDeepNightTime(
   targetTime: Date,
   intervalMins: number,
   sleepSchedule: SleepSchedule,
-  timeZone: string
+  timeZone: string,
+  now?: Date
 ): boolean {
+  if (now && targetTime.getTime() <= now.getTime()) return false;
   const targetHour = getLocalDecimalHour(targetTime, timeZone);
   if (!isNighttimeHour(targetHour, sleepSchedule.wakeupHour, sleepSchedule.bedtimeHour)) return false;
   const bedtime = getRelevantBedtime(targetTime, sleepSchedule, timeZone);
@@ -652,7 +654,7 @@ export function predictNextPee(
   const standardExpectedAt = new Date(lastPeeTime + learnedPee.intervalMins * 60 * 1000);
 
   const isNightTime = isNightTimeMode(now, sorted, sleepSchedule, tz);
-  const isDeepNight = isDeepNightTime(standardExpectedAt, learnedPee.intervalMins, sleepSchedule, tz);
+  const isDeepNight = isDeepNightTime(standardExpectedAt, learnedPee.intervalMins, sleepSchedule, tz, now);
   const preservePreBed = shouldPreservePreBedPotty(lastPeeTime, learnedPee.intervalMins, now, sleepSchedule, tz);
 
   let nextExpectedAt: Date = standardExpectedAt;
@@ -662,7 +664,7 @@ export function predictNextPee(
   const wakeM = Math.round((sleepSchedule.wakeupHour - wakeH) * 60);
   const wakeupStr = sleepSchedule.wakeupStr || `${String(wakeH).padStart(2, '0')}:${String(wakeM).padStart(2, '0')}`;
 
-  const todayPees = past.filter((a) => a.type === 'pee' && isSameLocalDate(parseIsoDate(a.timestamp), now, tz));
+  const todayPees = past.filter((a) => a.type === 'pee' && isSameLogicalDate(parseIsoDate(a.timestamp), now, tz));
 
   if (isNightTime && !preservePreBed) {
     mode = 'night_sleep';
@@ -681,7 +683,7 @@ export function predictNextPee(
       nextExpectedAt = targetWakeup;
       reason = `Morning outing (~${wakeupStr})`;
     }
-  } else if (todayPees.length === 0 && !isSameLocalDate(lastPeeDate, now, tz) && !isNightTime) {
+  } else if (todayPees.length === 0 && !isSameLogicalDate(lastPeeDate, now, tz) && !isNightTime) {
     // New day has started, puppy woke up after overnight sleep and hasn't peed yet today
     mode = 'daytime_baseline';
     const todayWakeup = getOccurrenceOfClockTimeInTimezone(now, sleepSchedule.wakeupHour, tz, 0);
@@ -788,10 +790,10 @@ export function predictNextPoop(
   const lastPoopTime = lastPoopDate.getTime();
   const standardExpectedAt = new Date(lastPoopTime + learnedPoop.intervalMins * 60 * 1000);
 
-  const todayPoops = past.filter((a) => a.type === 'poop' && isSameLocalDate(parseIsoDate(a.timestamp), now, tz));
+  const todayPoops = past.filter((a) => a.type === 'poop' && isSameLogicalDate(parseIsoDate(a.timestamp), now, tz));
 
   const isNightTime = isNightTimeMode(now, sorted, sleepSchedule, tz);
-  const isDeepNight = isDeepNightTime(standardExpectedAt, learnedPoop.intervalMins, sleepSchedule, tz);
+  const isDeepNight = isDeepNightTime(standardExpectedAt, learnedPoop.intervalMins, sleepSchedule, tz, now);
   const preservePreBed = shouldPreservePreBedPotty(lastPoopTime, learnedPoop.intervalMins, now, sleepSchedule, tz);
 
   const isLastPoopConstipated =
@@ -828,14 +830,14 @@ export function predictNextPoop(
     nextExpectedAt = new Date(targetWakeup.getTime() + offsets.morningPoopOffsetMins * 60 * 1000);
     const targetTimeStr = formatLocalTime(nextExpectedAt, tz);
     reason = `Morning outing (~${targetTimeStr})`;
-  } else if (todayPoops.length === 0 && !isSameLocalDate(lastPoopDate, now, tz) && !isNightTime) {
+  } else if (todayPoops.length === 0 && !isSameLogicalDate(lastPoopDate, now, tz) && !isNightTime) {
     // New day has started, puppy woke up after overnight sleep and has not pooped yet today
     const todayMealsSorted = past
-      .filter((a) => a.type === 'food' && isSameLocalDate(parseIsoDate(a.timestamp), now, tz))
+      .filter((a) => a.type === 'food' && isSameLogicalDate(parseIsoDate(a.timestamp), now, tz))
       .sort((a, b) => parseIsoDate(a.timestamp).getTime() - parseIsoDate(b.timestamp).getTime());
 
     const firstMorningPee = past.find(
-      (a) => a.type === 'pee' && isSameLocalDate(parseIsoDate(a.timestamp), now, tz)
+      (a) => a.type === 'pee' && isSameLogicalDate(parseIsoDate(a.timestamp), now, tz)
     );
     const morningAnchor = firstMorningPee
       ? parseIsoDate(firstMorningPee.timestamp)
@@ -954,7 +956,7 @@ export function predictNextFood(
   const scheduledBfastToday = getOccurrenceOfClockTimeInTimezone(now, mealSchedule.breakfastMins / 60, tz, 0);
 
   const firstMorningPee = past.find(
-    (a) => a.type === 'pee' && isSameLocalDate(parseIsoDate(a.timestamp), now, tz)
+    (a) => a.type === 'pee' && isSameLogicalDate(parseIsoDate(a.timestamp), now, tz)
   );
   const minBfastAfterWalk = firstMorningPee
     ? new Date(parseIsoDate(firstMorningPee.timestamp).getTime() + 15 * 60 * 1000)
