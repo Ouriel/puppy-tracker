@@ -1,6 +1,15 @@
 import { describe, it, expect } from 'vitest';
 import { calculatePredictions } from '../predictions';
+import { getLocalHour } from '../date';
 import type { Activity, PuppyProfile, SleepSchedule } from '../../types';
+
+function getParisHour(date: Date): number {
+  return getLocalHour(date, 'Europe/Paris');
+}
+
+function getParisDate(date: Date): number {
+  return parseInt(new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Paris', day: 'numeric' }).format(date), 10);
+}
 
 describe('Night Mode, Evening Outings, and Age Transitions Comprehensive Test Suite', () => {
   const balmaProfile: PuppyProfile = {
@@ -33,8 +42,8 @@ describe('Night Mode, Evening Outings, and Age Transitions Comprehensive Test Su
     expect(pred.peeMode).toBe('daytime_baseline');
     expect(pred.nextPeeExpectedAt).not.toBeNull();
     const expDate = pred.nextPeeExpectedAt!;
-    expect(expDate.getDate()).toBe(23); // Tonight (August 23)
-    const expectedHours = expDate.getHours();
+    expect(getParisDate(expDate)).toBe(23); // Tonight (August 23)
+    const expectedHours = getParisHour(expDate);
     expect(expectedHours).toBeGreaterThanOrEqual(21);
     expect(expectedHours).toBeLessThanOrEqual(22);
   });
@@ -51,7 +60,7 @@ describe('Night Mode, Evening Outings, and Age Transitions Comprehensive Test Su
     expect(pred.peeMode).toBe('daytime_baseline');
     expect(pred.nextPeeExpectedAt).not.toBeNull();
     const expDate = pred.nextPeeExpectedAt!;
-    expect(expDate.getDate()).toBe(23);
+    expect(getParisDate(expDate)).toBe(23);
   });
 
   // 3. Pre-Bed Pee Logged -> Smooth Morning Rollover
@@ -66,8 +75,8 @@ describe('Night Mode, Evening Outings, and Age Transitions Comprehensive Test Su
 
     expect(pred.peeReason).toContain('Morning outing');
     const expDate = pred.nextPeeExpectedAt!;
-    expect(expDate.getDate()).toBe(24); // Next morning (August 24)
-    expect(expDate.getHours()).toBe(7);
+    expect(getParisDate(expDate)).toBe(24); // Next morning (August 24)
+    expect(getParisHour(expDate)).toBe(7);
   });
 
   // 4. Early Morning Awakening (05:38 AM)
@@ -82,7 +91,7 @@ describe('Night Mode, Evening Outings, and Age Transitions Comprehensive Test Su
 
     expect(pred.peeMode).toBe('daytime_baseline');
     expect(pred.nextPeeExpectedAt).not.toBeNull();
-    const expHours = pred.nextPeeExpectedAt!.getHours();
+    const expHours = getParisHour(pred.nextPeeExpectedAt!);
     expect(expHours).toBeGreaterThanOrEqual(9);
     expect(expHours).toBeLessThanOrEqual(11);
   });
@@ -110,7 +119,7 @@ describe('Night Mode, Evening Outings, and Age Transitions Comprehensive Test Su
 
     expect(pred1.peeMode).toBe('night_sleep');
     expect(pred1.peeReason).toContain('Young puppy mid-night potty break');
-    expect(pred1.nextPeeExpectedAt!.getHours()).toBe(2); // ~02:00 AM
+    expect(getParisHour(pred1.nextPeeExpectedAt!)).toBe(2); // ~02:00 AM
 
     // Step 2: Logged 02:00 AM mid-night pee, checked at 02:30 AM
     const step2Activities: Activity[] = [
@@ -122,7 +131,7 @@ describe('Night Mode, Evening Outings, and Age Transitions Comprehensive Test Su
 
     expect(pred2.peeMode).toBe('night_sleep');
     expect(pred2.peeReason).toContain('Young puppy mid-night potty break');
-    expect(pred2.nextPeeExpectedAt!.getHours()).toBe(6); // ~06:00 AM
+    expect(getParisHour(pred2.nextPeeExpectedAt!)).toBe(6); // ~06:00 AM
   });
 
   // 6. Late Evening Dinner
@@ -152,7 +161,7 @@ describe('Night Mode, Evening Outings, and Age Transitions Comprehensive Test Su
     expect(pred.peeMode).toBe('daytime_baseline');
     expect(pred.nextPeeExpectedAt).not.toBeNull();
     const expDate = pred.nextPeeExpectedAt!;
-    expect(expDate.getDate()).toBe(23); // Tonight (August 23), NOT August 24
+    expect(getParisDate(expDate)).toBe(23); // Tonight (August 23), NOT August 24
     expect(pred.peeUrgency).toBe('overdue');
   });
 
@@ -168,7 +177,7 @@ describe('Night Mode, Evening Outings, and Age Transitions Comprehensive Test Su
     expect(pred.poopMode).toBe('daytime_baseline');
     expect(pred.nextPoopExpectedAt).not.toBeNull();
     const expDate = pred.nextPoopExpectedAt!;
-    expect(expDate.getDate()).toBe(23); // Tonight (August 23), NOT August 24
+    expect(getParisDate(expDate)).toBe(23); // Tonight (August 23), NOT August 24
   });
 
   // 9. Quick action logging smoothly transitions from overdue pre-bed to night sleep (Bug 2)
@@ -183,7 +192,7 @@ describe('Night Mode, Evening Outings, and Age Transitions Comprehensive Test Su
 
     expect(pred.poopMode).toBe('night_sleep');
     expect(pred.poopUrgency).toBe('safe');
-    expect(pred.nextPoopExpectedAt!.getDate()).toBe(24); // Rolled over to morning because 22:48:15 poop was recognized
+    expect(getParisDate(pred.nextPoopExpectedAt!)).toBe(24); // Rolled over to morning because 22:48:15 poop was recognized
   });
 
   // 10. Split Pre-Bed Outing: Pee logged, Poop still pending
@@ -198,10 +207,10 @@ describe('Night Mode, Evening Outings, and Age Transitions Comprehensive Test Su
 
     expect(pred.peeMode).toBe('night_sleep');
     expect(pred.peeUrgency).toBe('safe');
-    expect(pred.nextPeeExpectedAt!.getDate()).toBe(24); // Morning outing (August 24)
+    expect(getParisDate(pred.nextPeeExpectedAt!)).toBe(24); // Morning outing (August 24)
 
     expect(pred.poopMode).toBe('daytime_baseline');
-    expect(pred.nextPoopExpectedAt!.getDate()).toBe(23); // Preserved for tonight (August 23)
+    expect(getParisDate(pred.nextPoopExpectedAt!)).toBe(23); // Preserved for tonight (August 23)
   });
 
   // 11. Midnight-Wrapping Bedtime Schedule (Bedtime 00:30, Wakeup 08:30)
@@ -219,7 +228,7 @@ describe('Night Mode, Evening Outings, and Age Transitions Comprehensive Test Su
     ];
     const pred1 = calculatePredictions(acts1, balmaProfile, new Date('2026-08-23T23:45:00+02:00'), 'Europe/Paris', midnightSchedule);
     expect(pred1.peeMode).toBe('daytime_baseline');
-    expect(pred1.nextPeeExpectedAt!.getDate()).toBe(23);
+    expect(getParisDate(pred1.nextPeeExpectedAt!)).toBe(23);
 
     // Case 2: At 00:45 (after bedtime 00:30), last pee was 18:00 (no pre-bed pee in >= 22:30) -> preserves pre-bed
     const pred2 = calculatePredictions(acts1, balmaProfile, new Date('2026-08-24T00:45:00+02:00'), 'Europe/Paris', midnightSchedule);
@@ -232,7 +241,7 @@ describe('Night Mode, Evening Outings, and Age Transitions Comprehensive Test Su
     ];
     const pred3 = calculatePredictions(acts3, balmaProfile, new Date('2026-08-24T00:45:00+02:00'), 'Europe/Paris', midnightSchedule);
     expect(pred3.peeMode).toBe('night_sleep');
-    expect(pred3.nextPeeExpectedAt!.getHours()).toBe(8); // Morning outing ~08:30
+    expect(getParisHour(pred3.nextPeeExpectedAt!)).toBe(8); // Morning outing ~08:30
   });
 
   // 12. Indoor Accident in Pre-Bed Window
@@ -245,7 +254,7 @@ describe('Night Mode, Evening Outings, and Age Transitions Comprehensive Test Su
     const pred = calculatePredictions(activities, balmaProfile, refTime, 'Europe/Paris', balmaSleepSchedule);
 
     expect(pred.peeMode).toBe('night_sleep');
-    expect(pred.nextPeeExpectedAt!.getDate()).toBe(24);
+    expect(getParisDate(pred.nextPeeExpectedAt!)).toBe(24);
   });
 
   // 13. Early Morning Walk Before Usual Wakeup (Balma Sept 1st scenario)
@@ -270,8 +279,8 @@ describe('Night Mode, Evening Outings, and Age Transitions Comprehensive Test Su
     expect(pred.peeReason).not.toContain('Morning outing');
     expect(pred.nextPeeExpectedAt).not.toBeNull();
     // Next pee should be in early afternoon (~12:48 PM), not ~08:38 AM
-    expect(pred.nextPeeExpectedAt!.getHours()).toBeGreaterThanOrEqual(11);
-    expect(pred.nextPeeExpectedAt!.getHours()).toBeLessThanOrEqual(14);
+    expect(getParisHour(pred.nextPeeExpectedAt!)).toBeGreaterThanOrEqual(11);
+    expect(getParisHour(pred.nextPeeExpectedAt!)).toBeLessThanOrEqual(14);
   });
 
   // 14. Morning Poop & Breakfast Sequence Anchors to First Morning Pee
@@ -294,7 +303,7 @@ describe('Night Mode, Evening Outings, and Age Transitions Comprehensive Test Su
 
     // Poop should anchor around early morning outing (07:48 + ~10m = 07:58), not wait until 08:48
     expect(pred.nextPoopExpectedAt).not.toBeNull();
-    expect(pred.nextPoopExpectedAt!.getHours()).toBeLessThan(9);
+    expect(getParisHour(pred.nextPoopExpectedAt!)).toBeLessThan(9);
     expect(pred.nextPoopExpectedAt!.getMinutes()).toBeLessThan(60);
   });
 
@@ -325,9 +334,9 @@ describe('Night Mode, Evening Outings, and Age Transitions Comprehensive Test Su
 
     // Next poop must be tonight between 19:00 and 23:59 (e.g. ~19:52 fallback or ~23:32 learned), NOT next morning (~08:44)
     const nextDate = pred.nextPoopExpectedAt!;
-    expect(nextDate.getDate()).toBe(3); // Same day (Sept 3)
-    expect(nextDate.getHours()).toBeGreaterThanOrEqual(19);
-    expect(nextDate.getHours()).toBeLessThanOrEqual(23);
+    expect(getParisDate(nextDate)).toBe(3); // Same day (Sept 3)
+    expect(getParisHour(nextDate)).toBeGreaterThanOrEqual(19);
+    expect(getParisHour(nextDate)).toBeLessThanOrEqual(23);
   });
 
   // 16. Pre-bed Poop Rolls Over to Morning Once Outing Is Logged
@@ -354,8 +363,8 @@ describe('Night Mode, Evening Outings, and Age Transitions Comprehensive Test Su
     expect(pred.poopMode).toBe('night_sleep');
     expect(pred.poopReason).toContain('Morning outing');
     expect(pred.nextPoopExpectedAt).not.toBeNull();
-    expect(pred.nextPoopExpectedAt!.getDate()).toBe(4); // Next day (Sept 4)
-    expect(pred.nextPoopExpectedAt!.getHours()).toBe(8);
+    expect(getParisDate(pred.nextPoopExpectedAt!)).toBe(4); // Next day (Sept 4)
+    expect(getParisHour(pred.nextPoopExpectedAt!)).toBe(8);
   });
 
   // 17. Breakfast Syncs with Meal Schedule
@@ -379,7 +388,7 @@ describe('Night Mode, Evening Outings, and Age Transitions Comprehensive Test Su
     const pred = calculatePredictions(activities, balmaProfile, refTime, 'Europe/Paris', lateWakeSchedule);
 
     expect(pred.nextFoodExpectedAt).not.toBeNull();
-    expect(pred.nextFoodExpectedAt!.getHours()).toBe(9);
+    expect(getParisHour(pred.nextFoodExpectedAt!)).toBe(9);
     expect(pred.nextFoodExpectedAt!.getMinutes()).toBe(35);
     expect(pred.foodReason).toContain('09:35');
   });
@@ -409,14 +418,14 @@ describe('Night Mode, Evening Outings, and Age Transitions Comprehensive Test Su
 
     // Poop: 18:48 + ~9.5h = ~04:26 AM -> DEEP NIGHT -> must roll over to morning!
     expect(pred.nextPoopExpectedAt).not.toBeNull();
-    expect(pred.nextPoopExpectedAt!.getDate()).toBe(4); // Next morning (Sept 4)
-    expect(pred.nextPoopExpectedAt!.getHours()).toBe(8); // Morning outing ~08:38
+    expect(getParisDate(pred.nextPoopExpectedAt!)).toBe(4); // Next morning (Sept 4)
+    expect(getParisHour(pred.nextPoopExpectedAt!)).toBe(8); // Morning outing ~08:38
     expect(pred.poopReason).toContain('Morning outing');
 
     // Pee: 18:41 + interval -> within 60m of bedtime 22:49 -> preserved for tonight pre-bed outing!
     expect(pred.nextPeeExpectedAt).not.toBeNull();
-    expect(pred.nextPeeExpectedAt!.getDate()).toBe(3); // Tonight (Sept 3)
-    expect(pred.nextPeeExpectedAt!.getHours()).toBeGreaterThanOrEqual(22);
+    expect(getParisDate(pred.nextPeeExpectedAt!)).toBe(3); // Tonight (Sept 3)
+    expect(getParisHour(pred.nextPeeExpectedAt!)).toBeGreaterThanOrEqual(22);
   });
 
   // 19. Afternoon Poop (13:52) with 9.5h Interval Preserves Tonight Pre-Bed Outing (23:30)
@@ -444,8 +453,8 @@ describe('Night Mode, Evening Outings, and Age Transitions Comprehensive Test Su
 
     // 13:52 + ~9h30m = ~23:22 (<= bedtime 22:49 + 60m = 23:49) -> Preserved for tonight
     expect(pred.nextPoopExpectedAt).not.toBeNull();
-    expect(pred.nextPoopExpectedAt!.getDate()).toBe(3); // Tonight (Sept 3)
-    expect(pred.nextPoopExpectedAt!.getHours()).toBe(23); // ~23:22 PM
+    expect(getParisDate(pred.nextPoopExpectedAt!)).toBe(3); // Tonight (Sept 3)
+    expect(getParisHour(pred.nextPoopExpectedAt!)).toBe(23); // ~23:22 PM
   });
 
   // 20. Late Evening Pee (21:30) with 5h Interval Rolls Over to Morning (NO 02:30 AM bug)
@@ -466,8 +475,8 @@ describe('Night Mode, Evening Outings, and Age Transitions Comprehensive Test Su
 
     // 21:30 + 5h = 02:30 AM -> DEEP NIGHT -> rolls over to morning wakeup ~08:38
     expect(pred.nextPeeExpectedAt).not.toBeNull();
-    expect(pred.nextPeeExpectedAt!.getDate()).toBe(4); // Next morning (Sept 4)
-    expect(pred.nextPeeExpectedAt!.getHours()).toBe(8); // Morning outing
+    expect(getParisDate(pred.nextPeeExpectedAt!)).toBe(4); // Next morning (Sept 4)
+    expect(getParisHour(pred.nextPeeExpectedAt!)).toBe(8); // Morning outing
     expect(pred.peeReason).toContain('Morning outing');
   });
 
@@ -489,13 +498,13 @@ describe('Night Mode, Evening Outings, and Age Transitions Comprehensive Test Su
     const pred = calculatePredictions(activities, balmaProfile, refTime, 'Europe/Paris', lateWakeSchedule);
 
     expect(pred.peeMode).toBe('night_sleep');
-    expect(pred.nextPeeExpectedAt!.getDate()).toBe(4);
-    expect(pred.nextPeeExpectedAt!.getHours()).toBe(8);
+    expect(getParisDate(pred.nextPeeExpectedAt!)).toBe(4);
+    expect(getParisHour(pred.nextPeeExpectedAt!)).toBe(8);
     expect(pred.peeReason).toContain('Morning outing');
 
     expect(pred.poopMode).toBe('night_sleep');
-    expect(pred.nextPoopExpectedAt!.getDate()).toBe(4);
-    expect(pred.nextPoopExpectedAt!.getHours()).toBe(8);
+    expect(getParisDate(pred.nextPoopExpectedAt!)).toBe(4);
+    expect(getParisHour(pred.nextPoopExpectedAt!)).toBe(8);
     expect(pred.poopReason).toContain('Morning outing');
   });
 
@@ -520,8 +529,8 @@ describe('Night Mode, Evening Outings, and Age Transitions Comprehensive Test Su
     const refTime = new Date('2026-08-23T23:45:00+02:00');
     const pred = calculatePredictions(activities, balmaProfile, refTime, 'Europe/Paris', midnightSchedule);
 
-    expect(pred.nextPoopExpectedAt!.getDate()).toBe(24);
-    expect(pred.nextPoopExpectedAt!.getHours()).toBe(8); // Morning outing ~08:30
+    expect(getParisDate(pred.nextPoopExpectedAt!)).toBe(24);
+    expect(getParisHour(pred.nextPoopExpectedAt!)).toBe(8); // Morning outing ~08:30
     expect(pred.poopReason).toContain('Morning outing');
   });
 
@@ -549,12 +558,12 @@ describe('Night Mode, Evening Outings, and Age Transitions Comprehensive Test Su
     const pred = calculatePredictions(activities, balmaProfile, eveningRef, 'Europe/Paris', sleepSchedule);
 
     // Pee needs to happen before bedtime tonight (18:00 + ~4h = 22:00 <= 22:30)
-    expect(pred.nextPeeExpectedAt!.getDate()).toBe(3); // Sept 3 tonight
-    expect(pred.nextPeeExpectedAt!.getHours()).toBe(22); // ~22:00
+    expect(getParisDate(pred.nextPeeExpectedAt!)).toBe(3); // Sept 3 tonight
+    expect(getParisHour(pred.nextPeeExpectedAt!)).toBe(22); // ~22:00
 
     // Poop due at 03:30 AM (deep night > 22:30 + 4.75h) rolls over to morning wakeup
-    expect(pred.nextPoopExpectedAt!.getDate()).toBe(4); // Sept 4 morning
-    expect(pred.nextPoopExpectedAt!.getHours()).toBeGreaterThanOrEqual(7); // ~07:30-08:45 AM
+    expect(getParisDate(pred.nextPoopExpectedAt!)).toBe(4); // Sept 4 morning
+    expect(getParisHour(pred.nextPoopExpectedAt!)).toBeGreaterThanOrEqual(7); // ~07:30-08:45 AM
     expect(pred.poopReason).toContain('Morning outing');
   });
 
@@ -573,7 +582,7 @@ describe('Night Mode, Evening Outings, and Age Transitions Comprehensive Test Su
       { id: '1', puppyId: balmaProfile.id, type: 'pee', timestamp: '2026-09-03T20:30:00+02:00', loggedBy: 'Matthieu' },
     ];
     const pred1 = calculatePredictions(activities1, balmaProfile, new Date('2026-09-03T22:30:00+02:00'), 'Europe/Paris', sleepSchedule);
-    expect(pred1.nextPeeExpectedAt!.getHours()).toBe(0); // ~00:30 AM (tonight pre-bed outing)
+    expect(getParisHour(pred1.nextPeeExpectedAt!)).toBe(0); // ~00:30 AM (tonight pre-bed outing)
     expect(pred1.peeMode).toBe('daytime_baseline');
 
     // Scenario 2: Peed at 22:15 (at 23:00 bedtime, 0.75h / 4h = 18.75% elapsed < 50%) -> ROLLED OVER to morning wakeup (08:00 AM)
@@ -581,7 +590,7 @@ describe('Night Mode, Evening Outings, and Age Transitions Comprehensive Test Su
       { id: '2', puppyId: balmaProfile.id, type: 'pee', timestamp: '2026-09-03T22:15:00+02:00', loggedBy: 'Matthieu' },
     ];
     const pred2 = calculatePredictions(activities2, balmaProfile, new Date('2026-09-03T22:45:00+02:00'), 'Europe/Paris', sleepSchedule);
-    expect(pred2.nextPeeExpectedAt!.getHours()).toBe(8); // Morning wakeup (08:00 AM)
+    expect(getParisHour(pred2.nextPeeExpectedAt!)).toBe(8); // Morning wakeup (08:00 AM)
     expect(pred2.peeReason).toContain('Morning outing');
   });
 });
