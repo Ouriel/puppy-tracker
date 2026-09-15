@@ -239,17 +239,21 @@ describe('Balma Morning Awakening & Overnight Transition Dataset Test Suite', ()
       loggedBy: 'Matthieu',
     });
 
-    // 3. Check at 11:00 AM (midday): standard digestive transit from breakfast or daytime baseline
-    const middayCheck = new Date('2026-08-21T11:00:00+02:00');
-    const middayPred = calculatePredictions(dataset, balmaProfile, middayCheck, 'Europe/Paris');
+    // 3. Check at 10:15 AM (after breakfast): when post-meal override does not apply,
+    // morning poop remains overdue based on morning wakeup — never pushes +9h into evening!
+    const postBfastCheck = new Date('2026-08-21T10:15:00+02:00');
+    const postBfastPred = calculatePredictions(dataset, balmaProfile, postBfastCheck, 'Europe/Paris');
 
-    expect(middayPred.nextPoopExpectedAt).toBeDefined();
-    // Must target TODAY Aug 21 afternoon/evening, NOT tomorrow Aug 22!
-    expect(formatLocalDate(middayPred.nextPoopExpectedAt!, 'Europe/Paris')).toBe('2026-08-21');
-    const hoursFromMidday = (middayPred.nextPoopExpectedAt!.getTime() - middayCheck.getTime()) / (1000 * 60 * 60);
-    // Expected within today (e.g. ~5-9 hours from midday = 16:00 to 20:00), definitely not >20 hours
-    expect(hoursFromMidday).toBeGreaterThan(0);
-    expect(hoursFromMidday).toBeLessThan(12);
+    expect(postBfastPred.nextPoopExpectedAt).toBeDefined();
+    expect(formatLocalDate(postBfastPred.nextPoopExpectedAt!, 'Europe/Paris')).toBe('2026-08-21');
+    // If post-meal override is inactive or elapsed, the unpooped morning stool is overdue, not pushed ~9h into evening
+    if (postBfastPred.poopMode === 'daytime_baseline') {
+      expect(postBfastPred.poopUrgency).toBe('overdue');
+      const diffHours = (postBfastPred.nextPoopExpectedAt!.getTime() - postBfastCheck.getTime()) / (1000 * 60 * 60);
+      expect(diffHours).toBeLessThanOrEqual(0); // Overdue in the morning, not +7-9h in the future!
+    } else {
+      expect(postBfastPred.poopMode).toBe('post_meal_override');
+    }
   });
 
   it('verifies pee engine alignment: midnight pre-bed pee followed by waking up without morning pee also targets today, not next day', () => {

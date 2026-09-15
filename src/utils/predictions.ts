@@ -846,24 +846,21 @@ export function predictNextPoop(
     const todayMorningPoop = new Date(morningAnchor.getTime() + offsets.morningPoopOffsetMins * 60 * 1000);
     const targetTimeStr = formatLocalTime(todayMorningPoop, tz);
 
+    let postMealOverride = false;
     if (todayMealsSorted.length > 0) {
       const latestMeal = todayMealsSorted[todayMealsSorted.length - 1];
       const foodTime = parseIsoDate(latestMeal.timestamp).getTime();
       const minsSinceMeal = Math.round((now.getTime() - foodTime) / 60000);
 
       if (shouldApplyPostMealOverride(months, learnedPostMealPoop) && minsSinceMeal <= postMealPoopDelay + 45) {
+        postMealOverride = true;
         mode = 'post_meal_override';
         nextExpectedAt = new Date(foodTime + postMealPoopDelay * 60 * 1000);
         reason = `Post-meal poop break (~${postMealPoopDelay}m after food)`;
-      } else {
-        mode = 'daytime_baseline';
-        const digestiveTransitMins = Math.max(240, learnedPoop.intervalMins);
-        nextExpectedAt = new Date(foodTime + digestiveTransitMins * 60 * 1000);
-        reason = learnedPoop.isLearned
-          ? `Learned average: ~${formatMinutesToXhXX(digestiveTransitMins)} digestive interval`
-          : `Standard digestive interval (~${formatMinutesToXhXX(digestiveTransitMins)})`;
       }
-    } else {
+    }
+
+    if (!postMealOverride) {
       mode = 'daytime_baseline';
       nextExpectedAt = todayMorningPoop;
       reason = `Morning outing (~${targetTimeStr})`;

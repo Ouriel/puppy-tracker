@@ -304,7 +304,7 @@ describe('predictions utility — comprehensive test suite', () => {
         expect(predictions.poopMode).toBe('daytime_baseline');
       });
 
-      it('calculates realistic digestive transit interval (~6 hours after meal)', () => {
+      it('treats unpooped morning stool as overdue when post-meal override window has elapsed, symmetric with pee', () => {
         const youngProfile: PuppyProfile = { ...mockProfile, birthDate: '2026-06-01' };
         const olderProfile: PuppyProfile = { ...mockProfile, birthDate: '2026-01-01' };
 
@@ -318,9 +318,12 @@ describe('predictions utility — comprehensive test suite', () => {
         const predYoung = calculatePredictions(activities, youngProfile, referenceTime, 'Europe/Paris');
         const predOlder = calculatePredictions(activities, olderProfile, referenceTime, 'Europe/Paris');
 
-        // Meal at 12:00 + 6h = 18:00
-        expect(getLocalHour(predYoung.nextPoopExpectedAt!, 'Europe/Paris')).toBe(18);
-        expect(getLocalHour(predOlder.nextPoopExpectedAt!, 'Europe/Paris')).toBe(18);
+        // At 14:00 (2h post meal), post-meal window elapsed and puppy has not pooped since yesterday 19:00:
+        // Morning poop is overdue (anchored to morning wakeup ~07:00), not pushed into future
+        expect(getLocalHour(predYoung.nextPoopExpectedAt!, 'Europe/Paris')).toBe(7);
+        expect(predYoung.poopUrgency).toBe('overdue');
+        expect(getLocalHour(predOlder.nextPoopExpectedAt!, 'Europe/Paris')).toBe(7);
+        expect(predOlder.poopUrgency).toBe('overdue');
       });
     });
 
