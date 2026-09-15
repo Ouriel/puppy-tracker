@@ -11,7 +11,7 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       injectRegister: 'auto',
-      includeAssets: ['favicon.svg', 'puppace_logo.webp', 'cocker_spaniel_mascot.webp'],
+      includeAssets: ['favicon.svg', 'favicon.ico', 'puppace_logo.webp', 'cocker_spaniel_mascot.webp'],
       manifest: false, // uses existing public/manifest.json
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,webp}'],
