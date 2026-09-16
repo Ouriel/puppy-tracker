@@ -72,6 +72,24 @@ function App() {
     }
   }, []);
 
+  const loadDogsAndHousehold = useCallback(async () => {
+    const [dogsRes, householdRes] = await Promise.all([
+      fetchDogs(),
+      fetchHousehold(),
+    ]);
+
+    if (dogsRes.ok && dogsRes.data.length > 0) {
+      puppyState.setPuppies(dogsRes.data);
+      if (!puppyState.activePuppyId || !dogsRes.data.some((puppy) => puppy.id === puppyState.activePuppyId)) {
+        puppyState.selectPuppy(dogsRes.data[0].id);
+      }
+    }
+
+    if (householdRes.ok && householdRes.data?.caretakers && householdRes.data.caretakers.length > 0) {
+      caretakerState.setCaretakers(householdRes.data.caretakers);
+    }
+  }, [puppyState, caretakerState]);
+
   // Listen for browser Back/Forward navigation
   useEffect(() => {
     const handlePopState = () => {
@@ -127,23 +145,8 @@ function App() {
               setHealthRecords(records);
             }
           }
-        } else {
           // Secondary views (Health Passport, Settings): load dogs and household only, never wait for potty logs
-          const [dogsRes, householdRes] = await Promise.all([
-            fetchDogs(),
-            fetchHousehold(),
-          ]);
-
-          if (dogsRes.ok && dogsRes.data.length > 0) {
-            puppyState.setPuppies(dogsRes.data);
-            if (!puppyState.activePuppyId || !dogsRes.data.some((puppy) => puppy.id === puppyState.activePuppyId)) {
-              puppyState.selectPuppy(dogsRes.data[0].id);
-            }
-          }
-
-          if (householdRes.ok && householdRes.data?.caretakers && householdRes.data.caretakers.length > 0) {
-            caretakerState.setCaretakers(householdRes.data.caretakers);
-          }
+          await loadDogsAndHousehold();
         }
       } catch (err) {
         console.error('Failed to load initial PupPace data', err);
@@ -306,21 +309,7 @@ function App() {
       setUser(userAccount);
       setStoredAuthUser(userAccount);
 
-      const [dogsRes, householdRes] = await Promise.all([
-        fetchDogs(),
-        fetchHousehold(),
-      ]);
-
-      if (dogsRes.ok && dogsRes.data.length > 0) {
-        puppyState.setPuppies(dogsRes.data);
-        if (!puppyState.activePuppyId || !dogsRes.data.some((puppy) => puppy.id === puppyState.activePuppyId)) {
-          puppyState.selectPuppy(dogsRes.data[0].id);
-        }
-      }
-
-      if (householdRes.ok && householdRes.data?.caretakers && householdRes.data.caretakers.length > 0) {
-        caretakerState.setCaretakers(householdRes.data.caretakers);
-      }
+      await loadDogsAndHousehold();
 
       setIsLoading(false);
       return { success: true };

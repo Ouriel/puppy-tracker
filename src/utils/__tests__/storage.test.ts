@@ -38,7 +38,6 @@ import {
   setStoredCaretakers,
   getStoredRecentActivities,
   setStoredRecentActivities,
-  clearAllData,
   DEFAULT_PUPPIES,
   DEFAULT_CARETAKERS,
 } from '../storage';
@@ -75,7 +74,7 @@ describe('Storage Helpers Cache Suite', () => {
     setStoredCaretakers(mockCaretakers);
     expect(getStoredCaretakers()).toEqual(mockCaretakers);
 
-    clearAllData();
+    setStoredPuppies([]);
     expect(getStoredPuppies()).toEqual(DEFAULT_PUPPIES);
   });
 

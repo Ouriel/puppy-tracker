@@ -89,12 +89,3 @@ export function setStoredRecentActivities(puppyId: string, activities: import('.
   } catch {}
 }
 
-export function clearAllData(): void {
-  if (typeof localStorage !== 'undefined') {
-    localStorage.removeItem(STORAGE_KEY_ACTIVE_PUPPY);
-    localStorage.removeItem(STORAGE_KEY_CACHED_PUPPIES);
-    localStorage.removeItem(STORAGE_KEY_CACHED_CARETAKERS);
-    localStorage.removeItem(STORAGE_KEY_CACHED_ACTIVITIES);
-  }
-}
-

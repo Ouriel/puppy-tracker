@@ -6,6 +6,10 @@ import { usersTable } from '../../src/db/schema.js';
 import { isSuperAdminEmail } from '../../src/utils/auth.js';
 import { verifyAuth, signAppSessionToken, setCorsHeaders } from '../_auth.js';
 
+const connectionString = process.env.POSTGRES_URL || process.env.DATABASE_URL || '';
+const sql = neon(connectionString);
+const db = drizzle(sql);
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   setCorsHeaders(req, res, 'GET, POST, OPTIONS');
 
@@ -15,10 +19,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const auth = await verifyAuth(req);
 
     // Sync latest user details (householdId, role, status) directly from database
-    const dbUrl = process.env.POSTGRES_URL || process.env.DATABASE_URL || '';
-    if (dbUrl) {
-      const sql = neon(dbUrl);
-      const db = drizzle(sql);
+    if (connectionString) {
       const [dbUser] = await db
         .select()
         .from(usersTable)

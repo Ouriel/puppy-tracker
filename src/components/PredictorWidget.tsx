@@ -33,7 +33,7 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = React.memo(({
 }) => {
   const { t, lang } = useI18n();
 
-  const now = referenceTime || new Date();
+  const now = useMemo(() => referenceTime || new Date(), [referenceTime]);
 
   const { todayPeeCount, lastPeeMinsAgo, todayPoopCount, lastPoopMinsAgo, lastFoodMinsAgo } = useMemo(() => {
     let todayPee = 0;
