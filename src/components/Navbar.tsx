@@ -2,7 +2,7 @@ import React from 'react';
 import type { PuppyProfile } from '../types';
 import { Plus, Settings, Globe } from 'lucide-react';
 import { Button, Select, ListBox, ListBoxItem } from '@heroui/react';
-import type { Language } from '../i18n';
+import { useI18n } from '../i18n';
 
 import { getPuppyAge } from '../utils/predictions';
 
@@ -12,9 +12,6 @@ interface NavbarProps {
   onSelectPuppy: (puppyId: string) => void;
   onOpenQuickLog: () => void;
   onOpenSettings: () => void;
-  lang: Language;
-  onLanguageChange: (lang: Language) => void;
-  t: any;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -23,10 +20,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   onSelectPuppy,
   onOpenQuickLog,
   onOpenSettings,
-  lang,
-  onLanguageChange,
-  t,
 }) => {
+  const { t, lang, changeLanguage } = useI18n();
   return (
     <header className="sticky top-0 z-30 bg-slate-900/95 backdrop-blur-md border-b border-slate-800 text-slate-100 shadow-xl w-full">
       <div className="max-w-6xl mx-auto px-3 sm:px-4 py-2.5 flex items-center justify-between gap-1.5 sm:gap-3">
@@ -86,7 +81,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           {/* Language Switcher Button (Globe + Flag) */}
           <button
             type="button"
-            onClick={() => onLanguageChange(lang === 'en' ? 'fr' : 'en')}
+            onClick={() => changeLanguage(lang === 'en' ? 'fr' : 'en')}
             aria-label="Toggle language"
             className="h-11 min-h-[44px] px-3 flex items-center justify-center gap-1.5 rounded-xl bg-slate-950/80 border border-slate-800 text-slate-300 hover:text-white hover:bg-slate-800 transition-colors shrink-0 text-xs font-bold"
           >

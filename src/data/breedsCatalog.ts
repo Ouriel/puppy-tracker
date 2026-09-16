@@ -688,10 +688,7 @@ export function findBreed(query: string): BreedEntry | undefined {
   if (exact) return exact;
 
   // 2. Substring match or alias match
-  return BREED_CATALOG.find((b) => {
-    if (b.aliases.some((alias) => q.includes(alias) || alias.includes(q))) return true;
-    return false;
-  });
+  return BREED_CATALOG.find((b) => b.aliases.some((alias) => q.includes(alias) || alias.includes(q)));
 }
 
 export const DOG_BREEDS = BREED_CATALOG.map((b) => b.nameEn);

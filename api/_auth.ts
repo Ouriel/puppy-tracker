@@ -1,5 +1,4 @@
 import { createHmac, timingSafeEqual, randomUUID } from 'crypto';
-import { OAuth2Client } from 'google-auth-library';
 import { neon } from '@neondatabase/serverless';
 import { drizzle } from 'drizzle-orm/neon-http';
 import { eq } from 'drizzle-orm';
@@ -25,7 +24,6 @@ export function setCorsHeaders(req: VercelRequest, res: VercelResponse, methods 
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 }
 
-const client = new OAuth2Client();
 function getSessionSecret(): string {
   const secret = process.env.SESSION_SECRET || process.env.AUTH_SECRET;
   if (!secret) {
@@ -129,13 +127,26 @@ export async function verifyAuth(req: VercelRequest): Promise<AuthContext> {
     process.env.VITE_GOOGLE_CLIENT_ID ||
     process.env.GOOGLE_CLIENT_ID ||
     '8924902082-52mf1l272khij6ac2racnh4p34h7fh08.apps.googleusercontent.com';
-  let payload;
+  let payload: { email?: string; email_verified?: boolean; name?: string } | undefined;
   try {
-    const ticket = await client.verifyIdToken({
-      idToken: token,
-      audience: googleClientId,
-    });
-    payload = ticket.getPayload();
+    const res = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(token)}`);
+    if (!res.ok) {
+      throw new Error(`Google token validation failed (${res.status})`);
+    }
+    const data = (await res.json()) as {
+      aud?: string;
+      email?: string;
+      email_verified?: string | boolean;
+      name?: string;
+    };
+    if (data.aud !== googleClientId) {
+      throw new Error('Token audience mismatch');
+    }
+    payload = {
+      email: data.email,
+      email_verified: data.email_verified === true || data.email_verified === 'true',
+      name: data.name,
+    };
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
     throw { status: 401, message: `Invalid authentication token: ${message}` };

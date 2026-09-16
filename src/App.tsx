@@ -31,7 +31,7 @@ import { useActivities } from './hooks/useActivities';
 import { getStoredRecentActivities } from './utils/storage';
 
 function App() {
-  const { lang, changeLanguage, t } = useI18n();
+  const { t } = useI18n();
 
   const [user, setUser] = useState<UserAccount | null>(() => {
     const token = getAuthToken();
@@ -345,9 +345,6 @@ function App() {
             onSelectPuppy={puppyState.selectPuppy}
             onOpenSettings={() => handleNavigate('settings')}
             onOpenQuickLog={() => handleOpenQuickLogModal('pee')}
-            lang={lang}
-            onLanguageChange={changeLanguage}
-            t={t}
           />
         ) : (
           <div className="h-14 border-b border-slate-800 bg-slate-900/50 backdrop-blur flex items-center px-4 gap-3">
@@ -398,9 +395,6 @@ function App() {
         onSelectPuppy={puppyState.selectPuppy}
         onOpenSettings={() => handleNavigate('settings')}
         onOpenQuickLog={() => handleOpenQuickLogModal('pee')}
-        lang={lang}
-        onLanguageChange={changeLanguage}
-        t={t}
       />
 
       {/* Main Content Area */}
@@ -487,7 +481,6 @@ function App() {
                 predictions={predictions}
                 healthRecords={healthRecords}
                 onOpenHealthPassport={() => handleNavigate('carnetdesante')}
-                lang={lang}
               />
             )}
 

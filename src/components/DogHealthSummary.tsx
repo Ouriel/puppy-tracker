@@ -19,7 +19,6 @@ interface DogHealthSummaryProps {
   predictions?: PredictionResult | null;
   healthRecords?: HealthRecord[];
   onOpenHealthPassport: () => void;
-  lang: string;
 }
 
 export const DogHealthSummary: React.FC<DogHealthSummaryProps> = React.memo(({
@@ -28,9 +27,8 @@ export const DogHealthSummary: React.FC<DogHealthSummaryProps> = React.memo(({
   predictions,
   healthRecords = [],
   onOpenHealthPassport,
-  lang,
 }) => {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
 
   // Derive last vaccine and deworming from BFF-provided health records (no secondary fetch needed)
   const puppyRecords = useMemo(() => {
