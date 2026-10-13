@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import {
   formatLocalDate,
   formatLogicalDate,
@@ -37,14 +37,19 @@ describe('date utility module — comprehensive test suite', () => {
   });
 
   it('formatRelativeTime returns Today and Yesterday correctly', () => {
-    const now = new Date();
-    const todayLog = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 10, 0).toISOString();
-    const formattedToday = formatRelativeTime(todayLog, 'en', { today: 'Today', yesterday: 'Yesterday' });
-    expect(formattedToday).toContain('Today');
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date(2026, 7, 9, 14, 0));
+    try {
+      const todayLog = new Date(2026, 7, 9, 10, 0).toISOString();
+      const formattedToday = formatRelativeTime(todayLog, 'en', { today: 'Today', yesterday: 'Yesterday' });
+      expect(formattedToday).toContain('Today');
 
-    const yesterdayLog = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1, 20, 0).toISOString();
-    const formattedYesterday = formatRelativeTime(yesterdayLog, 'en', { today: 'Today', yesterday: 'Yesterday' });
-    expect(formattedYesterday).toContain('Yesterday');
+      const yesterdayLog = new Date(2026, 7, 8, 20, 0).toISOString();
+      const formattedYesterday = formatRelativeTime(yesterdayLog, 'en', { today: 'Today', yesterday: 'Yesterday' });
+      expect(formattedYesterday).toContain('Yesterday');
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('formatRelativeTime gracefully handles unparseable date strings with localized fallback', () => {

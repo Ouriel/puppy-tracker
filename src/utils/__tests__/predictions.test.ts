@@ -14,6 +14,7 @@ import {
 } from '../predictions';
 import { getLocalHour, formatLocalDate } from '../date';
 import type { Activity, PuppyProfile } from '../../types';
+import { act, at, BALMA } from './fixtures';
 
 describe('predictions utility — comprehensive test suite', () => {
   const mockProfile: PuppyProfile = {
@@ -76,7 +77,8 @@ describe('predictions utility — comprehensive test suite', () => {
       activities.push({ id: `p5-${dayOffset}`, puppyId: 'pup-1', type: 'pee', timestamp: makeParisIso(dayNum, 22, 30), loggedBy: 'Matthieu' });
     }
 
-    return activities;
+    // Newest first, like the API (orderBy timestamp desc)
+    return activities.reverse();
   }
 
   // 1. getPuppyAge
@@ -831,7 +833,7 @@ describe('predictions utility — comprehensive test suite', () => {
     it('predicts morning wake-up poop (~07:10 AM) instead of middle-of-night (03:52 AM) when last poop was previous evening (Screenshot bug fix)', () => {
       const dataset = generateRealisticMultiDayDataset();
       // Add last poop yesterday evening at 17:38 PM
-      dataset.push({
+      dataset.unshift({
         id: 'poop-yesterday-eve',
         puppyId: 'pup-1',
         type: 'poop',
@@ -839,7 +841,7 @@ describe('predictions utility — comprehensive test suite', () => {
         loggedBy: 'Matthieu',
       });
       // Morning pee logged at 07:34 AM today
-      dataset.push({
+      dataset.unshift({
         id: 'pee-today-morning',
         puppyId: 'pup-1',
         type: 'pee',
@@ -869,6 +871,60 @@ describe('predictions utility — comprehensive test suite', () => {
       const peeHour = getLocalHour(predictions.nextPeeExpectedAt!, 'Europe/Paris');
       expect(peeHour).toBe(7);
       expect(predictions.peeReason).toContain('Morning outing');
+    });
+
+    // Newest first, as production feeds them. The wake-up pee is 07:00: the 04:30 night potty is before 05:00,
+    // and the 02:30 one belongs to the previous logical day (which ends at 04:00).
+    const morningPees = [
+      act('pee', '2026-08-07T10:00:00+02:00'),
+      act('pee', '2026-08-07T07:00:00+02:00'),
+      act('pee', '2026-08-07T04:30:00+02:00'),
+      act('pee', '2026-08-07T02:30:00+02:00'),
+      act('pee', '2026-08-06T22:00:00+02:00'),
+      act('poop', '2026-08-06T19:30:00+02:00'),
+      act('food', '2026-08-06T19:00:00+02:00', { quantityGrams: 80 }),
+    ];
+
+    it('anchors the morning poop and breakfast on the wake-up pee, not the latest pee or a night potty (R2)', () => {
+      const predictions = calculatePredictions(morningPees, BALMA, new Date('2026-08-07T10:05:00+02:00'), 'Europe/Paris');
+
+      expect(at(predictions.nextPoopExpectedAt!)).toBe('2026-08-07 07:10');
+      expect(predictions.poopMode).toBe('daytime_baseline');
+      expect(predictions.poopReason).toBe('Morning outing (~07:10)');
+      expect(predictions.poopUrgency).toBe('overdue');
+      expect(at(predictions.nextFoodExpectedAt!)).toBe('2026-08-07 07:30');
+      expect(predictions.foodMode).toBe('daytime_schedule');
+      expect(predictions.foodReason).toBe('Breakfast (~07:30, Meal 1 of 3)');
+      expect(predictions.foodUrgency).toBe('overdue');
+    });
+
+    it('returns the same predictions whatever the order of the activity list', () => {
+      const generated = generateRealisticMultiDayDataset();
+      const scenarios: Array<[Activity[], string]> = [
+        [morningPees, '2026-08-07T10:05:00+02:00'],
+        ...['2026-08-07T07:20:00+02:00', '2026-08-07T13:00:00+02:00', '2026-08-07T23:30:00+02:00', '2026-08-08T07:40:00+02:00'].map(
+          (referenceIso): [Activity[], string] => [generated, referenceIso]
+        ),
+        // Two pees before the first poop and meal of a new day
+        [[act('pee', '2026-08-08T09:00:00+02:00'), act('pee', '2026-08-08T07:00:00+02:00'), ...generated], '2026-08-08T09:10:00+02:00'],
+        // Two pees inside one post-meal window, then a new meal
+        [
+          [
+            act('food', '2026-08-08T12:00:00+02:00', { quantityGrams: 80 }),
+            act('pee', '2026-08-08T07:40:00+02:00'),
+            act('pee', '2026-08-08T07:10:00+02:00'),
+            act('food', '2026-08-08T07:00:00+02:00', { quantityGrams: 80 }),
+            ...generated,
+          ],
+          '2026-08-08T12:05:00+02:00',
+        ],
+      ];
+
+      for (const [activities, referenceIso] of scenarios) {
+        const referenceTime = new Date(referenceIso);
+        const reversed = calculatePredictions([...activities].reverse(), BALMA, referenceTime, 'Europe/Paris');
+        expect(reversed).toEqual(calculatePredictions(activities, BALMA, referenceTime, 'Europe/Paris'));
+      }
     });
   });
 });

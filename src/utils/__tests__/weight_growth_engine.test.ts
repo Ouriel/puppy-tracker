@@ -11,9 +11,10 @@ import {
   scaleGrowthBenchmarks,
 } from '../weight';
 import type { Activity, HealthRecord, PuppyProfile } from '../../types';
+import { BALMA } from './fixtures';
 
 describe('Canine Weight Prediction & WALTHAM Growth Engine', () => {
-  const balmaBirthDate = '2026-03-26T23:00:00.000Z'; // March 27, 2026
+  const balmaBirthDate = BALMA.birthDate;
 
   const balmaActivities: Activity[] = [
     { id: 'act-1', puppyId: 'pup-balma', type: 'weight', timestamp: '2026-05-27T10:00:00.000Z', weightKg: 4.075, loggedBy: 'Matthieu' },
@@ -25,10 +26,10 @@ describe('Canine Weight Prediction & WALTHAM Growth Engine', () => {
   ];
 
   const balmaHealthRecords: HealthRecord[] = [
-    { id: 'hr-1', householdId: 'hh-1', puppyId: 'pup-balma', type: 'deworming', name: 'Drontal Chiot', date: '2026-05-23T22:00:00.000Z', weightAtTime: 4.0 },
-    { id: 'hr-2', householdId: 'hh-1', puppyId: 'pup-balma', type: 'deworming', name: 'Credelio Plus', date: '2026-06-27T22:00:00.000Z', weightAtTime: 6.8 },
-    { id: 'hr-3', householdId: 'hh-1', puppyId: 'pup-balma', type: 'deworming', name: 'Credelio Plus', date: '2026-07-26T22:00:00.000Z', weightAtTime: 7.8 },
-    { id: 'hr-4', householdId: 'hh-1', puppyId: 'pup-balma', type: 'deworming', name: 'Credelio Plus', date: '2026-08-26T22:00:00.000Z', weightAtTime: 9.52 },
+    { id: 'hr-1', householdId: 'hh-1', puppyId: 'pup-balma', type: 'deworming', name: 'Drontal Chiot', date: '2026-05-24', weightAtTime: 4.0 },
+    { id: 'hr-2', householdId: 'hh-1', puppyId: 'pup-balma', type: 'deworming', name: 'Credelio Plus', date: '2026-06-28', weightAtTime: 6.8 },
+    { id: 'hr-3', householdId: 'hh-1', puppyId: 'pup-balma', type: 'deworming', name: 'Credelio Plus', date: '2026-07-27', weightAtTime: 7.8 },
+    { id: 'hr-4', householdId: 'hh-1', puppyId: 'pup-balma', type: 'deworming', name: 'Credelio Plus', date: '2026-08-27', weightAtTime: 9.52 },
   ];
 
   const balmaProfile: PuppyProfile = {
@@ -70,22 +71,29 @@ describe('Canine Weight Prediction & WALTHAM Growth Engine', () => {
       // Simulating a snapshot where the only log is from July 25 (at age 17.1 weeks, 7.8kg)
       const singleLog = [balmaActivities[2]]; // 7.8 kg on 2026-07-25
 
-      // Calculate on July 25 (right after weigh-in, puppy was 17.1 weeks)
-      const resOnJuly25 = calculateProjectedAdultWeightRange(
-        balmaProfile.breed,
-        singleLog,
-        balmaBirthDate
-      );
+      vi.useFakeTimers({ toFake: ['Date'] });
+      try {
+        // Calculate on July 25 (right after weigh-in, puppy was 17.1 weeks)
+        vi.setSystemTime(new Date('2026-07-25T12:06:00.000Z'));
+        const resOnJuly25 = calculateProjectedAdultWeightRange(
+          balmaProfile.breed,
+          singleLog,
+          balmaBirthDate
+        );
 
-      // Calculate 6 weeks later without any new weigh-in
-      const resSixWeeksLater = calculateProjectedAdultWeightRange(
-        balmaProfile.breed,
-        singleLog,
-        balmaBirthDate
-      );
+        // Calculate 6 weeks later without any new weigh-in
+        vi.setSystemTime(new Date('2026-09-05T12:06:00.000Z'));
+        const resSixWeeksLater = calculateProjectedAdultWeightRange(
+          balmaProfile.breed,
+          singleLog,
+          balmaBirthDate
+        );
 
-      // The prediction MUST remain identical because the puppy was 17.1 weeks when 7.8kg was recorded!
-      expect(resSixWeeksLater.projectedAdultKg).toBe(resOnJuly25.projectedAdultKg);
+        // The prediction MUST remain identical because the puppy was 17.1 weeks when 7.8kg was recorded!
+        expect(resSixWeeksLater.projectedAdultKg).toBe(resOnJuly25.projectedAdultKg);
+      } finally {
+        vi.useRealTimers();
+      }
     });
   });
 
@@ -152,7 +160,7 @@ describe('Canine Weight Prediction & WALTHAM Growth Engine', () => {
           balmaHealthRecords
         );
 
-        expect(effective.lastLoggedWeight).toBe(9.52); // Latest is health record on Aug 26
+        expect(effective.lastLoggedWeight).toBe(9.52); // Latest is health record on Aug 27
         expect(effective.estimatedCurrentWeight).toBeGreaterThan(9.52);
         expect(effective.dailyGainGrams).toBe(50);
       } finally {

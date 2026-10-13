@@ -213,11 +213,11 @@ describe('Comprehensive 30-Day Realistic Dataset Test Suite', () => {
   });
 
   it('calculates puppy age and veterinary food goal', () => {
-    const ageInfo = getPuppyAge(puppyProfile.birthDate);
-    expect(ageInfo.weeks).toBeGreaterThan(10);
+    const ageInfo = getPuppyAge(puppyProfile.birthDate, '2026-08-09');
+    expect(ageInfo).toMatchObject({ weeks: 19, months: 4.4 });
 
     const foodGoal = calculateVetFoodGramGoal(puppyProfile.weightKg!, ageInfo.months);
-    expect(foodGoal).toBeGreaterThan(150);
+    expect(foodGoal).toBe(179);
   });
 
   it('formats every timestamp in the 30-day dataset safely with parseIsoDate and formatRelativeTime', () => {
