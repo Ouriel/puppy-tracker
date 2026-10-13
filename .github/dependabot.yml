@@ -24,6 +24,10 @@ updates:
         update-types:
           - "minor"
           - "patch"
+    ignore:
+      # Types must match the runtime: Node 24 on Vercel and in CI. Bump the major together with both.
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
 
   # GitHub Actions workflows
   - package-ecosystem: "github-actions"
