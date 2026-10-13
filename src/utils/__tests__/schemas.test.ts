@@ -141,6 +141,62 @@ describe('Zod Schemas Validation', () => {
     expect(CaretakerInputSchema.safeParse(inputCaretaker).success).toBe(true);
   });
 
+  it('validates DogInputSchema accepts gender and expectedAdultWeightKg', () => {
+    const validProfile = {
+      id: 'pup-test-1',
+      name: 'Balma',
+      breed: 'English Cocker Spaniel',
+      birthDate: '2026-03-27',
+      weightKg: 7.8,
+      dailyFoodGramGoal: 240,
+      targetMealsPerDay: 3,
+      gender: 'female' as const,
+      expectedAdultWeightKg: 13.5,
+    };
+
+    const parsed = DogInputSchema.safeParse(validProfile);
+    expect(parsed.success).toBe(true);
+    if (parsed.success) {
+      expect(parsed.data.gender).toBe('female');
+      expect(parsed.data.expectedAdultWeightKg).toBe(13.5);
+    }
+  });
+
+  it('validates DogInputSchema preserves backward compatibility when gender is omitted', () => {
+    const legacyProfile = {
+      id: 'pup-test-2',
+      name: 'Cookie',
+      breed: 'Labrador Retriever',
+      birthDate: '2026-01-10',
+      weightKg: 15,
+      dailyFoodGramGoal: 300,
+      targetMealsPerDay: 2,
+    };
+
+    const parsed = DogInputSchema.safeParse(legacyProfile);
+    expect(parsed.success).toBe(true);
+    if (parsed.success) {
+      expect(parsed.data.gender).toBeUndefined();
+      expect(parsed.data.expectedAdultWeightKg).toBeUndefined();
+    }
+  });
+
+  it('rejects invalid gender in DogInputSchema', () => {
+    const invalidProfile = {
+      id: 'pup-test-3',
+      name: 'Rover',
+      breed: 'Boxer',
+      birthDate: '2026-02-01',
+      weightKg: 10,
+      dailyFoodGramGoal: 250,
+      targetMealsPerDay: 3,
+      gender: 'invalid_gender',
+    };
+
+    const parsed = DogInputSchema.safeParse(invalidProfile);
+    expect(parsed.success).toBe(false);
+  });
+
   it('should validate DeleteSchema with valid id and reject empty id', () => {
     expect(DeleteSchema.safeParse({ id: 'act-123' }).success).toBe(true);
     expect(DeleteSchema.safeParse({ id: '' }).success).toBe(false);
@@ -187,6 +243,33 @@ describe('Zod Schemas Validation', () => {
     if (defaultParsed.success) {
       expect(defaultParsed.data.days).toBe(14);
       expect(defaultParsed.data.puppyId).toBeUndefined();
+    }
+
+    // String days coercion and puppyId trimming
+    const customResult = DashboardQuerySchema.safeParse({
+      puppyId: '  pup-alpha  ',
+      days: '30',
+    });
+    expect(customResult.success).toBe(true);
+    if (customResult.success) {
+      expect(customResult.data.puppyId).toBe('pup-alpha');
+      expect(customResult.data.days).toBe(30);
+    }
+
+    // Empty or whitespace-only puppyId transforms to undefined
+    const whitespaceResult = DashboardQuerySchema.safeParse({
+      puppyId: '   ',
+      days: '7',
+    });
+    expect(whitespaceResult.success).toBe(true);
+    if (whitespaceResult.success) {
+      expect(whitespaceResult.data.puppyId).toBeUndefined();
+      expect(whitespaceResult.data.days).toBe(7);
+    }
+
+    // Invalid or out-of-range days (1..90) fall back safely to default 14
+    for (const days of ['invalid_number', '365', '0']) {
+      expect(DashboardQuerySchema.parse({ days }).days).toBe(14);
     }
   });
 

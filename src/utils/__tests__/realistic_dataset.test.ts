@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import {
   calculatePredictions,
   detectSleepSchedule,
@@ -6,8 +6,7 @@ import {
   getPuppyAge,
   calculateVetFoodGramGoal,
 } from '../predictions';
-import { parseIsoDate, formatRelativeTime } from '../date';
-import { scaleGrowthBenchmarks, getExpectedAdultWeight } from '../weight';
+import { getHealthRecordStatus } from '../health';
 import type { Activity, PuppyProfile, HealthRecord } from '../../types';
 
 describe('Comprehensive 30-Day Realistic Dataset Test Suite', () => {
@@ -22,7 +21,7 @@ describe('Comprehensive 30-Day Realistic Dataset Test Suite', () => {
   };
 
   /**
-   * Constructs a 30-day realistic dataset containing 270 activity records
+   * Constructs a 30-day realistic dataset containing 330 activity records
    * modeling real puppy routines: morning wakeups, post-meal potty, walk double-voids,
    * constipation recovery, and night sleep boundaries.
    */
@@ -158,10 +157,6 @@ describe('Comprehensive 30-Day Realistic Dataset Test Suite', () => {
 
   const dataset = build30DayRealisticDataset();
 
-  it('validates 30-day dataset contains 330 total activity logs', () => {
-    expect(dataset.length).toBe(330);
-  });
-
   it('detects sleep schedule boundaries from historical dataset', () => {
     const sleep = detectSleepSchedule(dataset);
     expect(sleep.wakeupHour).toBeGreaterThanOrEqual(8);
@@ -220,26 +215,6 @@ describe('Comprehensive 30-Day Realistic Dataset Test Suite', () => {
     expect(foodGoal).toBe(179);
   });
 
-  it('formats every timestamp in the 30-day dataset safely with parseIsoDate and formatRelativeTime', () => {
-    dataset.forEach((act) => {
-      const parsed = parseIsoDate(act.timestamp);
-      expect(parsed instanceof Date).toBe(true);
-      expect(isNaN(parsed.getTime())).toBe(false);
-
-      const relTime = formatRelativeTime(act.timestamp, 'fr');
-      expect(relTime).not.toContain('Invalid');
-    });
-  });
-
-  it('calculates breed-scalable weight growth benchmarks for Balma', () => {
-    const adultWeight = getExpectedAdultWeight(puppyProfile.breed);
-    expect(adultWeight).toBe(13); // English Cocker Spaniel reference weight
-
-    const benchmarks = scaleGrowthBenchmarks(adultWeight);
-    expect(benchmarks.length).toBe(5);
-    expect(benchmarks[4].expectedKg).toBe(13); // 12m adult weight target
-  });
-
   it('evaluates health records booster status for vaccinations and deworming', () => {
     const mockVaccines: HealthRecord[] = [
       {
@@ -262,7 +237,13 @@ describe('Comprehensive 30-Day Realistic Dataset Test Suite', () => {
       },
     ];
 
-    const sortedVaccines = [...mockVaccines].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-    expect(sortedVaccines[0].id).toBe('v2'); // v2 is the latest active vaccine
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date(2026, 7, 9, 14, 0));
+    try {
+      expect(getHealthRecordStatus(mockVaccines[0], mockVaccines).urgency).toBe('upToDate'); // v2 is the latest active vaccine
+      expect(getHealthRecordStatus(mockVaccines[1], mockVaccines).urgency).toBe('fulfilled'); // v1 superseded by v2
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

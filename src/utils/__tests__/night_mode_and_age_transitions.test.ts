@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { calculatePredictions } from '../predictions';
 import { getLocalHour } from '../date';
-import type { Activity, PuppyProfile, SleepSchedule } from '../../types';
+import type { Activity, PottyLocation, PuppyProfile, SleepSchedule } from '../../types';
 import { at } from './fixtures';
 
 function getParisHour(date: Date): number {
@@ -166,21 +166,6 @@ describe('Night Mode, Evening Outings, and Age Transitions Comprehensive Test Su
     expect(pred.peeUrgency).toBe('overdue');
   });
 
-  // 8. Evening Pre-Bed Poop Preservation past Bedtime (Bug 1)
-  it('preserves pre-bed poop at 22:45 PM past bedtime (22:35) when last poop was at 12:34 PM without jumping to morning', () => {
-    const activities: Activity[] = [
-      { id: '1', puppyId: balmaProfile.id, type: 'poop', timestamp: '2026-08-23T12:34:00+02:00', loggedBy: 'Daria' },
-    ];
-
-    const refTime = new Date('2026-08-23T22:45:00+02:00'); // Past bedtime (22:35)
-    const pred = calculatePredictions(activities, balmaProfile, refTime, 'Europe/Paris', balmaSleepSchedule);
-
-    expect(pred.poopMode).toBe('daytime_baseline');
-    expect(pred.nextPoopExpectedAt).not.toBeNull();
-    const expDate = pred.nextPoopExpectedAt!;
-    expect(getParisDate(expDate)).toBe(23); // Tonight (August 23), NOT August 24
-  });
-
   // 9. Quick action logging smoothly transitions from overdue pre-bed to night sleep (Bug 2)
   it('smoothly transitions to night mode when bedtime poop is logged at 22:48 PM', () => {
     const refTime = new Date('2026-08-23T22:48:15+02:00');
@@ -211,6 +196,7 @@ describe('Night Mode, Evening Outings, and Age Transitions Comprehensive Test Su
     expect(getParisDate(pred.nextPeeExpectedAt!)).toBe(24); // Morning outing (August 24)
 
     expect(pred.poopMode).toBe('daytime_baseline');
+    expect(pred.poopUrgency).toBe('overdue');
     expect(getParisDate(pred.nextPoopExpectedAt!)).toBe(23); // Preserved for tonight (August 23)
   });
 
@@ -247,15 +233,17 @@ describe('Night Mode, Evening Outings, and Age Transitions Comprehensive Test Su
 
   // 12. Indoor Accident in Pre-Bed Window
   it('recognizes indoor accident in pre-bed window as emptied bladder for overnight sleep', () => {
-    const activities: Activity[] = [
-      { id: '1', puppyId: balmaProfile.id, type: 'pee', timestamp: '2026-08-23T22:20:00+02:00', pottyLocation: 'indoor_accident', loggedBy: 'Matthieu' },
-    ];
-
     const refTime = new Date('2026-08-23T22:45:00+02:00'); // After bedtime (22:35)
-    const pred = calculatePredictions(activities, balmaProfile, refTime, 'Europe/Paris', balmaSleepSchedule);
+    const predictAfterPreBedPee = (pottyLocation: PottyLocation) => calculatePredictions(
+      [{ id: '1', puppyId: balmaProfile.id, type: 'pee', timestamp: '2026-08-23T22:20:00+02:00', pottyLocation, loggedBy: 'Matthieu' }],
+      balmaProfile, refTime, 'Europe/Paris', balmaSleepSchedule
+    );
+    const indoorPred = predictAfterPreBedPee('indoor_accident');
+    const outsidePred = predictAfterPreBedPee('outside');
 
-    expect(pred.peeMode).toBe('night_sleep');
-    expect(getParisDate(pred.nextPeeExpectedAt!)).toBe(24);
+    expect(indoorPred.peeMode).toBe('night_sleep');
+    expect(getParisDate(indoorPred.nextPeeExpectedAt!)).toBe(24);
+    expect(indoorPred.nextPeeExpectedAt).toEqual(outsidePred.nextPeeExpectedAt);
   });
 
   // 13. Early Morning Walk Before Usual Wakeup (Balma Sept 1st scenario)

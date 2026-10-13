@@ -47,6 +47,10 @@ describe('date utility module — comprehensive test suite', () => {
       const yesterdayLog = new Date(2026, 7, 8, 20, 0).toISOString();
       const formattedYesterday = formatRelativeTime(yesterdayLog, 'en', { today: 'Today', yesterday: 'Yesterday' });
       expect(formattedYesterday).toContain('Yesterday');
+
+      const olderLog = new Date(2026, 7, 5, 9, 30).toISOString();
+      expect(formatRelativeTime(olderLog, 'fr')).toBe('5 août 09:30');
+      expect(formatRelativeTime(olderLog, 'en')).toBe('Aug 5 09:30 AM');
     } finally {
       vi.useRealTimers();
     }

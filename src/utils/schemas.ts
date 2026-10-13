@@ -174,4 +174,14 @@ export const DeleteSchema = z.object({
   id: z.string().min(1, 'id is required'),
 });
 
+// DELETE handlers accept the id from the query string first, then from the body
+// (@vercel/node parses an empty JSON body as {}). Takes the request so the lazy
+// req.body getter (throws on malformed JSON) is only read when the query has no id.
+export function parseDeleteId(request: { query: Record<string, unknown>; body?: unknown }) {
+  const rawId =
+    (typeof request.query.id === 'string' && request.query.id) ||
+    (request.body && typeof request.body === 'object' && (request.body as { id?: unknown }).id);
+  return DeleteSchema.safeParse({ id: rawId });
+}
+
 

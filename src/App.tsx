@@ -9,7 +9,7 @@ import {
   exchangeSessionToken,
   clearApiCache,
 } from './services/api';
-import { calculatePredictions, calculateNextMealPortion } from './utils/predictions';
+import { calculatePredictions, calculateNextMealPortion, gramsToCups } from './utils/predictions';
 import { getEffectivePuppyWeight } from './utils/weight';
 import { isSameLogicalDate } from './utils/date';
 import { Navbar } from './components/Navbar';
@@ -284,7 +284,7 @@ function App() {
     } else if (type === 'food') {
       newAct.foodType = 'kibble';
       newAct.quantityGrams = nextMealPortionGrams;
-      newAct.quantityCups = Math.round((nextMealPortionGrams / 110) * 100) / 100;
+      newAct.quantityCups = gramsToCups(nextMealPortionGrams);
     }
 
     activityState.addActivity(newAct);

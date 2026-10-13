@@ -5,6 +5,28 @@ import { fetchActivities, createActivity, updateActivity as apiUpdateActivity, d
 import { useI18n } from '../i18n';
 import { getStoredRecentActivities, setStoredRecentActivities } from '../utils/storage';
 
+// Construct sanitized optimistic activity without stale fields from previous types
+export function sanitizeActivityUpdate(target: Activity, updatedFields: Partial<Activity> & { id: string }): Activity {
+  const newType = updatedFields.type || target.type;
+  const isPotty = newType === 'pee' || newType === 'poop';
+  const isFood = newType === 'food';
+  const isWeight = newType === 'weight';
+  const isMedication = newType === 'medication';
+
+  return {
+    ...target,
+    ...updatedFields,
+    type: newType,
+    pottyLocation: isPotty ? (updatedFields.pottyLocation ?? target.pottyLocation) : undefined,
+    stoolConsistency: newType === 'poop' ? (updatedFields.stoolConsistency ?? target.stoolConsistency) : undefined,
+    foodType: isFood ? (updatedFields.foodType ?? target.foodType) : undefined,
+    quantityGrams: isFood ? (updatedFields.quantityGrams ?? target.quantityGrams) : undefined,
+    quantityCups: isFood ? (updatedFields.quantityCups ?? target.quantityCups) : undefined,
+    weightKg: isWeight ? (updatedFields.weightKg ?? target.weightKg) : undefined,
+    medicationName: isMedication ? (updatedFields.medicationName ?? target.medicationName) : undefined,
+  };
+}
+
 export function useActivities(
   activePuppy: PuppyProfile | null,
   options?: { skipInitialFetch?: boolean }
@@ -142,25 +164,7 @@ export function useActivities(
     const target = activities.find((act) => act.id === updatedFields.id);
     if (!target) return;
 
-    const newType = updatedFields.type || target.type;
-    const isPotty = newType === 'pee' || newType === 'poop';
-    const isFood = newType === 'food';
-    const isWeight = newType === 'weight';
-    const isMedication = newType === 'medication';
-
-    // Construct sanitized optimistic activity without stale fields from previous types
-    const optimisticActivity: Activity = {
-      ...target,
-      ...updatedFields,
-      type: newType,
-      pottyLocation: isPotty ? (updatedFields.pottyLocation ?? target.pottyLocation) : undefined,
-      stoolConsistency: newType === 'poop' ? (updatedFields.stoolConsistency ?? target.stoolConsistency) : undefined,
-      foodType: isFood ? (updatedFields.foodType ?? target.foodType) : undefined,
-      quantityGrams: isFood ? (updatedFields.quantityGrams ?? target.quantityGrams) : undefined,
-      quantityCups: isFood ? (updatedFields.quantityCups ?? target.quantityCups) : undefined,
-      weightKg: isWeight ? (updatedFields.weightKg ?? target.weightKg) : undefined,
-      medicationName: isMedication ? (updatedFields.medicationName ?? target.medicationName) : undefined,
-    };
+    const optimisticActivity = sanitizeActivityUpdate(target, updatedFields);
 
     setActivities((previous) => previous.map((activity) => (activity.id === updatedFields.id ? optimisticActivity : activity)));
 

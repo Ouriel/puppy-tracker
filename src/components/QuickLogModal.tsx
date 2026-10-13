@@ -5,6 +5,7 @@ import { PoopIcon } from './common/PoopIcon';
 import { Modal } from '@heroui/react';
 import { useI18n } from '../i18n';
 import { getLocalDatetimeString } from '../utils/date';
+import { gramsToCups } from '../utils/predictions';
 
 interface QuickLogModalProps {
   isOpen: boolean;
@@ -49,7 +50,7 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
     activityToEdit?.quantityGrams || defaultMealPortionGrams
   );
   const [quantityCups, setQuantityCups] = useState<number>(
-    activityToEdit?.quantityCups || Math.round((defaultMealPortionGrams / 110) * 100) / 100
+    activityToEdit?.quantityCups || gramsToCups(defaultMealPortionGrams)
   );
   const [weightKg, setWeightKg] = useState<number>(
     activityToEdit?.weightKg || defaultWeightKg
@@ -172,7 +173,7 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
                             setType(item.type);
                             if (item.type === 'food' && (!quantityGrams || quantityGrams <= 0)) {
                               setQuantityGrams(defaultMealPortionGrams);
-                              setQuantityCups(Math.round((defaultMealPortionGrams / 110) * 100) / 100);
+                              setQuantityCups(gramsToCups(defaultMealPortionGrams));
                             }
                             if (item.type === 'weight' && (!weightKg || weightKg <= 0)) {
                               setWeightKg(defaultWeightKg);
@@ -314,7 +315,7 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
                         const normalized = event.target.value.replace(',', '.');
                         const grams = Number(normalized);
                         setQuantityGrams(grams);
-                        setQuantityCups(Math.round((grams / 110) * 100) / 100);
+                        setQuantityCups(gramsToCups(grams));
                       }}
                     />
                   </div>

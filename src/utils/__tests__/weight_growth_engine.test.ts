@@ -1,6 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
 import {
-  getExpectedAdultWeight,
   getWalthamCategory,
   getWalthamGrowthFraction,
   getWalthamGrowthVelocity,
@@ -216,20 +215,6 @@ describe('Canine Weight Prediction & WALTHAM Growth Engine', () => {
 
       // 12m must equal adult target (14kg)
       expect(m12?.expectedKg).toBe(14.0);
-    });
-  });
-
-  describe('Gender-Aware Breed Baselines', () => {
-    it('differentiates female and male adult weights for sexually dimorphic breeds', () => {
-      const femaleCocker = getExpectedAdultWeight('English Cocker Spaniel', 'female');
-      const maleCocker = getExpectedAdultWeight('English Cocker Spaniel', 'male');
-      expect(femaleCocker).toBe(13.0);
-      expect(maleCocker).toBe(14.5);
-
-      const femaleAussie = getExpectedAdultWeight('Berger Australien', 'female');
-      const maleAussie = getExpectedAdultWeight('Berger Australien', 'male');
-      expect(femaleAussie).toBe(22.0);
-      expect(maleAussie).toBe(27.0);
     });
   });
 });

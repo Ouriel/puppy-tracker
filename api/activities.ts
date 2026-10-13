@@ -3,7 +3,7 @@ import { neon, neonConfig } from '@neondatabase/serverless';
 import { drizzle } from 'drizzle-orm/neon-http';
 import { eq, and, desc, gte } from 'drizzle-orm';
 import { activitiesTable, puppiesTable } from '../src/db/schema.js';
-import { ActivityInputSchema, DeleteSchema } from '../src/utils/schemas.js';
+import { ActivityInputSchema, parseDeleteId } from '../src/utils/schemas.js';
 import { verifyAuth, setCorsHeaders } from './_auth.js';
 
 neonConfig.fetchConnectionCache = true;
@@ -185,8 +185,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // DELETE /api/activities
     if (req.method === 'DELETE') {
-      const rawId = (typeof req.query.id === 'string' && req.query.id) || (req.body && typeof req.body === 'object' && req.body.id);
-      const deleteParsed = DeleteSchema.safeParse({ id: rawId });
+      const deleteParsed = parseDeleteId(req);
       if (!deleteParsed.success) return res.status(400).json({ error: 'Valid id is required' });
       const deleteId = deleteParsed.data.id;
 

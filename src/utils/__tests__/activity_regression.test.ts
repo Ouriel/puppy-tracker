@@ -1,70 +1,53 @@
-import { describe, it, expect } from 'vitest';
-import { DeleteSchema } from '../schemas';
-import type { Activity, ActivityType } from '../../types';
-import type { ApiResult } from '../../services/api';
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import { parseDeleteId } from '../schemas';
+import { gramsToCups } from '../predictions';
+import { sanitizeActivityUpdate } from '../../hooks/useActivities';
+import { updateActivity } from '../../services/api';
+import type { Activity } from '../../types';
 
 describe('Activity & CRUD Regression Tests', () => {
   describe('DELETE ID Resolution (Bug 2 Delete Fix)', () => {
     it('should correctly extract ID when Vercel node parses body as empty object', () => {
       // Simulating @vercel/node DELETE request where Content-Type is application/json but body is empty {}
-      const reqQuery = { id: 'act-test-delete-123' };
-      const reqBody = {}; // Empty body from @vercel/node
-
-      const rawId = (typeof reqQuery.id === 'string' && reqQuery.id) || (reqBody && typeof reqBody === 'object' && (reqBody as any).id);
-      const deleteParsed = DeleteSchema.safeParse({ id: rawId });
+      const deleteParsed = parseDeleteId({ query: { id: 'act-test-delete-123' }, body: {} });
 
       expect(deleteParsed.success).toBe(true);
-      if (deleteParsed.success) {
-        expect(deleteParsed.data.id).toBe('act-test-delete-123');
-      }
+      expect(deleteParsed.data?.id).toBe('act-test-delete-123');
     });
 
     it('should extract ID when provided in body payload', () => {
-      const reqQuery = {};
-      const reqBody = { id: 'act-test-body-456' };
-
-      const rawId = (typeof (reqQuery as any).id === 'string' && (reqQuery as any).id) || (reqBody && typeof reqBody === 'object' && reqBody.id);
-      const deleteParsed = DeleteSchema.safeParse({ id: rawId });
+      const deleteParsed = parseDeleteId({ query: {}, body: { id: 'act-test-body-456' } });
 
       expect(deleteParsed.success).toBe(true);
-      if (deleteParsed.success) {
-        expect(deleteParsed.data.id).toBe('act-test-body-456');
-      }
+      expect(deleteParsed.data?.id).toBe('act-test-body-456');
     });
 
     it('should reject when ID is missing from both query and body', () => {
-      const reqQuery = {};
-      const reqBody = {};
+      expect(parseDeleteId({ query: {}, body: {} }).success).toBe(false);
+    });
 
-      const rawId = (typeof (reqQuery as any).id === 'string' && (reqQuery as any).id) || (reqBody && typeof reqBody === 'object' && (reqBody as any).id);
-      const deleteParsed = DeleteSchema.safeParse({ id: rawId });
+    it('prefers the query id over the body id', () => {
+      expect(parseDeleteId({ query: { id: 'q' }, body: { id: 'b' } }).data?.id).toBe('q');
+    });
 
-      expect(deleteParsed.success).toBe(false);
+    it('falls back to the body id when the query id is repeated (?id=a&id=b)', () => {
+      expect(parseDeleteId({ query: { id: ['a', 'b'] }, body: { id: 'b' } }).data?.id).toBe('b');
+    });
+
+    it('does not read the body when the query has an id', () => {
+      // @vercel/node exposes req.body as a lazy getter that throws on malformed JSON
+      const request = {
+        query: { id: 'act-query-789' },
+        get body(): unknown {
+          throw new Error('Invalid JSON');
+        },
+      };
+
+      expect(parseDeleteId(request).data?.id).toBe('act-query-789');
     });
   });
 
   describe('Polymorphic Activity Type Switching & Sanitization (Bug 2 Edit Fix)', () => {
-    function sanitizeActivityUpdate(existing: Activity, updatedFields: Partial<Activity> & { id: string }): Activity {
-      const newType = updatedFields.type || existing.type;
-      const isPotty = newType === 'pee' || newType === 'poop';
-      const isFood = newType === 'food';
-      const isWeight = newType === 'weight';
-      const isMedication = newType === 'medication';
-
-      return {
-        ...existing,
-        ...updatedFields,
-        type: newType,
-        pottyLocation: isPotty ? (updatedFields.pottyLocation ?? existing.pottyLocation) : undefined,
-        stoolConsistency: newType === 'poop' ? (updatedFields.stoolConsistency ?? existing.stoolConsistency) : undefined,
-        foodType: isFood ? (updatedFields.foodType ?? existing.foodType) : undefined,
-        quantityGrams: isFood ? (updatedFields.quantityGrams ?? existing.quantityGrams) : undefined,
-        quantityCups: isFood ? (updatedFields.quantityCups ?? existing.quantityCups) : undefined,
-        weightKg: isWeight ? (updatedFields.weightKg ?? existing.weightKg) : undefined,
-        medicationName: isMedication ? (updatedFields.medicationName ?? existing.medicationName) : undefined,
-      };
-    }
-
     it('should wipe pottyLocation when editing activity from pee to food', () => {
       const initialActivity: Activity = {
         id: 'act-1',
@@ -133,173 +116,96 @@ describe('Activity & CRUD Regression Tests', () => {
       expect(updated.stoolConsistency).toBeUndefined();
       expect(updated.pottyLocation).toBeUndefined();
     });
+
+    it('keeps the potty fields on a same-type partial edit', () => {
+      const initialActivity: Activity = {
+        id: 'act-4',
+        puppyId: 'pup-1',
+        type: 'poop',
+        timestamp: '2026-08-18T15:00:00.000Z',
+        loggedBy: 'Matthieu',
+        pottyLocation: 'outside',
+        stoolConsistency: 'hard',
+      };
+
+      const updated = sanitizeActivityUpdate(initialActivity, { id: 'act-4', notes: 'x' });
+
+      expect(updated.type).toBe('poop');
+      expect(updated.pottyLocation).toBe('outside');
+      expect(updated.stoolConsistency).toBe('hard');
+      expect(updated.notes).toBe('x');
+    });
+
+    it('clears medicationName and foodType when the type changes', () => {
+      const medication: Activity = {
+        id: 'act-5',
+        puppyId: 'pup-1',
+        type: 'medication',
+        timestamp: '2026-08-18T16:00:00.000Z',
+        loggedBy: 'Matthieu',
+        medicationName: 'Amoxicillin',
+      };
+      const food: Activity = {
+        id: 'act-6',
+        puppyId: 'pup-1',
+        type: 'food',
+        timestamp: '2026-08-18T17:00:00.000Z',
+        loggedBy: 'Matthieu',
+        foodType: 'kibble',
+        quantityGrams: 80,
+      };
+
+      expect(sanitizeActivityUpdate(medication, { id: 'act-5' }).medicationName).toBe('Amoxicillin');
+      expect(sanitizeActivityUpdate(medication, { id: 'act-5', type: 'food' }).medicationName).toBeUndefined();
+      expect(sanitizeActivityUpdate(food, { id: 'act-6', type: 'weight', weightKg: 5 }).foodType).toBeUndefined();
+    });
+
+    it('keeps an explicit quantityGrams of 0 instead of the previous value', () => {
+      const food: Activity = {
+        id: 'act-7',
+        puppyId: 'pup-1',
+        type: 'food',
+        timestamp: '2026-08-18T18:00:00.000Z',
+        loggedBy: 'Matthieu',
+        quantityGrams: 80,
+      };
+
+      expect(sanitizeActivityUpdate(food, { id: 'act-7', quantityGrams: 0 }).quantityGrams).toBe(0);
+    });
   });
 
   describe('ApiResult Pattern Guarantee (100% Type-Safe API contracts)', () => {
-    it('should discriminate success vs error payloads cleanly', () => {
-      const successResult: ApiResult<Activity> = {
-        ok: true,
-        data: {
-          id: 'act-100',
-          puppyId: 'pup-1',
-          type: 'food',
-          timestamp: '2026-08-18T12:00:00.000Z',
-          loggedBy: 'Matthieu',
-          quantityGrams: 80,
-        },
-      };
+    afterEach(() => {
+      vi.unstubAllGlobals();
+    });
 
-      const errorResult: ApiResult<Activity> = {
+    it('should discriminate success vs error payloads cleanly', async () => {
+      const savedActivity: Activity = {
+        id: 'act-100',
+        puppyId: 'pup-1',
+        type: 'food',
+        timestamp: '2026-08-18T12:00:00.000Z',
+        loggedBy: 'Matthieu',
+        quantityGrams: 80,
+      };
+      vi.stubGlobal('fetch', vi.fn()
+        .mockResolvedValueOnce(new Response(JSON.stringify(savedActivity), { status: 200 }))
+        .mockResolvedValueOnce(new Response(JSON.stringify({ error: 'Invalid activity payload' }), { status: 400 })));
+
+      expect(await updateActivity({ id: 'act-100', quantityGrams: 80 })).toEqual({ ok: true, data: savedActivity });
+      expect(await updateActivity({ id: 'act-100', quantityGrams: -1 })).toEqual({
         ok: false,
         error: 'Invalid activity payload',
         status: 400,
-      };
-
-      if (successResult.ok) {
-        expect(successResult.data.quantityGrams).toBe(80);
-      } else {
-        expect.unreachable();
-      }
-
-      if (!errorResult.ok) {
-        expect(errorResult.status).toBe(400);
-        expect(errorResult.error).toBe('Invalid activity payload');
-      } else {
-        expect.unreachable();
-      }
+      });
     });
   });
 
   describe('Modal Pre-selection & Default State (Bug 1 Fix)', () => {
-    it('should initialize correctly with food type and portion grams when opened from Predictor Meal card', () => {
-      const initialType: ActivityType = 'food';
-      const defaultMealPortionGrams = 95;
-
-      const activityData: Partial<Activity> = {
-        type: initialType,
-        quantityGrams: defaultMealPortionGrams,
-        quantityCups: Math.round((defaultMealPortionGrams / 110) * 100) / 100,
-      };
-
-      expect(activityData.type).toBe('food');
-      expect(activityData.quantityGrams).toBe(95);
-      expect(activityData.quantityCups).toBe(0.86);
-    });
-  });
-
-  describe('Day-by-Day Accordion & Nutrition Summary Calculations', () => {
-    it('accurately computes total food intake, meal counts, pees, poops, and accidents per day', () => {
-      const activities: Activity[] = [
-        // Morning meal
-        {
-          id: 'act-1',
-          puppyId: 'pup-1',
-          type: 'food',
-          timestamp: '2026-08-18T07:30:00.000Z',
-          loggedBy: 'Matthieu',
-          quantityGrams: 80,
-          quantityCups: 0.73,
-        },
-        // Midday meal
-        {
-          id: 'act-2',
-          puppyId: 'pup-1',
-          type: 'food',
-          timestamp: '2026-08-18T12:30:00.000Z',
-          loggedBy: 'Matthieu',
-          quantityGrams: 80,
-          quantityCups: 0.73,
-        },
-        // Evening meal
-        {
-          id: 'act-3',
-          puppyId: 'pup-1',
-          type: 'food',
-          timestamp: '2026-08-18T19:30:00.000Z',
-          loggedBy: 'Matthieu',
-          quantityGrams: 80,
-          quantityCups: 0.73,
-        },
-        // Pees & Poops
-        {
-          id: 'act-4',
-          puppyId: 'pup-1',
-          type: 'pee',
-          timestamp: '2026-08-18T07:45:00.000Z',
-          loggedBy: 'Matthieu',
-          pottyLocation: 'outside',
-        },
-        {
-          id: 'act-5',
-          puppyId: 'pup-1',
-          type: 'poop',
-          timestamp: '2026-08-18T07:50:00.000Z',
-          loggedBy: 'Matthieu',
-          pottyLocation: 'outside',
-          stoolConsistency: 'normal',
-        },
-        {
-          id: 'act-6',
-          puppyId: 'pup-1',
-          type: 'pee',
-          timestamp: '2026-08-18T15:00:00.000Z',
-          loggedBy: 'Matthieu',
-          pottyLocation: 'indoor_accident',
-        },
-      ];
-
-      const dailyGoalGrams = 240;
-      const targetMealsCount = 3;
-
-      const totalFoodGrams = activities
-        .filter((activity) => activity.type === 'food')
-        .reduce((sum, activity) => sum + (activity.quantityGrams || 0), 0);
-      const mealsCount = activities.filter((activity) => activity.type === 'food').length;
-      const peeCount = activities.filter((activity) => activity.type === 'pee').length;
-      const poopCount = activities.filter((activity) => activity.type === 'poop').length;
-      const accidentCount = activities.filter(
-        (activity) => (activity.type === 'pee' || activity.type === 'poop') && activity.pottyLocation === 'indoor_accident'
-      ).length;
-
-      expect(totalFoodGrams).toBe(240);
-      expect(mealsCount).toBe(3);
-      expect(totalFoodGrams >= dailyGoalGrams).toBe(true);
-      expect(mealsCount >= targetMealsCount).toBe(true);
-      expect(peeCount).toBe(2);
-      expect(poopCount).toBe(1);
-      expect(accidentCount).toBe(1);
-    });
-
-    it('should include all 5 core activity types in the unified timeline', () => {
-      const allActivities: Activity[] = [
-        { id: '1', puppyId: 'p1', type: 'pee', timestamp: '2026-08-19T08:00:00Z', loggedBy: 'M' },
-        { id: '2', puppyId: 'p1', type: 'poop', timestamp: '2026-08-19T08:15:00Z', loggedBy: 'M' },
-        { id: '3', puppyId: 'p1', type: 'food', timestamp: '2026-08-19T08:30:00Z', loggedBy: 'M', quantityGrams: 80 },
-        { id: '4', puppyId: 'p1', type: 'medication', timestamp: '2026-08-19T09:00:00Z', loggedBy: 'M', medicationName: 'Amoxicillin' },
-        { id: '5', puppyId: 'p1', type: 'weight', timestamp: '2026-08-19T09:30:00Z', loggedBy: 'M', weightKg: 6.8 },
-      ];
-
-      const filtered = allActivities.filter(
-        (act) => act.type === 'pee' || act.type === 'poop' || act.type === 'food' || act.type === 'medication' || act.type === 'weight'
-      );
-
-      expect(filtered.length).toBe(5);
-      expect(filtered.map((a) => a.type)).toEqual(['pee', 'poop', 'food', 'medication', 'weight']);
-
-      const medicationLogs = allActivities.filter((act) => act.type === 'medication');
-      expect(medicationLogs.length).toBe(1);
-      expect(medicationLogs[0].medicationName).toBe('Amoxicillin');
-    });
-
-    it('should sort activities by timestamp descending with native sort and ISO strings', () => {
-      const unsorted = [
-        { id: '1', timestamp: '2026-08-29T10:00:00.000Z' },
-        { id: '3', timestamp: '2026-08-29T18:00:00.000Z' },
-        { id: '2', timestamp: '2026-08-29T14:30:00.000Z' },
-      ];
-
-      const sorted = [...unsorted].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-      expect(sorted.map((item) => item.id)).toEqual(['3', '2', '1']);
+    it('converts the default meal portion from grams to cups (110 g per cup, 2 decimals)', () => {
+      expect(gramsToCups(95)).toBe(0.86);
+      // An emptied grams input in QuickLogModal becomes Number('') = 0
+      expect(gramsToCups(0)).toBe(0);
     });
   });
 });
