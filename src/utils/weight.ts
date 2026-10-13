@@ -361,7 +361,7 @@ export function getEffectivePuppyWeight(
 ): EffectiveWeightInfo {
   const fallbackWeight = profile?.weightKg || 4.2;
   const birthDate = profile?.birthDate || '2025-01-01';
-  const ageWeeks = getPuppyAge(birthDate).weeks;
+  const ageWeeks = getPuppyAge(birthDate, targetDateISO).weeks;
 
   const unifiedEntries = getUnifiedWeightEntries(activities, healthRecords);
 

@@ -82,21 +82,15 @@ describe('predictions utility — comprehensive test suite', () => {
   // 1. getPuppyAge
   describe('getPuppyAge', () => {
     it('calculates puppy age in weeks for puppies under 16 weeks', () => {
-      const ageInfo = getPuppyAge('2026-06-01');
-      expect(ageInfo.weeks).toBeGreaterThan(0);
-      expect(ageInfo.text).toContain('weeks old');
+      expect(getPuppyAge('2026-06-01', '2026-08-01')).toEqual({ weeks: 8, months: 2, text: '8 weeks old' });
     });
 
     it('calculates puppy age in months and weeks for puppies over 16 weeks', () => {
-      const ageInfo = getPuppyAge('2026-01-01');
-      expect(ageInfo.weeks).toBeGreaterThanOrEqual(16);
-      expect(ageInfo.text).toContain('mo');
-      expect(ageInfo.text).toContain('wk old');
+      expect(getPuppyAge('2026-01-01', '2026-08-01')).toEqual({ weeks: 30, months: 7, text: '6 mo 4 wk old' });
     });
 
     it('handles future birth dates safely by returning 0 weeks', () => {
-      const ageInfo = getPuppyAge('2099-01-01');
-      expect(ageInfo.weeks).toBe(0);
+      expect(getPuppyAge('2099-01-01', '2026-08-01')).toEqual({ weeks: 0, months: 0, text: '0 weeks old' });
     });
   });
 
