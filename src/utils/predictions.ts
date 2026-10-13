@@ -125,6 +125,13 @@ export function calculateNextMealPortion(
 }
 
 /**
+ * Converts kibble grams to cups (110 g per cup), rounded to 2 decimals.
+ */
+export function gramsToCups(grams: number): number {
+  return Math.round((grams / 110) * 100) / 100;
+}
+
+/**
  * Calculates the next upcoming occurrence of a decimal clock hour (e.g. 7.61 -> 07:37 AM) strictly after referenceDate.
  */
 function getNextOccurrenceOfClockTime(referenceDate: Date, targetHourDecimal: number, timeZone?: string): Date {

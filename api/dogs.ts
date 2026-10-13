@@ -3,7 +3,7 @@ import { neon } from '@neondatabase/serverless';
 import { drizzle } from 'drizzle-orm/neon-http';
 import { eq, and } from 'drizzle-orm';
 import { puppiesTable } from '../src/db/schema.js';
-import { DogInputSchema, DeleteSchema } from '../src/utils/schemas.js';
+import { DogInputSchema, parseDeleteId } from '../src/utils/schemas.js';
 import { verifyAuth, setCorsHeaders } from './_auth.js';
 
 const connectionString = process.env.POSTGRES_URL || process.env.DATABASE_URL || '';
@@ -138,8 +138,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(403).json({ error: 'Only admins can delete dogs' });
       }
 
-      const rawId = (typeof req.query.id === 'string' && req.query.id) || (req.body && typeof req.body === 'object' && req.body.id);
-      const deleteParsed = DeleteSchema.safeParse({ id: rawId });
+      const deleteParsed = parseDeleteId(req);
       if (!deleteParsed.success) return res.status(400).json({ error: 'Valid id is required' });
       const deleteId = deleteParsed.data.id;
 

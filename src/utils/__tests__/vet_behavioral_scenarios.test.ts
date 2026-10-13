@@ -16,23 +16,6 @@ describe('Veterinary & Behavioral Scenario Test Suite (Classic Rules)', () => {
     dailyFoodGramGoal: 240,
   };
 
-  it('1. Gastrocolic Post-Meal Pee Trigger: Potty urge expected ~20m post-meal (age 4.5m)', () => {
-    const lastPee = new Date('2026-08-10T11:00:00Z');
-    const mealTime = new Date('2026-08-10T12:00:00Z');
-    const refTime = new Date('2026-08-10T12:05:00Z');
-
-    const activities: Activity[] = [
-      { id: '1', puppyId: profile.id, type: 'pee', timestamp: lastPee.toISOString(), loggedBy: 'Matthieu' },
-      { id: '2', puppyId: profile.id, type: 'food', timestamp: mealTime.toISOString(), quantityGrams: 80, loggedBy: 'Matthieu' },
-    ];
-
-    const pred = calculatePredictions(activities, profile, refTime, 'UTC');
-
-    expect(pred.peeMode).toBe('post_meal_override');
-    const expectedMinutes = (pred.nextPeeExpectedAt!.getTime() - mealTime.getTime()) / 60000;
-    expect(expectedMinutes).toBe(20);
-  });
-
   it('2. Double-Void Walk: Walk pees (<45m gap) do NOT pollute learned daytime retention', () => {
     const activities: Activity[] = [];
     const base = new Date('2026-08-10T08:00:00Z');

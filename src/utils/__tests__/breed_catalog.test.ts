@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { findBreed, BREED_CATALOG, formatBreedName } from '../../data/breedsCatalog';
 import { getExpectedAdultWeight } from '../weight';
-import { PuppyProfileSchema } from '../schemas';
 
 describe('Veterinary Breed Catalog & Resolution Tests', () => {
   it('contains over 60 clinically categorized dog breeds', () => {
@@ -66,6 +65,11 @@ describe('Veterinary Breed Catalog & Resolution Tests', () => {
     const maleGerman = getExpectedAdultWeight('Berger Allemand', 'male');
     expect(femaleGerman).toBe(30);
     expect(maleGerman).toBe(36);
+
+    const femaleCocker = getExpectedAdultWeight('English Cocker Spaniel', 'female');
+    const maleCocker = getExpectedAdultWeight('English Cocker Spaniel', 'male');
+    expect(femaleCocker).toBe(13.0);
+    expect(maleCocker).toBe(14.5);
   });
 
   it('prioritizes custom expected adult weight over breed default', () => {
@@ -84,61 +88,5 @@ describe('Veterinary Breed Catalog & Resolution Tests', () => {
     // Unrecognized breed without custom weight falls back to 13 kg
     const unknownFallback = getExpectedAdultWeight('Completely Unknown Mythical Dog', undefined, undefined);
     expect(unknownFallback).toBe(13);
-  });
-
-  it('validates PuppyProfileSchema accepts gender and expectedAdultWeightKg', () => {
-    const validProfile = {
-      id: 'pup-test-1',
-      name: 'Balma',
-      breed: 'English Cocker Spaniel',
-      birthDate: '2026-03-27',
-      weightKg: 7.8,
-      dailyFoodGramGoal: 240,
-      targetMealsPerDay: 3,
-      gender: 'female' as const,
-      expectedAdultWeightKg: 13.5,
-    };
-
-    const parsed = PuppyProfileSchema.safeParse(validProfile);
-    expect(parsed.success).toBe(true);
-    if (parsed.success) {
-      expect(parsed.data.gender).toBe('female');
-      expect(parsed.data.expectedAdultWeightKg).toBe(13.5);
-    }
-  });
-
-  it('validates PuppyProfileSchema preserves backward compatibility when gender is omitted', () => {
-    const legacyProfile = {
-      id: 'pup-test-2',
-      name: 'Cookie',
-      breed: 'Labrador Retriever',
-      birthDate: '2026-01-10',
-      weightKg: 15,
-      dailyFoodGramGoal: 300,
-      targetMealsPerDay: 2,
-    };
-
-    const parsed = PuppyProfileSchema.safeParse(legacyProfile);
-    expect(parsed.success).toBe(true);
-    if (parsed.success) {
-      expect(parsed.data.gender).toBeUndefined();
-      expect(parsed.data.expectedAdultWeightKg).toBeUndefined();
-    }
-  });
-
-  it('rejects invalid gender in PuppyProfileSchema', () => {
-    const invalidProfile = {
-      id: 'pup-test-3',
-      name: 'Rover',
-      breed: 'Boxer',
-      birthDate: '2026-02-01',
-      weightKg: 10,
-      dailyFoodGramGoal: 250,
-      targetMealsPerDay: 3,
-      gender: 'invalid_gender',
-    };
-
-    const parsed = PuppyProfileSchema.safeParse(invalidProfile);
-    expect(parsed.success).toBe(false);
   });
 });

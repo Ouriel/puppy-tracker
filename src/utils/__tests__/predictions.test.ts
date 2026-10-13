@@ -254,19 +254,6 @@ describe('predictions utility — comprehensive test suite', () => {
         expect(predictions.poopReason).toContain('Post-meal poop break');
       });
 
-      it('predicts daytime baseline poop based on learned interval when puppy ate today', () => {
-        const referenceTime = new Date('2026-08-07T14:00:00+02:00'); // 14:00 PM Paris
-        const simpleFeedingDataset: Activity[] = [
-          { id: '1', puppyId: 'pup-1', type: 'poop', timestamp: '2026-08-06T19:00:00+02:00', loggedBy: 'Matthieu' },
-          { id: '2', puppyId: 'pup-1', type: 'food', timestamp: '2026-08-07T08:00:00+02:00', loggedBy: 'Matthieu' },
-          { id: '3', puppyId: 'pup-1', type: 'food', timestamp: '2026-08-07T12:00:00+02:00', loggedBy: 'Matthieu' },
-        ];
-
-        const predictions = calculatePredictions(simpleFeedingDataset, mockProfile, referenceTime, 'Europe/Paris');
-        expect(predictions.poopMode).toBe('daytime_baseline');
-        expect(predictions.nextPoopExpectedAt).not.toBeNull();
-      });
-
       it('handles recent constipation and bowel clearance gracefully with extended recovery phase and safe status', () => {
         const referenceTime = new Date('2026-08-08T10:00:00+02:00'); // Aug 8, 10:00 AM Paris
 
@@ -316,8 +303,10 @@ describe('predictions utility — comprehensive test suite', () => {
 
         // At 14:00 (2h post meal), post-meal window elapsed and puppy has not pooped since yesterday 19:00:
         // Morning poop is overdue (anchored to morning wakeup ~07:00), not pushed into future
+        expect(predYoung.poopMode).toBe('daytime_baseline');
         expect(getLocalHour(predYoung.nextPoopExpectedAt!, 'Europe/Paris')).toBe(7);
         expect(predYoung.poopUrgency).toBe('overdue');
+        expect(predOlder.poopMode).toBe('daytime_baseline');
         expect(getLocalHour(predOlder.nextPoopExpectedAt!, 'Europe/Paris')).toBe(7);
         expect(predOlder.poopUrgency).toBe('overdue');
       });
@@ -475,11 +464,20 @@ describe('predictions utility — comprehensive test suite', () => {
 
   // 7. Decoupled Predictors & Empirical Morning Sequence Tests
   describe('Decoupled Predictors & Empirical Morning Sequence', () => {
-    it('predictNextPee executes independently and returns valid SinglePredictionResult', () => {
+    it('predictNextPee executes independently and matches the calculatePredictions pee fields', () => {
       const dataset = generateRealisticMultiDayDataset();
       const refTime = new Date('2026-08-07T14:00:00+02:00');
       const peeResult = predictNextPee(dataset, mockProfile, refTime, { timeZone: 'Europe/Paris' });
+      const facade = calculatePredictions(dataset, mockProfile, refTime, 'Europe/Paris');
 
+      expect(peeResult).toEqual({
+        nextExpectedAt: facade.nextPeeExpectedAt,
+        standardExpectedAt: facade.standardPeeExpectedAt,
+        deltaMins: facade.peeDeltaMins,
+        mode: facade.peeMode,
+        urgency: facade.peeUrgency,
+        reason: facade.peeReason,
+      });
       expect(peeResult.mode).toBe('daytime_baseline');
       expect(peeResult.nextExpectedAt).not.toBeNull();
       expect(peeResult.deltaMins).toBeGreaterThan(0);
