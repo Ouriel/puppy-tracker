@@ -5,8 +5,21 @@ on:
     branches: [main, "feature/**"]
   pull_request:
     branches: [main]
+  # Bot merges (GITHUB_TOKEN) trigger no push run on main, so re-check main weekly.
+  # A failed scheduled run notifies whoever last edited this cron line (the owner).
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  # The job id `ci` is the required status check on main (repo ruleset). Do not rename it.
   ci:
     runs-on: ubuntu-latest
     steps:
@@ -14,14 +27,11 @@ jobs:
 
       - uses: actions/setup-node@v7
         with:
-          node-version: 22
+          node-version: 24 # keep equal to Vercel > Settings > Node.js Version (24.x)
           cache: npm
 
       - name: Install Dependencies
-        run: npm ci
-
-      - name: Verify npm Dependency Tree
-        run: npm install --dry-run
+        run: npm ci # same as vercel.json installCommand; also fails on peer/lockfile drift
 
       - name: Lint
         run: npm run lint
@@ -31,3 +41,19 @@ jobs:
 
       - name: Run Tests (Vitest)
         run: npm test
+
+  # Runs triggered by Dependabot notify nobody, so ping the owner on the PR.
+  notify-dependabot-failure:
+    needs: ci
+    if: failure() && github.event.pull_request.user.login == 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - run: |
+          gh pr comment "$PR_URL" --body "@$OWNER CI failed on this Dependabot PR, so it will not be merged. Logs: $RUN_URL"
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          OWNER: ${{ github.repository_owner }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}

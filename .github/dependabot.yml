@@ -8,23 +8,19 @@ updates:
       day: "monday"
     open-pull-requests-limit: 5
     groups:
+      # HeroUI + its React Aria peers must move in ONE PR. Keep this group FIRST (first match wins).
+      # No update-types on purpose: a HeroUI major arrives together with its peers (and is never auto-merged).
+      heroui:
+        patterns:
+          - "@heroui/*"
+          - "react-aria"
+          - "react-aria-components"
+          - "react-stately"
+          - "@react-aria/*"
+          - "@react-stately/*"
+          - "@react-types/*"
+          - "@internationalized/*"
       minor-and-patch:
-        update-types:
-          - "minor"
-          - "patch"
-    ignore:
-      - dependency-name: "typescript"
-        update-types: ["version-update:semver-major"]
-
-  # Server backend dependencies
-  - package-ecosystem: "npm"
-    directory: "/server"
-    schedule:
-      interval: "weekly"
-      day: "monday"
-    open-pull-requests-limit: 5
-    groups:
-      server-minor-and-patch:
         update-types:
           - "minor"
           - "patch"
