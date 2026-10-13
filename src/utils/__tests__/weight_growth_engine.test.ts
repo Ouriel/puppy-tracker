@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import {
   getExpectedAdultWeight,
   getWalthamCategory,
@@ -141,16 +141,23 @@ describe('Canine Weight Prediction & WALTHAM Growth Engine', () => {
     });
 
     it('computes effective puppy weight using both activities and health records', () => {
-      const effective = getEffectivePuppyWeight(
-        balmaProfile,
-        balmaActivities,
-        '2026-08-30T16:00:00.000Z',
-        balmaHealthRecords
-      );
+      // Puppy age must come from targetDateISO, never from the wall clock.
+      vi.useFakeTimers({ toFake: ['Date'] });
+      vi.setSystemTime(new Date('2027-06-01T12:00:00.000Z'));
+      try {
+        const effective = getEffectivePuppyWeight(
+          balmaProfile,
+          balmaActivities,
+          '2026-08-30T16:00:00.000Z',
+          balmaHealthRecords
+        );
 
-      expect(effective.lastLoggedWeight).toBe(9.52); // Latest is health record on Aug 26
-      expect(effective.estimatedCurrentWeight).toBeGreaterThan(9.52);
-      expect(effective.dailyGainGrams).toBeGreaterThan(40);
+        expect(effective.lastLoggedWeight).toBe(9.52); // Latest is health record on Aug 26
+        expect(effective.estimatedCurrentWeight).toBeGreaterThan(9.52);
+        expect(effective.dailyGainGrams).toBe(50);
+      } finally {
+        vi.useRealTimers();
+      }
     });
   });
 
