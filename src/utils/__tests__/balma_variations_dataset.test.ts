@@ -6,6 +6,7 @@ import {
   detectMealSchedule,
 } from '../predictions';
 import type { Activity, PuppyProfile } from '../../types';
+import { newestFirst } from './fixtures';
 
 describe('Balma Derived Variations Test Suite (5 Multi-Scenario Datasets)', () => {
   const balmaBaseProfile: PuppyProfile = {
@@ -214,7 +215,7 @@ describe('Balma Derived Variations Test Suite (5 Multi-Scenario Datasets)', () =
       loggedBy: 'Matthieu',
     });
 
-    const pred = calculatePredictions(activities, balmaBaseProfile, refDate, 'UTC');
+    const pred = calculatePredictions(newestFirst(activities), balmaBaseProfile, refDate, 'UTC');
 
     // Next pee in ~5h at 12:34 PM (Safe Zone)
     expect(pred.peeUrgency).toBe('safe');

@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { calculatePredictions } from '../predictions';
 import { getLocalHour } from '../date';
 import type { Activity, PuppyProfile, SleepSchedule } from '../../types';
+import { at } from './fixtures';
 
 function getParisHour(date: Date): number {
   return getLocalHour(date, 'Europe/Paris');
@@ -303,8 +304,7 @@ describe('Night Mode, Evening Outings, and Age Transitions Comprehensive Test Su
 
     // Poop should anchor around early morning outing (07:48 + ~10m = 07:58), not wait until 08:48
     expect(pred.nextPoopExpectedAt).not.toBeNull();
-    expect(getParisHour(pred.nextPoopExpectedAt!)).toBeLessThan(9);
-    expect(pred.nextPoopExpectedAt!.getMinutes()).toBeLessThan(60);
+    expect(at(pred.nextPoopExpectedAt!)).toBe('2026-09-01 07:58');
   });
 
   // 15. Afternoon Poop Prediction Targets Tonight's Evening Walk (No 18h Skip to Morning)
@@ -388,8 +388,7 @@ describe('Night Mode, Evening Outings, and Age Transitions Comprehensive Test Su
     const pred = calculatePredictions(activities, balmaProfile, refTime, 'Europe/Paris', lateWakeSchedule);
 
     expect(pred.nextFoodExpectedAt).not.toBeNull();
-    expect(getParisHour(pred.nextFoodExpectedAt!)).toBe(9);
-    expect(pred.nextFoodExpectedAt!.getMinutes()).toBe(35);
+    expect(at(pred.nextFoodExpectedAt!)).toBe('2026-09-03 09:35');
     expect(pred.foodReason).toContain('09:35');
   });
 

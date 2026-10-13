@@ -41,6 +41,7 @@ import {
   DEFAULT_PUPPIES,
   DEFAULT_CARETAKERS,
 } from '../storage';
+import { act } from './fixtures';
 
 describe('Storage Helpers Cache Suite', () => {
   beforeEach(() => {
@@ -81,18 +82,15 @@ describe('Storage Helpers Cache Suite', () => {
   it('should persist and retrieve up to 300 recent activities within TTL window', () => {
     expect(getStoredRecentActivities('pup-1')).toBeNull();
 
-    const mockActivities = Array.from({ length: 350 }, (_, index) => ({
-      id: `act-${index}`,
-      puppyId: 'pup-1',
-      householdId: 'hh-1',
-      type: 'pee' as const,
-      timestamp: new Date().toISOString(),
-      loggedBy: 'Matthieu',
-    }));
+    // Newest first, as the API returns them: the cache must keep the 300 most recent.
+    const newestLog = Date.parse('2026-08-08T12:00:00.000Z');
+    const mockActivities = Array.from({ length: 350 }, (_, index) =>
+      act('pee', new Date(newestLog - index * 60_000).toISOString(), { id: `act-${index}`, puppyId: 'pup-1' })
+    );
 
     setStoredRecentActivities('pup-1', mockActivities);
     const cached = getStoredRecentActivities('pup-1');
-    expect(cached).toBeDefined();
+    expect(cached).not.toBeNull();
     expect(cached?.length).toBe(300);
     expect(cached?.[0].id).toBe('act-0');
 

@@ -1,4 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import type { SQL, Table } from 'drizzle-orm';
+import { PgDialect } from 'drizzle-orm/pg-core';
 import handler from '../../../api/dashboard.js';
 import { signAppSessionToken } from '../../../api/_auth.js';
 
@@ -35,33 +37,42 @@ const mockHealthRecords = [
   },
 ];
 
-vi.mock('drizzle-orm/neon-http', () => ({
-  drizzle: vi.fn(() => ({
-    select: vi.fn(() => ({
-      from: vi.fn((table: any) => {
-        const queryChain: any = {
-          where: vi.fn(() => queryChain),
-          orderBy: vi.fn(() => queryChain),
-          limit: vi.fn(() => Promise.resolve(mockActivities)),
-          then: (resolve: any) => {
-            if (table && table._ && table._.name === 'puppies') {
-              return resolve(mockPuppies);
-            }
-            if (table && table._ && table._.name === 'caretakers') {
-              return resolve(mockCaretakers);
-            }
-            if (table && table._ && table._.name === 'health_records') {
-              return resolve(mockHealthRecords);
-            }
-            return resolve(mockActivities);
-          },
-        };
-        return queryChain;
-      }),
+function rowsByTable(): Record<string, unknown[]> {
+  return {
+    puppies: mockPuppies,
+    caretakers: mockCaretakers,
+    activities: mockActivities,
+    health_records: mockHealthRecords,
+  };
+}
+
+// WHERE clause received by each table's query, to check household scoping.
+const dbMock = vi.hoisted(() => ({ whereByTable: new Map<string, SQL>() }));
+
+vi.mock('drizzle-orm/neon-http', async () => {
+  const { getTableName } = await import('drizzle-orm');
+  return {
+    drizzle: vi.fn(() => ({
+      select: vi.fn(() => ({
+        from: vi.fn((table: Table) => {
+          const tableName = getTableName(table);
+          const rows = () => rowsByTable()[tableName];
+          const queryChain: any = {
+            where: vi.fn((condition: SQL) => {
+              dbMock.whereByTable.set(tableName, condition);
+              return queryChain;
+            }),
+            orderBy: vi.fn(() => queryChain),
+            limit: vi.fn(() => Promise.resolve(rows())),
+            then: (resolve: any) => resolve(rows()),
+          };
+          return queryChain;
+        }),
+      })),
+      batch: vi.fn((queries: any[]) => Promise.all(queries)),
     })),
-    batch: vi.fn((queries: any[]) => Promise.all(queries)),
-  })),
-}));
+  };
+});
 
 describe('Dashboard API Serverless Handler Unit Tests', () => {
   const originalEnv = process.env.SESSION_SECRET;
@@ -136,17 +147,26 @@ describe('Dashboard API Serverless Handler Unit Tests', () => {
   });
 
   it('rejects requests with invalid or tampered Authorization token with status 401', async () => {
-    const req: any = {
-      method: 'GET',
-      headers: {
-        authorization: 'Bearer invalid.token.signature',
-      },
-      query: {},
-    };
-    const res = createMockResponse();
+    // Not an app session token, so verifyAuth falls back to Google's tokeninfo endpoint: stub it.
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ error: 'invalid_token' }), { status: 400 })
+    );
+    try {
+      const req: any = {
+        method: 'GET',
+        headers: {
+          authorization: 'Bearer invalid.token.signature',
+        },
+        query: {},
+      };
+      const res = createMockResponse();
 
-    await handler(req, res);
-    expect(res.status).toHaveBeenCalledWith(401);
+      await handler(req, res);
+      expect(res.status).toHaveBeenCalledWith(401);
+      expect(fetchSpy).toHaveBeenCalledTimes(1);
+    } finally {
+      fetchSpy.mockRestore();
+    }
   });
 
   it('authenticates valid session token and serves dashboard payload with healthRecords', async () => {
@@ -172,10 +192,21 @@ describe('Dashboard API Serverless Handler Unit Tests', () => {
     await handler(req, res);
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.headers['cache-control']).toBe('private, max-age=10, stale-while-revalidate=60');
-    expect(res.body).toBeDefined();
-    expect(res.body.healthRecords).toBeDefined();
-    expect(Array.isArray(res.body.activities)).toBe(true);
-    expect(Array.isArray(res.body.puppies)).toBe(true);
-    expect(Array.isArray(res.body.caretakers)).toBe(true);
+    expect(res.body).toEqual({
+      puppies: mockPuppies,
+      caretakers: mockCaretakers,
+      activities: [{ ...mockActivities[0], timestamp: '2026-08-30T10:00:00.000Z' }],
+      healthRecords: mockHealthRecords,
+    });
+
+    // Every query is scoped to the household carried by the session token
+    const dialect = new PgDialect();
+    for (const tableName of ['puppies', 'caretakers', 'activities', 'health_records']) {
+      const condition = dbMock.whereByTable.get(tableName);
+      expect(condition).toBeDefined();
+      const query = dialect.sqlToQuery(condition!);
+      expect(query.sql).toContain(`"${tableName}"."household_id" = $1`);
+      expect(query.params[0]).toBe('hh-123');
+    }
   });
 });

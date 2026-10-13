@@ -150,7 +150,7 @@ describe('Dog Routine & Schedule Dataset Test Suite', () => {
 
   it('falls back safely to default schedules when dataset has 0 activities', () => {
     const emptyActivities: Activity[] = [];
-    const predictions = calculatePredictions(emptyActivities, balmaProfile, new Date(), 'UTC');
+    const predictions = calculatePredictions(emptyActivities, balmaProfile, new Date('2026-08-14T10:00:00Z'), 'UTC');
 
     expect(predictions.sleepSchedule).toBeDefined();
     expect(predictions.sleepSchedule?.bedtimeStr).toBe('22:00');

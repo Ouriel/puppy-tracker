@@ -610,6 +610,18 @@ function isDeepNightTime(
 }
 
 /**
+ * Wake-up pee of `now`'s logical day: the earliest pee at or after 05:00, else the earliest pee.
+ * Same rule as calculateMorningSequenceOffsets, so a night potty does not anchor the morning.
+ * `newestFirst` must be sorted newest first.
+ */
+function findFirstMorningPee(newestFirst: Activity[], now: Date, timeZone: string): Activity | undefined {
+  const peesToday = newestFirst.filter(
+    (activity) => activity.type === 'pee' && isSameLogicalDate(parseIsoDate(activity.timestamp), now, timeZone)
+  );
+  return peesToday.findLast((activity) => getLocalHour(parseIsoDate(activity.timestamp), timeZone) >= 5) ?? peesToday.at(-1);
+}
+
+/**
  * Predicts the next expected Pee event using the decoupled Pee Pipeline.
  */
 export function predictNextPee(
@@ -836,9 +848,7 @@ export function predictNextPoop(
       .filter((a) => a.type === 'food' && isSameLogicalDate(parseIsoDate(a.timestamp), now, tz))
       .sort((a, b) => parseIsoDate(a.timestamp).getTime() - parseIsoDate(b.timestamp).getTime());
 
-    const firstMorningPee = past.find(
-      (a) => a.type === 'pee' && isSameLogicalDate(parseIsoDate(a.timestamp), now, tz)
-    );
+    const firstMorningPee = findFirstMorningPee(sorted, now, tz);
     const morningAnchor = firstMorningPee
       ? parseIsoDate(firstMorningPee.timestamp)
       : getOccurrenceOfClockTimeInTimezone(now, sleepSchedule.wakeupHour, tz, 0);
@@ -952,9 +962,7 @@ export function predictNextFood(
   // Today's scheduled breakfast time (for daytime schedule)
   const scheduledBfastToday = getOccurrenceOfClockTimeInTimezone(now, mealSchedule.breakfastMins / 60, tz, 0);
 
-  const firstMorningPee = past.find(
-    (a) => a.type === 'pee' && isSameLogicalDate(parseIsoDate(a.timestamp), now, tz)
-  );
+  const firstMorningPee = findFirstMorningPee(sorted, now, tz);
   const minBfastAfterWalk = firstMorningPee
     ? new Date(parseIsoDate(firstMorningPee.timestamp).getTime() + 15 * 60 * 1000)
     : scheduledBfastToday;
