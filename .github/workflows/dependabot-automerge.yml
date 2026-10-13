@@ -1,6 +1,6 @@
 name: Dependabot Auto-Merge
 
-on: pull_request_target
+on: pull_request
 
 permissions:
   contents: write
@@ -9,17 +9,25 @@ permissions:
 jobs:
   automerge:
     runs-on: ubuntu-latest
-    if: github.actor == 'dependabot[bot]'
+    if: github.event.pull_request.user.login == 'dependabot[bot]' && github.actor == 'dependabot[bot]'
     steps:
       - name: Dependabot metadata
         id: metadata
         uses: dependabot/fetch-metadata@v3
-        with:
-          github-token: "${{ secrets.GITHUB_TOKEN }}"
 
-      - name: Enable auto-merge for non-major Dependabot PRs
-        if: ${{ steps.metadata.outputs.update-type != 'version-update:semver-major' }}
-        run: gh pr merge --auto --squash "$PR_URL"
+      # Arms GitHub's native auto-merge: GitHub merges only after the required `ci` check is green.
+      # Never use `gh pr merge --auto` here: when main has no required check it merges at once, even with red CI.
+      # If the main ruleset is ever removed, this call errors and nothing is merged.
+      - name: Enable auto-merge for minor/patch updates
+        if: steps.metadata.outputs.update-type == 'version-update:semver-minor' || steps.metadata.outputs.update-type == 'version-update:semver-patch'
+        run: |
+          gh api graphql -f query='
+            mutation($id: ID!, $sha: GitObjectID!) {
+              enablePullRequestAutoMerge(input: {pullRequestId: $id, expectedHeadOid: $sha, mergeMethod: SQUASH}) {
+                clientMutationId
+              }
+            }' -f id="$PR_ID" -f sha="$HEAD_SHA"
         env:
-          PR_URL: ${{ github.event.pull_request.html_url }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
+          PR_ID: ${{ github.event.pull_request.node_id }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
