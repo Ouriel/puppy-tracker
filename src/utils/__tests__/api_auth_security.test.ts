@@ -1,11 +1,23 @@
+import { createHmac } from 'crypto';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import type { SQL, Table } from 'drizzle-orm';
 import { PgDialect } from 'drizzle-orm/pg-core';
 import { signAppSessionToken, verifyAppSessionToken, verifyAuth } from '../../../api/_auth.js';
 import activitiesHandler from '../../../api/activities.js';
+import dogsHandler from '../../../api/dogs.js';
+import householdsHandler from '../../../api/households.js';
+import { SUPER_ADMIN_EMAIL } from '../auth.js';
 
-// Hermetic DB: no puppy matches the ownership lookup, and every WHERE clause and insert is recorded.
-const dbMock = vi.hoisted(() => ({ whereByTable: new Map<string, SQL>(), insert: vi.fn() }));
+// Hermetic DB: rows are served per table (no puppy matches the ownership lookup by default),
+// and every WHERE clause and insert is recorded.
+const dbMock = vi.hoisted(() => ({
+  whereByTable: new Map<string, SQL>(),
+  rowsByTable: {} as Record<string, unknown[]>,
+  usersLookupError: null as Error | null,
+  insert: vi.fn(),
+  update: vi.fn(),
+  delete: vi.fn(),
+}));
 
 vi.mock('@neondatabase/serverless', () => ({
   neon: vi.fn(() => vi.fn()),
@@ -19,21 +31,70 @@ vi.mock('drizzle-orm/neon-http', async () => {
       select: vi.fn(() => ({
         from: vi.fn((table: Table) => ({
           where: vi.fn((condition: SQL) => {
-            dbMock.whereByTable.set(getTableName(table), condition);
-            return Promise.resolve([]);
+            const tableName = getTableName(table);
+            dbMock.whereByTable.set(tableName, condition);
+            if (tableName === 'users' && dbMock.usersLookupError) return Promise.reject(dbMock.usersLookupError);
+            return Promise.resolve(dbMock.rowsByTable[tableName] ?? []);
           }),
         })),
       })),
       insert: dbMock.insert,
+      update: dbMock.update,
+      delete: dbMock.delete,
     })),
   };
 });
+
+// The users row behind the tokens below: verifyAuth re-reads it on every request (S1).
+const activeUserRow = {
+  id: 'usr-1',
+  email: 'user@example.com',
+  name: 'Matthieu',
+  householdId: 'hh-family-123',
+  role: 'Husband',
+  status: 'ACTIVE',
+};
+
+function createMockResponse() {
+  const response: any = {
+    statusCode: 200,
+    body: null,
+    setHeader: vi.fn(),
+    end: vi.fn(() => response),
+    status: vi.fn((code: number) => {
+      response.statusCode = code;
+      return response;
+    }),
+    json: vi.fn((data: unknown) => {
+      response.body = data;
+      return response;
+    }),
+  };
+  return response;
+}
+
+function bearerRequest(token: string, method = 'GET', body?: unknown, query: Record<string, string> = {}) {
+  return { method, headers: { authorization: `Bearer ${token}` }, query, body } as any;
+}
 
 describe('API Security & Session Token Validation Test Suite', () => {
   const originalEnv = process.env.SESSION_SECRET;
 
   beforeEach(() => {
     process.env.SESSION_SECRET = 'test-secret-key-1234567890-very-secure';
+    dbMock.whereByTable.clear();
+    dbMock.usersLookupError = null;
+    dbMock.rowsByTable = { users: [activeUserRow] };
+    dbMock.insert.mockReset();
+    dbMock.insert.mockImplementation(() => ({
+      values: (values: unknown) => ({ returning: () => Promise.resolve([values]) }),
+    }));
+    dbMock.update.mockReset();
+    dbMock.update.mockImplementation(() => ({
+      set: (values: unknown) => ({ where: () => ({ returning: () => Promise.resolve([values]) }) }),
+    }));
+    dbMock.delete.mockReset();
+    dbMock.delete.mockImplementation(() => ({ where: () => Promise.resolve() }));
   });
 
   afterEach(() => {
@@ -189,6 +250,175 @@ describe('API Security & Session Token Validation Test Suite', () => {
         status: 401,
         message: 'Missing Authorization header',
       });
+    });
+  });
+  describe('S1: every request re-reads the users row', () => {
+    const memberToken = () =>
+      signAppSessionToken({ email: 'user@example.com', name: 'Matthieu', householdId: 'hh-family-123', role: 'Husband' }, 30);
+
+    it('(1a) rejects a valid token whose email has no users row with 401', async () => {
+      dbMock.rowsByTable.users = [];
+      const response = createMockResponse();
+
+      await dogsHandler(bearerRequest(memberToken()), response);
+
+      expect(response.statusCode).toBe(401);
+      const lookup = new PgDialect().sqlToQuery(dbMock.whereByTable.get('users')!);
+      expect(lookup.sql).toBe('"users"."email" = $1');
+      expect(lookup.params).toEqual(['user@example.com']);
+    });
+
+    it('rejects a valid token whose users row is not ACTIVE with 401', async () => {
+      dbMock.rowsByTable.users = [{ ...activeUserRow, status: 'PENDING_APPROVAL' }];
+
+      await expect(verifyAuth(bearerRequest(memberToken()))).rejects.toMatchObject({ status: 401 });
+    });
+
+    it('(1c) returns 500, not 401, when the users lookup fails (a Neon cold start must not log anyone out)', async () => {
+      dbMock.usersLookupError = new Error('fetch failed');
+      const response = createMockResponse();
+
+      await dogsHandler(bearerRequest(memberToken()), response);
+
+      expect(response.statusCode).toBe(500);
+      // The driver error (SQL text, columns, the caller's email) never reaches the client.
+      expect(response.body).toEqual({ error: 'Internal server error' });
+    });
+
+    it('takes householdId and role from the users row, not from the token', async () => {
+      dbMock.rowsByTable.users = [{ ...activeUserRow, householdId: 'hh-moved', role: 'Sitter' }];
+
+      const auth = await verifyAuth(bearerRequest(memberToken()));
+
+      expect(auth).toMatchObject({ email: 'user@example.com', householdId: 'hh-moved', role: 'Sitter' });
+    });
+
+    it('never grants SuperAdmin from a users row role when the email is not the SuperAdmin email', async () => {
+      dbMock.rowsByTable.users = [{ ...activeUserRow, role: 'SuperAdmin' }];
+
+      const auth = await verifyAuth(bearerRequest(memberToken()));
+
+      expect(auth.role).toBe('Member');
+    });
+
+    it('exempts the SuperAdmin email from the users-row check', async () => {
+      dbMock.rowsByTable.users = [];
+      const token = signAppSessionToken(
+        { email: SUPER_ADMIN_EMAIL, name: 'Owner', householdId: 'FAMILY-COCKER-2026', role: 'SuperAdmin' },
+        30
+      );
+
+      const auth = await verifyAuth(bearerRequest(token));
+
+      expect(auth).toMatchObject({ householdId: 'FAMILY-COCKER-2026', role: 'SuperAdmin' });
+    });
+
+    it('does not exempt a token that only claims the SuperAdmin role', async () => {
+      dbMock.rowsByTable.users = [];
+      const token = signAppSessionToken(
+        { email: 'user@example.com', name: 'Matthieu', householdId: 'hh-family-123', role: 'SuperAdmin' },
+        30
+      );
+
+      await expect(verifyAuth(bearerRequest(token))).rejects.toMatchObject({ status: 401 });
+    });
+  });
+
+  describe('S3: household roles for dog management', () => {
+    const tokenFor = (role: string) =>
+      signAppSessionToken({ email: 'user@example.com', name: 'Matthieu', householdId: 'hh-family-123', role }, 30);
+
+    it('(1b) lets a Member create a dog (201)', async () => {
+      dbMock.rowsByTable.users = [{ ...activeUserRow, role: 'Member' }];
+      const response = createMockResponse();
+
+      await dogsHandler(bearerRequest(tokenFor('Member'), 'POST', { id: 'dog-new', name: 'Balma', breed: 'Cocker' }), response);
+
+      expect(response.statusCode).toBe(201);
+      expect(response.body).toMatchObject({ id: 'dog-new', householdId: 'hh-family-123', name: 'Balma' });
+    });
+
+    it('(1d) forbids a Sitter from deleting a dog (403)', async () => {
+      dbMock.rowsByTable.users = [{ ...activeUserRow, role: 'Sitter' }];
+      const response = createMockResponse();
+
+      await dogsHandler(bearerRequest(tokenFor('Sitter'), 'DELETE', undefined, { id: 'dog-1' }), response);
+
+      expect(response.statusCode).toBe(403);
+      expect(dbMock.delete).not.toHaveBeenCalled();
+    });
+
+    it('lets a Member add a caretaker (201) but not remove one (403)', async () => {
+      dbMock.rowsByTable.users = [{ ...activeUserRow, role: 'Member' }];
+      const postResponse = createMockResponse();
+      const deleteResponse = createMockResponse();
+
+      await householdsHandler(bearerRequest(tokenFor('Member'), 'POST', { id: 'ct-new', name: 'Daria' }), postResponse);
+      await householdsHandler(bearerRequest(tokenFor('Member'), 'DELETE', undefined, { id: 'ct-1' }), deleteResponse);
+
+      expect(postResponse.statusCode).toBe(201);
+      expect(postResponse.body).toMatchObject({ id: 'ct-new', householdId: 'hh-family-123', name: 'Daria' });
+      expect(deleteResponse.statusCode).toBe(403);
+      expect(dbMock.delete).not.toHaveBeenCalled();
+    });
+
+    it('lets a Member edit a dog (200)', async () => {
+      dbMock.rowsByTable.users = [{ ...activeUserRow, role: 'Member' }];
+      const response = createMockResponse();
+
+      await dogsHandler(bearerRequest(tokenFor('Member'), 'PUT', { id: 'dog-1', name: 'Balma' }), response);
+
+      expect(response.statusCode).toBe(200);
+      expect(response.body).toMatchObject({ name: 'Balma' });
+    });
+
+    it('lets a Member edit a caretaker (200)', async () => {
+      dbMock.rowsByTable.users = [{ ...activeUserRow, role: 'Member' }];
+      dbMock.rowsByTable.caretakers = [{ id: 'ct-1', householdId: 'hh-family-123', role: 'Member' }];
+      const response = createMockResponse();
+
+      await householdsHandler(bearerRequest(tokenFor('Member'), 'PUT', { id: 'ct-1', name: 'Daria' }), response);
+
+      expect(response.statusCode).toBe(200);
+      expect(response.body).toMatchObject({ name: 'Daria' });
+    });
+
+    it('lets a Husband delete a dog, like the caretaker DELETE gate', async () => {
+      const response = createMockResponse();
+
+      await dogsHandler(bearerRequest(tokenFor('Husband'), 'DELETE', undefined, { id: 'dog-1' }), response);
+
+      expect(response.statusCode).toBe(200);
+      expect(dbMock.delete).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('session key unchanged: tokens signed today keep working', () => {
+    it('verifies a token signed with the POSTGRES_URL-derived key (SESSION_SECRET unset) for an ACTIVE user', async () => {
+      delete process.env.SESSION_SECRET;
+      const savedPostgresUrl = process.env.POSTGRES_URL;
+      process.env.POSTGRES_URL = 'postgres://example.invalid/db';
+      // Hermetic: if the token were rejected, verifyAuth would fall back to Google's tokeninfo endpoint.
+      const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('{}', { status: 400 }));
+      try {
+        // Built by hand with today's derivation, independently of signAppSessionToken.
+        const derivedKey = createHmac('sha256', 'puppace-salt-2026').update('postgres://example.invalid/db').digest('hex');
+        const issuedAt = Math.floor(Date.now() / 1000);
+        const header = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url');
+        const payload = Buffer.from(
+          JSON.stringify({ email: 'user@example.com', name: 'Matthieu', householdId: 'hh-family-123', role: 'Husband', exp: issuedAt + 86400, iat: issuedAt })
+        ).toString('base64url');
+        const signature = createHmac('sha256', derivedKey).update(`${header}.${payload}`).digest('base64url');
+
+        const auth = await verifyAuth(bearerRequest(`${header}.${payload}.${signature}`));
+
+        expect(auth).toEqual({ email: 'user@example.com', name: 'Matthieu', householdId: 'hh-family-123', role: 'Husband' });
+        expect(fetchSpy).not.toHaveBeenCalled();
+      } finally {
+        fetchSpy.mockRestore();
+        if (savedPostgresUrl === undefined) delete process.env.POSTGRES_URL;
+        else process.env.POSTGRES_URL = savedPostgresUrl;
+      }
     });
   });
 });

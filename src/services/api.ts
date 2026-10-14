@@ -273,12 +273,21 @@ export async function exchangeSessionToken(rawToken?: string): Promise<ApiResult
       },
     });
 
+    // Only touch the stored session if it is still the one we sent: a re-login while this
+    // (deferred) exchange was in flight must never be overwritten or logged out.
+    const isStillCurrentSession = getAuthToken() === token;
     if (res.ok) {
       const data = await res.json();
-      if (data?.sessionToken) {
+      if (data?.sessionToken && isStillCurrentSession) {
         setAuthToken(data.sessionToken);
       }
       return { ok: true, data };
+    }
+    // Revoked or pending account: end the session. A 5xx (e.g. a Neon cold start) keeps it.
+    if ((res.status === 401 || res.status === 403) && isStillCurrentSession) {
+      clearAuthToken();
+      apiCache.clear();
+      window.dispatchEvent(new CustomEvent('puppace:unauthorized'));
     }
     const body = await res.json().catch(() => ({}));
     return { ok: false, error: body.error || 'Failed to exchange session token', status: res.status };

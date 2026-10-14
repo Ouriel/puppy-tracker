@@ -24,6 +24,9 @@ export function setCorsHeaders(req: VercelRequest, res: VercelResponse, methods 
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 }
 
+const connectionString = process.env.POSTGRES_URL || process.env.DATABASE_URL || '';
+const db = drizzle(neon(connectionString));
+
 function getSessionSecret(): string {
   const secret = process.env.SESSION_SECRET || process.env.AUTH_SECRET;
   if (!secret) {
@@ -41,6 +44,13 @@ export interface AuthContext {
   name: string;
   householdId: string;
   role: string;
+}
+
+const HOUSEHOLD_ADMIN_ROLES = ['SuperAdmin', 'Husband', 'Wife'];
+
+/** Roles allowed to delete a dog or a caretaker. */
+export function isHouseholdAdmin(role: string): boolean {
+  return HOUSEHOLD_ADMIN_ROLES.includes(role);
 }
 
 /**
@@ -119,7 +129,30 @@ export async function verifyAuth(req: VercelRequest): Promise<AuthContext> {
   // 1. Try verifying as PupPace App Session Token (90-day validity, 0ms fast path)
   const appSession = verifyAppSessionToken(token);
   if (appSession) {
-    return appSession;
+    // The SuperAdmin (recognised by email only) is never locked out by its users row.
+    if (isSuperAdminEmail(appSession.email)) return appSession;
+
+    // S1: re-read the users row so removal or deactivation takes effect on the next request.
+    // A database error must stay a 500, never become a 401, and its message (SQL, email) is not sent.
+    let user: typeof usersTable.$inferSelect | undefined;
+    try {
+      [user] = await db
+        .select()
+        .from(usersTable)
+        .where(eq(usersTable.email, appSession.email.toLowerCase()));
+    } catch (error: unknown) {
+      console.error('verifyAuth users lookup failed:', error);
+      throw { status: 500, message: 'Internal server error' };
+    }
+    if (!user || user.status !== 'ACTIVE') {
+      throw { status: 401, message: 'Session revoked' };
+    }
+    return {
+      email: appSession.email,
+      name: appSession.name,
+      householdId: user.householdId,
+      role: user.role === 'SuperAdmin' ? 'Member' : user.role,
+    };
   }
 
   // 2. Fallback: Verify as Google OAuth ID Token (Google SSO initial login)
@@ -157,13 +190,10 @@ export async function verifyAuth(req: VercelRequest): Promise<AuthContext> {
   }
 
   // Look up user in database
-  const dbUrl = process.env.POSTGRES_URL || process.env.DATABASE_URL || '';
-  if (!dbUrl) {
+  if (!connectionString) {
     throw { status: 500, message: 'Database connection URL missing' };
   }
 
-  const sql = neon(dbUrl);
-  const db = drizzle(sql);
   const userEmail = payload.email.toLowerCase();
 
   let [user] = await db

@@ -100,17 +100,16 @@ function App() {
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
+  // A revoked session (401/403 from the API) returns to the lock screen
+  useEffect(() => {
+    const handleUnauthorized = () => setUser(null);
+    window.addEventListener('puppace:unauthorized', handleUnauthorized);
+    return () => window.removeEventListener('puppace:unauthorized', handleUnauthorized);
+  }, []);
+
   // Initial Auth & Parallel Coordinated Data Load
   useEffect(() => {
     async function init() {
-      const urlParams = new URLSearchParams(window.location.search);
-      const tokenFromUrl = urlParams.get('session_token');
-
-      if (tokenFromUrl) {
-        setAuthToken(tokenFromUrl);
-        window.history.replaceState({}, document.title, window.location.pathname);
-      }
-
       const currentToken = getAuthToken();
       const storedUser = getStoredAuthUser();
 

@@ -4,7 +4,7 @@ import { drizzle } from 'drizzle-orm/neon-http';
 import { eq, and } from 'drizzle-orm';
 import { caretakersTable, householdsTable } from '../src/db/schema.js';
 import { CaretakerInputSchema } from '../src/utils/schemas.js';
-import { verifyAuth, setCorsHeaders } from './_auth.js';
+import { verifyAuth, setCorsHeaders, isHouseholdAdmin } from './_auth.js';
 
 const connectionString = process.env.POSTGRES_URL || process.env.DATABASE_URL || '';
 const sql = neon(connectionString);
@@ -61,9 +61,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // POST /api/households — Add a new caretaker
     if (req.method === 'POST') {
-      if (auth.role !== 'SuperAdmin' && auth.role !== 'Husband' && auth.role !== 'Wife') {
-        return res.status(403).json({ error: 'Only household admins can manage caretakers' });
-      }
       const parsed = CaretakerInputSchema.safeParse(req.body);
       if (!parsed.success) {
         return res.status(400).json({ error: 'Invalid caretaker payload', details: parsed.error.issues });
@@ -91,9 +88,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // PUT /api/households — Update an existing caretaker
     if (req.method === 'PUT') {
-      if (auth.role !== 'SuperAdmin' && auth.role !== 'Husband' && auth.role !== 'Wife') {
-        return res.status(403).json({ error: 'Only household admins can manage caretakers' });
-      }
       const parsed = CaretakerInputSchema.partial().safeParse(req.body);
       if (!parsed.success) {
         return res.status(400).json({ error: 'Invalid caretaker payload', details: parsed.error.issues });
@@ -126,7 +120,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // DELETE /api/households?id=ct-xxx — Remove a caretaker
     if (req.method === 'DELETE') {
-      if (auth.role !== 'SuperAdmin' && auth.role !== 'Husband' && auth.role !== 'Wife') {
+      if (!isHouseholdAdmin(auth.role)) {
         return res.status(403).json({ error: 'Only household admins can manage caretakers' });
       }
       const id = (req.query.id || req.query.caretakerId) as string;
