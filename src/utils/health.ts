@@ -105,6 +105,14 @@ const VACCINE_COVERS: Record<string, string[]> = {
 };
 
 /**
+ * Narrower vaccines that also renew a combo because they set its booster date: L4 drives the yearly CHPPi + L4
+ * recall (see calculateNextVaccineBooster), so an L4-only booster renews it (adult schedule: combo, then L4 alone).
+ */
+const VACCINE_RENEWED_BY: Record<string, string[]> = {
+  chppi_l4: ['l4'],
+};
+
+/**
  * Evaluates health record booster status (fulfilled, overdue, due soon, or up-to-date).
  * Fulfilled only when a later record of the same vaccine, or of one that covers it, exists: a same-day or later
  * record of another vaccine (e.g. Rage given with CHPPi) does not renew it.
@@ -123,7 +131,11 @@ export function getHealthRecordStatus(
   const isRenewed = allRecords.some((other) => {
     if (new Date(other.date).getTime() <= new Date(record.date).getTime()) return false;
     const otherKey = getRenewalKey(other);
-    return otherKey === renewalKey || (VACCINE_COVERS[otherKey]?.includes(renewalKey) ?? false);
+    return (
+      otherKey === renewalKey ||
+      (VACCINE_COVERS[otherKey]?.includes(renewalKey) ?? false) ||
+      (VACCINE_RENEWED_BY[renewalKey]?.includes(otherKey) ?? false)
+    );
   });
 
   if (isRenewed) {

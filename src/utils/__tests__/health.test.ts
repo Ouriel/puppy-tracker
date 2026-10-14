@@ -220,6 +220,19 @@ describe('Health Passport — French Veterinary Protocol & Dataset Test Suite', 
     }
   });
 
+  it('renews a CHPPi + L4 shot with a later L4-only booster (L4 sets its yearly date; owner decision F2)', () => {
+    const combo: HealthRecord = { id: 'combo', householdId: 'hh-001', puppyId: 'pup-balma', type: 'vaccination', name: 'CHPPi + L4 (Eurican / Nobivac / Versican)', date: '2027-03-27', boosterDate: '2028-03-27' };
+    const leptoOnly: HealthRecord = { id: 'l4', householdId: 'hh-001', puppyId: 'pup-balma', type: 'vaccination', name: 'Leptospirose L4', date: '2028-03-27', boosterDate: '2029-03-27' };
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2028-06-01T10:00:00.000Z'));
+    try {
+      expect(getHealthRecordStatus(combo, [combo, leptoOnly]).urgency).toBe('fulfilled');
+      expect(getHealthRecordStatus(leptoOnly, [combo, leptoOnly]).urgency).toBe('upToDate');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('does not let two records of the same vaccine on the same day renew each other', () => {
     const first: HealthRecord = { id: 'rage-a', householdId: 'hh-001', puppyId: 'pup-balma', type: 'vaccination', name: 'Rage', date: '2026-07-22', boosterDate: '2027-07-22' };
     const duplicate: HealthRecord = { ...first, id: 'rage-b' };
