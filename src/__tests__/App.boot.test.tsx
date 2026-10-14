@@ -382,7 +382,8 @@ describe('App log state', () => {
     renderCounts.healthSummary = 0;
 
     await act(async () => document.querySelector<HTMLElement>(`[aria-label="${en.nav.logEvent}"]`)!.click());
-    await settle();
+    // The form is a lazy chunk: on a slow runner it needs more rounds than settle() gives
+    await settleUntil(() => document.getElementById('quicklog-form') !== null);
 
     expect(document.getElementById('quicklog-form')).not.toBeNull();
     expect(renderCounts).toEqual({ predictorWidget: 0, healthSummary: 0 });
