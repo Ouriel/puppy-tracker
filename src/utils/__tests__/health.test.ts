@@ -199,6 +199,40 @@ describe('Health Passport — French Veterinary Protocol & Dataset Test Suite', 
     }
   });
 
+  it('matches hand-typed vaccine names to the right vaccine (longest alias wins; r, l4, kc only as whole words)', () => {
+    const record = (id: string, name: string, date: string, boosterDate: string): HealthRecord => (
+      { id, householdId: 'hh-001', puppyId: 'pup-balma', type: 'vaccination', name, date, boosterDate }
+    );
+    const statusOf = (target: HealthRecord, records: HealthRecord[]) => getHealthRecordStatus(target, records).urgency;
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2027-08-01T10:00:00.000Z'));
+    try {
+      // 'chppi sans l4' must resolve to CHPPi sans L4 (which does not include L4), not to the first 'chppi' alias (CHPPi + L4)
+      const lepto = record('lepto', 'Leptospirose L4', '2026-01-10', '2027-01-10');
+      expect(statusOf(lepto, [lepto, record('sans', 'CHPPi sans L4', '2026-03-10', '2026-04-10')])).toBe('overdue');
+      // An unknown name containing the letter r is not a rabies shot
+      const rage = record('rage', 'Rage', '2026-01-10', '2027-01-10');
+      expect(statusOf(rage, [rage, record('herpes', 'Herpès', '2026-03-10', '2027-03-10')])).toBe('overdue');
+      // Whole-word short aliases still work: a later 'Lepto L4' renews the L4 shot
+      expect(statusOf(lepto, [lepto, record('lepto2', 'Lepto L4', '2026-12-01', '2027-12-01')])).toBe('fulfilled');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('does not let two records of the same vaccine on the same day renew each other', () => {
+    const first: HealthRecord = { id: 'rage-a', householdId: 'hh-001', puppyId: 'pup-balma', type: 'vaccination', name: 'Rage', date: '2026-07-22', boosterDate: '2027-07-22' };
+    const duplicate: HealthRecord = { ...first, id: 'rage-b' };
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2027-08-01T10:00:00.000Z'));
+    try {
+      expect(getHealthRecordStatus(first, [first, duplicate]).urgency).toBe('overdue');
+      expect(getHealthRecordStatus(duplicate, [first, duplicate]).urgency).toBe('overdue');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('renews a vaccine with a later vaccine that covers it (real carnet: CHPPi sans L4 primo, then CHPPi + L4 shots)', () => {
     const vaccines: HealthRecord[] = [
       { id: 'sans-l4', householdId: 'hh-001', puppyId: 'pup-balma', type: 'vaccination', name: 'CHPPi / DAPPi (sans L4)', date: '2026-05-27', boosterDate: '2026-06-27' },

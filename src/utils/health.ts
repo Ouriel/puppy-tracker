@@ -30,21 +30,26 @@ export function getHealthProtocols(): HealthProtocolData {
   } as HealthProtocolData;
 }
 
-/** Protocol vaccine for a record name: by id, exact alias, name, then partial alias. */
+/**
+ * Protocol vaccine for a record name: by id, exact alias, name, then partial alias.
+ * Partial alias: the longest matching alias wins ('chppi sans l4' is CHPPi sans L4, not the first 'chppi'),
+ * and short aliases (r, l4, kc) only match as whole words ('Herpès' is not a rabies shot).
+ */
 function findVaccineProtocol(vaccineType: string) {
   const typeLower = vaccineType.toLowerCase();
+  const matchesPartially = (alias: string) => {
+    const aliasLower = alias.toLowerCase();
+    if (aliasLower.length < 3) return new RegExp(`(^|[^\\p{L}\\p{N}])${aliasLower}([^\\p{L}\\p{N}]|$)`, 'u').test(typeLower);
+    return typeLower.includes(aliasLower) || (typeLower.length >= 3 && aliasLower.includes(typeLower));
+  };
+  const bestPartialMatch = healthProtocols.vaccines
+    .flatMap((vaccine) => (vaccine.aliases ?? []).filter(matchesPartially).map((alias) => ({ vaccine, aliasLength: alias.length })))
+    .sort((first, second) => second.aliasLength - first.aliasLength)[0];
   return (
     healthProtocols.vaccines.find((vaccine) => vaccine.id === typeLower) ||
     healthProtocols.vaccines.find((vaccine) => vaccine.aliases && vaccine.aliases.some((alias) => alias.toLowerCase() === typeLower)) ||
     healthProtocols.vaccines.find((vaccine) => vaccine.name.toLowerCase().includes(typeLower)) ||
-    healthProtocols.vaccines.find(
-      (vaccine) =>
-        vaccine.aliases &&
-        vaccine.aliases.some((alias) => {
-          const aliasLower = alias.toLowerCase();
-          return typeLower.includes(aliasLower) || aliasLower.includes(typeLower);
-        })
-    )
+    bestPartialMatch?.vaccine
   );
 }
 
