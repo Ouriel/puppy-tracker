@@ -22,6 +22,8 @@ export function setCorsHeaders(req: VercelRequest, res: VercelResponse, methods 
   }
   res.setHeader('Access-Control-Allow-Methods', methods);
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  // Potty and meal data must always be fresh: the client's in-flight deduplication absorbs repeated requests.
+  res.setHeader('Cache-Control', 'no-store');
 }
 
 const connectionString = process.env.POSTGRES_URL || process.env.DATABASE_URL || '';

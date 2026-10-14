@@ -29,7 +29,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     // GET /api/health-records?puppyId=xxx&type=xxx
     if (req.method === 'GET') {
-      res.setHeader('Cache-Control', 'private, max-age=10, stale-while-revalidate=60');
       const puppyId = req.query.puppyId as string;
       const type = req.query.type as string;
 

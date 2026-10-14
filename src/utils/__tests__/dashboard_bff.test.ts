@@ -113,6 +113,60 @@ describe('Dashboard BFF API Service Suite', () => {
     expect(fetchCount).toBe(1); // De-duplicated into 1 single HTTP request
   });
 
+  it('keeps an in-flight request when the cache is cleared, so the refresh events of one return to the app make one call', async () => {
+    const pendingResponses: Array<(response: Response) => void> = [];
+    const fetchMock = vi.fn(() => new Promise<Response>((resolve) => { pendingResponses.push(resolve); }));
+    global.fetch = fetchMock;
+    setAuthToken('t');
+
+    // visibilitychange, focus and pageshow each clear the cache and fetch the dashboard
+    const first = fetchDashboard('pup-1', 14);
+    clearApiCache();
+    const second = fetchDashboard('pup-1', 14);
+    for (const respond of pendingResponses) {
+      respond(new Response(JSON.stringify({ puppies: [], caretakers: [], activities: [], healthRecords: [] }), { status: 200 }));
+    }
+
+    expect((await first).ok).toBe(true);
+    expect((await second).ok).toBe(true);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('never joins an in-flight request older than one return to the app: a request from before the background, or one that hangs, is not reused', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-01-10T12:00:00Z'));
+    const pendingResponses: Array<(response: Response) => void> = [];
+    const fetchMock = vi.fn(() => new Promise<Response>((resolve) => { pendingResponses.push(resolve); }));
+    global.fetch = fetchMock;
+    setAuthToken('t');
+    const payloadNamed = (name: string) =>
+      new Response(JSON.stringify({ puppies: [{ id: 'pup-1', name }], caretakers: [], activities: [], healthRecords: [] }), { status: 200 });
+
+    try {
+      // Sent just before the app went to the background, still unanswered 30 minutes later
+      const beforeBackground = fetchDashboard('pup-1', 14);
+      vi.setSystemTime(new Date('2026-01-10T12:30:00Z'));
+      clearApiCache();
+      const onReturn = fetchDashboard('pup-1', 14);
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+
+      // The old answer arrives late; it must not remove the new request, which a second event of the same return joins
+      pendingResponses[0](payloadNamed('pre-background'));
+      await beforeBackground;
+      clearApiCache();
+      const sameReturn = fetchDashboard('pup-1', 14);
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+
+      pendingResponses[1](payloadNamed('fresh'));
+      const onReturnResult = await onReturn;
+      const sameReturnResult = await sameReturn;
+      expect(onReturnResult.ok && onReturnResult.data.puppies[0].name).toBe('fresh');
+      expect(sameReturnResult.ok && sameReturnResult.data.puppies[0].name).toBe('fresh');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('allows immediate fresh dashboard fetch when clearApiCache is invoked', async () => {
     let fetchCount = 0;
     global.fetch = vi.fn().mockImplementation(() => {

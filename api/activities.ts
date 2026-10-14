@@ -33,7 +33,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     // GET /api/activities
     if (req.method === 'GET') {
-      res.setHeader('Cache-Control', 'private, max-age=10, stale-while-revalidate=60');
       const puppyId = req.query.puppyId as string;
       const type = req.query.type as string;
       const days = req.query.days ? parseInt(req.query.days as string, 10) : null;
@@ -57,7 +56,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         .select()
         .from(activitiesTable)
         .where(whereClause)
-        .orderBy(desc(activitiesTable.timestamp));
+        // Same timestamp: the log made last comes first, and predictions take the first one
+        .orderBy(desc(activitiesTable.timestamp), desc(activitiesTable.createdAt));
 
       // A missing, non-numeric or non-positive limit means the default page size.
       const queryLimit = limit > 0 ? Math.min(limit, 1000) : 500;

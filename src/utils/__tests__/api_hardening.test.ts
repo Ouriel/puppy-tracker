@@ -1,10 +1,12 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import type { Table } from 'drizzle-orm';
+import { sql, type SQL, type Table } from 'drizzle-orm';
+import { PgDialect } from 'drizzle-orm/pg-core';
 import { signAppSessionToken } from '../../../api/_auth.js';
 import activitiesHandler from '../../../api/activities.js';
 import dogsHandler from '../../../api/dogs.js';
 import usersHandler from '../../../api/users.js';
 import healthRecordsHandler from '../../../api/health-records.js';
+import householdsHandler from '../../../api/households.js';
 import { createActivity } from '../../services/api';
 
 const UUID = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';
@@ -16,6 +18,7 @@ const dbMock = vi.hoisted(() => ({
   failAfterAuth: false,
   limit: null as number | null,
   offset: null as number | null,
+  orderBy: [] as SQL[],
   insertedValues: [] as Array<Record<string, unknown>>,
 }));
 
@@ -46,7 +49,7 @@ vi.mock('drizzle-orm/neon-http', async () => {
           };
           const query = {
             where: () => query,
-            orderBy: () => query,
+            orderBy: (...clauses: SQL[]) => { dbMock.orderBy = clauses; return query; },
             limit: (value: number) => { dbMock.limit = value; return query; },
             offset: (value: number) => { dbMock.offset = value; return query; },
             then: (resolve: (value: unknown) => unknown, reject: (reason: unknown) => unknown) => run().then(resolve, reject),
@@ -96,6 +99,7 @@ describe('API input, error and pagination hardening', () => {
     dbMock.failAfterAuth = false;
     dbMock.limit = null;
     dbMock.offset = null;
+    dbMock.orderBy = [];
     dbMock.insertedValues = [];
     vi.spyOn(console, 'error').mockImplementation(() => {});
   });
@@ -123,6 +127,12 @@ describe('API input, error and pagination hardening', () => {
     }
   });
 
+  it('GET /api/activities breaks a same-timestamp tie by created_at, so the log made last comes first', async () => {
+    const response = createMockResponse();
+    await activitiesHandler(getRequest({ puppyId: 'pup-1' }), response);
+    expect(new PgDialect().sqlToQuery(sql.join(dbMock.orderBy, sql`, `)).sql).toBe('"activities"."timestamp" desc, "activities"."created_at" desc');
+  });
+
   it('a limit above the maximum is capped at 1000', async () => {
     const response = createMockResponse();
     await activitiesHandler(getRequest({ limit: '5000' }), response);
@@ -141,6 +151,25 @@ describe('API input, error and pagination hardening', () => {
     expect(response.statusCode).toBe(500);
     expect(response.body).toEqual({ error: 'Internal server error' });
     expect(console.error).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({ message: expect.stringContaining('Failed query') }));
+  });
+
+  // N1: a browser-cached GET would hide a log made less than 70 s earlier when the app is refocused.
+  it.each([
+    ['activities', activitiesHandler, {}],
+    ['dogs', dogsHandler, {}],
+    ['users', usersHandler, {}],
+    ['health-records', healthRecordsHandler, { puppyId: 'pup-1' }],
+    ['households', householdsHandler, {}],
+  ] as const)('GET /api/%s is sent with Cache-Control: no-store, signed in or not', async (_name, handler, query) => {
+    const signedIn = createMockResponse();
+    await handler(getRequest(query), signedIn);
+    expect(signedIn.statusCode).toBe(200);
+    expect(new Map(signedIn.setHeader.mock.calls).get('Cache-Control')).toBe('no-store');
+
+    const signedOut = createMockResponse();
+    await handler({ method: 'GET', headers: {}, query } as any, signedOut);
+    expect(signedOut.statusCode).toBe(401);
+    expect(new Map(signedOut.setHeader.mock.calls).get('Cache-Control')).toBe('no-store');
   });
 
   it.each(['POST', 'PUT'])('%s /api/activities with an unparseable timestamp returns 400', async (method) => {

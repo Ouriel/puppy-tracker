@@ -117,6 +117,7 @@ PupPace — Smart Household Puppy Activity Tracker & Potty Predictor. React 19 +
 - **Skeleton Shell Loading State**: During initial data fetch, App.tsx renders the real Navbar (hydrated from cache) plus 3 card placeholder skeletons instead of a blank screen.
 - **QuickLogModal Prefetch**: The QuickLogModal chunk is prefetched 2 seconds after mount via dynamic `import()`, eliminating the INP spike on first "+" button tap.
 - `src/services/api.ts` maintains an `inflightRequests` map to de-duplicate simultaneous requests for identical URLs across mounting components.
+- Every API response is `Cache-Control: no-store` (set once in `setCorsHeaders`). `clearApiCache()` keeps in-flight requests, so the `visibilitychange` + `focus` + `pageshow` burst of one return to the app makes one `/api/dashboard` call. A GET joins an in-flight request only if it is under 2 s old (`INFLIGHT_JOIN_MS`), so a request sent before the app went to the background, or one that hangs, is never reused. Keep both: `no-store` without that deduplication turns the burst into three function calls.
 - Within the in-memory TTL window (60s), serve from cache directly without spawning redundant background `fetch()` requests on every tab switch.
 - Clear cache synchronously on mutations (`createActivity`, `updateActivity`, `deleteActivity`, `createDog`, etc.).
 
