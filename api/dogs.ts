@@ -4,7 +4,7 @@ import { drizzle } from 'drizzle-orm/neon-http';
 import { eq, and } from 'drizzle-orm';
 import { puppiesTable } from '../src/db/schema.js';
 import { DogInputSchema, parseDeleteId } from '../src/utils/schemas.js';
-import { verifyAuth, setCorsHeaders } from './_auth.js';
+import { verifyAuth, setCorsHeaders, canDeleteHouseholdData } from './_auth.js';
 
 const connectionString = process.env.POSTGRES_URL || process.env.DATABASE_URL || '';
 const sql = neon(connectionString);
@@ -48,9 +48,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // POST /api/dogs
     if (req.method === 'POST') {
-      if (auth.role !== 'Admin' && auth.role !== 'SuperAdmin') {
-        return res.status(403).json({ error: 'Only admins can manage dog profiles' });
-      }
       const parsed = DogInputSchema.safeParse(req.body);
       if (!parsed.success) {
         return res.status(400).json({ error: 'Invalid dog payload', details: parsed.error.issues });
@@ -106,9 +103,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // PUT /api/dogs
     if (req.method === 'PUT') {
-      if (auth.role !== 'Admin' && auth.role !== 'SuperAdmin') {
-        return res.status(403).json({ error: 'Only admins can manage dog profiles' });
-      }
       const parsed = DogInputSchema.partial().safeParse(req.body);
       if (!parsed.success) {
         return res.status(400).json({ error: 'Invalid dog payload', details: parsed.error.issues });
@@ -134,8 +128,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // DELETE /api/dogs
     if (req.method === 'DELETE') {
-      if (auth.role !== 'Admin' && auth.role !== 'SuperAdmin') {
-        return res.status(403).json({ error: 'Only admins can delete dogs' });
+      if (!canDeleteHouseholdData(auth)) {
+        return res.status(403).json({ error: 'Only the owner can delete dogs' });
       }
 
       const deleteParsed = parseDeleteId(req);

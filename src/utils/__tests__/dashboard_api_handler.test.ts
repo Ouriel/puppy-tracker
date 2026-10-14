@@ -39,6 +39,7 @@ const mockHealthRecords = [
 
 function rowsByTable(): Record<string, unknown[]> {
   return {
+    users: [{ id: 'usr-1', email: 'matthieu@example.com', name: 'Matthieu', householdId: 'hh-123', role: 'Husband', status: 'ACTIVE' }],
     puppies: mockPuppies,
     caretakers: mockCaretakers,
     activities: mockActivities,
