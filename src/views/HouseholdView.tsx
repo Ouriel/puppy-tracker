@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import type { Caretaker } from '../types';
 import { Home, Users, UserPlus, Trash2, Mail, Send, CheckCircle2, UserCheck, Copy, Pencil, X, Check } from 'lucide-react';
 import { createUser } from '../services/api';
+import { resolveCaretakerName } from '../utils/caretakers';
 import { useI18n } from '../i18n';
 import { Card, Button, Input, Chip, toast } from '@heroui/react';
 
@@ -318,7 +319,7 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
                       </Chip>
                     )}
 
-                    {caretaker.name !== 'Matthieu' && (
+                    {caretaker.name !== resolveCaretakerName(currentUser, caretakers) && (
                       <button
                         type="button"
                         onClick={() => onDeleteCaretaker(caretaker.id)}

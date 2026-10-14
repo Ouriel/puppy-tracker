@@ -34,7 +34,7 @@ PupPace — Smart Household Puppy Activity Tracker & Potty Predictor. React 19 +
 
 ### User Identity & Security
 
-- `loggedBy` is strictly bound to the authenticated `currentUser` state (`setCurrentUser(res.user.name)`).
+- `loggedBy` is the signed-in user, resolved by `getCurrentCaretakerName` (`src/utils/caretakers.ts`): the caretaker matching the user's email or exact name, else the account name. The client (`useCaretakers.currentUser`) and `POST /api/activities` both use it; the server ignores the body's `loggedBy`, and `PUT` never changes it.
 - QuickLogModal renders `loggedBy` as a read-only, locked input showing the active user's name. Users cannot log events under another family member's name.
 
 ### Health Passport & Protocols

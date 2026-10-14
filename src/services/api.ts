@@ -149,7 +149,7 @@ export async function fetchActivities(
 export async function createActivity(activity: Omit<Activity, 'id'> & { id?: string }): Promise<ApiResult<Activity>> {
   const prepared: Activity = {
     ...activity,
-    id: activity.id || `act-${Date.now()}`,
+    id: activity.id || `act-${crypto.randomUUID()}`,
   };
 
   return request<Activity>('/api/activities', {

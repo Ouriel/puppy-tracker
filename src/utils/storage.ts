@@ -4,9 +4,7 @@ const STORAGE_KEY_ACTIVE_PUPPY = 'puppace_active_puppy';
 
 export const DEFAULT_PUPPIES: PuppyProfile[] = [];
 
-export const DEFAULT_CARETAKERS: Caretaker[] = [
-  { id: '1', name: 'Matthieu', role: 'Member', color: '#6366F1' },
-];
+export const DEFAULT_CARETAKERS: Caretaker[] = [];
 
 const STORAGE_KEY_CACHED_PUPPIES = 'puppace_cached_puppies';
 const STORAGE_KEY_CACHED_CARETAKERS = 'puppace_cached_caretakers';

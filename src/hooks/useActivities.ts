@@ -135,7 +135,7 @@ export function useActivities(
       const previousActivities = activities;
       const newActivity: Activity = {
         ...activityData,
-        id: `act-${Date.now()}`,
+        id: `act-${crypto.randomUUID()}`,
         puppyId: activePuppy.id,
       };
 

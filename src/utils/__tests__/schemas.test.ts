@@ -10,6 +10,8 @@ import {
   DashboardPayloadSchema,
   DashboardQuerySchema,
 } from '../schemas';
+import { buildQuickActionActivity, buildQuickLogActivity } from '../activityPayloads';
+import { calculateNextMealPortion } from '../predictions';
 
 describe('Zod Schemas Validation', () => {
   it('should reject invalid potty locations like indoor_pad', () => {
@@ -215,5 +217,115 @@ describe('Zod Schemas Validation', () => {
     };
     expect(UserInputSchema.safeParse(invalidEmail).success).toBe(false);
   });
-});
 
+  describe('ActivityInputSchema hardening', () => {
+    const base = { puppyId: 'pup-1', type: 'pee' as const, timestamp: '2026-08-17T12:00:00.000Z' };
+
+    it('rejects a timestamp that does not parse as a date', () => {
+      expect(ActivityInputSchema.safeParse({ ...base, timestamp: 'not-a-date' }).success).toBe(false);
+      expect(ActivityInputSchema.safeParse({ ...base, timestamp: '' }).success).toBe(false);
+      expect(ActivityInputSchema.safeParse(base).success).toBe(true);
+    });
+
+    it('coerces quantityGrams to a positive number and rejects empty, zero or negative values', () => {
+      const food = { ...base, type: 'food' as const };
+      expect(ActivityInputSchema.parse({ ...food, quantityGrams: '85' }).quantityGrams).toBe(85);
+      // '' coerces to 0: a 0 g meal is an input mistake, so it is rejected rather than stored.
+      for (const quantityGrams of ['', 0, -5, 'abc']) {
+        expect(ActivityInputSchema.safeParse({ ...food, quantityGrams }).success).toBe(false);
+      }
+      expect(ActivityInputSchema.parse({ ...food, quantityGrams: null }).quantityGrams).toBeNull();
+    });
+
+    it('only accepts known potty locations, or null', () => {
+      expect(ActivityInputSchema.safeParse({ ...base, pottyLocation: 'indoor_pad' }).success).toBe(false);
+      expect(ActivityInputSchema.safeParse({ ...base, pottyLocation: 'indoor_accident' }).success).toBe(true);
+      expect(ActivityInputSchema.safeParse({ ...base, pottyLocation: null }).success).toBe(true);
+    });
+  });
+
+  describe('ActivityInputSchema accepts what the client really sends', () => {
+    // The wire payload: useActivities.addActivity adds the id, services/api.ts JSON-encodes it.
+    const toWire = (activity: object) => JSON.parse(JSON.stringify({ ...activity, id: `act-${crypto.randomUUID()}` }));
+    const actionTime = new Date('2026-10-13T08:15:00.000Z');
+
+    it.each([
+      ['pee', 'outside'],
+      ['pee', 'indoor_accident'],
+      ['poop', 'outside'],
+      ['food', undefined],
+    ] as const)('one-tap quick action: %s %s', (type, pottyLocation) => {
+      const payload = buildQuickActionActivity({ puppyId: 'pup-1', type, pottyLocation, loggedBy: 'Daria', actionTime, mealPortionGrams: 80 });
+      const parsed = ActivityInputSchema.safeParse(toWire(payload));
+      expect(parsed.success, JSON.stringify(parsed.error?.issues)).toBe(true);
+    });
+
+    const form = {
+      puppyId: 'pup-1',
+      localTimestamp: '2026-10-13T10:15',
+      loggedBy: 'Matthieu Jacquet',
+      notes: '  ',
+      pottyLocation: 'outside' as const,
+      stoolConsistency: 'normal' as const,
+      quantityGrams: 80,
+      quantityCups: 0.73,
+      weightKg: 7.4,
+      medicationName: 'Credelio Plus',
+    };
+
+    it.each(['pee', 'poop', 'food', 'weight', 'medication'] as const)('QuickLogModal form, new log and edit: %s', (type) => {
+      const payload = buildQuickLogActivity({ ...form, type });
+      const created = ActivityInputSchema.safeParse(toWire(payload));
+      expect(created.success, JSON.stringify(created.error?.issues)).toBe(true);
+      // Edit: ActivityTimeline sends { id, ...activityData } through PUT.
+      const edited = ActivityInputSchema.partial().safeParse({ id: 'act-1760000000000', ...JSON.parse(JSON.stringify(payload)) });
+      expect(edited.success, JSON.stringify(edited.error?.issues)).toBe(true);
+    });
+
+    // Once today's gram goal is met, the next portion is 0 g: the one-tap button and the modal pre-fill it.
+    it('a food log after the daily goal is met (0 g portion) is still accepted, stored without grams', () => {
+      const portionAfterGoal = calculateNextMealPortion(200, 3, 200, 3);
+      expect(portionAfterGoal).toBe(0);
+      const payloads = [
+        buildQuickActionActivity({ puppyId: 'pup-1', type: 'food', loggedBy: 'Daria', actionTime, mealPortionGrams: portionAfterGoal }),
+        buildQuickLogActivity({ ...form, type: 'food', quantityGrams: portionAfterGoal, quantityCups: 0 }),
+        // Cleared grams field: Number('') === 0.
+        buildQuickLogActivity({ ...form, type: 'food', quantityGrams: Number(''), quantityCups: 0 }),
+      ];
+      for (const payload of payloads) {
+        const parsed = ActivityInputSchema.safeParse(toWire(payload));
+        expect(parsed.success, JSON.stringify(parsed.error?.issues)).toBe(true);
+        expect(parsed.data?.quantityGrams).toBeUndefined();
+        expect(parsed.data?.quantityCups).toBeUndefined();
+      }
+    });
+
+    // One row per distinct production shape (read-only SELECT, 2026-10-14), as GET /api/activities returns it.
+    const productionRowShapes = [
+      { type: 'food', pottyLocation: null, stoolConsistency: null, foodType: 'kibble', quantityGrams: 20, quantityCups: 0.18, weightKg: null },
+      { type: 'food', pottyLocation: null, stoolConsistency: null, foodType: null, quantityGrams: 10, quantityCups: 0.09, weightKg: null },
+      { type: 'pee', pottyLocation: 'indoor_accident', stoolConsistency: null, foodType: null, quantityGrams: null, quantityCups: null, weightKg: null },
+      { type: 'pee', pottyLocation: 'outside', stoolConsistency: null, foodType: null, quantityGrams: null, quantityCups: null, weightKg: null },
+      { type: 'poop', pottyLocation: 'outside', stoolConsistency: 'hard', foodType: null, quantityGrams: null, quantityCups: null, weightKg: null },
+      { type: 'poop', pottyLocation: 'outside', stoolConsistency: 'normal', foodType: null, quantityGrams: null, quantityCups: null, weightKg: null },
+      { type: 'poop', pottyLocation: 'outside', stoolConsistency: null, foodType: null, quantityGrams: null, quantityCups: null, weightKg: null },
+      { type: 'weight', pottyLocation: null, stoolConsistency: null, foodType: null, quantityGrams: null, quantityCups: null, weightKg: 4.075 },
+    ];
+
+    it.each(productionRowShapes)('a production row re-sent as-is on PUT: $type $pottyLocation $stoolConsistency $foodType', (row) => {
+      const resent = {
+        ...row,
+        id: 'act-1754000000000',
+        householdId: 'hh-1',
+        puppyId: 'pup-1',
+        timestamp: '2026-08-11T12:00:00.000Z',
+        loggedBy: 'guest.member',
+        durationMinutes: null,
+        medicationName: null,
+        notes: null,
+      };
+      const parsed = ActivityInputSchema.partial().safeParse(resent);
+      expect(parsed.success, JSON.stringify(parsed.error?.issues)).toBe(true);
+    });
+  });
+});

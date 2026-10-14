@@ -143,8 +143,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     return res.status(405).json({ error: 'Method not allowed' });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('API /api/dogs error:', error);
-    return res.status(500).json({ error: error.message || 'Database error' });
+    return res.status(500).json({ error: 'Internal server error' });
   }
 }

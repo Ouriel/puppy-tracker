@@ -6,6 +6,7 @@ import { Modal } from '@heroui/react';
 import { useI18n } from '../i18n';
 import { getLocalDatetimeString } from '../utils/date';
 import { gramsToCups } from '../utils/predictions';
+import { buildQuickLogActivity } from '../utils/activityPayloads';
 
 interface QuickLogModalProps {
   isOpen: boolean;
@@ -15,7 +16,7 @@ interface QuickLogModalProps {
   defaultWeightKg?: number;
   onClose: () => void;
   onSave: (activity: Omit<Activity, 'id'>) => void;
-  currentUser?: string;
+  currentUser: string;
 }
 
 export const QuickLogModal: React.FC<QuickLogModalProps> = ({
@@ -26,7 +27,7 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
   defaultWeightKg = 4.2,
   onClose,
   onSave,
-  currentUser = 'Matthieu',
+  currentUser,
 }) => {
   const { t } = useI18n();
 
@@ -62,29 +63,19 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
 
   const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault();
-    const isoTimestamp = new Date(timestamp).toISOString();
-
-    const activityData: Omit<Activity, 'id'> = {
+    const activityData = buildQuickLogActivity({
       puppyId: activityToEdit?.puppyId || '',
       type,
-      timestamp: isoTimestamp,
+      localTimestamp: timestamp,
       loggedBy: activityToEdit?.loggedBy || currentUser,
-      notes: notes.trim() || undefined,
-    };
-
-    if (type === 'pee' || type === 'poop') {
-      activityData.pottyLocation = pottyLocation;
-      if (type === 'poop') {
-        activityData.stoolConsistency = stoolConsistency;
-      }
-    } else if (type === 'food') {
-      activityData.quantityGrams = quantityGrams;
-      activityData.quantityCups = quantityCups;
-    } else if (type === 'weight') {
-      activityData.weightKg = weightKg;
-    } else if (type === 'medication') {
-      activityData.medicationName = medicationName;
-    }
+      notes,
+      pottyLocation,
+      stoolConsistency,
+      quantityGrams,
+      quantityCups,
+      weightKg,
+      medicationName,
+    });
 
     onSave(activityData);
     onClose();

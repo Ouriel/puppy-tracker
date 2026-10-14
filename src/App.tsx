@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, lazy, Suspense } from 'react';
-import type { Activity, UserAccount, ActivityType, PottyLocation, FamilyRole, HealthRecord } from './types';
+import type { UserAccount, ActivityType, PottyLocation, FamilyRole, HealthRecord } from './types';
 import { getAuthToken, setAuthToken, getStoredAuthUser, setStoredAuthUser } from './utils/auth';
 import { isSuperAdminEmail } from './utils/auth';
 import {
@@ -9,7 +9,8 @@ import {
   exchangeSessionToken,
   clearApiCache,
 } from './services/api';
-import { calculatePredictions, calculateNextMealPortion, gramsToCups } from './utils/predictions';
+import { calculatePredictions, calculateNextMealPortion } from './utils/predictions';
+import { buildQuickActionActivity } from './utils/activityPayloads';
 import { getEffectivePuppyWeight } from './utils/weight';
 import { isSameLogicalDate } from './utils/date';
 import { Navbar } from './components/Navbar';
@@ -85,7 +86,7 @@ function App() {
       }
     }
 
-    if (householdRes.ok && householdRes.data?.caretakers && householdRes.data.caretakers.length > 0) {
+    if (householdRes.ok && Array.isArray(householdRes.data?.caretakers)) {
       caretakerState.setCaretakers(householdRes.data.caretakers);
     }
   }, [puppyState, caretakerState]);
@@ -137,7 +138,7 @@ function App() {
               puppyState.selectPuppy(targetPuppyId);
               activityState.setActivitiesForPuppy(activities, targetPuppyId);
             }
-            if (caretakers && caretakers.length > 0) {
+            if (Array.isArray(caretakers)) {
               caretakerState.setCaretakers(caretakers);
             }
             if (records && records.length > 0) {
@@ -191,7 +192,7 @@ function App() {
           if (res.ok) {
             const { puppies, caretakers, activities, healthRecords: records } = res.data;
             if (puppies?.length) setPuppies(puppies);
-            if (caretakers?.length) setCaretakers(caretakers);
+            if (Array.isArray(caretakers)) setCaretakers(caretakers);
             if (records?.length) setHealthRecords(records);
             if (activities) {
               const targetId = activePuppyId || puppies?.[0]?.id;
@@ -267,24 +268,14 @@ function App() {
     if (!puppyState.activePuppy) return;
     const actionTime = new Date();
     setNow(actionTime);
-    const newAct: Omit<Activity, 'id'> = {
+    const newAct = buildQuickActionActivity({
       puppyId: puppyState.activePuppy.id,
       type,
-      timestamp: actionTime.toISOString(),
+      pottyLocation,
       loggedBy: caretakerState.currentUser,
-    };
-
-    if (pottyLocation) {
-      newAct.pottyLocation = pottyLocation;
-    }
-    
-    if (type === 'poop') {
-      newAct.stoolConsistency = 'normal';
-    } else if (type === 'food') {
-      newAct.foodType = 'kibble';
-      newAct.quantityGrams = nextMealPortionGrams;
-      newAct.quantityCups = gramsToCups(nextMealPortionGrams);
-    }
+      actionTime,
+      mealPortionGrams: nextMealPortionGrams,
+    });
 
     activityState.addActivity(newAct);
   }, [puppyState.activePuppy, caretakerState.currentUser, activityState, nextMealPortionGrams]);
