@@ -10,8 +10,7 @@ import {
   DashboardPayloadSchema,
   DashboardQuerySchema,
 } from '../schemas';
-import { buildQuickActionActivity, buildQuickLogActivity } from '../activityPayloads';
-import { calculateNextMealPortion } from '../predictions';
+import { buildQuickActionActivity, buildQuickLogActivity, validateQuickLogForm } from '../activityPayloads';
 
 describe('Zod Schemas Validation', () => {
   it('should reject invalid potty locations like indoor_pad', () => {
@@ -253,9 +252,8 @@ describe('Zod Schemas Validation', () => {
       ['pee', 'outside'],
       ['pee', 'indoor_accident'],
       ['poop', 'outside'],
-      ['food', undefined],
     ] as const)('one-tap quick action: %s %s', (type, pottyLocation) => {
-      const payload = buildQuickActionActivity({ puppyId: 'pup-1', type, pottyLocation, loggedBy: 'Daria', actionTime, mealPortionGrams: 80 });
+      const payload = buildQuickActionActivity({ puppyId: 'pup-1', type, pottyLocation, loggedBy: 'Daria', actionTime });
       const parsed = ActivityInputSchema.safeParse(toWire(payload));
       expect(parsed.success, JSON.stringify(parsed.error?.issues)).toBe(true);
     });
@@ -267,9 +265,9 @@ describe('Zod Schemas Validation', () => {
       notes: '  ',
       pottyLocation: 'outside' as const,
       stoolConsistency: 'normal' as const,
-      quantityGrams: 80,
-      quantityCups: 0.73,
-      weightKg: 7.4,
+      // The grams and weight boxes hold the raw text typed.
+      quantityGrams: '80',
+      weightKg: '7,4',
       medicationName: 'Credelio Plus',
     };
 
@@ -282,21 +280,14 @@ describe('Zod Schemas Validation', () => {
       expect(edited.success, JSON.stringify(edited.error?.issues)).toBe(true);
     });
 
-    // Once today's gram goal is met, the next portion is 0 g: the one-tap button and the modal pre-fill it.
-    it('a food log after the daily goal is met (0 g portion) is still accepted, stored without grams', () => {
-      const portionAfterGoal = calculateNextMealPortion(200, 3, 200, 3);
-      expect(portionAfterGoal).toBe(0);
-      const payloads = [
-        buildQuickActionActivity({ puppyId: 'pup-1', type: 'food', loggedBy: 'Daria', actionTime, mealPortionGrams: portionAfterGoal }),
-        buildQuickLogActivity({ ...form, type: 'food', quantityGrams: portionAfterGoal, quantityCups: 0 }),
-        // Cleared grams field: Number('') === 0.
-        buildQuickLogActivity({ ...form, type: 'food', quantityGrams: Number(''), quantityCups: 0 }),
-      ];
-      for (const payload of payloads) {
-        const parsed = ActivityInputSchema.safeParse(toWire(payload));
-        expect(parsed.success, JSON.stringify(parsed.error?.issues)).toBe(true);
-        expect(parsed.data?.quantityGrams).toBeUndefined();
-        expect(parsed.data?.quantityCups).toBeUndefined();
+    // A 0 g meal is rejected: the builder keeps the 0 (no silent meal without grams), the server refuses it,
+    // and the form blocks it before it closes.
+    it('a 0 g or emptied grams box never becomes a meal without grams', () => {
+      const payload = buildQuickLogActivity({ ...form, type: 'food', quantityGrams: '0' });
+      expect(payload.quantityGrams).toBe(0);
+      expect(ActivityInputSchema.safeParse(toWire(payload)).success).toBe(false);
+      for (const quantityGrams of ['0', '']) {
+        expect(validateQuickLogForm({ ...form, type: 'food', quantityGrams })).toEqual({ field: 'quantityGrams', messageKey: 'gramsRequired' });
       }
     });
 

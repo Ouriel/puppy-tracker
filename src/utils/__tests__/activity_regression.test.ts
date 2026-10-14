@@ -204,7 +204,6 @@ describe('Activity & CRUD Regression Tests', () => {
   describe('Modal Pre-selection & Default State (Bug 1 Fix)', () => {
     it('converts the default meal portion from grams to cups (110 g per cup, 2 decimals)', () => {
       expect(gramsToCups(95)).toBe(0.86);
-      // An emptied grams input in QuickLogModal becomes Number('') = 0
       expect(gramsToCups(0)).toBe(0);
     });
   });

@@ -9,9 +9,8 @@ import {
   exchangeSessionToken,
   clearApiCache,
 } from './services/api';
-import { calculatePredictions, calculateNextMealPortion } from './utils/predictions';
+import { calculatePredictions, suggestNextMealGrams } from './utils/predictions';
 import { buildQuickActionActivity } from './utils/activityPayloads';
-import { getEffectivePuppyWeight } from './utils/weight';
 import { isSameLogicalDate } from './utils/date';
 import { Navbar } from './components/Navbar';
 import { PredictorWidget } from './components/PredictorWidget';
@@ -248,21 +247,16 @@ function App() {
     ).length;
   }, [activePuppyActivities, now]);
 
+  // Shared by the feed button label and the meal box: undefined once today's goal is reached.
   const nextMealPortionGrams = useMemo(() => {
     if (!puppyState.activePuppy) return 70;
-    return calculateNextMealPortion(
+    return suggestNextMealGrams(
       puppyState.activePuppy.dailyFoodGramGoal,
       puppyState.activePuppy.targetMealsPerDay,
       todayFoodLoggedGrams,
       todayMealsCount
     );
   }, [puppyState.activePuppy, todayFoodLoggedGrams, todayMealsCount]);
-
-  const activePuppyEffectiveWeightInfo = useMemo(() => {
-    return getEffectivePuppyWeight(puppyState.activePuppy, activePuppyActivities || []);
-  }, [puppyState.activePuppy, activePuppyActivities]);
-
-  const lastWeightLogKg = activePuppyEffectiveWeightInfo.estimatedCurrentWeight;
 
   const handleQuickAction = useCallback((type: ActivityType, pottyLocation?: PottyLocation) => {
     if (!puppyState.activePuppy) return;
@@ -274,11 +268,10 @@ function App() {
       pottyLocation,
       loggedBy: caretakerState.currentUser,
       actionTime,
-      mealPortionGrams: nextMealPortionGrams,
     });
 
     activityState.addActivity(newAct);
-  }, [puppyState.activePuppy, caretakerState.currentUser, activityState, nextMealPortionGrams]);
+  }, [puppyState.activePuppy, caretakerState.currentUser, activityState]);
 
   const handleOpenQuickLogModal = useCallback((type?: ActivityType) => {
     setQuickLogType(type || 'pee');
@@ -457,6 +450,7 @@ function App() {
                 activities={activePuppyActivities}
                 todayFoodLoggedGrams={todayFoodLoggedGrams}
                 todayMealsCount={todayMealsCount}
+                nextMealPortionGrams={nextMealPortionGrams}
                 onQuickAction={handleQuickAction}
                 onOpenQuickLogModal={handleOpenQuickLogModal}
                 referenceTime={now}
@@ -490,11 +484,10 @@ function App() {
         )}
       </main>
 
-      {/* Quick Log Modal Component (Conditionally mounted with key for clean lifecycle) */}
+      {/* Quick Log Modal: mounted on open, unmounted on close, so it never resets while open */}
       {isQuickLogOpen && (
         <Suspense fallback={null}>
           <QuickLogModal
-            key={`quicklog-${quickLogType}-${Date.now()}`}
             isOpen={true}
             onClose={() => setIsQuickLogOpen(false)}
             initialType={quickLogType}
@@ -503,7 +496,6 @@ function App() {
             }}
             currentUser={caretakerState.currentUser}
             defaultMealPortionGrams={nextMealPortionGrams}
-            defaultWeightKg={lastWeightLogKg}
           />
         </Suspense>
       )}

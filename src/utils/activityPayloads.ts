@@ -8,7 +8,6 @@ export function buildQuickActionActivity(options: {
   pottyLocation?: PottyLocation;
   loggedBy: string;
   actionTime: Date;
-  mealPortionGrams: number;
 }): Omit<Activity, 'id'> {
   const activity: Omit<Activity, 'id'> = {
     puppyId: options.puppyId,
@@ -23,20 +22,13 @@ export function buildQuickActionActivity(options: {
 
   if (options.type === 'poop') {
     activity.stoolConsistency = 'normal';
-  } else if (options.type === 'food') {
-    activity.foodType = 'kibble';
-    // 0 g once today's goal is met: log the meal without grams (the server stores null).
-    if (options.mealPortionGrams > 0) {
-      activity.quantityGrams = options.mealPortionGrams;
-      activity.quantityCups = gramsToCups(options.mealPortionGrams);
-    }
   }
 
   return activity;
 }
 
-/** Activity built by the QuickLogModal form, for a new log and for an edit. */
-export function buildQuickLogActivity(form: {
+/** The QuickLogModal form; the grams and weight boxes hold the raw text typed ('10,4'). */
+export interface QuickLogForm {
   puppyId: string;
   type: ActivityType;
   localTimestamp: string;
@@ -44,11 +36,40 @@ export function buildQuickLogActivity(form: {
   notes: string;
   pottyLocation: PottyLocation;
   stoolConsistency: StoolConsistency;
-  quantityGrams: number;
-  quantityCups: number;
-  weightKg: number;
+  quantityGrams: string;
+  weightKg: string;
   medicationName: string;
-}): Omit<Activity, 'id'> {
+}
+
+export interface QuickLogFormError {
+  field: 'quantityGrams' | 'weightKg' | 'timestamp';
+  messageKey: 'gramsRequired' | 'weightInvalid' | 'dateTimeRequired';
+}
+
+/** Reads a typed decimal, with a comma or a dot ('10,4' -> 10.4); NaN for anything else ('', 'abc', '1e3', '-5'). */
+export function parseDecimalInput(text: string): number {
+  const trimmed = text.trim();
+  return /^(\d+([.,]\d*)?|[.,]\d+)$/.test(trimmed) ? Number(trimmed.replace(',', '.')) : NaN;
+}
+
+/** The first field that blocks the save, or null when the form can be saved. */
+export function validateQuickLogForm(form: QuickLogForm): QuickLogFormError | null {
+  if (form.type === 'food') {
+    const grams = parseDecimalInput(form.quantityGrams);
+    if (!Number.isFinite(grams) || grams <= 0) return { field: 'quantityGrams', messageKey: 'gramsRequired' };
+  }
+  if (form.type === 'weight') {
+    const kg = parseDecimalInput(form.weightKg);
+    if (!(kg >= 0.3 && kg <= 100)) return { field: 'weightKg', messageKey: 'weightInvalid' };
+  }
+  if (!form.localTimestamp || Number.isNaN(new Date(form.localTimestamp).getTime())) {
+    return { field: 'timestamp', messageKey: 'dateTimeRequired' };
+  }
+  return null;
+}
+
+/** Activity built by the QuickLogModal form, for a new log and for an edit. */
+export function buildQuickLogActivity(form: QuickLogForm): Omit<Activity, 'id'> {
   const activity: Omit<Activity, 'id'> = {
     puppyId: form.puppyId,
     type: form.type,
@@ -62,12 +83,12 @@ export function buildQuickLogActivity(form: {
     if (form.type === 'poop') {
       activity.stoolConsistency = form.stoolConsistency;
     }
-  } else if (form.type === 'food' && form.quantityGrams > 0) {
-    // 0 g (cleared field, or pre-filled once today's goal is met): log the meal without grams.
-    activity.quantityGrams = form.quantityGrams;
-    activity.quantityCups = form.quantityCups;
+  } else if (form.type === 'food') {
+    const grams = parseDecimalInput(form.quantityGrams);
+    activity.quantityGrams = grams;
+    activity.quantityCups = gramsToCups(grams);
   } else if (form.type === 'weight') {
-    activity.weightKg = form.weightKg;
+    activity.weightKg = parseDecimalInput(form.weightKg);
   } else if (form.type === 'medication') {
     activity.medicationName = form.medicationName;
   }
