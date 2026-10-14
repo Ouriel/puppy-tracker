@@ -23,11 +23,12 @@ describe('Inverted Day-Sleep / Night-Active Dog Test Suite', () => {
       { id: '1', puppyId: invertedProfile.id, type: 'pee', timestamp: lastPee.toISOString(), loggedBy: 'Matthieu' },
     ];
 
-    // 1. Test during active waking period (02:00 AM)
-    const activeNightTime = new Date('2026-08-10T02:00:00Z');
+    // 1. Test during active waking period (06:00 AM, two hours after the 04:00 AM pee)
+    const activeNightTime = new Date('2026-08-10T06:00:00Z');
     const activePred = calculatePredictions(activities, invertedProfile, activeNightTime, 'UTC', customSleepSchedule);
 
     expect(activePred.peeMode).toBe('daytime_baseline');
+    expect(activePred.nextPeeExpectedAt?.toISOString()).toBe('2026-08-10T08:00:00.000Z'); // 04:00 + 4h
 
     // 2. Test during daytime sleep period (14:00 PM = 2:00 PM)
     const sleepDayTime = new Date('2026-08-10T14:00:00Z');
@@ -35,5 +36,6 @@ describe('Inverted Day-Sleep / Night-Active Dog Test Suite', () => {
 
     expect(sleepPred.peeMode).toBe('night_sleep');
     expect(sleepPred.peeReason).toContain('Morning outing');
+    expect(sleepPred.nextPeeExpectedAt?.toISOString()).toBe('2026-08-10T20:00:00.000Z'); // 20:00 wakeup
   });
 });

@@ -86,7 +86,9 @@ describe('Veterinary Breed Catalog & Resolution Tests', () => {
     expect(fallbackCatalog).toBe(28);
 
     // Unrecognized breed without custom weight falls back to 13 kg
-    const unknownFallback = getExpectedAdultWeight('Completely Unknown Mythical Dog', undefined, undefined);
+    // ('Unknown ...' names would hit the catalog's own 'unknown' entry, so use a name nothing matches)
+    expect(findBreed('Xyzzy')).toBeUndefined();
+    const unknownFallback = getExpectedAdultWeight('Xyzzy', undefined, undefined);
     expect(unknownFallback).toBe(13);
   });
 });

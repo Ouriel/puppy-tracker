@@ -33,7 +33,8 @@ describe('Veterinary & Behavioral Scenario Test Suite (Classic Rules)', () => {
     const learned = calculateLearnedIntervalMinutes(activities, 'pee', 180, { bedtimeHour: 23, wakeupHour: 7 }, 'UTC');
 
     // The 14-minute walk double-void pees (<45m) are excluded by minThresholdMins, learning the 196m interval (08:14 to 11:30)
-    expect(learned.intervalMins).toBe(196);
+    // from one gap per day (11 days); identical gaps give the ±15m pee minimum delta
+    expect(learned).toMatchObject({ intervalMins: 196, sampleCount: 11, deltaMins: 15 });
   });
 
   it('3. Diarrhea Emergency Spikes: Frequent 60m check-in window and GI upset alert', () => {
@@ -86,6 +87,7 @@ describe('Veterinary & Behavioral Scenario Test Suite (Classic Rules)', () => {
 
     expect(pred.poopUrgency).toBe('safe');
     expect(pred.poopReason).toContain('hard stool');
+    expect(pred.nextPoopExpectedAt?.toISOString()).toBe('2026-08-10T18:24:00.000Z');
   });
 
   it('5. Night Sleep Boundary: Sleeping overnight postpones potty until morning wakeup', () => {
@@ -100,5 +102,7 @@ describe('Veterinary & Behavioral Scenario Test Suite (Classic Rules)', () => {
 
     expect(pred.peeMode).toBe('night_sleep');
     expect(pred.peeReason).toContain('Morning outing');
+    // Postponed to the default 07:00 wakeup (fewer than 5 logs to learn a schedule), not the standard 02:30 interval
+    expect(pred.nextPeeExpectedAt?.toISOString()).toBe('2026-08-11T07:00:00.000Z');
   });
 });

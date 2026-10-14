@@ -133,6 +133,9 @@ describe('export utilities — CSV and PDF export test suite', () => {
         expect(text).toContain('"Date","Heure","Type d\'Activité","Lieu Besoins","Consistance Selles","Quantité (g)","Quantité (cups)","Durée (min)","Poids (kg)","Médicament","Enregistré Par","Notes"');
         expect(text).toContain('"Matthieu"');
         expect(text).toContain('"Daria"');
+        // SSO full names and emails are resolved to the caretaker name, never exported raw
+        expect(text).not.toContain('Matthieu Jacquet');
+        expect(text).not.toContain('daria.risko@gmail.com');
         expect(text).toContain('Accident in ""hallway"", cleaned immediately');
         expect(text).toContain('"Pipi"');
         expect(text).toContain('"Caca"');
@@ -150,15 +153,14 @@ describe('export utilities — CSV and PDF export test suite', () => {
     it('generates valid English CSV headers when lang is en', async () => {
       const result = exportActivitiesToCSV(mockActivities, mockProfile, 'en', mockCaretakers);
       expect(result).toBe(true);
+      expect(createdBlob).not.toBeNull();
 
-      if (createdBlob) {
-        const text = await (createdBlob as Blob).text();
-        expect(text).toContain('"Date","Time","Activity Type","Potty Location","Stool Consistency","Quantity (g)","Quantity (cups)","Duration (min)","Weight (kg)","Medication","Logged By","Notes"');
-        expect(text).toContain('"Pee"');
-        expect(text).toContain('"Poop"');
-        expect(text).toContain('"Outside"');
-        expect(text).toContain('"Indoor Accident"');
-      }
+      const text = await (createdBlob as Blob).text();
+      expect(text).toContain('"Date","Time","Activity Type","Potty Location","Stool Consistency","Quantity (g)","Quantity (cups)","Duration (min)","Weight (kg)","Medication","Logged By","Notes"');
+      expect(text).toContain('"Pee"');
+      expect(text).toContain('"Poop"');
+      expect(text).toContain('"Outside"');
+      expect(text).toContain('"Indoor Accident"');
     });
   });
 
@@ -182,7 +184,7 @@ describe('export utilities — CSV and PDF export test suite', () => {
       expect(htmlContent).toContain('Berger Australien');
       expect(htmlContent).toContain('240g / jour (3 repas)');
       expect(htmlContent).toContain('window.print()');
-      expect(htmlContent).toContain('5');
+      expect(htmlContent).toContain('<div class="card-value">5</div>'); // total logs card
       expect(htmlContent).toContain('Dehors');
       expect(htmlContent).toContain('Accident Intérieur');
       expect(htmlContent).toContain('80g');
@@ -252,11 +254,10 @@ describe('export utilities — CSV and PDF export test suite', () => {
     it('generates structured CSV with English headers when lang is en', async () => {
       const result = exportHealthPassportToCSV(mockProfile, mockVaccinations, mockDewormings, mockActivities, 'en', mockCaretakers);
       expect(result).toBe(true);
+      expect(createdBlob).not.toBeNull();
 
-      if (createdBlob) {
-        const text = await (createdBlob as Blob).text();
-        expect(text).toContain('"Category","Date","Protocol / Product / Measurement","Next Due / Booster Date","Weight (kg)","Veterinary Clinic","Batch / Lot Number","Logged By","Notes"');
-      }
+      const text = await (createdBlob as Blob).text();
+      expect(text).toContain('"Category","Date","Protocol / Product / Measurement","Next Due / Booster Date","Weight (kg)","Veterinary Clinic","Batch / Lot Number","Logged By","Notes"');
     });
   });
 

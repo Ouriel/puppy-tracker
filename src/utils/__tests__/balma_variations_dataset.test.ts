@@ -6,7 +6,7 @@ import {
   detectMealSchedule,
 } from '../predictions';
 import type { Activity, PuppyProfile } from '../../types';
-import { newestFirst } from './fixtures';
+import { at, newestFirst } from './fixtures';
 
 describe('Balma Derived Variations Test Suite (5 Multi-Scenario Datasets)', () => {
   const balmaBaseProfile: PuppyProfile = {
@@ -45,8 +45,8 @@ describe('Balma Derived Variations Test Suite (5 Multi-Scenario Datasets)', () =
       const wake = new Date(Date.UTC(y, m, d, 8, 30));
       // Daytime potty: 14:00 PM UTC
       const dayPotty = new Date(Date.UTC(y, m, d, 14, 0));
-      // Late night bedtime potty: 23:45 PM UTC
-      const bed = new Date(Date.UTC(y, m, d, 23, 45));
+      // Late night bedtime potty after midnight: 00:30 AM UTC the next calendar day (same logical day)
+      const bed = new Date(Date.UTC(y, m, d + 1, 0, 30));
 
       activities.push({ id: `sw-${dayIdx}`, puppyId: balmaBaseProfile.id, type: 'pee', timestamp: wake.toISOString(), loggedBy: 'Matthieu' });
       activities.push({ id: `sd-${dayIdx}`, puppyId: balmaBaseProfile.id, type: 'pee', timestamp: dayPotty.toISOString(), loggedBy: 'Matthieu' });
@@ -55,8 +55,7 @@ describe('Balma Derived Variations Test Suite (5 Multi-Scenario Datasets)', () =
 
     const schedule = detectSleepSchedule(activities, 'UTC');
 
-    expect(schedule.wakeupStr).toBe('08:30');
-    expect(schedule.bedtimeStr).toBe('23:45');
+    expect(schedule).toEqual({ wakeupHour: 8.5, bedtimeHour: 0.5, wakeupStr: '08:30', bedtimeStr: '00:30' });
   });
 
   it('Scenario 3: Balma Rainy Day Dataset (Wider Variability & Expanded Semi-IQR Delta)', () => {
@@ -64,13 +63,13 @@ describe('Balma Derived Variations Test Suite (5 Multi-Scenario Datasets)', () =
     const days = createDayTimestamps(15, refDate);
     const activities: Activity[] = [];
 
-    // Rainy days have variable gaps (ranging between 150m and 270m depending on indoor naps)
+    // Rainy days have variable gaps (ranging between 150m and 210m depending on indoor naps)
     days.forEach((dayDate, dayIdx) => {
       const y = dayDate.getUTCFullYear();
       const m = dayDate.getUTCMonth();
       const d = dayDate.getUTCDate();
 
-      const gap1 = 150 + (dayIdx % 3) * 60; // 150m, 210m, 270m
+      const gap1 = 150 + (dayIdx % 3) * 30; // 150m, 180m, 210m
       const t1 = new Date(Date.UTC(y, m, d, 8, 0));
       const t2 = new Date(t1.getTime() + gap1 * 60000);
 
@@ -80,9 +79,10 @@ describe('Balma Derived Variations Test Suite (5 Multi-Scenario Datasets)', () =
 
     const learned = calculateLearnedIntervalMinutes(activities, 'pee', 180, { bedtimeHour: 23, wakeupHour: 7 }, 'UTC');
 
-    // Semi-IQR delta should expand to capture the wider rainy day variability (e.g. ±30m to ±45m)
-    expect(learned.deltaMins).toBeGreaterThanOrEqual(25);
-    expect(learned.deltaMins).toBeLessThanOrEqual(45);
+    // Semi-IQR delta (p75 210 - p25 150) / 2 = ±30m expands past the ±15m pee minimum without hitting the ±45m cap
+    expect(learned.deltaMins).toBe(30);
+    // 70th percentile of the 150/180/210 gaps
+    expect(learned.intervalMins).toBe(210);
   });
 
   it('Scenario 5: Balma Meal Frequency Transition Dataset (4 Meals/day -> 3 Meals/day)', () => {
@@ -127,7 +127,7 @@ describe('Balma Derived Variations Test Suite (5 Multi-Scenario Datasets)', () =
     const mealSchedule = detectMealSchedule(activities, 'UTC');
 
     // Weighted median across transition: recent 3-meal days (08:30 AM = 510m) dominate over older 4-meal days (08:00 AM = 480m)
-    expect(mealSchedule.breakfastMins).toBe(510);
+    expect(mealSchedule).toEqual({ breakfastMins: 510, lunchMins: 810, dinnerMins: 1170 });
   });
 
   it('Scenario 6: Balma Morning Awakening After Overnight Sleep Dataset (Screenshot 07:34 AM Reproduction)', () => {
@@ -163,14 +163,14 @@ describe('Balma Derived Variations Test Suite (5 Multi-Scenario Datasets)', () =
 
     const pred = calculatePredictions(newestFirst(activities), balmaBaseProfile, refDate, 'UTC');
 
-    // Next pee in ~5h at 12:34 PM (Safe Zone)
+    // Next pee 4h later at 11:34 (no learned daytime interval, so the 4h age fallback applies; Safe Zone)
+    expect(at(pred.nextPeeExpectedAt!, 'UTC')).toBe('2026-08-21 11:34');
     expect(pred.peeUrgency).toBe('safe');
     expect(pred.peeMode).toBe('daytime_baseline');
 
-    // Next poop expected for morning outing (~07:30 AM), NOT middle of the night (03:52 AM)
-    expect(pred.nextPoopExpectedAt).toBeDefined();
-    const poopUtcHours = pred.nextPoopExpectedAt!.getUTCHours();
-    expect(poopUtcHours).toBe(7);
-    expect(pred.poopReason).toContain('Morning outing');
+    // Next poop expected for morning outing (~07:49 AM), NOT middle of the night (standard transit lands at 03:46 AM)
+    expect(at(pred.nextPoopExpectedAt!, 'UTC')).toBe('2026-08-21 07:49');
+    expect(pred.poopUrgency).toBe('soon');
+    expect(pred.poopReason).toBe('Morning outing (~07:49)');
   });
 });

@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { calculateNextVaccineBooster, calculateNextDewormingDate, calculateNextAntiparasiticDate } from '../health';
+import { describe, it, expect, vi } from 'vitest';
+import { calculateNextVaccineBooster, calculateNextDewormingDate, calculateNextAntiparasiticDate, getHealthRecordStatus } from '../health';
 import type { HealthRecord } from '../../types';
 
 describe('Health Passport — French Veterinary Protocol & Dataset Test Suite', () => {
@@ -116,10 +116,14 @@ describe('Health Passport — French Veterinary Protocol & Dataset Test Suite', 
     expect(nextDue).toBe('2027-07-22');
   });
 
-  it('calculates 36-month (3-year) triennial booster for viral-only vaccines (CHPPi sans L4, Vanguard CPV) for dogs over 16 months', () => {
+  it('calculates 36-month (3-year) triennial booster for viral-only vaccines (CHPPi sans L4, Vanguard CPV) from 16 months', () => {
     // CHPPi sans L4 at age 18 months -> 36 months
     const nextDueViral = calculateNextVaccineBooster('2026-07-22', 'chppi_sans_l4', 18);
     expect(nextDueViral).toBe('2029-07-22');
+
+    // 16 months is the cutoff: triennial from 16, annual at 14
+    expect(calculateNextVaccineBooster('2026-07-22', 'chppi_sans_l4', 16)).toBe('2029-07-22');
+    expect(calculateNextVaccineBooster('2026-07-22', 'chppi_sans_l4', 14)).toBe('2027-07-22');
 
     // Vanguard CPV at age 24 months -> 36 months
     const nextDueCpv = calculateNextVaccineBooster('2026-07-22', 'vanguard_cpv', 24);
@@ -143,7 +147,14 @@ describe('Health Passport — French Veterinary Protocol & Dataset Test Suite', 
 
   it('calculates Milbemax puppy as monthly (<6m) and adult as quarterly (>=6m)', () => {
     expect(calculateNextAntiparasiticDate('2026-06-15', 'Milbemax Tab', 3)).toBe('2026-07-15');
+    expect(calculateNextAntiparasiticDate('2026-06-15', 'Milbemax Tab', 6)).toBe('2026-09-15');
     expect(calculateNextAntiparasiticDate('2026-06-15', 'Milbemax Tab', 8)).toBe('2026-09-15');
+  });
+
+  it('falls back to monthly (<6m) and quarterly (>=6m) for an unknown product', () => {
+    expect(calculateNextAntiparasiticDate('2026-06-15', 'Xyzzy', 3)).toBe('2026-07-15');
+    expect(calculateNextAntiparasiticDate('2026-06-15', 'Xyzzy', 6)).toBe('2026-09-15');
+    expect(calculateNextAntiparasiticDate('2026-06-15', 'Xyzzy', 8)).toBe('2026-09-15');
   });
 
   it('calculates biweekly vermifuge under 2 months according to ESCCAP France', () => {
@@ -181,22 +192,40 @@ describe('Health Passport — French Veterinary Protocol & Dataset Test Suite', 
     expect(hasSubsequentV3).toBe(false);
   });
 
-  it('evaluates deworming dataset: older deworming doses (d1..d4) have subsequent entries and are marked fulfilled', () => {
-    const dewormingLogs = healthPassportDataset.filter((r) => r.type === 'deworming');
-    const sorted = [...dewormingLogs].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  it('evaluates deworming dataset: older doses (d1..d4) are fulfilled and the latest dose (d5) is overdue after its booster date', () => {
+    // Same call as DewormingSection: each record against the deworming list. d5's booster is 2026-08-23.
+    const dewormingLogs = healthPassportDataset.filter((record) => record.type === 'deworming');
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-09-01T10:00:00.000Z'));
+    try {
+      const urgencyById = Object.fromEntries(
+        dewormingLogs.map((record) => [record.id, getHealthRecordStatus(record, dewormingLogs).urgency])
+      );
+      expect(urgencyById).toEqual({
+        'd1-4w': 'fulfilled',
+        'd2-6w': 'fulfilled',
+        'd3-8w': 'fulfilled',
+        'd4-12w': 'fulfilled',
+        'd5-16w': 'overdue',
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 
-    const latestDeworming = sorted[0];
-    expect(latestDeworming.id).toBe('d5-16w');
-
-    // d1..d4 all have subsequent entries
-    ['d1-4w', 'd2-6w', 'd3-8w', 'd4-12w'].forEach((id) => {
-      const entry = dewormingLogs.find((d) => d.id === id)!;
-      const hasSubsequent = dewormingLogs.some((other) => other.id !== id && new Date(other.date).getTime() >= new Date(entry.date).getTime());
-      expect(hasSubsequent).toBe(true);
-    });
-
-    // d5-16w has no subsequent entry
-    const hasSubsequentD5 = dewormingLogs.some((other) => other.id !== 'd5-16w' && new Date(other.date).getTime() >= new Date('2026-07-23').getTime());
-    expect(hasSubsequentD5).toBe(false);
+  it('flags the latest record as due soon up to 14 days before its booster date, up to date after that', () => {
+    const urgencyForBooster = (boosterDate: string) => {
+      const record = { id: 'v1', date: '2026-08-01', boosterDate };
+      return getHealthRecordStatus(record, [record]).urgency;
+    };
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-09-01T10:00:00.000Z'));
+    try {
+      expect(urgencyForBooster('2026-09-11')).toBe('soon'); // 9 days
+      expect(urgencyForBooster('2026-09-16')).toBe('soon'); // 14 days
+      expect(urgencyForBooster('2026-09-17')).toBe('upToDate'); // 15 days
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
