@@ -2,12 +2,26 @@
  * Timezone-safe & Localized Date Handling Utilities for PupPace
  */
 
+// One Intl.DateTimeFormat per locale + options: building one is the slow part. An invalid timezone throws, uncached.
+const formatterCache = new Map<string, Intl.DateTimeFormat>();
+function getFormatter(locale: string, options: Intl.DateTimeFormatOptions): Intl.DateTimeFormat {
+  const key = `${locale}|${JSON.stringify(options)}`;
+  let formatter = formatterCache.get(key);
+  if (!formatter) {
+    formatter = new Intl.DateTimeFormat(locale, options);
+    formatterCache.set(key, formatter);
+  }
+  return formatter;
+}
+
+let userTimeZone: string | undefined;
+
 /**
  * Gets user's IANA timezone string safely (e.g. 'Europe/Paris', 'America/New_York')
  */
 export function getUserTimezone(): string {
   try {
-    return Intl.DateTimeFormat().resolvedOptions().timeZone || 'Europe/Paris';
+    return (userTimeZone ??= Intl.DateTimeFormat().resolvedOptions().timeZone || 'Europe/Paris');
   } catch {
     return 'Europe/Paris';
   }
@@ -19,7 +33,7 @@ export function getUserTimezone(): string {
 export function getLocalHour(date: Date = new Date(), timeZone?: string): number {
   const tz = timeZone || getUserTimezone();
   try {
-    const formatter = new Intl.DateTimeFormat('en-US', { timeZone: tz, hour: 'numeric', hour12: false });
+    const formatter = getFormatter('en-US', { timeZone: tz, hour: 'numeric', hour12: false });
     return parseInt(formatter.format(date), 10) % 24;
   } catch {
     return date.getHours();
@@ -32,7 +46,7 @@ export function getLocalHour(date: Date = new Date(), timeZone?: string): number
 export function getLocalDecimalHour(date: Date = new Date(), timeZone?: string): number {
   const tz = timeZone || getUserTimezone();
   try {
-    const formatter = new Intl.DateTimeFormat('en-US', {
+    const formatter = getFormatter('en-US', {
       timeZone: tz,
       hour: 'numeric',
       minute: 'numeric',
@@ -59,7 +73,7 @@ export function getLocalDecimalHour(date: Date = new Date(), timeZone?: string):
 export function formatLocalDate(date: Date = new Date(), timeZone?: string): string {
   const tz = timeZone || getUserTimezone();
   try {
-    const formatter = new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' });
+    const formatter = getFormatter('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' });
     return formatter.format(date);
   } catch {
     const year = date.getFullYear();
@@ -87,7 +101,7 @@ export function getLocalDatetimeString(date: Date = new Date()): string {
 export function formatLocalTime(date: Date, timeZone?: string): string {
   const tz = timeZone || getUserTimezone();
   try {
-    const formatter = new Intl.DateTimeFormat('en-US', {
+    const formatter = getFormatter('en-US', {
       timeZone: tz,
       hour: '2-digit',
       minute: '2-digit',
@@ -112,7 +126,7 @@ function createDateInTimezone(dateStr: string, timeStr: string, timeZone?: strin
   const utcDate = new Date(Date.UTC(year, (month || 1) - 1, day || 1, hours || 0, minutes || 0, 0));
 
   try {
-    const formatter = new Intl.DateTimeFormat('en-US', {
+    const formatter = getFormatter('en-US', {
       timeZone: tz,
       year: 'numeric',
       month: 'numeric',
@@ -154,8 +168,9 @@ export function getOccurrenceOfClockTimeInTimezone(
   daysOffset: number = 0
 ): Date {
   const tz = timeZone || getUserTimezone();
-  const targetDay = new Date(referenceDate.getTime() + daysOffset * 24 * 3600 * 1000);
-  const dateStr = formatLocalDate(targetDay, tz);
+  // Day arithmetic on the local calendar date: adding 24 h skips or repeats a day across a DST change
+  const [year, month, day] = formatLocalDate(referenceDate, tz).split('-').map(Number);
+  const dateStr = new Date(Date.UTC(year, month - 1, day + daysOffset)).toISOString().slice(0, 10);
   const h = Math.floor(targetHourDecimal);
   const m = Math.round((targetHourDecimal - h) * 60);
   const timeStr = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;

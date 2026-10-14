@@ -118,7 +118,7 @@ describe('Balma Morning Awakening & Overnight Transition Dataset Test Suite', ()
 
     // 3. Check at 10:15 AM (after breakfast): when post-meal override does not apply,
     // morning poop remains overdue based on morning wakeup — never pushes +9h into evening!
-    // R4 (post-meal override) scope: this half is tightened in Phase 3a.
+    // R4 (post-meal override) was dropped in Phase 3a, so both modes stay accepted here.
     const postBfastCheck = new Date('2026-08-21T10:15:00+02:00');
     const postBfastPred = calculatePredictions(newestFirst(dataset), BALMA, postBfastCheck, 'Europe/Paris');
 

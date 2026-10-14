@@ -8,7 +8,10 @@ import {
   formatMinutesToXhXX,
   parseIsoDate,
   getLocalHour,
+  getLocalDecimalHour,
   formatLocalTime,
+  getOccurrenceOfClockTimeInTimezone,
+  getUserTimezone,
 } from '../date';
 
 describe('date utility module — comprehensive test suite', () => {
@@ -29,6 +32,27 @@ describe('date utility module — comprehensive test suite', () => {
     const d = new Date('2026-08-09T21:15:00.000Z');
     expect(formatLocalTime(d, 'Europe/Paris')).toBe('23:15');
     expect(formatLocalTime(d, 'America/New_York')).toBe('17:15');
+  });
+
+  it('builds each Intl.DateTimeFormat once and reuses it on later calls (P5 formatter cache)', () => {
+    const date = new Date('2026-08-09T21:15:00.000Z');
+    const formatAll = () => [
+      getUserTimezone(),
+      formatLocalDate(date, 'Asia/Tokyo'),
+      getLocalHour(date, 'Asia/Tokyo'),
+      getLocalDecimalHour(date, 'Asia/Tokyo'),
+      formatLocalTime(date, 'Asia/Tokyo'),
+      getOccurrenceOfClockTimeInTimezone(date, 7.5, 'Asia/Tokyo').toISOString(),
+    ];
+    expect(formatAll()).toEqual(['Europe/Paris', '2026-08-10', 6, 6.25, '06:15', '2026-08-09T22:30:00.000Z']);
+
+    const constructorSpy = vi.spyOn(Intl, 'DateTimeFormat');
+    try {
+      expect(formatAll()).toEqual(['Europe/Paris', '2026-08-10', 6, 6.25, '06:15', '2026-08-09T22:30:00.000Z']);
+      expect(constructorSpy).not.toHaveBeenCalled();
+    } finally {
+      constructorSpy.mockRestore();
+    }
   });
 
   it('getLocalDatetimeString formats date for datetime-local input', () => {
@@ -117,4 +141,9 @@ describe('date utility module — comprehensive test suite', () => {
     const dObj = new Date(2026, 7, 9, 15, 30);
     expect(parseIsoDate(dObj)).toBe(dObj);
   });
+
+  // Rest of R11, deferred in Phase 3a (no effect in the real-data replay)
+  it.todo('formatRelativeTime: "Yesterday" across a DST change (it subtracts 24 h from local midnight)');
+  it.todo('createDateInTimezone: second offset pass for wall-clock times next to a DST change');
+  it.todo('formatLogicalDate: 04:00 cutoff on the wall clock, not now - 4 h (04:00-05:00 on the spring-forward day is still the previous day)');
 });
