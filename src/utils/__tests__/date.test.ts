@@ -11,7 +11,6 @@ import {
   getLocalDecimalHour,
   formatLocalTime,
   getOccurrenceOfClockTimeInTimezone,
-  getUserTimezone,
 } from '../date';
 
 describe('date utility module — comprehensive test suite', () => {
@@ -36,19 +35,19 @@ describe('date utility module — comprehensive test suite', () => {
 
   it('builds each Intl.DateTimeFormat once and reuses it on later calls (P5 formatter cache)', () => {
     const date = new Date('2026-08-09T21:15:00.000Z');
+    // getUserTimezone is read live on purpose (follows the device), so it is not part of the cache
     const formatAll = () => [
-      getUserTimezone(),
       formatLocalDate(date, 'Asia/Tokyo'),
       getLocalHour(date, 'Asia/Tokyo'),
       getLocalDecimalHour(date, 'Asia/Tokyo'),
       formatLocalTime(date, 'Asia/Tokyo'),
       getOccurrenceOfClockTimeInTimezone(date, 7.5, 'Asia/Tokyo').toISOString(),
     ];
-    expect(formatAll()).toEqual(['Europe/Paris', '2026-08-10', 6, 6.25, '06:15', '2026-08-09T22:30:00.000Z']);
+    expect(formatAll()).toEqual(['2026-08-10', 6, 6.25, '06:15', '2026-08-09T22:30:00.000Z']);
 
     const constructorSpy = vi.spyOn(Intl, 'DateTimeFormat');
     try {
-      expect(formatAll()).toEqual(['Europe/Paris', '2026-08-10', 6, 6.25, '06:15', '2026-08-09T22:30:00.000Z']);
+      expect(formatAll()).toEqual(['2026-08-10', 6, 6.25, '06:15', '2026-08-09T22:30:00.000Z']);
       expect(constructorSpy).not.toHaveBeenCalled();
     } finally {
       constructorSpy.mockRestore();

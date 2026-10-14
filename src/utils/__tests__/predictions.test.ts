@@ -419,8 +419,24 @@ describe('predictions utility — comprehensive test suite', () => {
         );
 
         expect(predictions.poopReason).toBe('Standard digestive interval (~6h)');
-        expect(predictions.nextPoopExpectedAt!.toISOString()).toBe('2026-08-10T11:00:00.000Z');
+        // The standard time never lands before the pause ends (05:00 + 8.4 h)
+        expect(predictions.nextPoopExpectedAt!.toISOString()).toBe('2026-08-10T13:24:00.000Z');
         expect(predictions.poopUrgency).toBe('overdue');
+      });
+
+      it('hands over from the hard-stool pause to "due now", not to "overdue by hours"', () => {
+        const dayOnly = { bedtimeHour: 23.5, wakeupHour: 6, bedtimeStr: '23:30', wakeupStr: '06:00' };
+        const hardStool = [act('poop', '2026-08-10T08:00:00Z', { stoolConsistency: 'hard' })];
+        const predictAt = (iso: string) => calculatePredictions(hardStool, BALMA, new Date(iso), 'UTC', dayOnly);
+
+        // Pause ends at 08:00 + max(1.4 x 6 h, 8 h) = 16:24
+        const lastMinuteOfPause = predictAt('2026-08-10T16:23:00Z');
+        expect(lastMinuteOfPause.poopReason).toBe('Digestive recovery: pause after hard stool');
+        expect(lastMinuteOfPause.poopUrgency).toBe('safe');
+
+        const pauseOver = predictAt('2026-08-10T16:24:00Z');
+        expect(pauseOver.nextPoopExpectedAt!.toISOString()).toBe('2026-08-10T16:24:00.000Z');
+        expect(pauseOver.poopUrgency).toBe('overdue');
       });
 
       it('keeps the pre-bed poop only until bedtime + 1 h, not bedtime + half the interval', () => {

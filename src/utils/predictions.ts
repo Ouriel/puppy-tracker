@@ -801,7 +801,12 @@ export function predictNextPoop(
 
   const lastPoopDate = parseIsoDate(lastPoop.timestamp);
   const lastPoopTime = lastPoopDate.getTime();
-  const standardExpectedAt = new Date(lastPoopTime + learnedPoop.intervalMins * 60 * 1000);
+  // Hard stool: pause for max(1.4 x the interval, 8 h); the badge stays safe until the pause ends,
+  // and the standard time never lands before it (no "overdue by hours" when the pause ends)
+  const isHardStool = lastPoop.stoolConsistency === 'hard';
+  const recoveryEnd = lastPoopTime + Math.max(learnedPoop.intervalMins * 1.4, 480) * 60 * 1000;
+  const isInRecovery = isHardStool && now.getTime() < recoveryEnd;
+  const standardExpectedAt = new Date(isHardStool ? recoveryEnd : lastPoopTime + learnedPoop.intervalMins * 60 * 1000);
 
   const todayPoops = past.filter((a) => a.type === 'poop' && isSameLogicalDate(parseIsoDate(a.timestamp), now, tz));
 
@@ -809,10 +814,6 @@ export function predictNextPoop(
   const isDeepNight = isDeepNightTime(standardExpectedAt, learnedPoop.intervalMins, sleepSchedule, tz, now);
   // Unlike pee, the poop pre-bed outing ends at bedtime + 1 h: half its long interval would run until about 04:00
   const preservePreBed = shouldPreservePreBedPotty(lastPoopTime, learnedPoop.intervalMins, 60, now, sleepSchedule, tz);
-
-  // Hard stool: pause for max(1.4 x the interval, 8 h); the badge stays safe until the pause ends
-  const recoveryEnd = lastPoopTime + Math.max(learnedPoop.intervalMins * 1.4, 480) * 60 * 1000;
-  const isInRecovery = lastPoop.stoolConsistency === 'hard' && now.getTime() < recoveryEnd;
 
   const isLastPoopDiarrhea =
     lastPoop.stoolConsistency === 'diarrhea' ||

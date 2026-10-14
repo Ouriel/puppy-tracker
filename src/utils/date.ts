@@ -14,14 +14,13 @@ function getFormatter(locale: string, options: Intl.DateTimeFormatOptions): Intl
   return formatter;
 }
 
-let userTimeZone: string | undefined;
-
 /**
- * Gets user's IANA timezone string safely (e.g. 'Europe/Paris', 'America/New_York')
+ * Gets user's IANA timezone string safely (e.g. 'Europe/Paris', 'America/New_York').
+ * Read live (not cached) so an app left open across a timezone change follows the device.
  */
 export function getUserTimezone(): string {
   try {
-    return (userTimeZone ??= Intl.DateTimeFormat().resolvedOptions().timeZone || 'Europe/Paris');
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || 'Europe/Paris';
   } catch {
     return 'Europe/Paris';
   }
