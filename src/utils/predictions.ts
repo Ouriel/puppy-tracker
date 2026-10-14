@@ -11,7 +11,6 @@ import type {
 } from '../types';
 import {
   parseIsoDate,
-  formatLocalDate,
   formatLogicalDate,
   formatLocalTime,
   formatMinutesToXhXX,
@@ -399,12 +398,8 @@ export function calculateLearnedIntervalMinutes(
         const isPrevDay = isDaytimeHour(prevHour, sleepSchedule.wakeupHour, sleepSchedule.bedtimeHour);
         const isCurrDay = isDaytimeHour(currHour, sleepSchedule.wakeupHour, sleepSchedule.bedtimeHour);
 
-        // An interval spans overnight sleep if it starts in the evening/night and ends the next morning after waking up
-        const isDifferentDays = formatLocalDate(prevTime, timeZone) !== formatLocalDate(currTime, timeZone);
-        const crossesNight = isDifferentDays && diffMinutes >= 4.5 * 60 && (
-          (prevHour >= 20 || isNighttimeHour(prevHour, sleepSchedule.wakeupHour, sleepSchedule.bedtimeHour)) &&
-          (currHour >= (sleepSchedule.wakeupHour - 2) && currHour <= (sleepSchedule.wakeupHour + 3.5))
-        );
+        // An interval spans overnight sleep if it ends on a later logical day (04:00 cutoff) than it starts
+        const crossesNight = !isSameLogicalDate(prevTime, currTime, timeZone);
 
         // Allow valid waking retention intervals (including pre-bedtime outings around midnight)
         if (isPrevDay && isCurrDay && !crossesNight && diffMinutes <= 8 * 60) {
@@ -577,24 +572,24 @@ function getRelevantBedtime(now: Date, sleepSchedule: SleepSchedule, timeZone: s
 
 /**
  * Determines whether tonight's pre-bed potty outing must be preserved based on the puppy's learned interval.
- * Returns true if the puppy's voiding urge is at least 50% mature at bedtime (T_exp <= bedtime + interval / 2).
+ * Returns true until bedtime + windowMins if the voiding urge is at least 50% mature at bedtime (T_exp <= bedtime + interval / 2).
  */
 function shouldPreservePreBedPotty(
   lastLogTime: number,
   intervalMins: number,
+  windowMins: number,
   now: Date,
   sleepSchedule: SleepSchedule,
   timeZone: string
 ): boolean {
   const bedtime = getRelevantBedtime(now, sleepSchedule, timeZone);
-  const bufferMs = (intervalMins / 2) * 60 * 1000;
 
   // Pre-bed preservation only applies during waking evening or the immediate bedtime transition window
-  if (now.getTime() > bedtime.getTime() + bufferMs) return false;
+  if (now.getTime() > bedtime.getTime() + windowMins * 60 * 1000) return false;
 
   const standardExpectedTime = lastLogTime + intervalMins * 60 * 1000;
   const isFromToday = lastLogTime >= bedtime.getTime() - 18 * 60 * 60 * 1000;
-  const expiresBeforeSleep = standardExpectedTime <= bedtime.getTime() + bufferMs;
+  const expiresBeforeSleep = standardExpectedTime <= bedtime.getTime() + (intervalMins / 2) * 60 * 1000;
 
   return isFromToday && expiresBeforeSleep;
 }
@@ -674,7 +669,7 @@ export function predictNextPee(
 
   const isNightTime = isNightTimeMode(now, sorted, sleepSchedule, tz);
   const isDeepNight = isDeepNightTime(standardExpectedAt, learnedPee.intervalMins, sleepSchedule, tz, now);
-  const preservePreBed = shouldPreservePreBedPotty(lastPeeTime, learnedPee.intervalMins, now, sleepSchedule, tz);
+  const preservePreBed = shouldPreservePreBedPotty(lastPeeTime, learnedPee.intervalMins, learnedPee.intervalMins / 2, now, sleepSchedule, tz);
 
   let nextExpectedAt: Date = standardExpectedAt;
   let mode: ScheduleMode = 'daytime_baseline';
@@ -749,10 +744,9 @@ export function predictNextPee(
 
   const diffMins = (nextExpectedAt.getTime() - now.getTime()) / 60000;
   let urgency: 'safe' | 'soon' | 'overdue' = 'safe';
-  if (mode !== 'night_sleep') {
-    if (diffMins <= 0) urgency = 'overdue';
-    else if (diffMins <= 20) urgency = 'soon';
-  }
+  // Night targets (morning outing, young-puppy mid-night break) show soon in their last 20 min, never overdue
+  if (diffMins <= 0 && mode !== 'night_sleep') urgency = 'overdue';
+  else if (diffMins <= 20) urgency = 'soon';
 
   const deltaMins = mode === 'post_meal_override' ? learnedPostMealPee.deltaMins : learnedPee.deltaMins;
 
@@ -807,17 +801,19 @@ export function predictNextPoop(
 
   const lastPoopDate = parseIsoDate(lastPoop.timestamp);
   const lastPoopTime = lastPoopDate.getTime();
-  const standardExpectedAt = new Date(lastPoopTime + learnedPoop.intervalMins * 60 * 1000);
+  // Hard stool: pause for max(1.4 x the interval, 8 h); the badge stays safe until the pause ends,
+  // and the standard time never lands before it (no "overdue by hours" when the pause ends)
+  const isHardStool = lastPoop.stoolConsistency === 'hard';
+  const recoveryEnd = lastPoopTime + Math.max(learnedPoop.intervalMins * 1.4, 480) * 60 * 1000;
+  const isInRecovery = isHardStool && now.getTime() < recoveryEnd;
+  const standardExpectedAt = new Date(isHardStool ? recoveryEnd : lastPoopTime + learnedPoop.intervalMins * 60 * 1000);
 
   const todayPoops = past.filter((a) => a.type === 'poop' && isSameLogicalDate(parseIsoDate(a.timestamp), now, tz));
 
   const isNightTime = isNightTimeMode(now, sorted, sleepSchedule, tz);
   const isDeepNight = isDeepNightTime(standardExpectedAt, learnedPoop.intervalMins, sleepSchedule, tz, now);
-  const preservePreBed = shouldPreservePreBedPotty(lastPoopTime, learnedPoop.intervalMins, now, sleepSchedule, tz);
-
-  const isLastPoopConstipated =
-    lastPoop.stoolConsistency === 'hard' ||
-    (lastPoop.notes || '').toLowerCase().match(/huge|gros|big|grand|constipat/) !== null;
+  // Unlike pee, the poop pre-bed outing ends at bedtime + 1 h: half its long interval would run until about 04:00
+  const preservePreBed = shouldPreservePreBedPotty(lastPoopTime, learnedPoop.intervalMins, 60, now, sleepSchedule, tz);
 
   const isLastPoopDiarrhea =
     lastPoop.stoolConsistency === 'diarrhea' ||
@@ -838,10 +834,9 @@ export function predictNextPoop(
     const nextBoundaryMins = Math.ceil(Math.max(elapsedMins, 1) / 60) * 60;
     nextExpectedAt = new Date(lastPoopTime + nextBoundaryMins * 60 * 1000);
     reason = 'Digestive alert: frequent checks recommended';
-  } else if (isLastPoopConstipated && hoursSinceLastPoop < 16) {
+  } else if (isInRecovery) {
     mode = 'daytime_baseline';
-    const refractoryMinutes = Math.max(learnedPoop.intervalMins * 1.4, 480);
-    nextExpectedAt = new Date(lastPoopTime + refractoryMinutes * 60 * 1000);
+    nextExpectedAt = new Date(recoveryEnd);
     reason = 'Digestive recovery: pause after hard stool';
   } else if (isNightTime && !preservePreBed) {
     mode = 'night_sleep';
@@ -918,7 +913,7 @@ export function predictNextPoop(
 
   const diffMins = (nextExpectedAt.getTime() - now.getTime()) / 60000;
   let urgency: 'safe' | 'soon' | 'overdue' = 'safe';
-  if (mode !== 'night_sleep' && !isLastPoopConstipated) {
+  if (mode !== 'night_sleep' && !isInRecovery) {
     if (diffMins <= 0) urgency = 'overdue';
     else if (diffMins <= 30) urgency = 'soon';
   }
@@ -955,9 +950,8 @@ export function predictNextFood(
   const vetRecommendedMeals = months < 3 ? 4 : months < 6 ? 3 : 2;
   const targetMeals = Math.max(1, profile.targetMealsPerDay || vetRecommendedMeals);
 
-  const todayDateStr = formatLocalDate(now, tz);
   const todayMeals = past.filter(
-    (a) => a.type === 'food' && formatLocalDate(parseIsoDate(a.timestamp), tz) === todayDateStr
+    (a) => a.type === 'food' && isSameLogicalDate(parseIsoDate(a.timestamp), now, tz)
   );
   const todayGramTotal = todayMeals.reduce((sum, a) => sum + (a.quantityGrams || 0), 0);
   const isGramGoalMet = profile.dailyFoodGramGoal > 0 && todayGramTotal >= profile.dailyFoodGramGoal * 0.90;
@@ -987,26 +981,11 @@ export function predictNextFood(
   let urgency: 'safe' | 'soon' | 'overdue' = 'safe';
   let reason = '';
 
-  if (isNightTime && !isGoalReached && todayMeals.length > 0 && todayMeals.length < targetMeals) {
-    // Pre-bedtime meal preservation: daily goal not yet met, keep tonight's overdue meal
-    mode = 'daytime_schedule';
-    const lastMealToday = todayMeals.reduce((latest, curr) =>
-      parseIsoDate(curr.timestamp).getTime() > parseIsoDate(latest.timestamp).getTime() ? curr : latest
-    , todayMeals[0]);
-    const lastMealTime = parseIsoDate(lastMealToday.timestamp).getTime();
-    const remainingMealsCount = Math.max(1, targetMeals - todayMeals.length);
-    const effectiveBedtime = sleepSchedule.bedtimeHour < sleepSchedule.wakeupHour
-      ? sleepSchedule.bedtimeHour + 24
-      : sleepSchedule.bedtimeHour;
-    const lastMealHour = getLocalDecimalHour(new Date(lastMealTime), tz);
-    const wakingHoursLeft = Math.max(1, effectiveBedtime - lastMealHour);
-    const idealIntervalHours = Math.max(2.5, Math.min(5.5, wakingHoursLeft / (remainingMealsCount + 1)));
-    nextExpectedAt = new Date(lastMealTime + idealIntervalHours * 60 * 60 * 1000);
-    urgency = 'overdue';
-    reason = todayMeals.length >= targetMeals
-      ? `Remaining portion (spaced ~${idealIntervalHours.toFixed(1)}h)`
-      : `Meal ${todayMeals.length + 1} of ${targetMeals} (spaced ~${idealIntervalHours.toFixed(1)}h)`;
-  } else if (isNightTime) {
+  // A missed meal stays on the card until bedtime + 1 h (normal meal spacing), then night mode takes over
+  const isPreBedMealPending = !isGoalReached && todayMeals.length > 0 && todayMeals.length < targetMeals
+    && now.getTime() <= getRelevantBedtime(now, sleepSchedule, tz).getTime() + 60 * 60 * 1000;
+
+  if (isNightTime && !isPreBedMealPending) {
     mode = 'night_sleep';
     nextExpectedAt = nextBreakfast;
     reason = `Breakfast (~${nextBfastStr}, Meal 1 of ${targetMeals})`;
@@ -1038,19 +1017,24 @@ export function predictNextFood(
       : sleepSchedule.bedtimeHour;
     const lastMealHour = getLocalDecimalHour(new Date(lastMealTime), tz);
     const wakingHoursLeft = Math.max(1, effectiveBedtime - lastMealHour);
-    const idealIntervalHours = Math.max(2.5, Math.min(5.5, wakingHoursLeft / (remainingMealsCount + 1)));
+    const idealIntervalHours = Math.max(2.5, wakingHoursLeft / (remainingMealsCount + 1));
 
-    nextExpectedAt = new Date(lastMealTime + idealIntervalHours * 60 * 60 * 1000);
+    // An extra 'Remaining portion' meal is a reminder: due now at the latest, never overdue
+    const isExtraPortion = todayMeals.length >= targetMeals;
+    nextExpectedAt = new Date(Math.max(lastMealTime + idealIntervalHours * 60 * 60 * 1000, isExtraPortion ? now.getTime() : 0));
     const minsUntil = (nextExpectedAt.getTime() - now.getTime()) / 60000;
 
-    if (minsUntil <= 0) urgency = 'overdue';
+    if (minsUntil <= 0 && !isExtraPortion) urgency = 'overdue';
     else if (minsUntil <= 30) urgency = 'soon';
 
-    reason = todayMeals.length >= targetMeals
+    reason = isExtraPortion
       ? `Remaining portion (spaced ~${idealIntervalHours.toFixed(1)}h)`
       : `Meal ${todayMeals.length + 1} of ${targetMeals} (spaced ~${idealIntervalHours.toFixed(1)}h)`;
   }
 
+  // ponytail: no UI reads portionGrams (App and PredictorWidget call calculateNextMealPortion themselves); kept only
+  // because tests pin it on the engine's logical-day meal count (0 g after midnight once the day's goal is eaten).
+  // Remove it from FoodPredictionResult/PredictionResult and its tests in the Phase 8 refactor.
   const portionGrams = calculateNextMealPortion(
     profile.dailyFoodGramGoal,
     targetMeals,

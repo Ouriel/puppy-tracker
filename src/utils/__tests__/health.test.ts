@@ -228,4 +228,7 @@ describe('Health Passport — French Veterinary Protocol & Dataset Test Suite', 
       vi.useRealTimers();
     }
   });
+
+  // Rest of R11, deferred in Phase 3a
+  it.todo('due dates across a DST change: local setMonth can move a midnight-UTC record date one day early');
 });

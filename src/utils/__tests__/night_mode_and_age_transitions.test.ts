@@ -93,6 +93,11 @@ describe('Night Mode, Evening Outings, and Age Transitions Comprehensive Test Su
     expect(pred1.peeReason).toContain('Young puppy mid-night potty break');
     expect(at(pred1.nextPeeExpectedAt!)).toBe('2026-08-09 02:00'); // 22:00 + 4h
 
+    // Night targets show soon in their last 20 min, never overdue
+    const pred1Soon = calculatePredictions(newestFirst(step1Activities), youngProfile, new Date('2026-08-09T01:45:00+02:00'), 'Europe/Paris', sleepSchedule);
+    expect(pred1Soon.peeReason).toContain('Young puppy mid-night potty break');
+    expect(pred1Soon.peeUrgency).toBe('soon');
+
     // Step 2: Logged 02:00 AM mid-night pee, checked at 02:30 AM
     const step2Activities = [
       ...step1Activities,

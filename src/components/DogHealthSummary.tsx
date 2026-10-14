@@ -107,7 +107,7 @@ export const DogHealthSummary: React.FC<DogHealthSummaryProps> = React.memo(({
 
     const targetMeals = profile.targetMealsPerDay || 3;
     const dailyGrams = profile.dailyFoodGramGoal || 200;
-    const portionGrams = predictions.portionGrams || Math.round(dailyGrams / targetMeals);
+    const portionGrams = Math.round(dailyGrams / targetMeals);
 
     // Build meal items list based on targetMealsPerDay
     const mealItems: { name: string; timeStr: string; grams: number }[] = [];

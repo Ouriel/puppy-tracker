@@ -248,6 +248,20 @@ describe('predictions utility — comprehensive test suite', () => {
         expect(predictions.peeUrgency).toBe('safe');
       });
 
+      it('shows the morning outing as soon in the last 20 min before wake-up (08:25), still in night mode', () => {
+        const activities = [act('pee', '2026-08-09T23:00:00+02:00')];
+        const schedule = { bedtimeHour: 23.5, wakeupHour: 8 + 25 / 60, bedtimeStr: '23:30', wakeupStr: '08:25' };
+
+        const at0810 = calculatePredictions(activities, BALMA, new Date('2026-08-10T08:10:00+02:00'), 'Europe/Paris', schedule);
+        expect(at0810.peeMode).toBe('night_sleep');
+        expect(at(at0810.nextPeeExpectedAt!)).toBe('2026-08-10 08:25');
+        expect(at0810.peeUrgency).toBe('soon');
+
+        const at0730 = calculatePredictions(activities, BALMA, new Date('2026-08-10T07:30:00+02:00'), 'Europe/Paris', schedule);
+        expect(at0730.peeMode).toBe('night_sleep');
+        expect(at0730.peeUrgency).toBe('safe');
+      });
+
       it('includes mid-night break for young puppies under 2.5 months during night mode', () => {
         const youngProfile: PuppyProfile = { ...mockProfile, birthDate: '2026-07-01' }; // ~5 weeks old
         const nightTime = new Date('2026-08-08T00:30:00+02:00'); // 00:30 AM night Paris
@@ -333,7 +347,7 @@ describe('predictions utility — comprehensive test suite', () => {
         expect(predictions.poopReason).toContain('Post-meal poop break');
       });
 
-      it('handles recent constipation and bowel clearance gracefully with extended recovery phase and safe status', () => {
+      it('ends the hard-stool pause at 05:35 (21:11 + 8.4 h): at 10:00 the 07:10 morning outing is overdue (R3)', () => {
         const referenceTime = new Date('2026-08-08T10:00:00+02:00'); // Aug 8, 10:00 AM Paris
 
         const constipationDataset: Activity[] = [
@@ -342,12 +356,40 @@ describe('predictions utility — comprehensive test suite', () => {
         ];
 
         const predictions = calculatePredictions(constipationDataset, mockProfile, referenceTime, 'Europe/Paris');
-        // KNOWN BUG R3: pinned in Phase 3a (urgency stays 'safe' although the predicted 05:35 is past at 10:00)
-        expect(predictions.poopUrgency).toBe('safe');
-        expect(predictions.poopReason).toContain('Digestive recovery');
+        // Pause = max(1.4 x 6 h fallback interval, 8 h) = 8.4 h; then the default 07:00 wake-up + 10 min
+        expect(predictions.poopReason).toBe('Morning outing (~07:10)');
+        expect(at(predictions.nextPoopExpectedAt!)).toBe('2026-08-08 07:10');
+        expect(predictions.poopUrgency).toBe('overdue');
       });
 
-      // Urgency is left out of the two hard-stool tests below: KNOWN BUG R3 keeps it 'safe', pinned in Phase 3a.
+      it('keeps the badge safe during the pause, even 14 min before it ends in the night (R3)', () => {
+        const predictions = calculatePredictions(
+          [act('poop', '2026-08-10T22:00:00+02:00', { stoolConsistency: 'hard' })],
+          BALMA,
+          new Date('2026-08-11T06:10:00+02:00'),
+          'Europe/Paris',
+          { bedtimeHour: 22.5, wakeupHour: 7.5, bedtimeStr: '22:30', wakeupStr: '07:30' }
+        );
+
+        // 22:00 + 8.4 h = 06:24
+        expect(predictions.poopReason).toBe('Digestive recovery: pause after hard stool');
+        expect(at(predictions.nextPoopExpectedAt!)).toBe('2026-08-11 06:24');
+        expect(predictions.poopUrgency).toBe('safe');
+      });
+
+      it('reads a hard stool from the consistency only, not from words in the notes (R3)', () => {
+        const predictions = calculatePredictions(
+          [act('poop', '2026-08-10T08:00:00Z', { stoolConsistency: 'normal', notes: 'grande promenade au parc' })],
+          BALMA,
+          new Date('2026-08-10T10:00:00Z'),
+          'UTC'
+        );
+
+        // 08:00 + 6 h standard interval, no recovery pause
+        expect(predictions.poopReason).toBe('Standard digestive interval (~6h)');
+        expect(predictions.nextPoopExpectedAt!.toISOString()).toBe('2026-08-10T14:00:00.000Z');
+      });
+
       it('pauses at least 8 h after a hard stool when 1.4 x the learned interval is shorter', () => {
         const poops = newestFirst([
           act('poop', '2026-08-10T06:00:00Z'),
@@ -361,9 +403,10 @@ describe('predictions utility — comprehensive test suite', () => {
         // Learned 240 min x 1.4 = 336 min is below the 480-min floor: 18:00 + 8 h
         expect(predictions.poopReason).toBe('Digestive recovery: pause after hard stool');
         expect(predictions.nextPoopExpectedAt!.toISOString()).toBe('2026-08-11T02:00:00.000Z');
+        expect(predictions.poopUrgency).toBe('safe');
       });
 
-      it('ignores a hard stool logged more than 16 h ago and goes back to the standard interval', () => {
+      it('goes back to the standard interval, with its urgency, once the hard-stool pause is over (17 h later)', () => {
         const lateBedtime = { bedtimeHour: 23.5, wakeupHour: 6, bedtimeStr: '23:30', wakeupStr: '06:00' };
 
         // 05:00 hard stool, 17 h before 22:00
@@ -376,7 +419,43 @@ describe('predictions utility — comprehensive test suite', () => {
         );
 
         expect(predictions.poopReason).toBe('Standard digestive interval (~6h)');
-        expect(predictions.nextPoopExpectedAt!.toISOString()).toBe('2026-08-10T11:00:00.000Z');
+        // The standard time never lands before the pause ends (05:00 + 8.4 h)
+        expect(predictions.nextPoopExpectedAt!.toISOString()).toBe('2026-08-10T13:24:00.000Z');
+        expect(predictions.poopUrgency).toBe('overdue');
+      });
+
+      it('hands over from the hard-stool pause to "due now", not to "overdue by hours"', () => {
+        const dayOnly = { bedtimeHour: 23.5, wakeupHour: 6, bedtimeStr: '23:30', wakeupStr: '06:00' };
+        const hardStool = [act('poop', '2026-08-10T08:00:00Z', { stoolConsistency: 'hard' })];
+        const predictAt = (iso: string) => calculatePredictions(hardStool, BALMA, new Date(iso), 'UTC', dayOnly);
+
+        // Pause ends at 08:00 + max(1.4 x 6 h, 8 h) = 16:24
+        const lastMinuteOfPause = predictAt('2026-08-10T16:23:00Z');
+        expect(lastMinuteOfPause.poopReason).toBe('Digestive recovery: pause after hard stool');
+        expect(lastMinuteOfPause.poopUrgency).toBe('safe');
+
+        const pauseOver = predictAt('2026-08-10T16:24:00Z');
+        expect(pauseOver.nextPoopExpectedAt!.toISOString()).toBe('2026-08-10T16:24:00.000Z');
+        expect(pauseOver.poopUrgency).toBe('overdue');
+      });
+
+      it('keeps the pre-bed poop only until bedtime + 1 h, not bedtime + half the interval', () => {
+        // A poop every 11 h, the last at 14:48: the standard 01:48 is before bedtime (22:51) + 5.5 h
+        const poops = newestFirst(
+          ['2026-08-09T18:48', '2026-08-10T05:48', '2026-08-10T16:48', '2026-08-11T03:48', '2026-08-11T14:48'].map((time) => act('poop', `${time}:00+02:00`))
+        );
+        const schedule = { bedtimeHour: 22.85, wakeupHour: 8.62, bedtimeStr: '22:51', wakeupStr: '08:37' };
+
+        const beforeBedtimePlusOneHour = calculatePredictions(poops, BALMA, new Date('2026-08-11T23:30:00+02:00'), 'Europe/Paris', schedule);
+        expect(beforeBedtimePlusOneHour.poopMode).toBe('daytime_baseline');
+        expect(beforeBedtimePlusOneHour.poopReason).toBe('Learned average: ~11h digestive interval');
+        expect(at(beforeBedtimePlusOneHour.nextPoopExpectedAt!)).toBe('2026-08-12 01:48');
+        expect(beforeBedtimePlusOneHour.poopUrgency).toBe('safe');
+
+        const deepNight = calculatePredictions(poops, BALMA, new Date('2026-08-12T02:00:00+02:00'), 'Europe/Paris', schedule);
+        expect(deepNight.poopMode).toBe('night_sleep');
+        expect(deepNight.poopReason).toBe('Morning outing (~08:47)');
+        expect(deepNight.poopUrgency).toBe('safe');
       });
 
       it('enters night sleep mode for poop during overnight hours', () => {
@@ -473,7 +552,7 @@ describe('predictions utility — comprehensive test suite', () => {
         expect(predictions.foodUrgency).toBe('soon');
       });
 
-      it('caps meal spacing at 5.5 h (2 meals a day, 08:00 breakfast, 14 waking hours left)', () => {
+      it('spaces meal 2 halfway between the 08:00 breakfast and the 22:00 bedtime, with no 5.5 h cap', () => {
         const predictions = calculatePredictions(
           [act('food', '2026-08-10T08:00:00Z')],
           { ...BALMA, targetMealsPerDay: 2 },
@@ -481,11 +560,11 @@ describe('predictions utility — comprehensive test suite', () => {
           'UTC'
         );
 
-        // (22:00 - 08:00) / 2 = 7 h, capped at 5.5 h
-        expect(predictions.foodReason).toBe('Meal 2 of 2 (spaced ~5.5h)');
-        expect(predictions.nextFoodExpectedAt!.toISOString()).toBe('2026-08-10T13:30:00.000Z');
+        // (22:00 - 08:00) / 2 = 7 h
+        expect(predictions.foodReason).toBe('Meal 2 of 2 (spaced ~7.0h)');
+        expect(predictions.nextFoodExpectedAt!.toISOString()).toBe('2026-08-10T15:00:00.000Z');
 
-        // Same cap at 23:00, when the missing meal is kept past bedtime instead of switching to night mode
+        // Same spacing at 23:00 (bedtime + 1 h), when the missing meal is kept past bedtime instead of switching to night mode
         const pastBedtime = calculatePredictions(
           [act('food', '2026-08-10T08:00:00Z')],
           { ...BALMA, targetMealsPerDay: 2 },
@@ -493,9 +572,43 @@ describe('predictions utility — comprehensive test suite', () => {
           'UTC'
         );
         expect(pastBedtime.foodMode).toBe('daytime_schedule');
-        expect(pastBedtime.foodReason).toBe('Meal 2 of 2 (spaced ~5.5h)');
-        expect(pastBedtime.nextFoodExpectedAt!.toISOString()).toBe('2026-08-10T13:30:00.000Z');
+        expect(pastBedtime.foodReason).toBe('Meal 2 of 2 (spaced ~7.0h)');
+        expect(pastBedtime.nextFoodExpectedAt!.toISOString()).toBe('2026-08-10T15:00:00.000Z');
         expect(pastBedtime.foodUrgency).toBe('overdue');
+      });
+
+      it('keeps meal 2 safe at 15:30 after a 09:45 breakfast (bedtime 23:30): due ~16:37, not overdue since 15:15', () => {
+        const predictions = calculatePredictions(
+          [act('food', '2026-08-10T09:45:00+02:00', { quantityGrams: 100 })],
+          { ...BALMA, targetMealsPerDay: 2, dailyFoodGramGoal: 200 },
+          new Date('2026-08-10T15:30:00+02:00'),
+          'Europe/Paris',
+          { bedtimeHour: 23.5, wakeupHour: 8, bedtimeStr: '23:30', wakeupStr: '08:00' }
+        );
+
+        // (23:30 - 09:45) / 2 = 6 h 52 min
+        expect(predictions.foodReason).toBe('Meal 2 of 2 (spaced ~6.9h)');
+        expect(at(predictions.nextFoodExpectedAt!)).toBe('2026-08-10 16:37');
+        expect(predictions.foodUrgency).toBe('safe');
+      });
+
+      it('never shows the remaining portion as overdue: 85 g + 80 g of 200 g is soon and due now at 21:30', () => {
+        const predictions = calculatePredictions(
+          newestFirst([
+            act('food', '2026-08-10T09:00:00+02:00', { quantityGrams: 85 }),
+            act('food', '2026-08-10T15:00:00+02:00', { quantityGrams: 80 }),
+          ]),
+          { ...BALMA, targetMealsPerDay: 2, dailyFoodGramGoal: 200 },
+          new Date('2026-08-10T21:30:00+02:00'),
+          'Europe/Paris',
+          { bedtimeHour: 23.5, wakeupHour: 8, bedtimeStr: '23:30', wakeupStr: '08:00' }
+        );
+
+        // 15:00 + (23:30 - 15:00) / 2 = 19:15 is past at 21:30, so the card shows it due now (no 'overdue by' countdown)
+        expect(predictions.foodReason).toBe('Remaining portion (spaced ~4.3h)');
+        expect(at(predictions.nextFoodExpectedAt!)).toBe('2026-08-10 21:30');
+        expect(predictions.foodUrgency).toBe('soon');
+        expect(predictions.portionGrams).toBe(35);
       });
 
       it('flags goal reached once 90% of the daily gram goal is logged', () => {
@@ -525,6 +638,56 @@ describe('predictions utility — comprehensive test suite', () => {
 
         expect(predictions.foodMode).toBe('night_sleep');
         expect(predictions.foodUrgency).toBe('safe');
+      });
+
+      describe('meals count on the logical day (04:00 cutoff), like the timeline and the Feed button (R7)', () => {
+        const twoMealPlan: PuppyProfile = { ...BALMA, targetMealsPerDay: 2, dailyFoodGramGoal: 200 };
+        const schedule = { bedtimeHour: 22.5, wakeupHour: 7.5, bedtimeStr: '22:30', wakeupStr: '07:30' };
+
+        it('counts a 00:20 top-up in the previous day: at 08:00 the next meal is breakfast with the standard 100 g', () => {
+          const activities = newestFirst([
+            act('food', '2026-08-12T09:00:00+02:00', { quantityGrams: 100 }),
+            act('food', '2026-08-12T18:00:00+02:00', { quantityGrams: 60 }),
+            act('food', '2026-08-13T00:20:00+02:00', { quantityGrams: 60 }),
+          ]);
+
+          const predictions = calculatePredictions(activities, twoMealPlan, new Date('2026-08-13T08:00:00+02:00'), 'Europe/Paris', schedule);
+
+          expect(predictions.foodMode).toBe('daytime_schedule');
+          expect(predictions.foodReason).toBe('Breakfast (~09:00, Meal 1 of 2)');
+          expect(at(predictions.nextFoodExpectedAt!)).toBe('2026-08-13 09:00');
+          expect(predictions.foodUrgency).toBe('safe');
+          expect(predictions.portionGrams).toBe(100);
+        });
+
+        it('does not add a 01:40 meal to the next day: one 100 g breakfast at 15:00 is not the daily goal', () => {
+          const activities = newestFirst([
+            act('food', '2026-08-12T09:00:00+02:00', { quantityGrams: 100 }),
+            act('food', '2026-08-13T01:40:00+02:00', { quantityGrams: 150 }),
+            act('food', '2026-08-13T09:30:00+02:00', { quantityGrams: 100 }),
+          ]);
+
+          const predictions = calculatePredictions(activities, twoMealPlan, new Date('2026-08-13T15:00:00+02:00'), 'Europe/Paris', schedule);
+
+          expect(predictions.foodMode).toBe('daytime_schedule');
+          expect(predictions.foodReason).toContain('Meal 2 of 2');
+          expect(predictions.portionGrams).toBe(100);
+        });
+
+        it('keeps a missed meal until bedtime + 1 h only: at 23:55 (bedtime 22:30) it is night mode, safe', () => {
+          const predictions = calculatePredictions(
+            [act('food', '2026-08-13T09:00:00+02:00', { quantityGrams: 100 })],
+            twoMealPlan,
+            new Date('2026-08-13T23:55:00+02:00'),
+            'Europe/Paris',
+            schedule
+          );
+
+          expect(predictions.foodMode).toBe('night_sleep');
+          expect(predictions.foodUrgency).toBe('safe');
+          expect(predictions.foodReason).toBe('Breakfast (~07:30, Meal 1 of 2)');
+          expect(at(predictions.nextFoodExpectedAt!)).toBe('2026-08-14 07:30');
+        });
       });
     });
 
@@ -560,6 +723,23 @@ describe('predictions utility — comprehensive test suite', () => {
 
         expect(predictions.peeMode).toBe('night_sleep');
         expect(predictions.nextPeeExpectedAt!.toISOString()).toBe('2026-10-25T06:00:00.000Z'); // 07:00 UTC+1
+      });
+
+      it('at 23:30 the night before the spring-forward change, predicts the next morning on 28 Mar, not 29 Mar (R11)', () => {
+        // 2027-03-28: Paris goes from UTC+1 to UTC+2 at 02:00, so that night is 23 h long
+        const predictions = calculatePredictions(
+          newestFirst([act('poop', '2027-03-27T21:00:00+01:00'), act('pee', '2027-03-27T22:30:00+01:00')]),
+          BALMA,
+          new Date('2027-03-27T23:30:00+01:00'),
+          'Europe/Paris',
+          { bedtimeHour: 22.5, wakeupHour: 7, bedtimeStr: '22:30', wakeupStr: '07:00' }
+        );
+
+        expect([predictions.peeMode, predictions.poopMode, predictions.foodMode]).toEqual(['night_sleep', 'night_sleep', 'night_sleep']);
+        // 07:00 wake-up, + default 10-min poop offset, default 07:30 breakfast, all on the upcoming morning
+        expect(at(predictions.nextPeeExpectedAt!)).toBe('2027-03-28 07:00');
+        expect(at(predictions.nextPoopExpectedAt!)).toBe('2027-03-28 07:10');
+        expect(at(predictions.nextFoodExpectedAt!)).toBe('2027-03-28 07:30');
       });
     });
   });
@@ -779,11 +959,10 @@ describe('predictions utility — comprehensive test suite', () => {
       const learned = calculateLearnedIntervalMinutes(activities, 'pee', 120, sleepSchedule, 'Europe/Paris');
 
       expect(learned.isLearned).toBe(true);
-      // KNOWN BUG NEW-1: pinned in Phase 3a (today sampleCount is 24: the four 00:40 → 07:50 overnight gaps count as daytime samples)
-      expect(learned.sampleCount).toBeGreaterThanOrEqual(15);
-      // Average should be ~265 - 300m (~4h25m - 5h), NOT compressed to 3h28m
-      expect(learned.intervalMins).toBeGreaterThanOrEqual(260);
-      expect(learned.intervalMins).toBeLessThanOrEqual(305);
+      // 4 daytime gaps a day x 5 days; the four 00:40 → 07:50 overnight gaps are not daytime samples (NEW-1)
+      expect(learned.sampleCount).toBe(20);
+      // 70th percentile of 265 / 300 / 300 / 145 min gaps: 300 min, NOT compressed to 3h28m
+      expect(learned.intervalMins).toBe(300);
     });
 
     it('calculates proper meal intervals when bedtime wraps past midnight', () => {
@@ -1111,6 +1290,15 @@ describe('predictions utility — comprehensive test suite', () => {
         expect(reversed).toEqual(calculatePredictions(activities, BALMA, referenceTime, 'Europe/Paris'));
       }
     });
+  });
+
+  // Dropped or deferred in Phase 3a after the 30-day real-data replay (.agents/plans/2026-10-13-remediation-plan.md)
+  describe('dropped or deferred engine changes', () => {
+    it.todo('R1: bedtime from the longest evening gap (dropped: 1-3 h too early on real data; night-pee bedtime moves to Phase 8 / INV-1)');
+    it.todo('R4: next = min(standard, post-meal) (dropped: post-meal mode is off for the only dog in production)');
+    it.todo('R5: night ends at wake-up - 2 h with a morning anchor (deferred: no real-data effect, risks a safe card for a dog up early)');
+    it.todo('R8: morning poop falls back to the wake clock without morning-poop samples (dropped: does not fix mornings without a poop)');
+    it.todo('learned lunch/dinner slots for the next meal (dropped: less accurate than removing the 5.5 h spacing cap)');
   });
 });
 
