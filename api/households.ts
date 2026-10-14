@@ -4,7 +4,7 @@ import { drizzle } from 'drizzle-orm/neon-http';
 import { eq, and } from 'drizzle-orm';
 import { caretakersTable, householdsTable } from '../src/db/schema.js';
 import { CaretakerInputSchema } from '../src/utils/schemas.js';
-import { verifyAuth, setCorsHeaders, isHouseholdAdmin } from './_auth.js';
+import { verifyAuth, setCorsHeaders, canDeleteHouseholdData } from './_auth.js';
 
 const connectionString = process.env.POSTGRES_URL || process.env.DATABASE_URL || '';
 const sql = neon(connectionString);
@@ -120,8 +120,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // DELETE /api/households?id=ct-xxx — Remove a caretaker
     if (req.method === 'DELETE') {
-      if (!isHouseholdAdmin(auth.role)) {
-        return res.status(403).json({ error: 'Only household admins can manage caretakers' });
+      if (!canDeleteHouseholdData(auth)) {
+        return res.status(403).json({ error: 'Only the owner can remove caretakers' });
       }
       const id = (req.query.id || req.query.caretakerId) as string;
       if (!id) return res.status(400).json({ error: 'caretaker id is required' });

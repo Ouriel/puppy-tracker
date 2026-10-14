@@ -46,11 +46,9 @@ export interface AuthContext {
   role: string;
 }
 
-const HOUSEHOLD_ADMIN_ROLES = ['SuperAdmin', 'Husband', 'Wife'];
-
-/** Roles allowed to delete a dog or a caretaker. */
-export function isHouseholdAdmin(role: string): boolean {
-  return HOUSEHOLD_ADMIN_ROLES.includes(role);
+/** Only the owner (SuperAdmin, recognised by email, never by a role claim) may delete a dog or a caretaker. */
+export function canDeleteHouseholdData(auth: AuthContext): boolean {
+  return isSuperAdminEmail(auth.email);
 }
 
 /**

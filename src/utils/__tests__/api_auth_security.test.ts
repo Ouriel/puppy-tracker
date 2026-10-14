@@ -383,13 +383,30 @@ describe('API Security & Session Token Validation Test Suite', () => {
       expect(response.body).toMatchObject({ name: 'Daria' });
     });
 
-    it('lets a Husband delete a dog, like the caretaker DELETE gate', async () => {
-      const response = createMockResponse();
+    it('forbids a Husband from deleting a dog or a caretaker: only the owner (SuperAdmin) deletes (owner decision)', async () => {
+      dbMock.rowsByTable.users = [{ ...activeUserRow, role: 'Husband' }];
+      const dogResponse = createMockResponse();
+      const caretakerResponse = createMockResponse();
 
-      await dogsHandler(bearerRequest(tokenFor('Husband'), 'DELETE', undefined, { id: 'dog-1' }), response);
+      await dogsHandler(bearerRequest(tokenFor('Husband'), 'DELETE', undefined, { id: 'dog-1' }), dogResponse);
+      await householdsHandler(bearerRequest(tokenFor('Husband'), 'DELETE', undefined, { id: 'ct-1' }), caretakerResponse);
 
-      expect(response.statusCode).toBe(200);
-      expect(dbMock.delete).toHaveBeenCalledTimes(1);
+      expect(dogResponse.statusCode).toBe(403);
+      expect(caretakerResponse.statusCode).toBe(403);
+      expect(dbMock.delete).not.toHaveBeenCalled();
+    });
+
+    it('lets the SuperAdmin (recognised by email) delete a dog and a caretaker', async () => {
+      const ownerToken = signAppSessionToken({ email: SUPER_ADMIN_EMAIL, name: 'Owner', householdId: 'hh-family-123', role: 'SuperAdmin' }, 30);
+      const dogResponse = createMockResponse();
+      const caretakerResponse = createMockResponse();
+
+      await dogsHandler(bearerRequest(ownerToken, 'DELETE', undefined, { id: 'dog-1' }), dogResponse);
+      await householdsHandler(bearerRequest(ownerToken, 'DELETE', undefined, { id: 'ct-1' }), caretakerResponse);
+
+      expect(dogResponse.statusCode).toBe(200);
+      expect(caretakerResponse.statusCode).toBe(200);
+      expect(dbMock.delete).toHaveBeenCalledTimes(2);
     });
   });
 
