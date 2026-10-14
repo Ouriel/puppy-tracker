@@ -1073,6 +1073,15 @@ export function predictNextFood(
 }
 
 /**
+ * R10: the logs at most 1 minute after `now`. A future-dated log (typo) would become the schedules' "now"
+ * and empty their learning windows; the dashboard's today totals use the same rule.
+ */
+export function excludeFutureLogs(activities: Activity[], now: Date): Activity[] {
+  const maxAllowedTime = now.getTime() + 60 * 1000;
+  return activities.filter((activity) => parseIsoDate(activity.timestamp).getTime() <= maxAllowedTime);
+}
+
+/**
  * Composite Facade: Advanced Predictive Potty & Feeding Schedules with Night Sleep Detection & Timezone Awareness.
  * Wraps predictNextPee, predictNextPoop, and predictNextFood for complete backwards compatibility.
  */
@@ -1085,9 +1094,7 @@ export function calculatePredictions(
 ): PredictionResult {
   const now = referenceTime || new Date();
   const tz = timeZone || getUserTimezone();
-  // R10: a future-dated log (typo) would become the schedules' "now" and empty their learning windows
-  const maxAllowedTime = now.getTime() + 60 * 1000;
-  const past = activities.filter((activity) => parseIsoDate(activity.timestamp).getTime() <= maxAllowedTime);
+  const past = excludeFutureLogs(activities, now);
   const sleepSchedule = customSleepSchedule || detectSleepSchedule(past, tz);
   const mealSchedule = detectMealSchedule(past, tz);
   const options: PredictorOptions = {

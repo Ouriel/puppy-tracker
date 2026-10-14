@@ -125,6 +125,14 @@ describe('/api/activities binds loggedBy to the signed-in user', () => {
     expect(dbMock.insertedValues[0].loggedBy).toBe('Daria');
   });
 
+  // 32: an edit that empties the note sends null
+  it('PUT with notes null deletes the note', async () => {
+    const response = createMockResponse();
+    await activitiesHandler(requestAsDaria('PUT', { id: 'act-1', type: 'pee', notes: null }), response);
+    expect(response.statusCode).toBe(200);
+    expect(dbMock.updatedValues[0].notes).toBeNull();
+  });
+
   it('PUT never changes who logged an activity', async () => {
     const response = createMockResponse();
     await activitiesHandler(requestAsDaria('PUT', { id: 'act-1', notes: 'edited', loggedBy: 'Matthieu Jacquet' }), response);

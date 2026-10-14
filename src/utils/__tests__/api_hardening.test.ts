@@ -180,6 +180,26 @@ describe('API input, error and pagination hardening', () => {
     expect(response.body.error).toBe('Invalid activity payload');
   });
 
+  // 31: in the handler, not in the zod object: PUT parses ActivityInputSchema.partial()
+  it.each(['POST', 'PUT'])('%s /api/activities refuses a medication without a name', async (method) => {
+    for (const medicationName of [undefined, null, '', '   ']) {
+      dbMock.selectCount = 0;
+      const response = createMockResponse();
+      const body = { id: 'act-1', puppyId: 'pup-1', type: 'medication', timestamp: '2026-10-13T08:00:00.000Z', medicationName };
+      await activitiesHandler(getRequest({}, method, body), response);
+      expect(response.statusCode, JSON.stringify(medicationName)).toBe(400);
+      expect(response.body.error).toBe('medicationName is required');
+    }
+  });
+
+  it('POST /api/activities saves a named medication', async () => {
+    const response = createMockResponse();
+    const body = { puppyId: 'pup-1', type: 'medication', timestamp: '2026-10-13T08:00:00.000Z', medicationName: 'Credelio' };
+    await activitiesHandler(getRequest({}, 'POST', body), response);
+    expect(response.statusCode).toBe(201);
+    expect(dbMock.insertedValues[0].medicationName).toBe('Credelio');
+  });
+
   describe('new ids are random UUIDs (S7)', () => {
     it('POST /api/activities without an id stores act-<uuid>', async () => {
       const response = createMockResponse();

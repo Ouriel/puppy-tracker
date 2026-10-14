@@ -31,6 +31,7 @@ function getHeaders(): Record<string, string> {
 
 async function request<T>(url: string, options: RequestInit = {}): Promise<ApiResult<T>> {
   const method = (options.method || 'GET').toUpperCase();
+  const sentToken = getAuthToken();
   const headers = { ...getHeaders(), ...(options.headers || {}) };
 
   // For GET requests:
@@ -65,11 +66,14 @@ async function request<T>(url: string, options: RequestInit = {}): Promise<ApiRe
         return { ok: true, data: data as T };
       }
 
+      // Only the token that was sent is rejected: a sign-in while this request was in flight stays
       if (res.status === 401) {
-        clearAuthToken();
-        apiCache.clear();
-        if (typeof window !== 'undefined') {
-          window.dispatchEvent(new CustomEvent('puppace:unauthorized'));
+        if (getAuthToken() === sentToken) {
+          clearAuthToken();
+          apiCache.clear();
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('puppace:unauthorized'));
+          }
         }
         return { ok: false, error: 'Unauthorized', status: 401 };
       }
@@ -85,6 +89,11 @@ async function request<T>(url: string, options: RequestInit = {}): Promise<ApiRe
       // A late answer must not remove a newer request for the same URL
       if (method === 'GET' && inflightRequests.get(url)?.startedAt === startedAt) {
         inflightRequests.delete(url);
+      }
+      // A GET sent or answered while this change was in flight may miss it: never reuse it once the change is answered
+      if (method !== 'GET') {
+        apiCache.clear();
+        inflightRequests.clear();
       }
     }
   })();

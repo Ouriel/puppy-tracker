@@ -41,7 +41,7 @@ export const ActivitySchema: z.ZodType<Activity> = z.object({
   durationMinutes: z.number().optional(),
   weightKg: z.number().optional(),
   medicationName: z.string().optional(),
-  notes: z.string().optional(),
+  notes: z.string().nullable().optional(),
 });
 
 export const PuppyProfileSchema: z.ZodType<PuppyProfile> = z.object({
@@ -112,7 +112,12 @@ export const ActivityInputSchema = z.object({
   id: z.string().optional(),
   puppyId: z.string().min(1, 'puppyId is required'),
   type: z.enum(['pee', 'poop', 'food', 'walk', 'weight', 'medication']),
-  timestamp: z.string().refine((value) => !Number.isNaN(Date.parse(value)), 'timestamp must be a valid date').optional(),
+  timestamp: z
+    .string()
+    .refine((value) => !Number.isNaN(Date.parse(value)), 'timestamp must be a valid date')
+    // The form stops 5 min ahead by the phone's clock; a phone whose clock is hours off must still save
+    .refine((value) => Date.parse(value) <= Date.now() + 24 * 60 * 60 * 1000, 'timestamp is more than 24 h in the future')
+    .optional(),
   loggedBy: z.string().optional(),
   pottyLocation: PottyLocationSchema.nullable().optional(),
   stoolConsistency: z.string().nullable().optional(),
@@ -121,7 +126,7 @@ export const ActivityInputSchema = z.object({
   quantityGrams: z.coerce.number().positive().nullable().optional(),
   quantityCups: z.number().or(z.string()).nullable().optional(),
   durationMinutes: z.number().or(z.string()).nullable().optional(),
-  weightKg: z.number().or(z.string()).nullable().optional(),
+  weightKg: z.coerce.number().min(0.3).max(100).nullable().optional(),
   medicationName: z.string().nullable().optional(),
   notes: z.string().nullable().optional(),
 });

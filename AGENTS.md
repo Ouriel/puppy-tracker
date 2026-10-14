@@ -35,7 +35,7 @@ PupPace — Smart Household Puppy Activity Tracker & Potty Predictor. React 19 +
 ### User Identity & Security
 
 - `loggedBy` is the signed-in user, resolved by `getCurrentCaretakerName` (`src/utils/caretakers.ts`): the caretaker matching the user's email or exact name, else the account name. The client (`useCaretakers.currentUser`) and `POST /api/activities` both use it; the server ignores the body's `loggedBy`, and `PUT` never changes it.
-- QuickLogModal renders `loggedBy` as a read-only, locked input showing the active user's name. Users cannot log events under another family member's name.
+- QuickLogModal shows `loggedBy` as a read-only line, "Logged by <name>" ("Enregistré par <name>"): the signed-in user for a new log, the original author in an edit. There is no input for it, so users cannot log events under another family member's name.
 
 ### Health Passport & Protocols
 
@@ -119,7 +119,7 @@ PupPace — Smart Household Puppy Activity Tracker & Potty Predictor. React 19 +
 - `src/services/api.ts` maintains an `inflightRequests` map to de-duplicate simultaneous requests for identical URLs across mounting components.
 - Every API response is `Cache-Control: no-store` (set once in `setCorsHeaders`). `clearApiCache()` keeps in-flight requests, so the `visibilitychange` + `focus` + `pageshow` burst of one return to the app makes one `/api/dashboard` call. A GET joins an in-flight request only if it is under 2 s old (`INFLIGHT_JOIN_MS`), so a request sent before the app went to the background, or one that hangs, is never reused. Keep both: `no-store` without that deduplication turns the burst into three function calls.
 - Within the in-memory TTL window (60s), serve from cache directly without spawning redundant background `fetch()` requests on every tab switch.
-- Clear cache synchronously on mutations (`createActivity`, `updateActivity`, `deleteActivity`, `createDog`, etc.).
+- Clear cache synchronously on mutations (`createActivity`, `updateActivity`, `deleteActivity`, `createDog`, etc.), and clear the cache and in-flight GETs again when the mutation is answered: a GET sent or answered while it was in flight may miss it and is never reused.
 
 ### HeroUI CSS Performance
 

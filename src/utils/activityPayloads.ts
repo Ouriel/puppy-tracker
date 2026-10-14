@@ -42,9 +42,12 @@ export interface QuickLogForm {
 }
 
 export interface QuickLogFormError {
-  field: 'quantityGrams' | 'weightKg' | 'timestamp';
-  messageKey: 'gramsRequired' | 'weightInvalid' | 'dateTimeRequired';
+  field: 'quantityGrams' | 'weightKg' | 'medicationName' | 'timestamp';
+  messageKey: 'gramsRequired' | 'weightInvalid' | 'medicationRequired' | 'dateTimeRequired' | 'dateTimeInFuture';
 }
+
+// A log may be dated up to 5 minutes after Save, by the phone's clock
+const MAX_FUTURE_LOG_MS = 5 * 60 * 1000;
 
 /** Reads a typed decimal, with a comma or a dot ('10,4' -> 10.4); NaN for anything else ('', 'abc', '1e3', '-5'). */
 export function parseDecimalInput(text: string): number {
@@ -52,8 +55,8 @@ export function parseDecimalInput(text: string): number {
   return /^(\d+([.,]\d*)?|[.,]\d+)$/.test(trimmed) ? Number(trimmed.replace(',', '.')) : NaN;
 }
 
-/** The first field that blocks the save, or null when the form can be saved. */
-export function validateQuickLogForm(form: QuickLogForm): QuickLogFormError | null {
+/** The first field that blocks the save, or null when the form can be saved. `now`: when Save is pressed. */
+export function validateQuickLogForm(form: QuickLogForm, now: Date = new Date()): QuickLogFormError | null {
   if (form.type === 'food') {
     const grams = parseDecimalInput(form.quantityGrams);
     if (!Number.isFinite(grams) || grams <= 0) return { field: 'quantityGrams', messageKey: 'gramsRequired' };
@@ -62,8 +65,15 @@ export function validateQuickLogForm(form: QuickLogForm): QuickLogFormError | nu
     const kg = parseDecimalInput(form.weightKg);
     if (!(kg >= 0.3 && kg <= 100)) return { field: 'weightKg', messageKey: 'weightInvalid' };
   }
-  if (!form.localTimestamp || Number.isNaN(new Date(form.localTimestamp).getTime())) {
+  if (form.type === 'medication' && !form.medicationName.trim()) {
+    return { field: 'medicationName', messageKey: 'medicationRequired' };
+  }
+  const time = new Date(form.localTimestamp).getTime();
+  if (!form.localTimestamp || Number.isNaN(time)) {
     return { field: 'timestamp', messageKey: 'dateTimeRequired' };
+  }
+  if (time > now.getTime() + MAX_FUTURE_LOG_MS) {
+    return { field: 'timestamp', messageKey: 'dateTimeInFuture' };
   }
   return null;
 }
@@ -75,7 +85,8 @@ export function buildQuickLogActivity(form: QuickLogForm): Omit<Activity, 'id'> 
     type: form.type,
     timestamp: new Date(form.localTimestamp).toISOString(),
     loggedBy: form.loggedBy,
-    notes: form.notes.trim() || undefined,
+    // null, not undefined: an edit that empties the note must send it, so the server deletes it
+    notes: form.notes.trim() || null,
   };
 
   if (form.type === 'pee' || form.type === 'poop') {
@@ -90,7 +101,7 @@ export function buildQuickLogActivity(form: QuickLogForm): Omit<Activity, 'id'> 
   } else if (form.type === 'weight') {
     activity.weightKg = parseDecimalInput(form.weightKg);
   } else if (form.type === 'medication') {
-    activity.medicationName = form.medicationName;
+    activity.medicationName = form.medicationName.trim();
   }
 
   return activity;
