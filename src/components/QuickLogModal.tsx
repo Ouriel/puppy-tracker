@@ -6,12 +6,16 @@ import { Modal } from '@heroui/react';
 import { useI18n } from '../i18n';
 import { getLocalDatetimeString } from '../utils/date';
 import { buildQuickLogActivity, validateQuickLogForm, type QuickLogFormError } from '../utils/activityPayloads';
+import type { UnifiedWeightEntry } from '../utils/weight';
+import { WeightHint } from './common/WeightHint';
 
 interface QuickLogModalProps {
   isOpen: boolean;
   initialType?: ActivityType;
   activityToEdit?: Activity;
   defaultMealPortionGrams?: number;
+  // Shown as a hint under the weight box, which always starts empty
+  lastWeighIn?: UnifiedWeightEntry;
   onClose: () => void;
   onSave: (activity: Omit<Activity, 'id'>) => void;
   currentUser: string;
@@ -27,6 +31,7 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
   initialType = 'pee',
   activityToEdit,
   defaultMealPortionGrams,
+  lastWeighIn,
   onClose,
   onSave,
   currentUser,
@@ -337,6 +342,7 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
                       }}
                     />
                     {weightError && <p id="quicklog-weight-kg-error" role="alert" className={inputErrorClass}>{weightError}</p>}
+                    <WeightHint lastWeighIn={lastWeighIn} typedText={weightKg} />
                   </div>
                 )}
 

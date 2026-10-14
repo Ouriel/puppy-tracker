@@ -16,6 +16,7 @@ import { formatShortDate } from '../utils/date';
 interface DogHealthSummaryProps {
   profile: PuppyProfile;
   activities: Activity[];
+  weightActivities: Activity[]; // every weigh-in of the dog, whatever its date
   predictions?: PredictionResult | null;
   healthRecords?: HealthRecord[];
   onOpenHealthPassport: () => void;
@@ -24,6 +25,7 @@ interface DogHealthSummaryProps {
 export const DogHealthSummary: React.FC<DogHealthSummaryProps> = React.memo(({
   profile,
   activities,
+  weightActivities,
   predictions,
   healthRecords = [],
   onOpenHealthPassport,
@@ -55,7 +57,7 @@ export const DogHealthSummary: React.FC<DogHealthSummaryProps> = React.memo(({
 
   // Extract weight metrics (Last Logged, Assumed Current, Probable Adult Range via empirical trajectory)
   const weightData = useMemo(() => {
-    const unifiedLogs = getUnifiedWeightEntries(activities, puppyRecords);
+    const unifiedLogs = getUnifiedWeightEntries(weightActivities);
     const lastEntry = unifiedLogs.length > 0 ? unifiedLogs[unifiedLogs.length - 1] : null;
     const lastLogDateStr = lastEntry ? formatShortDate(lastEntry.timestamp, lang as 'en' | 'fr') : null;
     const lastLogAgeWeeks = lastEntry && profile.birthDate ? getPuppyAge(profile.birthDate, lastEntry.timestamp).weeks : null;
@@ -68,7 +70,7 @@ export const DogHealthSummary: React.FC<DogHealthSummaryProps> = React.memo(({
       profile.gender,
       profile.expectedAdultWeightKg
     );
-    const weightInfo = getEffectivePuppyWeight(profile, activities, undefined, puppyRecords);
+    const weightInfo = getEffectivePuppyWeight(profile, weightActivities);
 
     return {
       lastWeightKg: weightInfo.lastLoggedWeight,
@@ -80,7 +82,7 @@ export const DogHealthSummary: React.FC<DogHealthSummaryProps> = React.memo(({
       dailyGainGrams: weightInfo.dailyGainGrams,
       walthamCategory: projectedWeight.walthamCategory,
     };
-  }, [activities, puppyRecords, profile, lang]);
+  }, [weightActivities, profile, lang]);
 
   // Reuses the core prediction metadata (sleep schedule & meal schedule) calculated for the main 3 cards
   const scheduleData = useMemo(() => {

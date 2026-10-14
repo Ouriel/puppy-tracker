@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
-import { calculateNextVaccineBooster, calculateNextDewormingDate, calculateNextAntiparasiticDate, getHealthRecordStatus } from '../health';
-import type { HealthRecord } from '../../types';
+import { calculateNextVaccineBooster, calculateNextDewormingDate, calculateNextAntiparasiticDate, getHealthRecordStatus, isVetVisitWeight } from '../health';
+import type { Activity, HealthRecord } from '../../types';
 
 describe('Health Passport — French Veterinary Protocol & Dataset Test Suite', () => {
   /**
@@ -53,7 +53,6 @@ describe('Health Passport — French Veterinary Protocol & Dataset Test Suite', 
       productName: 'Milbemax Tab Chiot',
       date: '2026-04-25',
       boosterDate: '2026-05-09',
-      weightAtTime: 1.8,
     },
     {
       id: 'd2-6w',
@@ -64,7 +63,6 @@ describe('Health Passport — French Veterinary Protocol & Dataset Test Suite', 
       productName: 'Milbemax Tab Chiot',
       date: '2026-05-09',
       boosterDate: '2026-05-23',
-      weightAtTime: 2.4,
     },
     {
       id: 'd3-8w',
@@ -75,7 +73,6 @@ describe('Health Passport — French Veterinary Protocol & Dataset Test Suite', 
       productName: 'Milbemax Tab Chiot',
       date: '2026-05-23',
       boosterDate: '2026-06-23',
-      weightAtTime: 3.2,
     },
     {
       id: 'd4-12w',
@@ -86,7 +83,6 @@ describe('Health Passport — French Veterinary Protocol & Dataset Test Suite', 
       productName: 'Credelio Plus',
       date: '2026-06-23',
       boosterDate: '2026-07-23',
-      weightAtTime: 5.1,
     },
     {
       id: 'd5-16w',
@@ -97,7 +93,6 @@ describe('Health Passport — French Veterinary Protocol & Dataset Test Suite', 
       productName: 'Credelio Plus',
       date: '2026-07-23',
       boosterDate: '2026-08-23',
-      weightAtTime: 7.8,
     },
   ];
 
@@ -303,4 +298,18 @@ describe('Health Passport — French Veterinary Protocol & Dataset Test Suite', 
 
   // Rest of R11, deferred in Phase 3a
   it.todo('due dates across a DST change: local setMonth can move a midnight-UTC record date one day early');
+});
+
+describe('isVetVisitWeight (the stethoscope on a weigh-in, Phase 5c step 7)', () => {
+  const weighIn = (notes: string | null): Activity => ({ id: 'act-w', puppyId: 'pup-1', type: 'weight', timestamp: '2026-07-27T10:00:00.000Z', weightKg: 7.5, notes, loggedBy: 'Tester' });
+
+  it.each([
+    ['Rage (Eurican LR / Nobivac Rabies / Versiguard / Rabisin)', true],
+    ['Credelio Plus', true],
+    ['après balade', false],
+    ['Credelio', false],
+    [null, false],
+  ])('notes %j -> %s: only a vaccine or antiparasitic name of healthProtocols.json', (notes, expected) => {
+    expect(isVetVisitWeight(weighIn(notes))).toBe(expected);
+  });
 });

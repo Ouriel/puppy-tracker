@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { ActivityType } from '../../types';
-import { buildQuickLogActivity, parseDecimalInput, validateQuickLogForm } from '../activityPayloads';
+import { buildQuickLogActivity, buildVetWeighIn, parseDecimalInput, validateQuickLogForm } from '../activityPayloads';
 import { isDailyGramGoalMet, suggestNextMealGrams } from '../predictions';
 
 const form = {
@@ -108,5 +108,49 @@ describe('isDailyGramGoalMet (the meal card goal-reached rule)', () => {
 describe('suggestNextMealGrams (feed button label and meal box share it)', () => {
   it.each([[179, 21], [180, undefined]])('goal 200 g, 2 meals, 1 eaten, %d g eaten -> %s', (grams, expected) => {
     expect(suggestNextMealGrams(200, 2, grams, 1)).toBe(expected);
+  });
+});
+
+describe('buildVetWeighIn (the optional weight box of the vaccine and deworming forms)', () => {
+  const box = { puppyId: 'pup-1', date: '2026-07-27', productName: 'Credelio Plus', loggedBy: 'Tester' };
+  // Save pressed on 2026-10-14 at 09:00 Paris
+  const now = new Date('2026-10-14T07:00:00.000Z');
+
+  it('an empty box saves no weigh-in', () => {
+    expect(buildVetWeighIn({ ...box, weightText: '  ' }, now)).toEqual({});
+  });
+
+  it.each(['0,2', '104', 'abc'])('%j blocks the save, as in the log form', (weightText) => {
+    expect(buildVetWeighIn({ ...box, weightText }, now)).toEqual({ error: 'weightInvalid' });
+  });
+
+  it('a past date: a weight event at 12:00 Paris that day, its note the product name', () => {
+    expect(buildVetWeighIn({ ...box, weightText: '10,4' }, now)).toEqual({
+      activity: { puppyId: 'pup-1', type: 'weight', timestamp: '2026-07-27T10:00:00.000Z', weightKg: 10.4, notes: 'Credelio Plus', loggedBy: 'Tester' },
+    });
+  });
+
+  it.each([
+    ['2026-03-28', '2026-03-28T11:00:00.000Z'],
+    ['2026-03-29', '2026-03-29T10:00:00.000Z'],
+    ['2025-10-26', '2025-10-26T11:00:00.000Z'],
+  ])('%s, winter time, summer time and clock-change days: 12:00 Paris is %s', (date, timestamp) => {
+    expect(buildVetWeighIn({ ...box, date, weightText: '10.4' }, now).activity!.timestamp).toBe(timestamp);
+  });
+
+  it('today before noon: now, so no weigh-in is ever in the future', () => {
+    expect(buildVetWeighIn({ ...box, date: '2026-10-14', weightText: '10,4' }, now).activity!.timestamp).toBe(now.toISOString());
+  });
+
+  it('today after noon: 12:00 Paris', () => {
+    expect(buildVetWeighIn({ ...box, date: '2026-10-14', weightText: '10,4' }, new Date('2026-10-14T15:00:00.000Z')).activity!.timestamp).toBe('2026-10-14T10:00:00.000Z');
+  });
+
+  it.each(['2026-10-15', '2026-12-05'])('a date after today (%s) blocks the save: the server refuses a weigh-in more than 24 h ahead', (date) => {
+    expect(buildVetWeighIn({ ...box, date, weightText: '10,4' }, now)).toEqual({ error: 'dateTimeInFuture' });
+  });
+
+  it('a date after today with the box empty saves the record alone', () => {
+    expect(buildVetWeighIn({ ...box, date: '2026-12-05', weightText: '' }, now)).toEqual({});
   });
 });

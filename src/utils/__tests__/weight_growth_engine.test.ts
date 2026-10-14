@@ -9,7 +9,7 @@ import {
   getEffectivePuppyWeight,
   scaleGrowthBenchmarks,
 } from '../weight';
-import type { Activity, HealthRecord, PuppyProfile } from '../../types';
+import type { Activity, PuppyProfile } from '../../types';
 import { BALMA } from './fixtures';
 
 describe('Canine Weight Prediction & WALTHAM Growth Engine', () => {
@@ -24,12 +24,13 @@ describe('Canine Weight Prediction & WALTHAM Growth Engine', () => {
     { id: 'act-6', puppyId: 'pup-balma', type: 'weight', timestamp: '2026-08-25T16:02:00.000Z', weightKg: 9.5, loggedBy: 'Matthieu' },
   ];
 
-  const balmaHealthRecords: HealthRecord[] = [
-    { id: 'hr-1', householdId: 'hh-1', puppyId: 'pup-balma', type: 'deworming', name: 'Drontal Chiot', date: '2026-05-24', weightAtTime: 4.0 },
-    { id: 'hr-2', householdId: 'hh-1', puppyId: 'pup-balma', type: 'deworming', name: 'Credelio Plus', date: '2026-06-28', weightAtTime: 6.8 },
-    { id: 'hr-3', householdId: 'hh-1', puppyId: 'pup-balma', type: 'deworming', name: 'Credelio Plus', date: '2026-07-27', weightAtTime: 7.8 },
-    { id: 'hr-4', householdId: 'hh-1', puppyId: 'pup-balma', type: 'deworming', name: 'Credelio Plus', date: '2026-08-27', weightAtTime: 9.52 },
-  ];
+  // Weigh-ins entered with a deworming: weight events at 12:00 Paris on the dose date, notes = product
+  const balmaVetWeighIns: Activity[] = ([
+    ['vet-1', 'Drontal Chiot', '2026-05-24', 4.0],
+    ['vet-2', 'Credelio Plus', '2026-06-28', 6.8],
+    ['vet-3', 'Credelio Plus', '2026-07-27', 7.8],
+    ['vet-4', 'Credelio Plus', '2026-08-27', 9.52],
+  ] as const).map(([id, product, date, weightKg]) => ({ id, puppyId: 'pup-balma', type: 'weight', timestamp: `${date}T10:00:00.000Z`, weightKg, notes: product, loggedBy: 'Matthieu' }));
 
   const balmaProfile: PuppyProfile = {
     id: 'pup-balma',
@@ -44,8 +45,8 @@ describe('Canine Weight Prediction & WALTHAM Growth Engine', () => {
 
   describe('Real Dog Data Regression: Balma', () => {
     it('projects adult weight within healthy breed range (13.5 - 15.2 kg) from full longitudinal trail', () => {
-      const unified = getUnifiedWeightEntries(balmaActivities, balmaHealthRecords);
-      expect(unified.length).toBeGreaterThanOrEqual(6);
+      const unified = getUnifiedWeightEntries([...balmaActivities, ...balmaVetWeighIns]);
+      expect(unified).toHaveLength(10);
 
       const result = calculateProjectedAdultWeightRange(
         balmaProfile.breed,
@@ -167,52 +168,28 @@ describe('Canine Weight Prediction & WALTHAM Growth Engine', () => {
     });
   });
 
-  describe('Unified Weight Stream (Activities + Health Records)', () => {
-    it('unifies activities and vet records chronologically and keeps the vet weigh-in over a home duplicate', () => {
-      // Home scale reading 6 h before the 2026-08-27 vet weigh-in, 0.07 kg apart: merged, vet wins.
-      const homeScaleDuplicate: Activity = {
-        id: 'act-dup',
-        puppyId: 'pup-balma',
-        type: 'weight',
-        timestamp: '2026-08-26T18:00:00.000Z',
-        weightKg: 9.45,
-        loggedBy: 'Matthieu',
-      };
-      const unified = getUnifiedWeightEntries([...balmaActivities, homeScaleDuplicate], balmaHealthRecords);
+  describe('Weight timeline: every weight event, nothing merged (Phase 5c)', () => {
+    it('returns every weight event oldest first: a home weigh-in 2 h and 0.05 kg from a vet weigh-in is its own entry', () => {
+      const homeWeighIn: Activity = { id: 'act-home', puppyId: 'pup-balma', type: 'weight', timestamp: '2026-08-27T08:00:00.000Z', weightKg: 9.47, loggedBy: 'Matthieu' };
+      const pee: Activity = { id: 'act-pee', puppyId: 'pup-balma', type: 'pee', timestamp: '2026-08-27T09:00:00.000Z', loggedBy: 'Matthieu' };
 
-      expect(unified.map((entry) => entry.id)).toEqual([
-        'hr-1', 'act-1', 'act-2', 'hr-2', 'act-3', 'hr-3', 'act-4', 'act-5', 'act-6', 'hr-4',
-      ]);
-      const fromAugust26 = unified.filter((entry) => Date.parse(entry.timestamp) >= Date.parse('2026-08-26T00:00:00.000Z'));
-      expect(fromAugust26).toHaveLength(1);
-      expect(fromAugust26[0]).toMatchObject({ id: 'hr-4', source: 'vet', weightKg: 9.52 });
+      const unified = getUnifiedWeightEntries([balmaVetWeighIns[3], pee, homeWeighIn, ...balmaActivities]);
+
+      expect(unified.map((entry) => entry.id)).toEqual(['act-1', 'act-2', 'act-3', 'act-4', 'act-5', 'act-6', 'act-home', 'vet-4']);
     });
 
-    it('merges a home weigh-in into the vet weigh-in up to 18 h apart, not beyond', () => {
-      // Phase 5c removes this merge; until then the window is 18 h. The vet record is dated 2026-08-27 (00:00 UTC).
-      const homeWeighIn = (timestamp: string): Activity => ({ id: `home-${timestamp}`, puppyId: 'pup-balma', type: 'weight', timestamp, weightKg: 9.45, loggedBy: 'Matthieu' });
-      const vetWeighIn = [balmaHealthRecords[3]];
-
-      expect(getUnifiedWeightEntries([homeWeighIn('2026-08-26T07:00:00.000Z')], vetWeighIn).map((entry) => entry.id)).toEqual(['hr-4']); // 17 h
-      expect(getUnifiedWeightEntries([homeWeighIn('2026-08-26T05:00:00.000Z')], vetWeighIn).map((entry) => entry.id)).toEqual([
-        'home-2026-08-26T05:00:00.000Z',
-        'hr-4',
-      ]); // 19 h
-    });
-
-    it('computes effective puppy weight using both activities and health records', () => {
+    it('the last logged weight is the latest weight event, a vet weigh-in included', () => {
       // Puppy age must come from targetDateISO, never from the wall clock.
       vi.useFakeTimers({ toFake: ['Date'] });
       vi.setSystemTime(new Date('2027-06-01T12:00:00.000Z'));
       try {
         const effective = getEffectivePuppyWeight(
           balmaProfile,
-          balmaActivities,
-          '2026-08-30T16:00:00.000Z',
-          balmaHealthRecords
+          [...balmaActivities, ...balmaVetWeighIns],
+          '2026-08-30T16:00:00.000Z'
         );
 
-        expect(effective.lastLoggedWeight).toBe(9.52); // Latest is health record on Aug 27
+        expect(effective.lastLoggedWeight).toBe(9.52); // The Aug 27 deworming weigh-in
         expect(effective.estimatedCurrentWeight).toBeGreaterThan(9.52);
         expect(effective.dailyGainGrams).toBe(50);
       } finally {

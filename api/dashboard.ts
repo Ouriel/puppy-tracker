@@ -48,12 +48,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       gte(activitiesTable.timestamp, cutoffDate)
     );
 
+    // Every weight event, whatever its date: weigh-ins come weeks apart, so the recent window often holds none
+    let weightActivitiesWhere = and(eq(activitiesTable.householdId, householdId), eq(activitiesTable.type, 'weight'));
+
     if (puppyId) {
       activitiesWhere = and(activitiesWhere, eq(activitiesTable.puppyId, puppyId));
+      weightActivitiesWhere = and(weightActivitiesWhere, eq(activitiesTable.puppyId, puppyId));
     }
 
-    // Execute all 4 dashboard queries concurrently in a single HTTP batch pipe to Neon
-    const [puppies, caretakers, rawActivities, healthRecords] = await db.batch([
+    // Execute all 5 dashboard queries concurrently in a single HTTP batch pipe to Neon
+    const [puppies, caretakers, rawActivities, healthRecords, rawWeightActivities] = await db.batch([
       db.select().from(puppiesTable).where(eq(puppiesTable.householdId, householdId)),
       db.select().from(caretakersTable).where(eq(caretakersTable.householdId, householdId)),
       db
@@ -68,18 +72,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         .from(healthRecordsTable)
         .where(eq(healthRecordsTable.householdId, householdId))
         .orderBy(desc(healthRecordsTable.date)),
+      db
+        .select()
+        .from(activitiesTable)
+        .where(weightActivitiesWhere)
+        .orderBy(desc(activitiesTable.timestamp), desc(activitiesTable.createdAt)),
     ]);
 
-    const formattedActivities = rawActivities.map((activity) => ({
+    const formatActivity = (activity: typeof rawActivities[number]) => ({
       ...activity,
       timestamp: activity.timestamp instanceof Date ? activity.timestamp.toISOString() : new Date(activity.timestamp).toISOString(),
-    }));
+    });
 
     return res.status(200).json({
       puppies,
       caretakers,
-      activities: formattedActivities,
+      activities: rawActivities.map(formatActivity),
       healthRecords,
+      weightActivities: rawWeightActivities.map(formatActivity),
     });
   } catch (err) {
     console.error('Error fetching dashboard payload:', err);

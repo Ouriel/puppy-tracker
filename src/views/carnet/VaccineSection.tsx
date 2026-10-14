@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import type { PuppyProfile, HealthRecord } from '../../types';
+import type { PuppyProfile, HealthRecord, Activity } from '../../types';
 import { Syringe, ShieldCheck, Plus, Trash2, Pencil, Check } from 'lucide-react';
 import { Card, Button, Input, Select, ListBox, ListBoxItem, Chip, toast } from '@heroui/react';
 import { calculateNextVaccineBooster, getHealthProtocols, getHealthRecordStatus } from '../../utils/health';
@@ -8,11 +8,17 @@ import { getPuppyAge } from '../../utils/predictions';
 import { formatLocalDate } from '../../utils/date';
 import { createHealthRecord, updateHealthRecord, deleteHealthRecord } from '../../services/api';
 import { ConfirmationModal } from '../../components/common/ConfirmationModal';
+import type { UnifiedWeightEntry } from '../../utils/weight';
+import { buildVetWeighIn } from '../../utils/activityPayloads';
+import { WeightField } from './WeightField';
 
 interface VaccineSectionProps {
   activePuppy: PuppyProfile;
   vaccinations: HealthRecord[];
   setVaccinations: React.Dispatch<React.SetStateAction<HealthRecord[]>>;
+  lastWeighIn?: UnifiedWeightEntry;
+  currentUser: string;
+  onAddActivity: (activity: Omit<Activity, 'id'>) => void;
   t: any;
 }
 
@@ -20,6 +26,9 @@ export const VaccineSection: React.FC<VaccineSectionProps> = ({
   activePuppy,
   vaccinations,
   setVaccinations,
+  lastWeighIn,
+  currentUser,
+  onAddActivity,
   t,
 }) => {
   const [isAddingVaccine, setIsAddingVaccine] = useState(false);
@@ -28,6 +37,8 @@ export const VaccineSection: React.FC<VaccineSectionProps> = ({
   const [customNextDueDate, setCustomNextDueDate] = useState<string | null>(null);
   const [vetClinic, setVetClinic] = useState('');
   const [batchNumber, setBatchNumber] = useState('');
+  const [weightText, setWeightText] = useState('');
+  const [weightError, setWeightError] = useState<'weightInvalid' | 'dateTimeInFuture' | undefined>();
   const [confirmDelete, setConfirmDelete] = useState<{id: string; type: string} | null>(null);
 
   // Edit Vaccine state
@@ -57,6 +68,12 @@ export const VaccineSection: React.FC<VaccineSectionProps> = ({
   const handleAddVaccineSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!administeredDate || !nextDueDate) return;
+    // Optional: empty saves no weight; typed, it is checked before anything is saved
+    const weighIn = buildVetWeighIn({ puppyId: activePuppy.id, date: administeredDate, weightText, productName: vaccineType, loggedBy: currentUser });
+    if (weighIn.error) {
+      setWeightError(weighIn.error);
+      return;
+    }
 
     const newEntry = {
       puppyId: activePuppy.id,
@@ -70,11 +87,14 @@ export const VaccineSection: React.FC<VaccineSectionProps> = ({
 
     const result = await createHealthRecord(newEntry);
     if (result.ok) {
+      // A vaccination never stores a weight: the weigh-in is a weight event of its own
+      if (weighIn.activity) onAddActivity(weighIn.activity);
       setVaccinations((previous) => sortByDateDesc([result.data, ...previous]));
       setIsAddingVaccine(false);
       setCustomNextDueDate(null);
       setVetClinic('');
       setBatchNumber('');
+      setWeightText('');
     } else {
       toast.danger(result.error || t.toasts.errorGeneric);
     }
@@ -97,9 +117,10 @@ export const VaccineSection: React.FC<VaccineSectionProps> = ({
       type: 'vaccination',
       name: editVaccineName,
       date: editVaccineDate,
-      boosterDate: editVaccineBoosterDate || undefined,
-      vetClinic: editVaccineVetClinic || undefined,
-      batchNumber: editVaccineBatchNumber || undefined,
+      // null clears a field the user emptied
+      boosterDate: editVaccineBoosterDate || null,
+      vetClinic: editVaccineVetClinic || null,
+      batchNumber: editVaccineBatchNumber || null,
     });
 
     if (result.ok) {
@@ -219,6 +240,19 @@ export const VaccineSection: React.FC<VaccineSectionProps> = ({
                       onChange={(event) => setBatchNumber(event.target.value)}
                     />
                   </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                  <WeightField
+                    id="vaccine-weight-kg"
+                    value={weightText}
+                    error={weightError}
+                    lastWeighIn={lastWeighIn}
+                    onChange={(value) => {
+                      setWeightText(value);
+                      setWeightError(undefined);
+                    }}
+                  />
                 </div>
 
                 <div className="flex justify-end">
