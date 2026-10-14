@@ -8,6 +8,7 @@ import {
 } from '../predictions';
 import { getHealthRecordStatus } from '../health';
 import type { Activity, PuppyProfile, HealthRecord } from '../../types';
+import { at, newestFirst } from './fixtures';
 
 describe('Comprehensive 30-Day Realistic Dataset Test Suite', () => {
   const puppyProfile: PuppyProfile = {
@@ -155,14 +156,11 @@ describe('Comprehensive 30-Day Realistic Dataset Test Suite', () => {
     return records;
   }
 
-  const dataset = build30DayRealisticDataset();
+  const dataset = newestFirst(build30DayRealisticDataset());
 
   it('detects sleep schedule boundaries from historical dataset', () => {
     const sleep = detectSleepSchedule(dataset);
-    expect(sleep.wakeupHour).toBeGreaterThanOrEqual(8);
-    expect(sleep.bedtimeHour).toBeGreaterThanOrEqual(22);
-    expect(sleep.wakeupStr).toBeDefined();
-    expect(sleep.bedtimeStr).toBeDefined();
+    expect(sleep).toEqual({ wakeupHour: 8.5, bedtimeHour: 22.25, wakeupStr: '08:30', bedtimeStr: '22:15' });
   });
 
   it('extracts learned meal schedule from dataset', () => {
@@ -173,23 +171,33 @@ describe('Comprehensive 30-Day Realistic Dataset Test Suite', () => {
   });
 
   it('computes next potty and meal predictions with attached schedule metadata from dataset', () => {
-    const predictions = calculatePredictions(dataset, puppyProfile, new Date(2026, 7, 9, 14, 0));
-    expect(predictions.nextPeeExpectedAt instanceof Date).toBe(true);
-    expect(predictions.nextPoopExpectedAt instanceof Date).toBe(true);
-    expect(predictions.nextFoodExpectedAt instanceof Date).toBe(true);
+    // Aug 8 (last dataset day) at 14:00: lunch 13:30 and pee 13:50 already logged, later logs are in the future
+    const predictions = calculatePredictions(dataset, puppyProfile, new Date(2026, 7, 8, 14, 0));
+
+    // Pee: last pee 13:50 + learned 70th-percentile daytime interval (175m)
+    expect(at(predictions.nextPeeExpectedAt!)).toBe('2026-08-08 16:45');
+    expect(predictions.peeMode).toBe('daytime_baseline');
+    expect(predictions.peeUrgency).toBe('safe');
+
+    // Poop: post-lunch gastrocolic override (13:30 + 35m) comes before the standard transit time
+    expect(at(predictions.nextPoopExpectedAt!)).toBe('2026-08-08 14:05');
+    expect(predictions.poopMode).toBe('post_meal_override');
+    expect(predictions.poopUrgency).toBe('soon');
+
+    // Food: third meal paced over the remaining waking hours
+    expect(at(predictions.nextFoodExpectedAt!)).toBe('2026-08-08 17:52');
+    expect(predictions.foodMode).toBe('daytime_schedule');
+    expect(predictions.foodUrgency).toBe('safe');
 
     // Verify attached sleep schedule metadata
-    expect(predictions.sleepSchedule).toBeDefined();
-    expect(predictions.sleepSchedule?.wakeupHour).toBeGreaterThanOrEqual(8);
-    expect(predictions.sleepSchedule?.bedtimeHour).toBeGreaterThanOrEqual(22);
-    expect(typeof predictions.sleepSchedule?.wakeupStr).toBe('string');
-    expect(typeof predictions.sleepSchedule?.bedtimeStr).toBe('string');
+    expect(predictions.sleepSchedule).toEqual({ wakeupHour: 8.5, bedtimeHour: 22.25, wakeupStr: '08:30', bedtimeStr: '22:15' });
 
     // Verify attached meal schedule metadata
-    expect(predictions.mealSchedule).toBeDefined();
-    expect(predictions.mealSchedule?.breakfastMins).toBe(8 * 60 + 30); // 08:30 AM
-    expect(predictions.mealSchedule?.lunchMins).toBe(13 * 60 + 30);    // 13:30 PM
-    expect(predictions.mealSchedule?.dinnerMins).toBe(19 * 60 + 15);   // 19:15 PM
+    expect(predictions.mealSchedule).toEqual({
+      breakfastMins: 8 * 60 + 30, // 08:30 AM
+      lunchMins: 13 * 60 + 30, // 13:30 PM
+      dinnerMins: 19 * 60 + 15, // 19:15 PM
+    });
 
     // Verify attached portion calculation (240g / 3 meals = 80g per meal)
     expect(predictions.portionGrams).toBe(80);

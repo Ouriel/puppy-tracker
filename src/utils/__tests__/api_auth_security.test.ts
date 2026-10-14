@@ -1,6 +1,33 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import type { SQL, Table } from 'drizzle-orm';
+import { PgDialect } from 'drizzle-orm/pg-core';
 import { signAppSessionToken, verifyAppSessionToken, verifyAuth } from '../../../api/_auth.js';
-import { ActivityInputSchema, DogInputSchema, CaretakerInputSchema, HealthRecordInputSchema, DashboardQuerySchema } from '../schemas';
+import activitiesHandler from '../../../api/activities.js';
+
+// Hermetic DB: no puppy matches the ownership lookup, and every WHERE clause and insert is recorded.
+const dbMock = vi.hoisted(() => ({ whereByTable: new Map<string, SQL>(), insert: vi.fn() }));
+
+vi.mock('@neondatabase/serverless', () => ({
+  neon: vi.fn(() => vi.fn()),
+  neonConfig: { fetchConnectionCache: false },
+}));
+
+vi.mock('drizzle-orm/neon-http', async () => {
+  const { getTableName } = await import('drizzle-orm');
+  return {
+    drizzle: vi.fn(() => ({
+      select: vi.fn(() => ({
+        from: vi.fn((table: Table) => ({
+          where: vi.fn((condition: SQL) => {
+            dbMock.whereByTable.set(getTableName(table), condition);
+            return Promise.resolve([]);
+          }),
+        })),
+      })),
+      insert: dbMock.insert,
+    })),
+  };
+});
 
 describe('API Security & Session Token Validation Test Suite', () => {
   const originalEnv = process.env.SESSION_SECRET;
@@ -83,64 +110,40 @@ describe('API Security & Session Token Validation Test Suite', () => {
     expect(verified?.role).toBe('Member');
   });
 
-  it('validates Zod payload schemas to prevent multi-tenant data leakage or missing household boundaries', () => {
-    // Activity schema requires type, timestamp
-    const validActivity = {
-      puppyId: 'pup-1',
-      type: 'pee',
-      timestamp: '2026-08-17T12:00:00.000Z',
-      loggedBy: 'Matthieu',
+  it('rejects an activity POST for a puppy outside the token household with 403', async () => {
+    const token = signAppSessionToken(
+      { email: 'user@example.com', name: 'Matthieu', householdId: 'hh-family-123', role: 'Husband' },
+      30
+    );
+    const request = {
+      method: 'POST',
+      headers: { authorization: `Bearer ${token}` },
+      query: {},
+      body: { puppyId: 'pup-other-household', type: 'pee', timestamp: '2026-08-17T12:00:00.000Z' },
+    } as any;
+    const response: any = {
+      statusCode: 200,
+      body: null,
+      setHeader: vi.fn(),
+      status: vi.fn((code: number) => {
+        response.statusCode = code;
+        return response;
+      }),
+      json: vi.fn((data: unknown) => {
+        response.body = data;
+        return response;
+      }),
     };
-    expect(ActivityInputSchema.safeParse(validActivity).success).toBe(true);
 
-    // Invalid activity type rejected
-    const invalidActivity = {
-      puppyId: 'pup-1',
-      type: 'unknown_action',
-      timestamp: '2026-08-17T12:00:00.000Z',
-    };
-    expect(ActivityInputSchema.safeParse(invalidActivity).success).toBe(false);
+    await activitiesHandler(request, response);
 
-    // Puppy schema validates required fields
-    const validPuppy = {
-      id: 'pup-123',
-      name: 'Balma',
-      breed: 'English Cocker Spaniel',
-      birthDate: '2026-03-27',
-      dailyFoodGramGoal: 240,
-    };
-    expect(DogInputSchema.safeParse(validPuppy).success).toBe(true);
-
-    // Caretaker schema validates name and email
-    const validCaretaker = {
-      name: 'Matthieu',
-      email: 'matthieu@example.com',
-      role: 'Husband',
-    };
-    expect(CaretakerInputSchema.safeParse(validCaretaker).success).toBe(true);
-
-    // HealthRecord schema validates required fields
-    const validHealth = {
-      puppyId: 'pup-1',
-      type: 'vaccination',
-      name: 'CHPPi',
-      date: '2026-08-01',
-    };
-    expect(HealthRecordInputSchema.safeParse(validHealth).success).toBe(true);
-
-    const invalidHealth = {
-      type: 'invalid_type',
-      name: 'Test',
-    };
-    expect(HealthRecordInputSchema.safeParse(invalidHealth).success).toBe(false);
-
-    // DashboardQuerySchema sanitizes inputs
-    const validQuery = DashboardQuerySchema.safeParse({ puppyId: 'pup-1', days: '30' });
-    expect(validQuery.success).toBe(true);
-    if (validQuery.success) {
-      expect(validQuery.data.days).toBe(30);
-      expect(validQuery.data.puppyId).toBe('pup-1');
-    }
+    expect(response.statusCode).toBe(403);
+    expect(response.body).toEqual({ error: 'Puppy not found in your household' });
+    expect(dbMock.insert).not.toHaveBeenCalled();
+    // The ownership lookup is scoped to the requested puppy AND the household carried by the token
+    const ownershipQuery = new PgDialect().sqlToQuery(dbMock.whereByTable.get('puppies')!);
+    expect(ownershipQuery.sql).toBe('("puppies"."id" = $1 and "puppies"."household_id" = $2)');
+    expect(ownershipQuery.params).toEqual(['pup-other-household', 'hh-family-123']);
   });
 
   describe('verifyAuth Request Middleware', () => {

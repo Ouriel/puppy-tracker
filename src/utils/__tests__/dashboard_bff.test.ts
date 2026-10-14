@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { fetchDashboard, clearApiCache } from '../../services/api';
+import { setAuthToken, clearAuthToken } from '../auth';
 
 describe('Dashboard BFF API Service Suite', () => {
   const originalFetch = global.fetch;
@@ -11,9 +12,10 @@ describe('Dashboard BFF API Service Suite', () => {
   afterEach(() => {
     global.fetch = originalFetch;
     clearApiCache();
+    clearAuthToken();
   });
 
-  it('formulates correct request URL and parameters for fetchDashboard', async () => {
+  it('sends the BFF request with the query string and the Bearer token, and returns the payload', async () => {
     const mockResponse = {
       puppies: [
         {
@@ -53,29 +55,20 @@ describe('Dashboard BFF API Service Suite', () => {
       ],
     };
 
-    let calledUrl = '';
-    global.fetch = vi.fn().mockImplementation((url: string) => {
-      calledUrl = url;
-      return Promise.resolve({
-        ok: true,
-        status: 200,
-        json: () => Promise.resolve(mockResponse),
-      } as Response);
-    });
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve(mockResponse),
+    } as Response);
+    global.fetch = fetchMock;
+    setAuthToken('t');
 
     const result = await fetchDashboard('pup-1', 14);
-    expect(result.ok).toBe(true);
-    if (result.ok) {
-      expect(result.data.puppies.length).toBe(1);
-      expect(result.data.puppies[0].name).toBe('Balma');
-      expect(result.data.caretakers.length).toBe(2);
-      expect(result.data.activities.length).toBe(1);
-      expect(result.data.healthRecords?.length).toBe(1);
-      expect(result.data.healthRecords?.[0].name).toBe('DHPP Booster');
-    }
-    expect(calledUrl).toContain('/api/dashboard?');
-    expect(calledUrl).toContain('puppyId=pup-1');
-    expect(calledUrl).toContain('days=14');
+    expect(result).toEqual({ ok: true, data: mockResponse });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledWith('/api/dashboard?puppyId=pup-1&days=14', {
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer t' },
+    });
   });
 
   it('uses default days=14 when days parameter is omitted', async () => {

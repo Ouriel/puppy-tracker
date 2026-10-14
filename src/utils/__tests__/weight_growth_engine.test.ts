@@ -94,6 +94,27 @@ describe('Canine Weight Prediction & WALTHAM Growth Engine', () => {
         vi.useRealTimers();
       }
     });
+
+    it('blends 85% empirical trajectory with 15% breed baseline from 6 weigh-ins', () => {
+      const sixWeighIns: Activity[] = [
+        ['2026-05-01', 3], ['2026-05-15', 4], ['2026-06-01', 5], ['2026-06-15', 6], ['2026-07-01', 7], ['2026-07-15', 8],
+      ].map(([date, weightKg]) => ({ id: `w-${date}`, puppyId: 'pup-balma', type: 'weight', timestamp: `${date}T00:00:00.000Z`, weightKg: Number(weightKg), loggedBy: 'Matthieu' }));
+
+      const result = calculateProjectedAdultWeightRange('English Cocker Spaniel', sixWeighIns, '2026-03-27T00:00:00.000Z', 7.8, 'female');
+
+      expect(result.isTrajectoryBased).toBe(true);
+      expect(result.projectedAdultKg).toBe(14.9);
+    });
+
+    it('without weigh-ins, projects the breed baseline with a -12% / +15% range', () => {
+      expect(calculateProjectedAdultWeightRange('English Cocker Spaniel', [], 20, undefined, 'female')).toMatchObject({
+        projectedAdultKg: 13,
+        minAdultKg: 11.4,
+        maxAdultKg: 15,
+        isTrajectoryBased: false,
+        confidencePercent: 50,
+      });
+    });
   });
 
   describe('Gompertz Growth Velocity (dW/dt)', () => {
@@ -103,16 +124,31 @@ describe('Canine Weight Prediction & WALTHAM Growth Engine', () => {
       expect(dailyGain).toBeLessThanOrEqual(65);
     });
 
-    it('peaks at inflection point (around 12-14 weeks) and steadily decays toward adulthood', () => {
+    it('peaks between 10 and 14 weeks and never increases from week 16 toward adulthood', () => {
+      const weeks = Array.from({ length: 53 }, (_, index) => index + 4); // 4..56 weeks
+      const gains = weeks.map((week) => getWalthamGrowthVelocity(14.4, week));
+
+      const peakWeek = weeks[gains.indexOf(Math.max(...gains))];
+      expect(peakWeek).toBeGreaterThanOrEqual(10);
+      expect(peakWeek).toBeLessThanOrEqual(14);
+
+      const gainsFromWeek16 = gains.slice(weeks.indexOf(16));
+      gainsFromWeek16.slice(1).forEach((gain, index) => {
+        expect(gain).toBeLessThanOrEqual(gainsFromWeek16[index]);
+      });
+
       const gainAt8w = getWalthamGrowthVelocity(14.4, 8);
-      const gainAt13w = getWalthamGrowthVelocity(14.4, 13); // Peak velocity
+      const gainAt13w = getWalthamGrowthVelocity(14.4, 13);
       const gainAt26w = getWalthamGrowthVelocity(14.4, 26);
       const gainAt48w = getWalthamGrowthVelocity(14.4, 48);
-
       expect(gainAt13w).toBeGreaterThanOrEqual(gainAt8w);
       expect(gainAt13w).toBeGreaterThan(gainAt26w);
       expect(gainAt26w).toBeGreaterThan(gainAt48w);
       expect(gainAt48w).toBeLessThan(15); // < 15 g/day near adulthood
+
+      // Growth stops at 56 weeks
+      expect(getWalthamGrowthVelocity(14.4, 55)).toBe(4);
+      expect(getWalthamGrowthVelocity(14.4, 56)).toBe(0);
     });
 
     it('estimates accurate current weight between weigh-ins without severe underestimation', () => {
@@ -132,19 +168,36 @@ describe('Canine Weight Prediction & WALTHAM Growth Engine', () => {
   });
 
   describe('Unified Weight Stream (Activities + Health Records)', () => {
-    it('unifies and deduplicates activities and vet clinic records cleanly', () => {
-      const unified = getUnifiedWeightEntries(balmaActivities, balmaHealthRecords);
+    it('unifies activities and vet records chronologically and keeps the vet weigh-in over a home duplicate', () => {
+      // Home scale reading 6 h before the 2026-08-27 vet weigh-in, 0.07 kg apart: merged, vet wins.
+      const homeScaleDuplicate: Activity = {
+        id: 'act-dup',
+        puppyId: 'pup-balma',
+        type: 'weight',
+        timestamp: '2026-08-26T18:00:00.000Z',
+        weightKg: 9.45,
+        loggedBy: 'Matthieu',
+      };
+      const unified = getUnifiedWeightEntries([...balmaActivities, homeScaleDuplicate], balmaHealthRecords);
 
-      // Verify records from both sources are present
-      expect(unified.some((e) => e.source === 'activity')).toBe(true);
-      expect(unified.some((e) => e.source === 'vet')).toBe(true);
+      expect(unified.map((entry) => entry.id)).toEqual([
+        'hr-1', 'act-1', 'act-2', 'hr-2', 'act-3', 'hr-3', 'act-4', 'act-5', 'act-6', 'hr-4',
+      ]);
+      const fromAugust26 = unified.filter((entry) => Date.parse(entry.timestamp) >= Date.parse('2026-08-26T00:00:00.000Z'));
+      expect(fromAugust26).toHaveLength(1);
+      expect(fromAugust26[0]).toMatchObject({ id: 'hr-4', source: 'vet', weightKg: 9.52 });
+    });
 
-      // Verify sorted chronologically
-      for (let i = 0; i < unified.length - 1; i++) {
-        const t1 = new Date(unified[i].timestamp).getTime();
-        const t2 = new Date(unified[i + 1].timestamp).getTime();
-        expect(t1).toBeLessThanOrEqual(t2);
-      }
+    it('merges a home weigh-in into the vet weigh-in up to 18 h apart, not beyond', () => {
+      // Phase 5c removes this merge; until then the window is 18 h. The vet record is dated 2026-08-27 (00:00 UTC).
+      const homeWeighIn = (timestamp: string): Activity => ({ id: `home-${timestamp}`, puppyId: 'pup-balma', type: 'weight', timestamp, weightKg: 9.45, loggedBy: 'Matthieu' });
+      const vetWeighIn = [balmaHealthRecords[3]];
+
+      expect(getUnifiedWeightEntries([homeWeighIn('2026-08-26T07:00:00.000Z')], vetWeighIn).map((entry) => entry.id)).toEqual(['hr-4']); // 17 h
+      expect(getUnifiedWeightEntries([homeWeighIn('2026-08-26T05:00:00.000Z')], vetWeighIn).map((entry) => entry.id)).toEqual([
+        'home-2026-08-26T05:00:00.000Z',
+        'hr-4',
+      ]); // 19 h
     });
 
     it('computes effective puppy weight using both activities and health records', () => {
@@ -177,13 +230,16 @@ describe('Canine Weight Prediction & WALTHAM Growth Engine', () => {
       expect(getWalthamCategory(35.0)).toBe('V');
     });
 
-    it('evaluates smooth Hermite growth fractions across development stages', () => {
+    it('returns the WALTHAM anchors and a smooth Hermite blend between them', () => {
       const fracAt8w = getWalthamGrowthFraction('III', 8);
       const fracAt26w = getWalthamGrowthFraction('III', 26);
       const fracAt52w = getWalthamGrowthFraction('III', 52);
       expect(fracAt8w).toBeCloseTo(0.27, 2);
       expect(fracAt26w).toBeCloseTo(0.76, 2);
       expect(fracAt52w).toBe(1.0);
+
+      // 9 weeks sits between the 8w (0.27) and 12w (0.42) anchors: t = 0.25, S(t) = 3t² - 2t³ = 0.15625
+      expect(getWalthamGrowthFraction('III', 9)).toBeCloseTo(0.2934, 4);
     });
 
     it('produces category-accurate expected benchmarks for English Cocker Spaniel (Category III)', () => {
