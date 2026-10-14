@@ -1,8 +1,10 @@
+import { randomUUID } from 'crypto';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { neon, neonConfig } from '@neondatabase/serverless';
 import { drizzle } from 'drizzle-orm/neon-http';
 import { eq, and, desc, gte } from 'drizzle-orm';
-import { activitiesTable, puppiesTable } from '../src/db/schema.js';
+import { activitiesTable, caretakersTable, puppiesTable } from '../src/db/schema.js';
+import { getCurrentCaretakerName } from '../src/utils/caretakers.js';
 import { ActivityInputSchema, parseDeleteId } from '../src/utils/schemas.js';
 import { verifyAuth, setCorsHeaders } from './_auth.js';
 
@@ -35,8 +37,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const puppyId = req.query.puppyId as string;
       const type = req.query.type as string;
       const days = req.query.days ? parseInt(req.query.days as string, 10) : null;
-      const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : null;
-      const offset = req.query.offset ? parseInt(req.query.offset as string, 10) : null;
+      const limit = parseInt(req.query.limit as string, 10);
+      const offset = parseInt(req.query.offset as string, 10);
 
       let whereClause = puppyId
         ? and(eq(activitiesTable.householdId, householdId), eq(activitiesTable.puppyId, puppyId))
@@ -57,10 +59,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         .where(whereClause)
         .orderBy(desc(activitiesTable.timestamp));
 
-      const queryLimit = limit && !isNaN(limit) ? Math.min(limit, 1000) : 500;
+      // A missing, non-numeric or non-positive limit means the default page size.
+      const queryLimit = limit > 0 ? Math.min(limit, 1000) : 500;
       baseQuery = baseQuery.limit(queryLimit) as typeof baseQuery;
 
-      if (offset && !isNaN(offset)) {
+      if (offset > 0) {
         baseQuery = baseQuery.offset(offset) as typeof baseQuery;
       }
 
@@ -81,16 +84,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       const body = parsed.data;
 
-      // Verify puppy belongs to this household
-      const [puppy] = await db
-        .select()
-        .from(puppiesTable)
-        .where(and(eq(puppiesTable.id, body.puppyId), eq(puppiesTable.householdId, householdId)));
+      // Verify puppy belongs to this household; caretakers resolve who is logging (never the body's loggedBy)
+      const [[puppy], caretakers] = await Promise.all([
+        db
+          .select()
+          .from(puppiesTable)
+          .where(and(eq(puppiesTable.id, body.puppyId), eq(puppiesTable.householdId, householdId))),
+        db.select().from(caretakersTable).where(eq(caretakersTable.householdId, householdId)),
+      ]);
       if (!puppy) {
         return res.status(403).json({ error: 'Puppy not found in your household' });
       }
 
-      const id = body.id || `act-${Date.now()}`;
+      const id = body.id || `act-${randomUUID()}`;
 
       const [existing] = await db
         .select()
@@ -109,7 +115,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           puppyId: body.puppyId,
           type: body.type,
           timestamp: body.timestamp ? new Date(body.timestamp) : new Date(),
-          loggedBy: body.loggedBy || 'Caretaker',
+          loggedBy: getCurrentCaretakerName(auth, caretakers),
           pottyLocation: body.pottyLocation || null,
           stoolConsistency: body.stoolConsistency || null,
           foodType: body.foodType || null,
@@ -144,7 +150,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const updateValues: Record<string, any> = {
         ...(type ? { type } : {}),
         ...(body.timestamp ? { timestamp: new Date(body.timestamp) } : {}),
-        ...(body.loggedBy ? { loggedBy: body.loggedBy } : {}),
         ...(body.notes !== undefined ? { notes: body.notes || null } : {}),
       };
 
@@ -196,8 +201,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     return res.status(405).json({ error: 'Method not allowed' });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('API /api/activities error:', error);
-    return res.status(500).json({ error: error.message || 'Database error' });
+    return res.status(500).json({ error: 'Internal server error' });
   }
 }

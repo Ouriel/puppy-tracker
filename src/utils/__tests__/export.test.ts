@@ -310,4 +310,75 @@ describe('export utilities — CSV and PDF export test suite', () => {
       expect(htmlContent).toContain('Deworming & Parasitology');
     });
   });
+
+  describe('print reports escape user-controlled values', () => {
+    const imagePayload = '<img src=x onerror=alert(1)>';
+    // No whitespace: resolveCaretakerName keeps only the first word of loggedBy.
+    const svgPayload = '<svg/onload=alert(1)>';
+    const hostileProfile: PuppyProfile = { ...mockProfile, name: svgPayload, breed: svgPayload, birthDate: svgPayload };
+    const hostileActivities: Activity[] = [
+      {
+        id: 'act-x1',
+        puppyId: 'pup-1',
+        type: 'poop',
+        timestamp: '2026-08-19T08:30:00.000Z',
+        pottyLocation: 'outside',
+        stoolConsistency: svgPayload as Activity['stoolConsistency'],
+        loggedBy: svgPayload,
+        notes: imagePayload,
+      },
+      {
+        id: 'act-x2',
+        puppyId: 'pup-1',
+        type: 'medication',
+        timestamp: '2026-08-19T09:00:00.000Z',
+        medicationName: svgPayload,
+        loggedBy: svgPayload,
+      },
+      {
+        id: 'act-x3',
+        puppyId: 'pup-1',
+        type: 'weight',
+        timestamp: '2026-08-19T10:00:00.000Z',
+        weightKg: 7,
+        loggedBy: svgPayload,
+        notes: imagePayload,
+      },
+    ];
+    const hostileCaretakers: Caretaker[] = [{ id: 'c-x', name: svgPayload, role: 'Member', color: '#000' }];
+    const hostileRecord: HealthRecord = {
+      id: 'v-x',
+      householdId: 'hh-1',
+      puppyId: 'pup-1',
+      type: 'vaccination',
+      name: svgPayload,
+      date: svgPayload,
+      boosterDate: svgPayload,
+      vetClinic: svgPayload,
+      batchNumber: svgPayload,
+      productName: svgPayload,
+      notes: imagePayload,
+    };
+
+    const expectEscaped = (htmlContent: string) => {
+      expect(htmlContent).not.toContain('<img');
+      expect(htmlContent).not.toContain('<svg');
+      expect(htmlContent).toContain('&lt;svg/onload=alert(1)&gt;');
+    };
+
+    it('escapes names, notes, caretakers and medication in the activity report', () => {
+      printActivitiesReport(hostileActivities, hostileProfile, 'en', en, hostileCaretakers);
+      const htmlContent = mockWindow?.document.write.mock.calls[0][0] as string;
+      expectEscaped(htmlContent);
+      expect(htmlContent).toContain('&quot;&lt;img src=x onerror=alert(1)&gt;&quot;');
+    });
+
+    it('escapes profile, vaccine, deworming and weight values in the health passport', () => {
+      const hostileDeworming: HealthRecord = { ...hostileRecord, id: 'd-x', type: 'deworming' };
+      printHealthPassportReport(hostileProfile, [hostileRecord], [hostileDeworming], hostileActivities, 'fr', fr);
+      const htmlContent = mockWindow?.document.write.mock.calls[0][0] as string;
+      expectEscaped(htmlContent);
+      expect(htmlContent).toContain('&lt;img src=x onerror=alert(1)&gt;');
+    });
+  });
 });

@@ -2,6 +2,7 @@ import { useState, useCallback, useMemo } from 'react';
 import { toast } from '@heroui/react';
 import type { Caretaker, UserAccount } from '../types';
 import { getStoredCaretakers, setStoredCaretakers } from '../utils/storage';
+import { getCurrentCaretakerName } from '../utils/caretakers';
 import { createCaretaker, updateCaretaker as apiUpdateCaretaker, deleteCaretaker as apiDeleteCaretaker } from '../services/api';
 import { useI18n } from '../i18n';
 
@@ -20,16 +21,7 @@ export function useCaretakers(
     });
   }, []);
 
-  const currentUser = useMemo(() => {
-    if (!user) return 'Unknown';
-    const matchedCaretaker = caretakers.find(
-      (item) =>
-        (item.email && user.email && item.email.toLowerCase() === user.email.toLowerCase()) ||
-        (item.name && user.name && item.name.toLowerCase() === user.name.toLowerCase())
-    );
-    if (matchedCaretaker) return matchedCaretaker.name;
-    return user.name || (user.email ? user.email.split('@')[0] : 'Unknown');
-  }, [user, caretakers]);
+  const currentUser = useMemo(() => getCurrentCaretakerName(user, caretakers), [user, caretakers]);
 
   const addCaretaker = useCallback(
     async (caretaker: Caretaker) => {

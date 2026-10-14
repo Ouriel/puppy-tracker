@@ -1,3 +1,4 @@
+import { randomUUID } from 'crypto';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { neon } from '@neondatabase/serverless';
 import { drizzle } from 'drizzle-orm/neon-http';
@@ -96,7 +97,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const [created] = await db
         .insert(usersTable)
         .values({
-          id: `usr-${Date.now()}`,
+          id: `usr-${randomUUID()}`,
           householdId: targetHouseholdId,
           email,
           name: body.name || email.split('@')[0],
@@ -173,8 +174,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     return res.status(405).json({ error: 'Method not allowed' });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('API /api/users error:', error);
-    return res.status(500).json({ error: error.message || 'Database error' });
+    return res.status(500).json({ error: 'Internal server error' });
   }
 }

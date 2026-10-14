@@ -206,7 +206,7 @@ export async function verifyAuth(req: VercelRequest): Promise<AuthContext> {
     const [created] = await db
       .insert(usersTable)
       .values({
-        id: `usr-${Date.now()}`,
+        id: `usr-${randomUUID()}`,
         householdId: newHouseholdId,
         email: userEmail,
         name: payload.name || userEmail.split('@')[0],

@@ -5,7 +5,6 @@ import { PoopIcon } from './common/PoopIcon';
 import { Card } from '@heroui/react';
 import { useI18n } from '../i18n';
 import { formatMinutesToXhXX, isSameLogicalDate, parseIsoDate } from '../utils/date';
-import { calculateNextMealPortion } from '../utils/predictions';
 import { translatePredictionReason } from '../utils/predictionsTranslation';
 import { useMemo } from 'react';
 import { StatusBadge } from './common/StatusBadge';
@@ -16,6 +15,8 @@ interface PredictorWidgetProps {
   activities: Activity[];
   todayFoodLoggedGrams: number;
   todayMealsCount: number;
+  /** Undefined once today's goal is reached: the button then shows no grams. */
+  nextMealPortionGrams?: number;
   onQuickAction: (type: ActivityType, pottyLocation?: PottyLocation) => void;
   onOpenQuickLogModal: (type?: ActivityType) => void;
   referenceTime?: Date;
@@ -27,6 +28,7 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = React.memo(({
   activities,
   todayFoodLoggedGrams,
   todayMealsCount,
+  nextMealPortionGrams,
   onQuickAction,
   onOpenQuickLogModal,
   referenceTime,
@@ -69,13 +71,6 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = React.memo(({
 
   const dailyGoal = profile.dailyFoodGramGoal || 200;
   const targetMeals = profile.targetMealsPerDay || 3;
-
-  const portionLeftForNextMeal = calculateNextMealPortion(
-    profile.dailyFoodGramGoal,
-    profile.targetMealsPerDay,
-    todayFoodLoggedGrams,
-    todayMealsCount
-  );
 
   const getUrgencyBadge = (urgency: 'safe' | 'soon' | 'overdue') => {
     return <StatusBadge status={urgency} />;
@@ -341,7 +336,9 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = React.memo(({
               className="w-full h-11 flex items-center justify-center gap-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold text-xs rounded-xl shadow transition-colors px-3"
             >
               <Utensils className="w-3.5 h-3.5 shrink-0" />
-              <span className="truncate">{t.dashboard.feedMealNow} ({portionLeftForNextMeal}g)</span>
+              <span className="truncate">
+                {nextMealPortionGrams === undefined ? t.dashboard.feedMealNow : `${t.dashboard.feedMealNow} (${nextMealPortionGrams}g)`}
+              </span>
             </button>
           </div>
         </Card.Content>

@@ -5,28 +5,31 @@ import { PoopIcon } from './common/PoopIcon';
 import { Modal } from '@heroui/react';
 import { useI18n } from '../i18n';
 import { getLocalDatetimeString } from '../utils/date';
-import { gramsToCups } from '../utils/predictions';
+import { buildQuickLogActivity, validateQuickLogForm, type QuickLogFormError } from '../utils/activityPayloads';
 
 interface QuickLogModalProps {
   isOpen: boolean;
   initialType?: ActivityType;
   activityToEdit?: Activity;
   defaultMealPortionGrams?: number;
-  defaultWeightKg?: number;
   onClose: () => void;
   onSave: (activity: Omit<Activity, 'id'>) => void;
-  currentUser?: string;
+  currentUser: string;
 }
+
+/** Text shown in a grams / weight box: empty when there is no value, never '0'. */
+const toInputText = (value?: number) => (value ? String(value) : '');
+
+const inputErrorClass = 'mt-1.5 text-xs font-semibold text-rose-400';
 
 export const QuickLogModal: React.FC<QuickLogModalProps> = ({
   isOpen,
   initialType = 'pee',
   activityToEdit,
-  defaultMealPortionGrams = 80,
-  defaultWeightKg = 4.2,
+  defaultMealPortionGrams,
   onClose,
   onSave,
-  currentUser = 'Matthieu',
+  currentUser,
 }) => {
   const { t } = useI18n();
 
@@ -46,49 +49,45 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
   const [stoolConsistency, setStoolConsistency] = useState<StoolConsistency>(
     activityToEdit?.stoolConsistency || 'normal'
   );
-  const [quantityGrams, setQuantityGrams] = useState<number>(
-    activityToEdit?.quantityGrams || defaultMealPortionGrams
+  // Raw text typed in the grams and weight boxes, parsed at submit ('10,4' -> 10.4).
+  const [quantityGrams, setQuantityGrams] = useState<string>(
+    toInputText(activityToEdit ? activityToEdit.quantityGrams : defaultMealPortionGrams)
   );
-  const [quantityCups, setQuantityCups] = useState<number>(
-    activityToEdit?.quantityCups || gramsToCups(defaultMealPortionGrams)
-  );
-  const [weightKg, setWeightKg] = useState<number>(
-    activityToEdit?.weightKg || defaultWeightKg
-  );
+  const [weightKg, setWeightKg] = useState<string>(toInputText(activityToEdit?.weightKg));
   const [medicationName, setMedicationName] = useState<string>(
     activityToEdit?.medicationName || ''
   );
   const [notes, setNotes] = useState<string>(activityToEdit?.notes || '');
+  const [formError, setFormError] = useState<QuickLogFormError | null>(null);
 
   const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault();
-    const isoTimestamp = new Date(timestamp).toISOString();
-
-    const activityData: Omit<Activity, 'id'> = {
+    const form = {
       puppyId: activityToEdit?.puppyId || '',
       type,
-      timestamp: isoTimestamp,
+      localTimestamp: timestamp,
       loggedBy: activityToEdit?.loggedBy || currentUser,
-      notes: notes.trim() || undefined,
+      notes,
+      pottyLocation,
+      stoolConsistency,
+      quantityGrams,
+      weightKg,
+      medicationName,
     };
+    // Checked before closing: once closed, a value the server refuses is lost.
+    const error = validateQuickLogForm(form);
+    setFormError(error);
+    if (error) return;
 
-    if (type === 'pee' || type === 'poop') {
-      activityData.pottyLocation = pottyLocation;
-      if (type === 'poop') {
-        activityData.stoolConsistency = stoolConsistency;
-      }
-    } else if (type === 'food') {
-      activityData.quantityGrams = quantityGrams;
-      activityData.quantityCups = quantityCups;
-    } else if (type === 'weight') {
-      activityData.weightKg = weightKg;
-    } else if (type === 'medication') {
-      activityData.medicationName = medicationName;
-    }
-
-    onSave(activityData);
+    onSave(buildQuickLogActivity(form));
     onClose();
   };
+
+  const errorFor = (field: QuickLogFormError['field']) =>
+    formError?.field === field ? t.potty[formError.messageKey] : null;
+  const gramsError = errorFor('quantityGrams');
+  const weightError = errorFor('weightKg');
+  const timestampError = errorFor('timestamp');
 
   const activityTypes: { type: ActivityType; label: string; icon: React.ReactNode; color: string }[] = [
     { type: 'pee', label: t.potty.pee, icon: <Droplet className="w-5 h-5" />, color: 'text-amber-400' },
@@ -132,7 +131,7 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
 
             {/* Body */}
             <div className="p-4 sm:p-6 space-y-5">
-              <form id="quicklog-form" onSubmit={handleSubmit} className="space-y-5">
+              <form id="quicklog-form" onSubmit={handleSubmit} noValidate className="space-y-5">
                 {/* Activity Type Segmented Selector */}
                 <div>
                   <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2.5">
@@ -169,16 +168,7 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
                           role="radio"
                           aria-checked={isSelected}
                           tabIndex={isSelected ? 0 : -1}
-                          onClick={() => {
-                            setType(item.type);
-                            if (item.type === 'food' && (!quantityGrams || quantityGrams <= 0)) {
-                              setQuantityGrams(defaultMealPortionGrams);
-                              setQuantityCups(gramsToCups(defaultMealPortionGrams));
-                            }
-                            if (item.type === 'weight' && (!weightKg || weightKg <= 0)) {
-                              setWeightKg(defaultWeightKg);
-                            }
-                          }}
+                          onClick={() => setType(item.type)}
                           className={`flex-1 min-w-[28%] sm:min-w-0 flex flex-col items-center justify-center p-2.5 sm:p-3 rounded-xl border transition-all duration-150 ${
                             isSelected
                               ? 'bg-indigo-600 border-indigo-500 text-white shadow-lg ring-2 ring-indigo-400/40 font-bold'
@@ -308,16 +298,17 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
                       id="quicklog-quantity-grams"
                       type="text"
                       inputMode="decimal"
-                      pattern="[0-9]*[.,]?[0-9]*"
                       className="w-full bg-slate-950 border border-slate-800 text-slate-100 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-indigo-500 transition-colors"
-                      value={String(quantityGrams)}
+                      value={quantityGrams}
+                      aria-invalid={gramsError ? true : undefined}
+                      aria-describedby={gramsError ? 'quicklog-quantity-grams-error' : undefined}
+                      onFocus={(event) => event.target.select()}
                       onChange={(event) => {
-                        const normalized = event.target.value.replace(',', '.');
-                        const grams = Number(normalized);
-                        setQuantityGrams(grams);
-                        setQuantityCups(gramsToCups(grams));
+                        setQuantityGrams(event.target.value);
+                        setFormError(null);
                       }}
                     />
+                    {gramsError && <p id="quicklog-quantity-grams-error" role="alert" className={inputErrorClass}>{gramsError}</p>}
                   </div>
                 )}
 
@@ -331,14 +322,17 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
                       id="quicklog-weight-kg"
                       type="text"
                       inputMode="decimal"
-                      pattern="[0-9]*[.,]?[0-9]*"
                       className="w-full bg-slate-950 border border-slate-800 text-slate-100 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-indigo-500 transition-colors"
-                      value={String(weightKg)}
+                      value={weightKg}
+                      aria-invalid={weightError ? true : undefined}
+                      aria-describedby={weightError ? 'quicklog-weight-kg-error' : undefined}
+                      onFocus={(event) => event.target.select()}
                       onChange={(event) => {
-                        const normalized = event.target.value.replace(',', '.');
-                        setWeightKg(Number(normalized));
+                        setWeightKg(event.target.value);
+                        setFormError(null);
                       }}
                     />
+                    {weightError && <p id="quicklog-weight-kg-error" role="alert" className={inputErrorClass}>{weightError}</p>}
                   </div>
                 )}
 
@@ -369,8 +363,14 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
                     type="datetime-local"
                     className="w-full bg-slate-950 border border-slate-800 text-slate-100 rounded-xl px-3.5 py-2.5 text-xs focus:outline-none focus:border-indigo-500 transition-colors [color-scheme:dark] cursor-pointer hover:bg-slate-900"
                     value={timestamp}
-                    onChange={(event) => setTimestamp(event.target.value)}
+                    aria-invalid={timestampError ? true : undefined}
+                    aria-describedby={timestampError ? 'quicklog-timestamp-error' : undefined}
+                    onChange={(event) => {
+                      setTimestamp(event.target.value);
+                      setFormError(null);
+                    }}
                   />
+                  {timestampError && <p id="quicklog-timestamp-error" role="alert" className={inputErrorClass}>{timestampError}</p>}
                 </div>
 
                 {/* Notes Input */}

@@ -124,6 +124,26 @@ export function calculateNextMealPortion(
 }
 
 /**
+ * Today's gram goal counts as reached at 90 % (the meal card's 'Daily goal reached').
+ */
+export function isDailyGramGoalMet(dailyGramGoal: number, loggedGramsToday: number): boolean {
+  return dailyGramGoal > 0 && loggedGramsToday >= dailyGramGoal * 0.9;
+}
+
+/**
+ * Grams to suggest for the next meal (feed button label and meal box), or undefined once today's goal is reached.
+ */
+export function suggestNextMealGrams(
+  dailyGramGoal: number,
+  targetMealsPerDay: number,
+  loggedGramsToday: number,
+  loggedMealsCountToday: number
+): number | undefined {
+  if (isDailyGramGoalMet(dailyGramGoal, loggedGramsToday)) return undefined;
+  return calculateNextMealPortion(dailyGramGoal, targetMealsPerDay, loggedGramsToday, loggedMealsCountToday);
+}
+
+/**
  * Converts kibble grams to cups (110 g per cup), rounded to 2 decimals.
  */
 export function gramsToCups(grams: number): number {
@@ -954,7 +974,7 @@ export function predictNextFood(
     (a) => a.type === 'food' && isSameLogicalDate(parseIsoDate(a.timestamp), now, tz)
   );
   const todayGramTotal = todayMeals.reduce((sum, a) => sum + (a.quantityGrams || 0), 0);
-  const isGramGoalMet = profile.dailyFoodGramGoal > 0 && todayGramTotal >= profile.dailyFoodGramGoal * 0.90;
+  const isGramGoalMet = isDailyGramGoalMet(profile.dailyFoodGramGoal, todayGramTotal);
   const isGoalReached = isGramGoalMet || (profile.dailyFoodGramGoal === 0 && todayMeals.length >= targetMeals);
 
   const isNightTime = isNightTimeMode(now, sorted, sleepSchedule, tz);

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, lazy, Suspense } from 'react';
-import type { Activity, UserAccount, ActivityType, PottyLocation, FamilyRole, HealthRecord } from './types';
+import type { UserAccount, ActivityType, PottyLocation, FamilyRole, HealthRecord } from './types';
 import { getAuthToken, setAuthToken, getStoredAuthUser, setStoredAuthUser } from './utils/auth';
 import { isSuperAdminEmail } from './utils/auth';
 import {
@@ -9,8 +9,8 @@ import {
   exchangeSessionToken,
   clearApiCache,
 } from './services/api';
-import { calculatePredictions, calculateNextMealPortion, gramsToCups } from './utils/predictions';
-import { getEffectivePuppyWeight } from './utils/weight';
+import { calculatePredictions, suggestNextMealGrams } from './utils/predictions';
+import { buildQuickActionActivity } from './utils/activityPayloads';
 import { isSameLogicalDate } from './utils/date';
 import { Navbar } from './components/Navbar';
 import { PredictorWidget } from './components/PredictorWidget';
@@ -85,7 +85,7 @@ function App() {
       }
     }
 
-    if (householdRes.ok && householdRes.data?.caretakers && householdRes.data.caretakers.length > 0) {
+    if (householdRes.ok && Array.isArray(householdRes.data?.caretakers)) {
       caretakerState.setCaretakers(householdRes.data.caretakers);
     }
   }, [puppyState, caretakerState]);
@@ -137,7 +137,7 @@ function App() {
               puppyState.selectPuppy(targetPuppyId);
               activityState.setActivitiesForPuppy(activities, targetPuppyId);
             }
-            if (caretakers && caretakers.length > 0) {
+            if (Array.isArray(caretakers)) {
               caretakerState.setCaretakers(caretakers);
             }
             if (records && records.length > 0) {
@@ -191,7 +191,7 @@ function App() {
           if (res.ok) {
             const { puppies, caretakers, activities, healthRecords: records } = res.data;
             if (puppies?.length) setPuppies(puppies);
-            if (caretakers?.length) setCaretakers(caretakers);
+            if (Array.isArray(caretakers)) setCaretakers(caretakers);
             if (records?.length) setHealthRecords(records);
             if (activities) {
               const targetId = activePuppyId || puppies?.[0]?.id;
@@ -247,9 +247,10 @@ function App() {
     ).length;
   }, [activePuppyActivities, now]);
 
+  // Shared by the feed button label and the meal box: undefined once today's goal is reached.
   const nextMealPortionGrams = useMemo(() => {
     if (!puppyState.activePuppy) return 70;
-    return calculateNextMealPortion(
+    return suggestNextMealGrams(
       puppyState.activePuppy.dailyFoodGramGoal,
       puppyState.activePuppy.targetMealsPerDay,
       todayFoodLoggedGrams,
@@ -257,37 +258,20 @@ function App() {
     );
   }, [puppyState.activePuppy, todayFoodLoggedGrams, todayMealsCount]);
 
-  const activePuppyEffectiveWeightInfo = useMemo(() => {
-    return getEffectivePuppyWeight(puppyState.activePuppy, activePuppyActivities || []);
-  }, [puppyState.activePuppy, activePuppyActivities]);
-
-  const lastWeightLogKg = activePuppyEffectiveWeightInfo.estimatedCurrentWeight;
-
   const handleQuickAction = useCallback((type: ActivityType, pottyLocation?: PottyLocation) => {
     if (!puppyState.activePuppy) return;
     const actionTime = new Date();
     setNow(actionTime);
-    const newAct: Omit<Activity, 'id'> = {
+    const newAct = buildQuickActionActivity({
       puppyId: puppyState.activePuppy.id,
       type,
-      timestamp: actionTime.toISOString(),
+      pottyLocation,
       loggedBy: caretakerState.currentUser,
-    };
-
-    if (pottyLocation) {
-      newAct.pottyLocation = pottyLocation;
-    }
-    
-    if (type === 'poop') {
-      newAct.stoolConsistency = 'normal';
-    } else if (type === 'food') {
-      newAct.foodType = 'kibble';
-      newAct.quantityGrams = nextMealPortionGrams;
-      newAct.quantityCups = gramsToCups(nextMealPortionGrams);
-    }
+      actionTime,
+    });
 
     activityState.addActivity(newAct);
-  }, [puppyState.activePuppy, caretakerState.currentUser, activityState, nextMealPortionGrams]);
+  }, [puppyState.activePuppy, caretakerState.currentUser, activityState]);
 
   const handleOpenQuickLogModal = useCallback((type?: ActivityType) => {
     setQuickLogType(type || 'pee');
@@ -466,6 +450,7 @@ function App() {
                 activities={activePuppyActivities}
                 todayFoodLoggedGrams={todayFoodLoggedGrams}
                 todayMealsCount={todayMealsCount}
+                nextMealPortionGrams={nextMealPortionGrams}
                 onQuickAction={handleQuickAction}
                 onOpenQuickLogModal={handleOpenQuickLogModal}
                 referenceTime={now}
@@ -499,11 +484,10 @@ function App() {
         )}
       </main>
 
-      {/* Quick Log Modal Component (Conditionally mounted with key for clean lifecycle) */}
+      {/* Quick Log Modal: mounted on open, unmounted on close, so it never resets while open */}
       {isQuickLogOpen && (
         <Suspense fallback={null}>
           <QuickLogModal
-            key={`quicklog-${quickLogType}-${Date.now()}`}
             isOpen={true}
             onClose={() => setIsQuickLogOpen(false)}
             initialType={quickLogType}
@@ -512,7 +496,6 @@ function App() {
             }}
             currentUser={caretakerState.currentUser}
             defaultMealPortionGrams={nextMealPortionGrams}
-            defaultWeightKg={lastWeightLogKg}
           />
         </Suspense>
       )}

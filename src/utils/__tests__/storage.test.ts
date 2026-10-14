@@ -53,6 +53,10 @@ describe('Storage Helpers Cache Suite', () => {
     expect(getStoredCaretakers()).toEqual(DEFAULT_CARETAKERS);
   });
 
+  it('a fresh device has no caretakers until the server list arrives (no phantom member)', () => {
+    expect(getStoredCaretakers()).toEqual([]);
+  });
+
   it('should persist and retrieve puppies and caretakers from localStorage', () => {
     const mockPuppy = [
       {

@@ -16,6 +16,13 @@ function downloadCsvFile(content: string, filename: string): void {
   URL.revokeObjectURL(url);
 }
 
+const HTML_ESCAPES: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+
+/** Escapes a user-controlled value before interpolating it into print-report HTML. */
+function esc(value: unknown): string {
+  return String(value ?? '').replace(/[&<>"']/g, (character) => HTML_ESCAPES[character]);
+}
+
 export function escapeCsvField(value: string | number | null | undefined): string {
   if (value === null || value === undefined) return '""';
   const stringValue = String(value).trim().replace(/"/g, '""');
@@ -187,7 +194,7 @@ export function printActivitiesReport(
       case 'medication':
         return `<span class="badge badge-teal">💊 ${isFrench ? 'Médicament' : 'Meds'}</span>`;
       default:
-        return `<span class="badge badge-slate">${type}</span>`;
+        return `<span class="badge badge-slate">${esc(type)}</span>`;
     }
   };
 
@@ -196,7 +203,7 @@ export function printActivitiesReport(
     <html lang="${lang}">
       <head>
         <meta charset="utf-8" />
-        <title>${profile.name} - ${isFrench ? "Rapport d'Activités & Propreté" : 'Activity & Potty Report'}</title>
+        <title>${esc(profile.name)} - ${isFrench ? "Rapport d'Activités & Propreté" : 'Activity & Potty Report'}</title>
         <style>
           @page { size: A4; margin: 12mm 15mm; }
           * { box-sizing: border-box; }
@@ -367,17 +374,17 @@ export function printActivitiesReport(
       <body>
         <div class="header">
           <div class="title-area">
-            <h1>🐾 ${profile.name} — ${isFrench ? "Rapport d'Activités & Propreté" : 'Activity & Potty Report'}</h1>
+            <h1>🐾 ${esc(profile.name)} — ${isFrench ? "Rapport d'Activités & Propreté" : 'Activity & Potty Report'}</h1>
             <p>${isFrench ? 'Édité le' : 'Generated on'} ${generatedDate}</p>
           </div>
           <span class="brand-tag">PupPace &bull; Smart Activity Log</span>
         </div>
 
         <div class="info-panel">
-          <div><strong>${isFrench ? 'Chien :' : 'Dog:'}</strong> ${profile.name}</div>
-          <div><strong>${isFrench ? 'Race :' : 'Breed:'}</strong> ${breedLabel}</div>
-          <div><strong>${isFrench ? 'Date de naissance :' : 'Birth Date:'}</strong> ${profile.birthDate || '-'}</div>
-          <div><strong>${isFrench ? 'Objectif Repas :' : 'Food Goal:'}</strong> ${foodGoalLabel}</div>
+          <div><strong>${isFrench ? 'Chien :' : 'Dog:'}</strong> ${esc(profile.name)}</div>
+          <div><strong>${isFrench ? 'Race :' : 'Breed:'}</strong> ${esc(breedLabel)}</div>
+          <div><strong>${isFrench ? 'Date de naissance :' : 'Birth Date:'}</strong> ${esc(profile.birthDate || '-')}</div>
+          <div><strong>${isFrench ? 'Objectif Repas :' : 'Food Goal:'}</strong> ${esc(foodGoalLabel)}</div>
         </div>
 
         <div class="grid-summary">
@@ -446,23 +453,23 @@ export function printActivitiesReport(
                 }
 
                 if (activity.stoolConsistency) {
-                  details.push(`<span>${isFrench ? 'Selles :' : 'Stool:'} ${activity.stoolConsistency}</span>`);
+                  details.push(`<span>${isFrench ? 'Selles :' : 'Stool:'} ${esc(activity.stoolConsistency)}</span>`);
                 }
 
                 if (activity.quantityGrams) {
-                  details.push(`<strong>${activity.quantityGrams}g</strong>${activity.quantityCups ? ` (${activity.quantityCups} cups)` : ''}`);
+                  details.push(`<strong>${esc(activity.quantityGrams)}g</strong>${activity.quantityCups ? ` (${esc(activity.quantityCups)} cups)` : ''}`);
                 }
 
                 if (activity.weightKg) {
-                  details.push(`<strong>${activity.weightKg} kg</strong>`);
+                  details.push(`<strong>${esc(activity.weightKg)} kg</strong>`);
                 }
 
                 if (activity.medicationName) {
-                  details.push(`💊 ${activity.medicationName}`);
+                  details.push(`💊 ${esc(activity.medicationName)}`);
                 }
 
                 if (activity.durationMinutes) {
-                  details.push(`${activity.durationMinutes} min`);
+                  details.push(`${esc(activity.durationMinutes)} min`);
                 }
 
                 return `
@@ -470,8 +477,8 @@ export function printActivitiesReport(
                     <td><strong>${dateStr}</strong></td>
                     <td>${getTypeBadge(activity.type)}</td>
                     <td>${details.join(' &bull; ') || '-'}</td>
-                    <td><span class="caretaker-badge">${caretakerName}</span></td>
-                    <td class="notes-cell">${activity.notes ? `"${activity.notes}"` : '-'}</td>
+                    <td><span class="caretaker-badge">${esc(caretakerName)}</span></td>
+                    <td class="notes-cell">${activity.notes ? `&quot;${esc(activity.notes)}&quot;` : '-'}</td>
                   </tr>
                 `;
               }).join('')}
@@ -649,7 +656,7 @@ export function printHealthPassportReport(
     <html lang="${lang}">
       <head>
         <meta charset="utf-8" />
-        <title>${profile.name} - ${isFrench ? 'Carnet de Santé Vétérinaire' : 'Veterinary Health Passport'}</title>
+        <title>${esc(profile.name)} - ${isFrench ? 'Carnet de Santé Vétérinaire' : 'Veterinary Health Passport'}</title>
         <style>
           @page { size: A4; margin: 15mm; }
           * { box-sizing: border-box; }
@@ -760,8 +767,8 @@ export function printHealthPassportReport(
       <body>
         <div class="header">
           <div class="title-area">
-            <h1>🐾 ${isFrench ? 'Carnet de Santé & Passeport Vaccinal' : 'Health Passport & Vaccine Record'} — ${profile.name}</h1>
-            <p>${isFrench ? 'Dossier Médical Vétérinaire' : 'Veterinary Medical File'} &bull; ${breedLabel} &bull; ${isFrench ? 'Édité le' : 'Generated on'} ${generatedDate}</p>
+            <h1>🐾 ${isFrench ? 'Carnet de Santé & Passeport Vaccinal' : 'Health Passport & Vaccine Record'} — ${esc(profile.name)}</h1>
+            <p>${isFrench ? 'Dossier Médical Vétérinaire' : 'Veterinary Medical File'} &bull; ${esc(breedLabel)} &bull; ${isFrench ? 'Édité le' : 'Generated on'} ${generatedDate}</p>
           </div>
           <span class="badge">PupPace Health Passport</span>
         </div>
@@ -769,19 +776,19 @@ export function printHealthPassportReport(
         <div class="grid-summary">
           <div class="card">
             <div class="card-label">${isFrench ? 'Nom du Chien' : 'Dog Name'}</div>
-            <div class="card-value">${profile.name}</div>
+            <div class="card-value">${esc(profile.name)}</div>
           </div>
           <div class="card">
             <div class="card-label">${isFrench ? 'Race' : 'Breed'}</div>
-            <div class="card-value">${breedLabel}</div>
+            <div class="card-value">${esc(breedLabel)}</div>
           </div>
           <div class="card">
             <div class="card-label">${isFrench ? 'Date de Naissance' : 'Birth Date'}</div>
-            <div class="card-value">${profile.birthDate || '-'}</div>
+            <div class="card-value">${esc(profile.birthDate || '-')}</div>
           </div>
           <div class="card">
             <div class="card-label">${isFrench ? 'Dernier Poids Connu' : 'Latest Known Weight'}</div>
-            <div class="card-value">${latestWeight} kg</div>
+            <div class="card-value">${esc(latestWeight)} kg</div>
           </div>
         </div>
 
@@ -800,11 +807,11 @@ export function printHealthPassportReport(
           <tbody>
             ${sortedVaccines.map((vaccine) => `
               <tr>
-                <td><strong>${vaccine.date}</strong></td>
-                <td>${vaccine.name}</td>
-                <td>${vaccine.boosterDate || '-'}</td>
-                <td>${vaccine.vetClinic || (isFrench ? 'Clinique Vétérinaire' : 'Veterinary Clinic')}</td>
-                <td>${vaccine.batchNumber || '-'}</td>
+                <td><strong>${esc(vaccine.date)}</strong></td>
+                <td>${esc(vaccine.name)}</td>
+                <td>${esc(vaccine.boosterDate || '-')}</td>
+                <td>${esc(vaccine.vetClinic || (isFrench ? 'Clinique Vétérinaire' : 'Veterinary Clinic'))}</td>
+                <td>${esc(vaccine.batchNumber || '-')}</td>
               </tr>
             `).join('')}
           </tbody>
@@ -825,10 +832,10 @@ export function printHealthPassportReport(
           <tbody>
             ${sortedDewormings.map((deworming) => `
               <tr>
-                <td><strong>${deworming.date}</strong></td>
-                <td>${deworming.productName || deworming.name}</td>
-                <td>${deworming.weightAtTime ? `${deworming.weightAtTime} kg` : '-'}</td>
-                <td>${deworming.boosterDate || '-'}</td>
+                <td><strong>${esc(deworming.date)}</strong></td>
+                <td>${esc(deworming.productName || deworming.name)}</td>
+                <td>${deworming.weightAtTime ? `${esc(deworming.weightAtTime)} kg` : '-'}</td>
+                <td>${esc(deworming.boosterDate || '-')}</td>
               </tr>
             `).join('')}
           </tbody>
@@ -850,9 +857,9 @@ export function printHealthPassportReport(
             ${weightLogs.slice(0, 15).map((weightItem) => `
               <tr>
                 <td>${new Date(weightItem.timestamp).toLocaleDateString(locale)}</td>
-                <td><strong>${weightItem.weightKg} kg</strong></td>
-                <td>${weightItem.loggedBy}</td>
-                <td>${weightItem.notes || '-'}</td>
+                <td><strong>${esc(weightItem.weightKg)} kg</strong></td>
+                <td>${esc(weightItem.loggedBy)}</td>
+                <td>${esc(weightItem.notes || '-')}</td>
               </tr>
             `).join('')}
           </tbody>
