@@ -1,13 +1,13 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from 'vitest';
-import { act } from 'react';
+import { act, type ComponentProps } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import App from '../App';
 import { en } from '../i18n/en';
 import { setAuthToken, clearAuthToken, setStoredAuthUser } from '../utils/auth';
 import { setStoredPuppies, setActivePuppyId, getActivePuppyId } from '../utils/storage';
 import { clearApiCache } from '../services/api';
-import type { Activity, PuppyProfile, UserAccount } from '../types';
+import type { Activity, HealthRecord, PuppyProfile, UserAccount } from '../types';
 
 // The real lock screen loads Google's script; this one signs in with a Google ID token at once.
 vi.mock('../components/AuthLockScreen', () => ({
@@ -17,6 +17,32 @@ vi.mock('../components/AuthLockScreen', () => ({
     </button>
   ),
 }));
+
+// Renders let through by the same shallow prop comparison as the real React.memo components
+const renderCounts = vi.hoisted(() => ({ predictorWidget: 0, healthSummary: 0 }));
+const countRender = vi.hoisted(() => (name: 'predictorWidget' | 'healthSummary') => {
+  renderCounts[name] += 1;
+});
+vi.mock('../components/PredictorWidget', async (importOriginal) => {
+  const { memo } = await import('react');
+  const actual = await importOriginal<typeof import('../components/PredictorWidget')>();
+  return {
+    PredictorWidget: memo((props: ComponentProps<typeof actual.PredictorWidget>) => {
+      countRender('predictorWidget');
+      return <actual.PredictorWidget {...props} />;
+    }),
+  };
+});
+vi.mock('../components/DogHealthSummary', async (importOriginal) => {
+  const { memo } = await import('react');
+  const actual = await importOriginal<typeof import('../components/DogHealthSummary')>();
+  return {
+    DogHealthSummary: memo((props: ComponentProps<typeof actual.DogHealthSummary>) => {
+      countRender('healthSummary');
+      return <actual.DogHealthSummary {...props} />;
+    }),
+  };
+});
 
 const puppy: PuppyProfile = { id: 'pup-1', name: 'Rex', breed: 'Beagle', birthDate: '2026-01-01', targetMealsPerDay: 3, dailyFoodGramGoal: 200 };
 const owner: UserAccount = { id: 'usr-1', email: 'owner@example.com', name: 'Owner', role: 'Member' };
@@ -31,10 +57,10 @@ const heldUntilTeardown = () =>
   new Promise<Response>((resolve) => heldResponses.push(() => resolve(new Response('{}', { status: 503 }))));
 
 /** Routes each request by path; a path missing from `routes` gets a 404. */
-function stubApi(routes: Record<string, () => Promise<Response>>) {
-  vi.stubGlobal('fetch', vi.fn((url: string) => {
+function stubApi(routes: Record<string, (url: string, init?: RequestInit) => Promise<Response>>) {
+  vi.stubGlobal('fetch', vi.fn((url: string, init?: RequestInit) => {
     requestedUrls.push(url);
-    return routes[url.split('?')[0]]?.() ?? respond({ error: 'Not found' }, 404);
+    return routes[url.split('?')[0]]?.(url, init) ?? respond({ error: 'Not found' }, 404);
   }));
 }
 
@@ -53,6 +79,11 @@ async function settle() {
       await new Promise((resolve) => setTimeout(resolve, 0));
     });
   }
+}
+
+/** Settles until `condition` holds, for lazy views slower than one settle. */
+async function settleUntil(condition: () => boolean) {
+  for (let round = 0; round < 50 && !condition(); round += 1) await settle();
 }
 
 async function renderApp() {
@@ -112,6 +143,7 @@ afterEach(async () => {
   document.body.innerHTML = '';
   heldResponses.forEach((answer) => answer());
   await new Promise((resolve) => setTimeout(resolve, 0));
+  vi.useRealTimers();
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
 });
@@ -206,7 +238,7 @@ describe('App boot and sign-in data loading', () => {
     expect(isTimelineEmpty()).toBe(false);
   });
 
-  it('a return to the app whose stored dog is gone shows the first dog of the refreshed list, without an extra /api/activities request', async () => {
+  it('C2: a return to the app whose stored dog is gone shows the first dog of the refreshed list with its logs: one more /api/dashboard, no /api/activities', async () => {
     const removedPuppy: PuppyProfile = { ...puppy, id: 'pup-removed', name: 'Gone' };
     setAuthToken('app-session');
     setStoredAuthUser(owner);
@@ -214,7 +246,12 @@ describe('App boot and sign-in data loading', () => {
     setActivePuppyId(removedPuppy.id);
     let dashboardAnswers = 0;
     stubApi({
-      '/api/dashboard': () => (dashboardAnswers++ === 0 ? respond({ error: 'Failed to fetch dashboard payload' }, 500) : respond(dashboardPayload())),
+      // Like the server: the logs of the requested dog only
+      '/api/dashboard': (url) => {
+        if (dashboardAnswers++ === 0) return respond({ error: 'Failed to fetch dashboard payload' }, 500);
+        const requestedPuppyId = new URL(url, 'http://localhost').searchParams.get('puppyId');
+        return respond(dashboardPayload([recentPee()].filter((activity) => !requestedPuppyId || activity.puppyId === requestedPuppyId)));
+      },
       '/api/dogs': () => respond({ error: 'Internal server error' }, 500),
       '/api/households': () => respond({ error: 'Internal server error' }, 500),
     });
@@ -226,8 +263,9 @@ describe('App boot and sign-in data loading', () => {
     });
     await settle();
 
-    expect(requestedUrls).toEqual(['/api/dashboard?puppyId=pup-removed&days=14']);
+    expect(requestedUrls).toEqual(['/api/dashboard?puppyId=pup-removed&days=14', dashboardUrl]);
     expect(isTimelineEmpty()).toBe(false);
+    expect(getActivePuppyId()).toBe(puppy.id);
   });
 
   it('a return to the app keeps the selected second dog', async () => {
@@ -298,5 +336,130 @@ describe('App boot and sign-in data loading', () => {
 
     expect(requestedUrls).toEqual(['/api/auth/session', '/api/dashboard?days=14', '/api/dogs', '/api/households']);
     expect(document.body.textContent).not.toContain(en.dashboard.welcomeTitle);
+  });
+});
+
+describe('App log state', () => {
+  const testRecord: HealthRecord = { id: 'hr-1', householdId: 'hh-1', puppyId: puppy.id, type: 'vaccination', name: 'Vaccine-T1', date: '2026-09-01' };
+
+  it('F4: a refresh after the last health record was deleted removes it from the health summary', async () => {
+    signedInWithCachedDogOnly();
+    let dashboardAnswers = 0;
+    stubApi({ '/api/dashboard': () => respond({ ...dashboardPayload(), healthRecords: dashboardAnswers++ === 0 ? [testRecord] : [] }) });
+    await renderApp();
+    expect(document.body.textContent).toContain(testRecord.name);
+
+    await act(async () => {
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+    await settle();
+
+    expect(document.body.textContent).not.toContain(testRecord.name);
+  });
+
+  it('F4: the health passport shows only the selected dog\'s weights', async () => {
+    const otherPuppy: PuppyProfile = { ...puppy, id: 'pup-2', name: 'Other' };
+    const otherWeight: Activity = { id: 'act-w2', puppyId: otherPuppy.id, type: 'weight', timestamp: new Date(Date.now() - 60 * 60 * 1000).toISOString(), loggedBy: 'Owner', weightKg: 33.3 };
+    // No dog chosen yet on this device: /api/dashboard sends every dog's logs
+    setAuthToken('app-session');
+    setStoredAuthUser(owner);
+    setStoredPuppies([puppy, otherPuppy]);
+    stubApi({ '/api/dashboard': () => respond({ ...dashboardPayload([recentPee(), otherWeight]), puppies: [puppy, otherPuppy] }) });
+    window.history.pushState({}, '', '/health-passport');
+
+    await renderApp();
+    await settleUntil(() => document.body.textContent!.includes(en.weightChart.title));
+
+    expect(document.body.textContent).toContain(en.weightChart.title);
+    expect(document.body.textContent).not.toContain('33.3 kg');
+  });
+
+  it('F5: opening the log form re-renders neither the prediction cards nor the health summary', async () => {
+    signedInWithCachedDogOnly();
+    stubApi({ '/api/dashboard': () => respond(dashboardPayload()) });
+    await renderApp();
+    renderCounts.predictorWidget = 0;
+    renderCounts.healthSummary = 0;
+
+    await act(async () => document.querySelector<HTMLElement>(`[aria-label="${en.nav.logEvent}"]`)!.click());
+    // The form is a lazy chunk: on a slow runner it needs more rounds than settle() gives
+    await settleUntil(() => document.getElementById('quicklog-form') !== null);
+
+    expect(document.getElementById('quicklog-form')).not.toBeNull();
+    expect(renderCounts).toEqual({ predictorWidget: 0, healthSummary: 0 });
+  });
+
+  it('C1: a log tapped while a refresh is in flight stays when the older refresh answer arrives', async () => {
+    signedInWithCachedDogOnly();
+    let dashboardAnswers = 0;
+    let answerRefresh: (response: Response) => void = () => {};
+    stubApi({
+      '/api/dashboard': () => (dashboardAnswers++ === 0
+        ? respond(dashboardPayload([]))
+        : new Promise<Response>((resolve) => { answerRefresh = resolve; })),
+      '/api/activities': (_url, init) => respond(JSON.parse(String(init!.body)), 201),
+    });
+    await renderApp();
+    expect(isTimelineEmpty()).toBe(true);
+
+    await act(async () => {
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+    const peeButton = [...document.querySelectorAll('button')].find((button) => button.textContent === en.potty.peedOutside)!;
+    await act(async () => peeButton.click());
+    await settle();
+    // The refresh read the logs before the pee was saved
+    answerRefresh(new Response(JSON.stringify(dashboardPayload([]))));
+    await settle();
+
+    expect(isTimelineEmpty()).toBe(false);
+  });
+
+  it('C1: a log saved between two refresh events of one return to the app stays when the refresh sent before the save answers without it', async () => {
+    signedInWithCachedDogOnly();
+    let dashboardAnswers = 0;
+    const heldRefreshes: Array<(response: Response) => void> = [];
+    let answerSave: (response: Response) => void = () => {};
+    let savedLog: Activity | undefined;
+    stubApi({
+      '/api/dashboard': () => (dashboardAnswers++ === 0
+        ? respond(dashboardPayload([]))
+        : new Promise<Response>((resolve) => { heldRefreshes.push(resolve); })),
+      '/api/activities': (_url, init) => new Promise<Response>((resolve) => {
+        savedLog = JSON.parse(String(init!.body));
+        answerSave = resolve;
+      }),
+    });
+    await renderApp();
+
+    const peeButton = [...document.querySelectorAll('button')].find((button) => button.textContent === en.potty.peedOutside)!;
+    await act(async () => peeButton.click());
+    await act(async () => {
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+    answerSave(new Response(JSON.stringify(savedLog), { status: 201 }));
+    await settle();
+    await act(async () => {
+      window.dispatchEvent(new Event('focus'));
+    });
+    await settle();
+    // The refresh sent while the save was in flight read the logs without the pee; one sent after it sees the pee
+    heldRefreshes[0](new Response(JSON.stringify(dashboardPayload([]))));
+    heldRefreshes.slice(1).forEach((answer) => answer(new Response(JSON.stringify(dashboardPayload([savedLog!])))));
+    await settle();
+
+    expect(isTimelineEmpty()).toBe(false);
+  });
+
+  it('14: a meal dated later today counts neither in today\'s grams nor in today\'s meals', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-14T08:00:00.000Z'));
+    signedInWithCachedDogOnly();
+    const laterMeal: Activity = { id: 'act-meal', puppyId: puppy.id, type: 'food', timestamp: '2026-10-14T12:00:00.000Z', loggedBy: 'Owner', quantityGrams: 150 };
+    stubApi({ '/api/dashboard': () => respond(dashboardPayload([recentPee(), laterMeal])) });
+
+    await renderApp();
+
+    expect(document.body.textContent).toContain('0g / 200g (0/3)');
   });
 });

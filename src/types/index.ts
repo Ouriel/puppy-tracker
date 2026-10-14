@@ -13,7 +13,7 @@ export interface Activity {
   type: ActivityType;
   timestamp: string; // ISO string
   loggedBy: string; // Caretaker name
-  notes?: string;
+  notes?: string | null; // null: no note (the API sends null; an edit sends null to delete one)
   
   // Specific details
   pottyLocation?: PottyLocation;

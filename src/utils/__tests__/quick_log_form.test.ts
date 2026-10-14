@@ -57,7 +57,41 @@ describe('validateQuickLogForm', () => {
 
   it('grams and weight are only checked for their own type', () => {
     expect(validateQuickLogForm({ ...form, type: 'pee', quantityGrams: '', weightKg: '' })).toBeNull();
-    expect(validateQuickLogForm({ ...form, type: 'medication', quantityGrams: '0', weightKg: '0' })).toBeNull();
+    expect(validateQuickLogForm({ ...form, type: 'medication', medicationName: 'Credelio', quantityGrams: '0', weightKg: '0' })).toBeNull();
+  });
+
+  // 14: by the phone's clock, at the moment Save is pressed; past dates are fine (weights are often entered weeks later)
+  describe('date and time no later than 5 minutes after Save', () => {
+    const savedAt = new Date('2026-10-14T10:00');
+
+    it.each(['2026-10-14T10:05', '2026-10-14T09:59', '2026-08-01T08:00'])('%j is saved', (localTimestamp) => {
+      expect(validateQuickLogForm({ ...form, type: 'pee', localTimestamp }, savedAt)).toBeNull();
+    });
+
+    it.each(['2026-10-14T10:06', '2026-10-15T09:00'])('%j blocks the save', (localTimestamp) => {
+      expect(validateQuickLogForm({ ...form, type: 'pee', localTimestamp }, savedAt)).toEqual({ field: 'timestamp', messageKey: 'dateTimeInFuture' });
+    });
+  });
+
+  // 31
+  it.each(['', '   '])('medication: name %j blocks the save', (medicationName) => {
+    expect(validateQuickLogForm({ ...form, type: 'medication', medicationName })).toEqual({ field: 'medicationName', messageKey: 'medicationRequired' });
+  });
+
+  it('medication: the name is saved trimmed', () => {
+    expect(validateQuickLogForm({ ...form, type: 'medication', medicationName: ' Credelio ' })).toBeNull();
+    expect(buildQuickLogActivity({ ...form, type: 'medication', medicationName: ' Credelio ' }).medicationName).toBe('Credelio');
+  });
+});
+
+// 32: an edit sends null for an emptied note, so the server deletes it (JSON drops undefined)
+describe('buildQuickLogActivity notes', () => {
+  it.each(['', '   '])('an empty note %j is sent as null', (notes) => {
+    expect(buildQuickLogActivity({ ...form, notes }).notes).toBeNull();
+  });
+
+  it('a note is sent trimmed', () => {
+    expect(buildQuickLogActivity({ ...form, notes: ' ate fast ' }).notes).toBe('ate fast');
   });
 });
 

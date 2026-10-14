@@ -9,7 +9,7 @@ import {
   exchangeSessionToken,
   clearApiCache,
 } from './services/api';
-import { calculatePredictions, suggestNextMealGrams } from './utils/predictions';
+import { calculatePredictions, excludeFutureLogs, suggestNextMealGrams } from './utils/predictions';
 import { buildQuickActionActivity } from './utils/activityPayloads';
 import { isSameLogicalDate } from './utils/date';
 import { Navbar } from './components/Navbar';
@@ -66,7 +66,7 @@ function App() {
 
   const { activePuppyId, setPuppies, selectPuppy } = puppyState;
   const { setCaretakers } = caretakerState;
-  const { setActivitiesForPuppy } = activityState;
+  const { setActivitiesForPuppy, getMutationVersion, addActivity } = activityState;
 
   const handleNavigate = useCallback((view: 'dashboard' | 'carnetdesante' | 'settings') => {
     setCurrentView(view);
@@ -95,26 +95,28 @@ function App() {
   }, [puppyState, caretakerState]);
 
   // One request for puppies, caretakers, the last 14 days of logs and health records; false when it fails
-  const loadDashboard = useCallback(async () => {
-    const dashboardRes = await fetchDashboard(activePuppyId || undefined, 14);
+  const loadDashboard = useCallback(async (puppyId: string = activePuppyId): Promise<boolean> => {
+    // Read first: a log added, edited or deleted before the answer arrives may be missing from it
+    const mutationVersion = getMutationVersion();
+    const dashboardRes = await fetchDashboard(puppyId || undefined, 14);
     if (!dashboardRes.ok) return false;
     const { puppies, caretakers, activities, healthRecords: records } = dashboardRes.data;
     if (puppies && puppies.length > 0) {
+      // The stored dog is gone, so these are its logs (none): load the first dog's instead
+      if (puppyId && !puppies.some((puppy) => puppy.id === puppyId)) return loadDashboard(puppies[0].id);
       setPuppies(puppies);
-      const targetPuppyId = (activePuppyId && puppies.some((puppy) => puppy.id === activePuppyId))
-        ? activePuppyId
-        : puppies[0].id;
-      selectPuppy(targetPuppyId);
-      setActivitiesForPuppy(activities, targetPuppyId);
+      selectPuppy(puppyId || puppies[0].id);
+      setActivitiesForPuppy(activities, puppyId || puppies[0].id, mutationVersion);
     }
     if (Array.isArray(caretakers)) {
       setCaretakers(caretakers);
     }
-    if (records && records.length > 0) {
+    // An empty list too: the last record may have been deleted
+    if (records) {
       setHealthRecords(records);
     }
     return true;
-  }, [activePuppyId, setPuppies, selectPuppy, setCaretakers, setActivitiesForPuppy]);
+  }, [activePuppyId, getMutationVersion, setPuppies, selectPuppy, setCaretakers, setActivitiesForPuppy]);
 
   // Dogs and household when the dashboard request failed. Not after a 401: it removed the token, so they could only get 401 too.
   const loadDogsAndHouseholdIfSignedIn = useCallback(async () => {
@@ -243,17 +245,18 @@ function App() {
     return calculatePredictions(activePuppyActivities, puppyState.activePuppy, now);
   }, [activePuppyActivities, puppyState.activePuppy, now]);
 
-  const todayFoodLoggedGrams = useMemo(() => {
-    return activePuppyActivities
-      .filter((activity) => activity.type === 'food' && isSameLogicalDate(activity.timestamp, now))
-      .reduce((sum, activity) => sum + (activity.quantityGrams || 0), 0);
+  // Today's meals as the engine counts them: a meal dated later is not eaten yet
+  const todayMeals = useMemo(() => {
+    return excludeFutureLogs(activePuppyActivities, now).filter(
+      (activity) => activity.type === 'food' && isSameLogicalDate(activity.timestamp, now)
+    );
   }, [activePuppyActivities, now]);
 
-  const todayMealsCount = useMemo(() => {
-    return activePuppyActivities.filter(
-      (activity) => activity.type === 'food' && isSameLogicalDate(activity.timestamp, now)
-    ).length;
-  }, [activePuppyActivities, now]);
+  const todayFoodLoggedGrams = useMemo(() => {
+    return todayMeals.reduce((sum, activity) => sum + (activity.quantityGrams || 0), 0);
+  }, [todayMeals]);
+
+  const todayMealsCount = todayMeals.length;
 
   // Shared by the feed button label and the meal box: undefined once today's goal is reached.
   const nextMealPortionGrams = useMemo(() => {
@@ -278,13 +281,15 @@ function App() {
       actionTime,
     });
 
-    activityState.addActivity(newAct);
-  }, [puppyState.activePuppy, caretakerState.currentUser, activityState]);
+    addActivity(newAct);
+  }, [puppyState.activePuppy, caretakerState.currentUser, addActivity]);
 
   const handleOpenQuickLogModal = useCallback((type?: ActivityType) => {
     setQuickLogType(type || 'pee');
     setIsQuickLogOpen(true);
   }, []);
+
+  const handleOpenHealthPassport = useCallback(() => handleNavigate('carnetdesante'), [handleNavigate]);
 
   const handleUnlockWithSSO = async (email: string, name: string, token: string) => {
     setIsLoading(true);
@@ -403,7 +408,7 @@ function App() {
           >
             <CarnetDeSanteView
               activePuppy={puppyState.activePuppy}
-              activities={activityState.activities}
+              activities={activePuppyActivities}
               onOpenQuickLogModal={handleOpenQuickLogModal}
               onBackToDashboard={() => handleNavigate('dashboard')}
               onDeleteActivity={activityState.deleteActivity}
@@ -474,7 +479,7 @@ function App() {
                 activities={activePuppyActivities}
                 predictions={predictions}
                 healthRecords={healthRecords}
-                onOpenHealthPassport={() => handleNavigate('carnetdesante')}
+                onOpenHealthPassport={handleOpenHealthPassport}
               />
             )}
 

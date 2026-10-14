@@ -168,7 +168,7 @@ export function getUnifiedWeightEntries(
         timestamp: act.timestamp,
         weightKg: act.weightKg,
         source: 'activity',
-        notes: act.notes,
+        notes: act.notes ?? undefined,
       });
     }
   }

@@ -236,6 +236,27 @@ describe('Zod Schemas Validation', () => {
       expect(ActivityInputSchema.parse({ ...food, quantityGrams: null }).quantityGrams).toBeNull();
     });
 
+    // 14: the form stops 5 min ahead by the phone's clock; the server only refuses what no clock skew explains
+    it('rejects a timestamp more than 24 h in the future, on POST and PUT; a phone clock hours ahead still saves', () => {
+      const inHours = (hours: number) => new Date(Date.now() + hours * 60 * 60 * 1000).toISOString();
+      expect(ActivityInputSchema.safeParse({ ...base, timestamp: inHours(23) }).success).toBe(true);
+      expect(ActivityInputSchema.safeParse({ ...base, timestamp: inHours(25) }).success).toBe(false);
+      expect(ActivityInputSchema.partial().safeParse({ id: 'act-1', timestamp: inHours(23) }).success).toBe(true);
+      expect(ActivityInputSchema.partial().safeParse({ id: 'act-1', timestamp: inHours(25) }).success).toBe(false);
+    });
+
+    it('accepts a weight from 0.3 to 100 kg (number, numeric string or null), on POST and PUT', () => {
+      const weight = { ...base, type: 'weight' as const };
+      for (const weightKg of [0.3, 10.15, 100, '7.4', null]) {
+        expect(ActivityInputSchema.safeParse({ ...weight, weightKg }).success, String(weightKg)).toBe(true);
+      }
+      expect(ActivityInputSchema.parse({ ...weight, weightKg: '7.4' }).weightKg).toBe(7.4);
+      for (const weightKg of [0.2, 100.1, 0, -4, '', 'abc']) {
+        expect(ActivityInputSchema.safeParse({ ...weight, weightKg }).success, String(weightKg)).toBe(false);
+        expect(ActivityInputSchema.partial().safeParse({ id: 'act-1', weightKg }).success, String(weightKg)).toBe(false);
+      }
+    });
+
     it('only accepts known potty locations, or null', () => {
       expect(ActivityInputSchema.safeParse({ ...base, pottyLocation: 'indoor_pad' }).success).toBe(false);
       expect(ActivityInputSchema.safeParse({ ...base, pottyLocation: 'indoor_accident' }).success).toBe(true);

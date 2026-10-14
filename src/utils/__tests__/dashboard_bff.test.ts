@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { fetchDashboard, clearApiCache } from '../../services/api';
+import { fetchDashboard, clearApiCache, createActivity } from '../../services/api';
 import { setAuthToken, clearAuthToken } from '../auth';
 
 describe('Dashboard BFF API Service Suite', () => {
@@ -165,6 +165,50 @@ describe('Dashboard BFF API Service Suite', () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  describe('an answer read while a log was being saved may miss it (C1)', () => {
+    const emptyDashboard = () => new Response(JSON.stringify({ puppies: [], caretakers: [], activities: [], healthRecords: [] }), { status: 200 });
+    const saveLog = () => createActivity({ id: 'act-1', puppyId: 'pup-1', type: 'pee', timestamp: '2026-01-10T12:00:00.000Z', loggedBy: 'Owner' });
+
+    it('a request sent once the save is answered does not join one sent before', async () => {
+      const pendingResponses: Array<(response: Response) => void> = [];
+      const fetchMock = vi.fn(() => new Promise<Response>((resolve) => { pendingResponses.push(resolve); }));
+      global.fetch = fetchMock;
+      setAuthToken('t');
+
+      const save = saveLog();
+      // visibilitychange while the save is in flight
+      const readDuringSave = fetchDashboard('pup-1', 14);
+      pendingResponses[0](new Response('{}', { status: 201 }));
+      await save;
+      // focus, the same return to the app, once the save is answered
+      const readAfterSave = fetchDashboard('pup-1', 14);
+
+      expect(fetchMock).toHaveBeenCalledTimes(3);
+      pendingResponses.slice(1).forEach((respond) => respond(emptyDashboard()));
+      await readDuringSave;
+      await readAfterSave;
+    });
+
+    it('a request sent once the save is answered is not served from the cache filled before', async () => {
+      const pendingResponses: Array<(response: Response) => void> = [];
+      const fetchMock = vi.fn(() => new Promise<Response>((resolve) => { pendingResponses.push(resolve); }));
+      global.fetch = fetchMock;
+      setAuthToken('t');
+
+      const save = saveLog();
+      const readDuringSave = fetchDashboard('pup-1', 14);
+      pendingResponses[1](emptyDashboard());
+      await readDuringSave;
+      pendingResponses[0](new Response('{}', { status: 201 }));
+      await save;
+      const readAfterSave = fetchDashboard('pup-1', 14);
+
+      expect(fetchMock).toHaveBeenCalledTimes(3);
+      pendingResponses[2]?.(emptyDashboard());
+      await readAfterSave;
+    });
   });
 
   it('allows immediate fresh dashboard fetch when clearApiCache is invoked', async () => {

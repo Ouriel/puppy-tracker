@@ -83,6 +83,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
 
       const body = parsed.data;
+      if (body.type === 'medication' && !body.medicationName?.trim()) {
+        return res.status(400).json({ error: 'medicationName is required' });
+      }
 
       // Verify puppy belongs to this household; caretakers resolve who is logging (never the body's loggedBy)
       const [[puppy], caretakers] = await Promise.all([
@@ -139,6 +142,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       const body = parsed.data;
       if (!body.id) return res.status(400).json({ error: 'id is required' });
+      if (body.type === 'medication' && !body.medicationName?.trim()) {
+        return res.status(400).json({ error: 'medicationName is required' });
+      }
 
       const type = body.type;
       const isPotty = type === 'pee' || type === 'poop';

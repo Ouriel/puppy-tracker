@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeAll, afterEach } from 'vitest';
 import { act, type ComponentProps } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { QuickLogModal } from '../QuickLogModal';
+import { getLocalDatetimeString } from '../../utils/date';
 
 let root: Root | null = null;
 
@@ -103,6 +104,8 @@ describe('QuickLogModal grams and weight boxes', () => {
   it.each([
     ['weight', 'quicklog-weight-kg', 'abc', 'Check the weight (e.g. 10.4)'],
     ['pee', 'quicklog-timestamp', '', 'Pick a date and time'],
+    ['pee', 'quicklog-timestamp', getLocalDatetimeString(new Date(Date.now() + 10 * 60 * 1000)), 'This time is in the future'],
+    ['medication', 'quicklog-medication-name', '  ', 'Enter the treatment'],
   ] as const)('%s: #%s set to %j blocks Save with the message under the box', async (initialType, id, value, message) => {
     const { onSave, onClose } = await renderModal({ initialType });
     await setValue(id, value);
@@ -136,5 +139,37 @@ describe('QuickLogModal grams and weight boxes', () => {
     const weightButton = [...document.querySelectorAll<HTMLButtonElement>('[role="radio"]')].find((button) => button.textContent === 'Weight')!;
     await act(async () => weightButton.click());
     expect(field('quicklog-weight-kg').value).toBe('');
+  });
+});
+
+describe('QuickLogModal labels and notes', () => {
+  it('a new log shows "Logged by" the signed-in user, read-only', async () => {
+    await renderModal({ initialType: 'pee', currentUser: 'Alex' });
+    const loggedBy = document.getElementById('quicklog-logged-by')!;
+    expect(loggedBy.textContent).toBe('Logged by Alex');
+    expect(loggedBy.tagName).not.toBe('INPUT');
+  });
+
+  it('an edit shows the original author, not the person editing', async () => {
+    await renderModal({
+      currentUser: 'Tester',
+      activityToEdit: { id: 'act-1', puppyId: 'pup-1', type: 'pee', timestamp: '2026-10-13T08:15:00.000Z', loggedBy: 'Sam' },
+    });
+    expect(document.getElementById('quicklog-logged-by')!.textContent).toBe('Logged by Sam');
+  });
+
+  it('emptying the note of an edit saves null, so the note is deleted', async () => {
+    const { onSave } = await renderModal({
+      activityToEdit: { id: 'act-1', puppyId: 'pup-1', type: 'pee', timestamp: '2026-10-13T08:15:00.000Z', loggedBy: 'Tester', notes: 'old note' },
+    });
+    await setValue('quicklog-notes', '');
+    await submit();
+    expect(onSave.mock.calls[0][0].notes).toBeNull();
+  });
+
+  it('the notes placeholder is neutral and the grams label names its unit once', async () => {
+    await renderModal({ initialType: 'food' });
+    expect(field('quicklog-notes').placeholder).toBe('Optional');
+    expect(document.querySelector('label[for="quicklog-quantity-grams"]')!.textContent).toBe('Quantity (g)');
   });
 });

@@ -60,13 +60,16 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
   const [notes, setNotes] = useState<string>(activityToEdit?.notes || '');
   const [formError, setFormError] = useState<QuickLogFormError | null>(null);
 
+  // New log: the signed-in user; edit: who logged it. The server sets it either way.
+  const loggedBy = activityToEdit?.loggedBy || currentUser;
+
   const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault();
     const form = {
       puppyId: activityToEdit?.puppyId || '',
       type,
       localTimestamp: timestamp,
-      loggedBy: activityToEdit?.loggedBy || currentUser,
+      loggedBy,
       notes,
       pottyLocation,
       stoolConsistency,
@@ -87,6 +90,7 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
     formError?.field === field ? t.potty[formError.messageKey] : null;
   const gramsError = errorFor('quantityGrams');
   const weightError = errorFor('weightKg');
+  const medicationError = errorFor('medicationName');
   const timestampError = errorFor('timestamp');
 
   const activityTypes: { type: ActivityType; label: string; icon: React.ReactNode; color: string }[] = [
@@ -347,8 +351,14 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
                       type="text"
                       className="w-full bg-slate-950 border border-slate-800 text-slate-100 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-indigo-500 transition-colors"
                       value={medicationName}
-                      onChange={(event) => setMedicationName(event.target.value)}
+                      aria-invalid={medicationError ? true : undefined}
+                      aria-describedby={medicationError ? 'quicklog-medication-name-error' : undefined}
+                      onChange={(event) => {
+                        setMedicationName(event.target.value);
+                        setFormError(null);
+                      }}
                     />
+                    {medicationError && <p id="quicklog-medication-name-error" role="alert" className={inputErrorClass}>{medicationError}</p>}
                   </div>
                 )}
 
@@ -388,6 +398,10 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
                     onChange={(event) => setNotes(event.target.value)}
                   />
                 </div>
+
+                <p id="quicklog-logged-by" className="text-xs text-slate-400">
+                  {t.potty.loggedBy.replace('{name}', loggedBy)}
+                </p>
               </form>
             </div>
 

@@ -4,6 +4,7 @@ import {
   calculateLearnedIntervalMinutes,
   detectSleepSchedule,
 } from '../predictions';
+import { mergeOlderActivities } from '../../hooks/useActivities';
 import type { Activity, PuppyProfile } from '../../types';
 
 describe('SOTA Prediction Engine & Age-Decay Test Suite', () => {
@@ -178,9 +179,7 @@ describe('SOTA Prediction Engine & Age-Decay Test Suite', () => {
       { id: 'act-5', puppyId: 'pup-mid', type: 'pee', timestamp: '2026-08-05T10:00:00Z', loggedBy: 'Matthieu' }, // older (Aug 5)
     ];
 
-    const existingIds = new Set(initialBatch.map((a) => a.id));
-    const newUnique = olderBatch.filter((a) => !existingIds.has(a.id));
-    const merged = [...initialBatch, ...newUnique];
+    const merged = mergeOlderActivities(initialBatch, olderBatch);
 
     expect(merged.length).toBe(4);
     expect(merged.map((a) => a.id)).toEqual(['act-10', 'act-9', 'act-6', 'act-5']);
