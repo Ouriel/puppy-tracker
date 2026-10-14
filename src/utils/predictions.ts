@@ -771,11 +771,11 @@ export function predictNextPoop(
 ): SinglePredictionResult {
   const tz = options?.timeZone || getUserTimezone();
   const sleepSchedule = options?.sleepSchedule || detectSleepSchedule(activities, tz);
-  const offsets = calculateMorningSequenceOffsets(activities, tz);
 
   const maxAllowedTime = now.getTime() + 60 * 1000;
   const past = activities.filter((a) => parseIsoDate(a.timestamp).getTime() <= maxAllowedTime);
   const sorted = [...past].sort((a, b) => parseIsoDate(b.timestamp).getTime() - parseIsoDate(a.timestamp).getTime());
+  const offsets = calculateMorningSequenceOffsets(past, tz);
 
   const lastPoop = sorted.find((a) => a.type === 'poop');
   const lastFood = sorted.find((a) => a.type === 'food');
@@ -1065,17 +1065,20 @@ export function calculatePredictions(
 ): PredictionResult {
   const now = referenceTime || new Date();
   const tz = timeZone || getUserTimezone();
-  const sleepSchedule = customSleepSchedule || detectSleepSchedule(activities, tz);
-  const mealSchedule = detectMealSchedule(activities, tz);
+  // R10: a future-dated log (typo) would become the schedules' "now" and empty their learning windows
+  const maxAllowedTime = now.getTime() + 60 * 1000;
+  const past = activities.filter((activity) => parseIsoDate(activity.timestamp).getTime() <= maxAllowedTime);
+  const sleepSchedule = customSleepSchedule || detectSleepSchedule(past, tz);
+  const mealSchedule = detectMealSchedule(past, tz);
   const options: PredictorOptions = {
     timeZone: tz,
     sleepSchedule,
     mealSchedule,
   };
 
-  const peeResult = predictNextPee(activities, profile, now, options);
-  const poopResult = predictNextPoop(activities, profile, now, options);
-  const foodResult = predictNextFood(activities, profile, now, options);
+  const peeResult = predictNextPee(past, profile, now, options);
+  const poopResult = predictNextPoop(past, profile, now, options);
+  const foodResult = predictNextFood(past, profile, now, options);
 
   return {
     nextPeeExpectedAt: peeResult.nextExpectedAt,

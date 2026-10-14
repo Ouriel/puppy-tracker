@@ -1,4 +1,5 @@
 import healthProtocols from '../data/healthProtocols.json';
+import type { HealthRecord } from '../types';
 
 export interface HealthProtocolData {
   vaccines: Array<{ id: string; name: string; fullName: string; defaultBoosterMonths: number; description: string; aliases?: string[] }>;
@@ -29,24 +30,30 @@ export function getHealthProtocols(): HealthProtocolData {
   } as HealthProtocolData;
 }
 
+/** Protocol vaccine for a record name: by id, exact alias, name, then partial alias. */
+function findVaccineProtocol(vaccineType: string) {
+  const typeLower = vaccineType.toLowerCase();
+  return (
+    healthProtocols.vaccines.find((vaccine) => vaccine.id === typeLower) ||
+    healthProtocols.vaccines.find((vaccine) => vaccine.aliases && vaccine.aliases.some((alias) => alias.toLowerCase() === typeLower)) ||
+    healthProtocols.vaccines.find((vaccine) => vaccine.name.toLowerCase().includes(typeLower)) ||
+    healthProtocols.vaccines.find(
+      (vaccine) =>
+        vaccine.aliases &&
+        vaccine.aliases.some((alias) => {
+          const aliasLower = alias.toLowerCase();
+          return typeLower.includes(aliasLower) || aliasLower.includes(typeLower);
+        })
+    )
+  );
+}
+
 /**
  * Calculates the next booster due date based on vaccine type dataset.
  */
 export function calculateNextVaccineBooster(injectionDate: string, vaccineType: string, ageMonths: number = 6): string {
   const date = new Date(injectionDate);
-  const typeLower = vaccineType.toLowerCase();
-  const matched =
-    healthProtocols.vaccines.find((v) => v.id === typeLower) ||
-    healthProtocols.vaccines.find((v) => v.aliases && v.aliases.some((alias) => alias.toLowerCase() === typeLower)) ||
-    healthProtocols.vaccines.find((v) => v.name.toLowerCase().includes(typeLower)) ||
-    healthProtocols.vaccines.find(
-      (v) =>
-        v.aliases &&
-        v.aliases.some((alias) => {
-          const a = alias.toLowerCase();
-          return typeLower.includes(a) || a.includes(typeLower);
-        })
-    );
+  const matched = findVaccineProtocol(vaccineType);
 
   let months = matched ? matched.defaultBoosterMonths : 12;
 
@@ -71,12 +78,35 @@ export interface HealthStatusResult {
   color: 'danger' | 'warning' | 'success' | 'default';
 }
 
+type HealthStatusRecord = Pick<HealthRecord, 'type' | 'name' | 'date' | 'boosterDate'>;
+
 /**
- * Evaluates health record booster status (fulfilled, overdue, due soon, or up-to-date)
+ * What a record renews. `type` only says vaccination or deworming, so a vaccine is identified by its `name`
+ * resolved to the protocol vaccine (the same match as its booster date), else the name itself.
+ * Any deworming renews a deworming (switching product, e.g. Milbemax to Credelio Plus, is a renewal).
  */
-export function getHealthRecordStatus<T extends { id: string; date: string; boosterDate?: string }>(
-  record: T,
-  allRecords: T[],
+function getRenewalKey(record: HealthStatusRecord): string {
+  if (record.type === 'deworming') return 'deworming';
+  return findVaccineProtocol(record.name)?.id ?? record.name.trim().toLowerCase();
+}
+
+/**
+ * Vaccines that also renew narrower ones they contain: CHPPi + L4 holds the CHPPi valences (parvo included)
+ * and L4; CHPPi sans L4 holds parvo. To be confirmed by the owner's vet.
+ */
+const VACCINE_COVERS: Record<string, string[]> = {
+  chppi_l4: ['chppi_sans_l4', 'l4', 'vanguard_cpv'],
+  chppi_sans_l4: ['vanguard_cpv'],
+};
+
+/**
+ * Evaluates health record booster status (fulfilled, overdue, due soon, or up-to-date).
+ * Fulfilled only when a later record of the same vaccine, or of one that covers it, exists: a same-day or later
+ * record of another vaccine (e.g. Rage given with CHPPi) does not renew it.
+ */
+export function getHealthRecordStatus(
+  record: HealthStatusRecord,
+  allRecords: HealthStatusRecord[],
   upToDateLabel: string = 'Up to Date',
   fulfilledLabel: string = 'Fulfilled'
 ): HealthStatusResult {
@@ -84,13 +114,14 @@ export function getHealthRecordStatus<T extends { id: string; date: string; boos
     return { urgency: 'upToDate', label: upToDateLabel, color: 'success' };
   }
 
-  const sorted = [...allRecords].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  const isLatest = sorted.length > 0 && sorted[0].id === record.id;
-  const hasSubsequent = allRecords.some(
-    (other) => other.id !== record.id && new Date(other.date).getTime() >= new Date(record.date).getTime()
-  );
+  const renewalKey = getRenewalKey(record);
+  const isRenewed = allRecords.some((other) => {
+    if (new Date(other.date).getTime() <= new Date(record.date).getTime()) return false;
+    const otherKey = getRenewalKey(other);
+    return otherKey === renewalKey || (VACCINE_COVERS[otherKey]?.includes(renewalKey) ?? false);
+  });
 
-  if (!isLatest || hasSubsequent) {
+  if (isRenewed) {
     return { urgency: 'fulfilled', label: fulfilledLabel, color: 'default' };
   }
 

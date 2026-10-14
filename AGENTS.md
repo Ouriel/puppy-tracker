@@ -42,7 +42,7 @@ PupPace — Smart Household Puppy Activity Tracker & Potty Predictor. React 19 +
 - Veterinary protocols and product schedules are data-driven from `src/data/healthProtocols.json`.
 - All-in-one monthly chewable tablets (Credelio Plus, Nexgard Spectra, Simparica Trio) auto-calculate +1 month due dates.
 - Bravecto auto-calculates +3 months (12 weeks). Milbemax/Drontal auto-calculates monthly (<6m) or quarterly (>=6m).
-- Older historical vaccine or deworming entries that have subsequent entries logged on/after their booster date display **`✅ Renouvelé / Effectué`** (Fulfilled) instead of overdue alerts.
+- Older historical vaccine or deworming entries that have a later entry of the same vaccine, or of a vaccine that covers it, display **`✅ Renouvelé / Effectué`** (Fulfilled) instead of overdue alerts. "Same vaccine" = the record `name` resolved to its `healthProtocols.json` vaccine (`type` only says vaccination/deworming); coverage is `VACCINE_COVERS` in `src/utils/health.ts` (CHPPi + L4 covers CHPPi sans L4, L4 and Vanguard CPV; CHPPi sans L4 covers Vanguard CPV); any later deworming renews a deworming. A same-day entry of another vaccine (e.g. Rage with CHPPi) never renews it.
 
 ### Types & Validation
 
