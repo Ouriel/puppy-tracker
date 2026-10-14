@@ -822,6 +822,41 @@ describe('predictions utility — comprehensive test suite', () => {
       expect(detectSleepSchedule(newestFirst(earlyNights), 'Europe/Paris').bedtimeStr).toBe('21:00');
       expect(detectSleepSchedule(newestFirst([...earlyNights, ...lateNights]), 'Europe/Paris').bedtimeStr).toBe('23:00');
     });
+
+    // R10: the schedules were learned from every log, so a future-dated typo set their "now". A next-year log
+    // empties the 30-day meal and morning-sequence windows (breakfast falls back to 07:30, morning poop to wake-up
+    // + 10 min); a year 2062 log also underflows every decay weight to 0, so bedtime becomes the earliest one (21:00).
+    it.each([
+      ['next year', '2027-08-14T08:00:00+02:00'],
+      ['2062 for 2026', '2062-08-14T08:00:00+02:00'],
+    ])('R10: a food log dated %s moves neither breakfast, bedtime nor the morning poop', (_label, typoTimestamp) => {
+      // 9 nights at 21:00 then 5 at 23:00 (as in Bug 5); wake-up pee 07:45, breakfast 08:00, poop 08:20
+      const routine: Activity[] = [];
+      for (let dayIndex = 0; dayIndex < 14; dayIndex++) {
+        const day = 1 + dayIndex;
+        routine.push(
+          act('pee', makeParisIso(day, 7, 45)),
+          act('food', makeParisIso(day, 8, 0), { quantityGrams: 80 }),
+          act('poop', makeParisIso(day, 8, 20)),
+          act('food', makeParisIso(day, 12, 30), { quantityGrams: 80 }),
+          act('food', makeParisIso(day, 18, 30), { quantityGrams: 80 }),
+          act('pee', makeParisIso(day, dayIndex < 9 ? 21 : 23, 0)),
+        );
+      }
+      const withTypo = newestFirst([...routine, act('food', typoTimestamp, { quantityGrams: 80 })]);
+      const refTime = new Date('2026-08-15T07:00:00+02:00');
+
+      const clean = calculatePredictions(newestFirst(routine), mockProfile, refTime, 'Europe/Paris');
+      expect(clean.sleepSchedule?.bedtimeStr).toBe('23:00');
+      expect(clean.mealSchedule?.breakfastMins).toBe(8 * 60);
+      expect(at(clean.nextFoodExpectedAt!)).toBe('2026-08-15 08:00');
+      expect(at(clean.nextPoopExpectedAt!)).toBe('2026-08-15 08:20');
+
+      expect(calculatePredictions(withTypo, mockProfile, refTime, 'Europe/Paris')).toEqual(clean);
+      // Called directly, predictNextPoop learns its morning offset from the past logs only
+      const poopResult = predictNextPoop(withTypo, mockProfile, refTime, { timeZone: 'Europe/Paris', sleepSchedule: clean.sleepSchedule });
+      expect(poopResult.nextExpectedAt).toEqual(clean.nextPoopExpectedAt);
+    });
   });
 
   // 7. Decoupled Predictors & Empirical Morning Sequence Tests

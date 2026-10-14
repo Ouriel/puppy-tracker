@@ -172,24 +172,96 @@ describe('Health Passport — French Veterinary Protocol & Dataset Test Suite', 
     expect(nextDeworming).toBe('2026-12-23');
   });
 
-  it('evaluates vaccine dataset: superceded vaccines (v1-8w, v2-12w) have subsequent entries and are marked fulfilled', () => {
-    const vaccines = healthPassportDataset.filter((r) => r.type === 'vaccination');
-    const sorted = [...vaccines].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  it('evaluates vaccines per vaccine: only a later record of the same vaccine renews one (same-day CHPPi + Rage stay overdue)', () => {
+    // Same call as VaccineSection: each record against the vaccination list. The 16-week visit is logged as two
+    // records on the same day, and a kennel-cough shot comes later; both 2027-07-22 boosters are past on 2027-08-01.
+    const vaccines: HealthRecord[] = [
+      ...healthPassportDataset.filter((record) => record.id === 'v1-8w' || record.id === 'v2-12w'),
+      { id: 'v3-chppi', householdId: 'hh-001', puppyId: 'pup-balma', type: 'vaccination', name: 'CHPPi + L4 (Rappel 2 - 16 sem)', date: '2026-07-22', boosterDate: '2027-07-22' },
+      { id: 'v3-rage', householdId: 'hh-001', puppyId: 'pup-balma', type: 'vaccination', name: 'Rage (Eurican LR / Nobivac Rabies / Versiguard / Rabisin)', date: '2026-07-22', boosterDate: '2027-07-22' },
+      { id: 'v4-kc', householdId: 'hh-001', puppyId: 'pup-balma', type: 'vaccination', name: 'Toux de Chenil (Nobivac KC / Bronchi-Shield)', date: '2026-09-01', boosterDate: '2027-09-01' },
+    ];
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2027-08-01T10:00:00.000Z'));
+    try {
+      const urgencyById = Object.fromEntries(
+        vaccines.map((record) => [record.id, getHealthRecordStatus(record, vaccines).urgency])
+      );
+      expect(urgencyById).toEqual({
+        'v1-8w': 'fulfilled',
+        'v2-12w': 'fulfilled',
+        'v3-chppi': 'overdue',
+        'v3-rage': 'overdue',
+        'v4-kc': 'upToDate',
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 
-    const latestVaccine = sorted[0];
-    expect(latestVaccine.id).toBe('v3-16w');
+  it('matches hand-typed vaccine names to the right vaccine (longest alias wins; r, l4, kc only as whole words)', () => {
+    const record = (id: string, name: string, date: string, boosterDate: string): HealthRecord => (
+      { id, householdId: 'hh-001', puppyId: 'pup-balma', type: 'vaccination', name, date, boosterDate }
+    );
+    const statusOf = (target: HealthRecord, records: HealthRecord[]) => getHealthRecordStatus(target, records).urgency;
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2027-08-01T10:00:00.000Z'));
+    try {
+      // 'chppi sans l4' must resolve to CHPPi sans L4 (which does not include L4), not to the first 'chppi' alias (CHPPi + L4)
+      const lepto = record('lepto', 'Leptospirose L4', '2026-01-10', '2027-01-10');
+      expect(statusOf(lepto, [lepto, record('sans', 'CHPPi sans L4', '2026-03-10', '2026-04-10')])).toBe('overdue');
+      // An unknown name containing the letter r is not a rabies shot
+      const rage = record('rage', 'Rage', '2026-01-10', '2027-01-10');
+      expect(statusOf(rage, [rage, record('herpes', 'Herpès', '2026-03-10', '2027-03-10')])).toBe('overdue');
+      // Whole-word short aliases still work: a later 'Lepto L4' renews the L4 shot
+      expect(statusOf(lepto, [lepto, record('lepto2', 'Lepto L4', '2026-12-01', '2027-12-01')])).toBe('fulfilled');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 
-    // v1-8w has subsequent entries (v2 and v3) -> should be marked fulfilled
-    const hasSubsequentV1 = vaccines.some((other) => other.id !== 'v1-8w' && new Date(other.date).getTime() >= new Date('2026-05-22').getTime());
-    expect(hasSubsequentV1).toBe(true);
+  it('renews a CHPPi + L4 shot with a later L4-only booster (L4 sets its yearly date; owner decision F2)', () => {
+    const combo: HealthRecord = { id: 'combo', householdId: 'hh-001', puppyId: 'pup-balma', type: 'vaccination', name: 'CHPPi + L4 (Eurican / Nobivac / Versican)', date: '2027-03-27', boosterDate: '2028-03-27' };
+    const leptoOnly: HealthRecord = { id: 'l4', householdId: 'hh-001', puppyId: 'pup-balma', type: 'vaccination', name: 'Leptospirose L4', date: '2028-03-27', boosterDate: '2029-03-27' };
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2028-06-01T10:00:00.000Z'));
+    try {
+      expect(getHealthRecordStatus(combo, [combo, leptoOnly]).urgency).toBe('fulfilled');
+      expect(getHealthRecordStatus(leptoOnly, [combo, leptoOnly]).urgency).toBe('upToDate');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 
-    // v2-12w has subsequent entry (v3) -> should be marked fulfilled
-    const hasSubsequentV2 = vaccines.some((other) => other.id !== 'v2-12w' && new Date(other.date).getTime() >= new Date('2026-06-22').getTime());
-    expect(hasSubsequentV2).toBe(true);
+  it('does not let two records of the same vaccine on the same day renew each other', () => {
+    const first: HealthRecord = { id: 'rage-a', householdId: 'hh-001', puppyId: 'pup-balma', type: 'vaccination', name: 'Rage', date: '2026-07-22', boosterDate: '2027-07-22' };
+    const duplicate: HealthRecord = { ...first, id: 'rage-b' };
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2027-08-01T10:00:00.000Z'));
+    try {
+      expect(getHealthRecordStatus(first, [first, duplicate]).urgency).toBe('overdue');
+      expect(getHealthRecordStatus(duplicate, [first, duplicate]).urgency).toBe('overdue');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 
-    // v3-16w is the latest -> has no subsequent entries
-    const hasSubsequentV3 = vaccines.some((other) => other.id !== 'v3-16w' && new Date(other.date).getTime() >= new Date('2026-07-22').getTime());
-    expect(hasSubsequentV3).toBe(false);
+  it('renews a vaccine with a later vaccine that covers it (real carnet: CHPPi sans L4 primo, then CHPPi + L4 shots)', () => {
+    const vaccines: HealthRecord[] = [
+      { id: 'sans-l4', householdId: 'hh-001', puppyId: 'pup-balma', type: 'vaccination', name: 'CHPPi / DAPPi (sans L4)', date: '2026-05-27', boosterDate: '2026-06-27' },
+      { id: 'l4-1', householdId: 'hh-001', puppyId: 'pup-balma', type: 'vaccination', name: 'CHPPi + L4 (Eurican / Nobivac / Versican)', date: '2026-06-27', boosterDate: '2026-07-25' },
+      { id: 'l4-2', householdId: 'hh-001', puppyId: 'pup-balma', type: 'vaccination', name: 'CHPPi / DAPPi + L4 (Eurican / Nobivac / Versican / Canigen)', date: '2026-07-25', boosterDate: '2027-03-27' },
+    ];
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-14T10:00:00.000Z'));
+    try {
+      const urgencyById = Object.fromEntries(
+        vaccines.map((record) => [record.id, getHealthRecordStatus(record, vaccines).urgency])
+      );
+      expect(urgencyById).toEqual({ 'sans-l4': 'fulfilled', 'l4-1': 'fulfilled', 'l4-2': 'upToDate' });
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('evaluates deworming dataset: older doses (d1..d4) are fulfilled and the latest dose (d5) is overdue after its booster date', () => {
@@ -215,7 +287,7 @@ describe('Health Passport — French Veterinary Protocol & Dataset Test Suite', 
 
   it('flags the latest record as due soon up to 14 days before its booster date, up to date after that', () => {
     const urgencyForBooster = (boosterDate: string) => {
-      const record = { id: 'v1', date: '2026-08-01', boosterDate };
+      const record = { type: 'vaccination' as const, name: 'Rage', date: '2026-08-01', boosterDate };
       return getHealthRecordStatus(record, [record]).urgency;
     };
     vi.useFakeTimers({ toFake: ['Date'] });

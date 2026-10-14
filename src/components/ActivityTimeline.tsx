@@ -7,6 +7,7 @@ import { useI18n } from '../i18n';
 import { formatRelativeTime, formatLogicalDate, getUserTimezone } from '../utils/date';
 import { resolveCaretakerName } from '../utils/caretakers';
 import { exportActivitiesToCSV, printActivitiesReport } from '../utils/export';
+import { getDayFoodPill } from '../utils/dayFoodPill';
 import { ConfirmationModal } from './common/ConfirmationModal';
 
 const QuickLogModal = lazy(() => import('./QuickLogModal').then((m) => ({ default: m.QuickLogModal })));
@@ -381,8 +382,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
           <div className="space-y-3">
             {dayGroups.map((group) => {
               const isExpanded = expandedDays.has(group.dateKey);
-              const foodGoalReached = group.totalFoodGrams >= group.dailyGoalGrams && group.dailyGoalGrams > 0;
-              const hasFoodLogs = group.totalFoodGrams > 0;
+              const foodPill = getDayFoodPill(group, t.dashboard.mealsCount);
 
               return (
                 <div
@@ -433,22 +433,20 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
                       {/* Food Summary Pill */}
                       <div
                         className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-bold border transition-all ${
-                          foodGoalReached
+                          foodPill.tone === 'goalReached'
                             ? 'bg-emerald-950/70 border-emerald-700/60 text-emerald-300'
-                            : hasFoodLogs
+                            : foodPill.tone === 'underGoal'
                             ? 'bg-amber-950/60 border-amber-700/50 text-amber-300'
                             : 'bg-slate-900 border-slate-800 text-slate-400'
                         }`}
-                        title={`${t.dashboard.foodIntake}: ${group.totalFoodGrams}g / ${group.dailyGoalGrams}g`}
+                        title={`${t.dashboard.foodIntake}: ${foodPill.text}`}
                       >
                         <Utensils className="w-3.5 h-3.5 shrink-0" />
-                        <span>
-                          {group.totalFoodGrams}g / {group.dailyGoalGrams}g
-                        </span>
-                        <span className="text-[10px] opacity-80">
-                          ({group.mealsCount}/{group.targetMealsCount})
-                        </span>
-                        {foodGoalReached && <CheckCircle2 className="w-3 h-3 text-emerald-400 ml-0.5 shrink-0" />}
+                        <span>{foodPill.text}</span>
+                        {foodPill.mealsText && (
+                          <span className="text-[10px] opacity-80">{foodPill.mealsText}</span>
+                        )}
+                        {foodPill.tone === 'goalReached' && <CheckCircle2 className="w-3 h-3 text-emerald-400 ml-0.5 shrink-0" />}
                       </div>
 
                       {/* Potty Pills: Pee */}
