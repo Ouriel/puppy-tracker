@@ -8,12 +8,14 @@ export type ApiResult<T> =
   | { ok: false; error: string; status: number };
 
 const apiCache = new Map<string, { data: any; timestamp: number }>();
-const inflightRequests = new Map<string, Promise<ApiResult<any>>>();
+const inflightRequests = new Map<string, { promise: Promise<ApiResult<any>>; startedAt: number }>();
 const CACHE_TTL_MS = 60 * 1000; // 60 seconds TTL
+// Only the refresh events of one return to the app share a request; an older one may predate the background, or hang.
+const INFLIGHT_JOIN_MS = 2000;
 
+// In-flight requests are kept, so the refresh events of one return to the app share one request.
 export function clearApiCache() {
   apiCache.clear();
-  inflightRequests.clear();
 }
 
 function getHeaders(): Record<string, string> {
@@ -41,8 +43,8 @@ async function request<T>(url: string, options: RequestInit = {}): Promise<ApiRe
 
     // 2. De-duplicate identical inflight requests (e.g. concurrent component mounts)
     const existingInflight = inflightRequests.get(url);
-    if (existingInflight) {
-      return existingInflight as Promise<ApiResult<T>>;
+    if (existingInflight && Date.now() - existingInflight.startedAt < INFLIGHT_JOIN_MS) {
+      return existingInflight.promise as Promise<ApiResult<T>>;
     }
   } else {
     // Invalidate cache on mutations (POST, PUT, DELETE)
@@ -50,6 +52,7 @@ async function request<T>(url: string, options: RequestInit = {}): Promise<ApiRe
     inflightRequests.clear();
   }
 
+  const startedAt = Date.now();
   const fetchPromise = (async (): Promise<ApiResult<T>> => {
     try {
       const res = await fetch(url, { ...options, headers });
@@ -79,14 +82,15 @@ async function request<T>(url: string, options: RequestInit = {}): Promise<ApiRe
       console.error(`API request error on ${url}:`, message);
       return { ok: false, error: message, status: 0 };
     } finally {
-      if (method === 'GET') {
+      // A late answer must not remove a newer request for the same URL
+      if (method === 'GET' && inflightRequests.get(url)?.startedAt === startedAt) {
         inflightRequests.delete(url);
       }
     }
   })();
 
   if (method === 'GET') {
-    inflightRequests.set(url, fetchPromise);
+    inflightRequests.set(url, { promise: fetchPromise, startedAt });
   }
 
   return fetchPromise;

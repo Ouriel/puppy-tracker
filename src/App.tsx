@@ -64,6 +64,10 @@ function App() {
   const [isQuickLogOpen, setIsQuickLogOpen] = useState<boolean>(false);
   const [quickLogType, setQuickLogType] = useState<ActivityType>('pee');
 
+  const { activePuppyId, setPuppies, selectPuppy } = puppyState;
+  const { setCaretakers } = caretakerState;
+  const { setActivitiesForPuppy } = activityState;
+
   const handleNavigate = useCallback((view: 'dashboard' | 'carnetdesante' | 'settings') => {
     setCurrentView(view);
     const targetPath = view === 'dashboard' ? '/' : view === 'carnetdesante' ? '/health-passport' : `/${view}`;
@@ -89,6 +93,33 @@ function App() {
       caretakerState.setCaretakers(householdRes.data.caretakers);
     }
   }, [puppyState, caretakerState]);
+
+  // One request for puppies, caretakers, the last 14 days of logs and health records; false when it fails
+  const loadDashboard = useCallback(async () => {
+    const dashboardRes = await fetchDashboard(activePuppyId || undefined, 14);
+    if (!dashboardRes.ok) return false;
+    const { puppies, caretakers, activities, healthRecords: records } = dashboardRes.data;
+    if (puppies && puppies.length > 0) {
+      setPuppies(puppies);
+      const targetPuppyId = (activePuppyId && puppies.some((puppy) => puppy.id === activePuppyId))
+        ? activePuppyId
+        : puppies[0].id;
+      selectPuppy(targetPuppyId);
+      setActivitiesForPuppy(activities, targetPuppyId);
+    }
+    if (Array.isArray(caretakers)) {
+      setCaretakers(caretakers);
+    }
+    if (records && records.length > 0) {
+      setHealthRecords(records);
+    }
+    return true;
+  }, [activePuppyId, setPuppies, selectPuppy, setCaretakers, setActivitiesForPuppy]);
+
+  // Dogs and household when the dashboard request failed. Not after a 401: it removed the token, so they could only get 401 too.
+  const loadDogsAndHouseholdIfSignedIn = useCallback(async () => {
+    if (getAuthToken()) await loadDogsAndHousehold();
+  }, [loadDogsAndHousehold]);
 
   // Listen for browser Back/Forward navigation
   useEffect(() => {
@@ -122,35 +153,27 @@ function App() {
         return;
       }
 
+      const isDashboardView = getViewFromPath() === 'dashboard';
+      let isDashboardLoaded = false;
       try {
-        const initialView = getViewFromPath();
-        if (initialView === 'dashboard') {
+        if (isDashboardView) {
           // Single BFF roundtrip: puppies, caretakers, recent 14d activities, and health records in 1 cold start
-          const dashboardRes = await fetchDashboard(puppyState.activePuppyId || undefined, 14);
-          if (dashboardRes.ok) {
-            const { puppies, caretakers, activities, healthRecords: records } = dashboardRes.data;
-            if (puppies && puppies.length > 0) {
-              puppyState.setPuppies(puppies);
-              const targetPuppyId = (puppyState.activePuppyId && puppies.some((puppy) => puppy.id === puppyState.activePuppyId))
-                ? puppyState.activePuppyId
-                : puppies[0].id;
-              puppyState.selectPuppy(targetPuppyId);
-              activityState.setActivitiesForPuppy(activities, targetPuppyId);
-            }
-            if (Array.isArray(caretakers)) {
-              caretakerState.setCaretakers(caretakers);
-            }
-            if (records && records.length > 0) {
-              setHealthRecords(records);
-            }
-          }
-          // Secondary views (Health Passport, Settings): load dogs and household only, never wait for potty logs
-          await loadDogsAndHousehold();
+          isDashboardLoaded = await loadDashboard();
         }
       } catch (err) {
         console.error('Failed to load initial PupPace data', err);
       } finally {
         setIsLoading(false);
+
+        // Health Passport and Settings paint first, then load the same payload, so the dashboard opened next has fresh logs.
+        // A failed dashboard falls back to dogs and household, never before first paint.
+        if (!isDashboardView) {
+          loadDashboard()
+            .then((isLoaded) => (isLoaded ? undefined : loadDogsAndHouseholdIfSignedIn()))
+            .catch((error) => console.error('Failed to load PupPace data', error));
+        } else if (!isDashboardLoaded) {
+          loadDogsAndHouseholdIfSignedIn();
+        }
 
         // Deferred non-blocking session extension — runs after dashboard is interactive
         // Avoids cold-starting a 2nd Vercel function during the critical boot path
@@ -178,27 +201,12 @@ function App() {
   }, []);
 
   // Refresh dashboard data when PWA returns to foreground + heartbeat ticker
-  const { activePuppyId, setPuppies } = puppyState;
-  const { setCaretakers } = caretakerState;
-  const { setActivitiesForPuppy } = activityState;
-
   useEffect(() => {
     const refreshData = () => {
       setNow(new Date());
       if (document.visibilityState === 'visible' && getAuthToken()) {
         clearApiCache();
-        fetchDashboard(activePuppyId || undefined, 14).then((res) => {
-          if (res.ok) {
-            const { puppies, caretakers, activities, healthRecords: records } = res.data;
-            if (puppies?.length) setPuppies(puppies);
-            if (Array.isArray(caretakers)) setCaretakers(caretakers);
-            if (records?.length) setHealthRecords(records);
-            if (activities) {
-              const targetId = activePuppyId || puppies?.[0]?.id;
-              if (targetId) setActivitiesForPuppy(activities, targetId);
-            }
-          }
-        }).catch(() => {});
+        loadDashboard().catch((error) => console.error('Failed to refresh PupPace data', error));
       }
     };
 
@@ -215,7 +223,7 @@ function App() {
       window.removeEventListener('focus', refreshData);
       window.removeEventListener('pageshow', refreshData);
     };
-  }, [activePuppyId, setPuppies, setCaretakers, setActivitiesForPuppy]);
+  }, [loadDashboard]);
 
   // Prefetch QuickLogModal chunk after dashboard is interactive — eliminates INP spike on first "+" tap
   useEffect(() => {
@@ -292,7 +300,9 @@ function App() {
       setUser(userAccount);
       setStoredAuthUser(userAccount);
 
-      await loadDogsAndHousehold();
+      if (!(await loadDashboard())) {
+        await loadDogsAndHouseholdIfSignedIn();
+      }
 
       setIsLoading(false);
       return { success: true };

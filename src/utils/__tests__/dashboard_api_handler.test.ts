@@ -3,6 +3,7 @@ import type { SQL, Table } from 'drizzle-orm';
 import { PgDialect } from 'drizzle-orm/pg-core';
 import handler from '../../../api/dashboard.js';
 import { signAppSessionToken } from '../../../api/_auth.js';
+import { calculatePredictions } from '../predictions';
 
 // Mock Neon & Drizzle DB queries so handler tests run hermetically without external network
 vi.mock('@neondatabase/serverless', () => ({
@@ -42,28 +43,50 @@ function rowsByTable(): Record<string, unknown[]> {
     users: [{ id: 'usr-1', email: 'matthieu@example.com', name: 'Matthieu', householdId: 'hh-123', role: 'Husband', status: 'ACTIVE' }],
     puppies: mockPuppies,
     caretakers: mockCaretakers,
-    activities: mockActivities,
+    activities: dbMock.activities ?? mockActivities,
     health_records: mockHealthRecords,
   };
 }
 
-// WHERE clause received by each table's query, to check household scoping.
-const dbMock = vi.hoisted(() => ({ whereByTable: new Map<string, SQL>() }));
+// WHERE clause received by each table's query, to check household scoping; activity rows to serve instead of the default.
+const dbMock = vi.hoisted(() => ({ whereByTable: new Map<string, SQL>(), activities: null as unknown[] | null }));
 
 vi.mock('drizzle-orm/neon-http', async () => {
-  const { getTableName } = await import('drizzle-orm');
+  const { getTableName, getTableColumns } = await import('drizzle-orm');
+  const { PgDialect } = await import('drizzle-orm/pg-core');
+  const dialect = new PgDialect();
+  // Like Postgres: rows come back in insertion order, sorted only by the query's ORDER BY.
+  const sortRows = (table: Table, rows: any[], clauses: SQL[]) => {
+    const columns = Object.entries(getTableColumns(table));
+    const sortKeys = clauses.map((clause) => {
+      const [, columnName, direction] = dialect.sqlToQuery(clause).sql.match(/"(\w+)" (asc|desc)$/)!;
+      const [key] = columns.find(([, column]) => column.name === columnName)!;
+      return { key, sign: direction === 'desc' ? -1 : 1 };
+    });
+    return [...rows].sort((rowA, rowB) => {
+      for (const { key, sign } of sortKeys) {
+        const difference = Number(rowA[key]) - Number(rowB[key]);
+        if (difference) return sign * difference;
+      }
+      return 0;
+    });
+  };
   return {
     drizzle: vi.fn(() => ({
       select: vi.fn(() => ({
         from: vi.fn((table: Table) => {
           const tableName = getTableName(table);
-          const rows = () => rowsByTable()[tableName];
+          let orderClauses: SQL[] = [];
+          const rows = () => sortRows(table, rowsByTable()[tableName], orderClauses);
           const queryChain: any = {
             where: vi.fn((condition: SQL) => {
               dbMock.whereByTable.set(tableName, condition);
               return queryChain;
             }),
-            orderBy: vi.fn(() => queryChain),
+            orderBy: vi.fn((...clauses: SQL[]) => {
+              orderClauses = clauses;
+              return queryChain;
+            }),
             limit: vi.fn(() => Promise.resolve(rows())),
             then: (resolve: any) => resolve(rows()),
           };
@@ -80,6 +103,7 @@ describe('Dashboard API Serverless Handler Unit Tests', () => {
 
   beforeEach(() => {
     process.env.SESSION_SECRET = 'test-secret-key-1234567890-very-secure';
+    dbMock.activities = null;
   });
 
   afterEach(() => {
@@ -192,7 +216,7 @@ describe('Dashboard API Serverless Handler Unit Tests', () => {
 
     await handler(req, res);
     expect(res.status).toHaveBeenCalledWith(200);
-    expect(res.headers['cache-control']).toBe('private, max-age=10, stale-while-revalidate=60');
+    expect(res.headers['cache-control']).toBe('no-store');
     expect(res.body).toEqual({
       puppies: mockPuppies,
       caretakers: mockCaretakers,
@@ -209,5 +233,38 @@ describe('Dashboard API Serverless Handler Unit Tests', () => {
       expect(query.sql).toContain(`"${tableName}"."household_id" = $1`);
       expect(query.params[0]).toBe('hh-123');
     }
+  });
+
+  it('two poops in the same minute: the one logged last comes first, so a soft stool logged after a normal one gives the digestive alert', async () => {
+    const sameMinute = new Date('2026-08-30T10:00:00.000Z');
+    const poop = (id: string, stoolConsistency: string, createdAt: string) => ({
+      id, householdId: 'hh-123', puppyId: 'pup-1', type: 'poop', timestamp: sameMinute, loggedBy: 'Matthieu', stoolConsistency, createdAt: new Date(createdAt),
+    });
+    dbMock.activities = [poop('act-normal', 'normal', '2026-08-30T10:00:20.000Z'), poop('act-soft', 'soft', '2026-08-30T10:00:50.000Z')];
+    const token = signAppSessionToken({ email: 'matthieu@example.com', name: 'Matthieu', householdId: 'hh-123', role: 'Husband' }, 30);
+    const res = createMockResponse();
+
+    await handler({ method: 'GET', headers: { authorization: `Bearer ${token}` }, query: { puppyId: 'pup-1', days: '14' } } as any, res);
+
+    const puppy = { id: 'pup-1', name: 'Balma', breed: 'Cocker', birthDate: '2026-03-27', targetMealsPerDay: 3, dailyFoodGramGoal: 200 };
+    const predictions = calculatePredictions(res.body.activities, puppy, new Date('2026-08-30T10:30:00.000Z'), 'Europe/Paris');
+    expect(predictions.poopReason).toBe('Digestive alert: frequent checks recommended');
+    expect(res.body.activities.map((activity: { id: string }) => activity.id)).toEqual(['act-soft', 'act-normal']);
+  });
+
+  it('sorts by timestamp first: a back-dated log entered last still comes after newer logs', async () => {
+    const log = (id: string, timestamp: string, createdAt: string) => ({
+      id, householdId: 'hh-123', puppyId: 'pup-1', type: 'pee', timestamp: new Date(timestamp), loggedBy: 'Matthieu', createdAt: new Date(createdAt),
+    });
+    dbMock.activities = [
+      log('act-new', '2026-08-30T10:00:00.000Z', '2026-08-30T10:00:05.000Z'),
+      log('act-backdated', '2026-08-30T08:00:00.000Z', '2026-08-30T10:30:00.000Z'),
+    ];
+    const token = signAppSessionToken({ email: 'matthieu@example.com', name: 'Matthieu', householdId: 'hh-123', role: 'Husband' }, 30);
+    const res = createMockResponse();
+
+    await handler({ method: 'GET', headers: { authorization: `Bearer ${token}` }, query: { puppyId: 'pup-1', days: '14' } } as any, res);
+
+    expect(res.body.activities.map((activity: { id: string }) => activity.id)).toEqual(['act-new', 'act-backdated']);
   });
 });

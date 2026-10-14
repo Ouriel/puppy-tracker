@@ -57,12 +57,10 @@ export function setActivePuppyId(id: string): void {
 }
 
 const STORAGE_KEY_CACHED_ACTIVITIES = 'puppace_cached_activities_recent';
-const ACTIVITIES_CACHE_TTL_MS = 15 * 60 * 1000; // 15 minutes safety TTL for multi-user households
 
 interface StoredActivitiesPayload {
   puppyId: string;
   activities: import('../types').Activity[];
-  savedAt: number;
 }
 
 export function getStoredRecentActivities(puppyId: string): import('../types').Activity[] | null {
@@ -70,8 +68,9 @@ export function getStoredRecentActivities(puppyId: string): import('../types').A
   try {
     const raw = localStorage.getItem(STORAGE_KEY_CACHED_ACTIVITIES);
     if (!raw) return null;
-    const { puppyId: id, activities, savedAt }: StoredActivitiesPayload = JSON.parse(raw);
-    return id === puppyId && Date.now() - savedAt < ACTIVITIES_CACHE_TTL_MS ? activities : null;
+    // No age limit: the cache only paints the first frame; /api/dashboard replaces it as soon as it answers.
+    const { puppyId: id, activities }: StoredActivitiesPayload = JSON.parse(raw);
+    return id === puppyId ? activities : null;
   } catch {
     return null;
   }
@@ -82,7 +81,7 @@ export function setStoredRecentActivities(puppyId: string, activities: import('.
   try {
     localStorage.setItem(
       STORAGE_KEY_CACHED_ACTIVITIES,
-      JSON.stringify({ puppyId, activities: activities.slice(0, 300), savedAt: Date.now() })
+      JSON.stringify({ puppyId, activities: activities.slice(0, 300) })
     );
   } catch {}
 }

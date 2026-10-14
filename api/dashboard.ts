@@ -34,7 +34,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const householdId = auth.householdId;
-  res.setHeader('Cache-Control', 'private, max-age=10, stale-while-revalidate=60');
 
   try {
     const queryParsed = DashboardQuerySchema.safeParse(req.query);
@@ -61,7 +60,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         .select()
         .from(activitiesTable)
         .where(activitiesWhere)
-        .orderBy(desc(activitiesTable.timestamp))
+        // Same timestamp: the log made last comes first, and predictions take the first one
+        .orderBy(desc(activitiesTable.timestamp), desc(activitiesTable.createdAt))
         .limit(300),
       db
         .select()

@@ -32,7 +32,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     // GET /api/users — List users for household (or all users for SuperAdmin), or look up by email
     if (req.method === 'GET') {
-      res.setHeader('Cache-Control', 'private, max-age=10, stale-while-revalidate=60');
       const email = req.query.email as string;
       if (email) {
         const whereClause = isSuperAdmin

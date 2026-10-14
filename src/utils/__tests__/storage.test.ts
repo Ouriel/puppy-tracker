@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { getAuthToken, setAuthToken, clearAuthToken } from '../auth';
 
 // In-memory localStorage mock for node environment testing
@@ -83,7 +83,7 @@ describe('Storage Helpers Cache Suite', () => {
     expect(getStoredPuppies()).toEqual(DEFAULT_PUPPIES);
   });
 
-  it('should persist and retrieve up to 300 recent activities within TTL window', () => {
+  it('should persist and retrieve up to 300 recent activities', () => {
     expect(getStoredRecentActivities('pup-1')).toBeNull();
 
     // Newest first, as the API returns them: the cache must keep the 300 most recent.
@@ -100,6 +100,19 @@ describe('Storage Helpers Cache Suite', () => {
 
     // Query for different puppy should return null
     expect(getStoredRecentActivities('pup-2')).toBeNull();
+  });
+
+  it('returns cached activities whatever their age, so a 20-minute-old cache renders at once (P4)', () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    try {
+      vi.setSystemTime(new Date('2026-08-08T12:00:00.000Z'));
+      setStoredRecentActivities('pup-1', [act('pee', '2026-08-08T11:55:00.000Z', { id: 'act-0', puppyId: 'pup-1' })]);
+
+      vi.setSystemTime(new Date('2026-08-08T12:20:00.000Z'));
+      expect(getStoredRecentActivities('pup-1')?.map((activity) => activity.id)).toEqual(['act-0']);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 

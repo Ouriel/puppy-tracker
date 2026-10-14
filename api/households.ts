@@ -31,7 +31,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     // GET /api/households — Fetch household details & members (or all households for SuperAdmin)
     if (req.method === 'GET') {
-      res.setHeader('Cache-Control', 'private, max-age=10, stale-while-revalidate=60');
       
       if (req.query.all === 'true' && auth.role === 'SuperAdmin') {
         const allHouseholds = await db.select().from(householdsTable);

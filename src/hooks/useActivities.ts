@@ -39,8 +39,8 @@ export function useActivities(
     return [];
   });
   const [isLoading, setIsLoading] = useState<boolean>(() => {
-    if (!activePuppy?.id) return false;
-    // If we have fresh cached activities for this puppy (< 15 mins), start with isLoading: false!
+    // Skipping the initial fetch: the caller loads the logs and owns the loading state, so a failed load never leaves a skeleton.
+    if (!activePuppy?.id || options?.skipInitialFetch) return false;
     const cached = getStoredRecentActivities(activePuppy.id);
     return !cached || cached.length === 0;
   });
