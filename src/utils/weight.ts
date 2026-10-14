@@ -1,21 +1,14 @@
 import type {
   Activity,
   PuppyProfile,
-  HealthRecord,
   EffectiveWeightInfo,
   WeightProjectionResult,
 } from '../types';
 import { getPuppyAge } from './predictions';
 import { findBreed } from '../data/breedsCatalog';
 
-export interface UnifiedWeightEntry {
-  id: string;
-  timestamp: string; // ISO date string
-  weightKg: number;
-  source: 'activity' | 'vet';
-  notes?: string;
-  name?: string;
-}
+/** A weight event: an activity of type 'weight' with its weight. */
+export type UnifiedWeightEntry = Activity & { weightKg: number };
 
 /**
  * Returns baseline expected adult weight for a breed, with gender awareness.
@@ -152,65 +145,18 @@ export function getWalthamGrowthVelocity(adultKg: number, ageWeeks: number): num
 }
 
 /**
- * Unifies weight activities and veterinary health record weigh-ins into
- * a single deduplicated chronological stream.
+ * Every weight event (an activity of type 'weight'), oldest first. Each weigh-in is its own
+ * event, a vet visit's included: nothing is merged, and health records hold no weight.
  */
-export function getUnifiedWeightEntries(
-  activities: Activity[] = [],
-  healthRecords: HealthRecord[] = []
-): UnifiedWeightEntry[] {
-  const entries: UnifiedWeightEntry[] = [];
+export function getUnifiedWeightEntries(activities: Activity[] = []): UnifiedWeightEntry[] {
+  return activities
+    .filter((activity): activity is UnifiedWeightEntry => activity.type === 'weight' && (activity.weightKg ?? 0) > 0)
+    .sort((entryA, entryB) => Date.parse(entryA.timestamp) - Date.parse(entryB.timestamp));
+}
 
-  for (const act of activities) {
-    if (act.type === 'weight' && act.weightKg && act.weightKg > 0) {
-      entries.push({
-        id: act.id,
-        timestamp: act.timestamp,
-        weightKg: act.weightKg,
-        source: 'activity',
-        notes: act.notes ?? undefined,
-      });
-    }
-  }
-
-  for (const rec of healthRecords) {
-    if (rec.weightAtTime && rec.weightAtTime > 0) {
-      entries.push({
-        id: rec.id,
-        timestamp: rec.date,
-        weightKg: rec.weightAtTime,
-        source: 'vet',
-        notes: rec.notes,
-        name: rec.name,
-      });
-    }
-  }
-
-  // Sort ascending by timestamp
-  entries.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
-
-  // Deduplicate entries on the exact same day within 12h and < 0.15kg difference, favoring vet records
-  const deduplicated: UnifiedWeightEntry[] = [];
-  for (const entry of entries) {
-    const existingIndex = deduplicated.findIndex((existing) => {
-      const timeDiffHours = Math.abs(
-        (new Date(existing.timestamp).getTime() - new Date(entry.timestamp).getTime()) / (1000 * 3600)
-      );
-      const weightDiffKg = Math.abs(existing.weightKg - entry.weightKg);
-      return timeDiffHours <= 18 && weightDiffKg <= 0.25;
-    });
-
-    if (existingIndex >= 0) {
-      if (entry.source === 'vet') {
-        // Prefer vet clinic scale over home scale
-        deduplicated[existingIndex] = entry;
-      }
-    } else {
-      deduplicated.push(entry);
-    }
-  }
-
-  return deduplicated.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+/** A typed weight more than double or less than half the last weigh-in: likely a misplaced decimal point. */
+export function isUnlikelyWeight(typedKg: number, lastWeighInKg: number): boolean {
+  return typedKg > lastWeighInKg * 2 || typedKg < lastWeighInKg / 2;
 }
 
 /**
@@ -350,20 +296,18 @@ export function estimateCurrentWeightFromLastLog(
 }
 
 /**
- * Single central utility to calculate effective current weight for a puppy,
- * unifying activities and health records.
+ * Single central utility to calculate effective current weight for a puppy from its weight events.
  */
 export function getEffectivePuppyWeight(
   profile?: Partial<PuppyProfile> | null,
   activities: Activity[] = [],
-  targetDateISO: string = new Date().toISOString(),
-  healthRecords: HealthRecord[] = []
+  targetDateISO: string = new Date().toISOString()
 ): EffectiveWeightInfo {
   const fallbackWeight = profile?.weightKg || 4.2;
   const birthDate = profile?.birthDate || '2025-01-01';
   const ageWeeks = getPuppyAge(birthDate, targetDateISO).weeks;
 
-  const unifiedEntries = getUnifiedWeightEntries(activities, healthRecords);
+  const unifiedEntries = getUnifiedWeightEntries(activities);
 
   if (unifiedEntries.length === 0) {
     return {

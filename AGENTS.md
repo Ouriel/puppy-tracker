@@ -82,7 +82,7 @@ PupPace — Smart Household Puppy Activity Tracker & Potty Predictor. React 19 +
 - **Timestamp-Synchronized Regression**: Evaluates each weigh-in log at the puppy's exact age on the day of the log ($t_{\text{log}} = (\text{timestamp}_{\text{log}} - \text{birthDate}) / 7\text{d}$), eliminating prediction decay when days or weeks elapse between weigh-ins.
 - **Multi-Point Exponential Time-Weighting**: Weights historical logs with a 30-day exponential half-life ($w_i = e^{-\Delta t / 30\text{d}}$), dynamically blending 15–35% breed baseline with 65–85% empirical trajectory depending on data density ($\ge 6$ logs achieves 85% empirical weight).
 - **Gompertz Growth Velocity Derivative ($dW/dt$)**: Computes physiologically authentic daily weight gain ($dW/dt = W(t) \cdot B \cdot e^{-B(t-M)}$), yielding 50–65 g/day for 5-month medium puppies (e.g. Balma at ~53 g/day) rather than stagnant linear estimates.
-- **Unified Health Records & Activity Stream**: Transparently unifies veterinary checkup weigh-ins (`health_records.weight_at_time`, e.g. Credelio Plus doses) with home weigh-in logs (`activities.weight_kg`), displaying dedicated vet verification badges.
+- **One Weight Timeline**: Every weigh-in is its own weight event (`activities` row, `type='weight'`), a vet visit's included, and nothing is merged (`getUnifiedWeightEntries`). The vaccine and deworming add forms save an optional weight as a weight event (12:00 Paris on the record date, or now if that is still ahead; a record dated after today with a weight is refused; notes = vaccine or product name), never in `health_records.weight_at_time` (a legacy backup the app does not read). The vet badge marks a weight event whose notes are a `healthProtocols.json` vaccine or antiparasitic name. Weight boxes start empty with a "Last weigh-in" hint and never offer the profile weight or the model estimate.
 
 ### Safe Database Inspection
 
@@ -110,7 +110,7 @@ PupPace — Smart Household Puppy Activity Tracker & Potty Predictor. React 19 +
 
 ### API Caching, In-Flight Deduplication & BFF Boot Discipline
 
-- **Single Boot Roundtrip with Single-Pipe Batching (`/api/dashboard`)**: The initial dashboard view loads via `GET /api/dashboard`, executing puppies, caretakers, recent activities, **and health records** in one single `db.batch([ ... ])` HTTP pipeline to Neon. Cuts DB query execution time from 77ms down to 23ms (3.3x speedup).
+- **Single Boot Roundtrip with Single-Pipe Batching (`/api/dashboard`)**: The initial dashboard view loads via `GET /api/dashboard`, executing puppies, caretakers, recent activities, **health records and every weight event of the dog (no date bound)** in one single `db.batch([ ... ])` HTTP pipeline to Neon. Cuts DB query execution time from 77ms down to 23ms (3.3x speedup).
 - **Frame-1 LocalStorage Profile & Caretaker Cache**: Puppy metadata (name, breed, birthDate, avatar) and caretakers list are cached in `localStorage`. On Frame 1 ($t = 0$), the real Navbar and dog header render instantly without waiting for network responses.
 - **PWA Service Worker Precaching**: `vite-plugin-pwa` precaches immutable hashed CSS/JS assets for `< 15ms` instant shell startup on iOS/Android. Network calls to `/api/*` are strictly `NetworkOnly` to guarantee 100% fresh potty and meal data across caretakers.
 - **Deferred Session Extension**: `exchangeSessionToken()` runs 3 seconds after dashboard renders (via `setTimeout`), avoiding a 2nd concurrent Vercel function cold start during the critical boot path.

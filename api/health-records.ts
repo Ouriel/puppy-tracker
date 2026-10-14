@@ -94,17 +94,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const body = parsed.data;
       if (!body.id) return res.status(400).json({ error: 'id is required' });
 
+      // Only the fields sent are written (drizzle skips undefined): an edit form that does not show a field keeps it. null or '' clears it.
+      const clearable = <T,>(value: T | null | undefined) => (value === undefined ? undefined : value || null);
       const [updated] = await db
         .update(healthRecordsTable)
         .set({
           name: body.name,
           date: body.date,
-          boosterDate: body.boosterDate || null,
-          batchNumber: body.batchNumber || null,
-          vetClinic: body.vetClinic || null,
-          productName: body.productName || null,
-          weightAtTime: body.weightAtTime ? Number(body.weightAtTime) : null,
-          notes: body.notes || null,
+          boosterDate: clearable(body.boosterDate),
+          batchNumber: clearable(body.batchNumber),
+          vetClinic: clearable(body.vetClinic),
+          productName: clearable(body.productName),
+          weightAtTime: body.weightAtTime === undefined ? undefined : body.weightAtTime ? Number(body.weightAtTime) : null,
+          notes: clearable(body.notes),
         })
         .where(and(eq(healthRecordsTable.id, body.id), eq(healthRecordsTable.householdId, householdId)))
         .returning();

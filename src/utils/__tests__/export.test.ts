@@ -229,7 +229,6 @@ describe('export utilities — CSV and PDF export test suite', () => {
         productName: 'Milbemax',
         date: '2026-06-01',
         boosterDate: '2026-07-01',
-        weightAtTime: 6.2,
         notes: 'Comprimé appétant',
       },
     ];
@@ -379,6 +378,27 @@ describe('export utilities — CSV and PDF export test suite', () => {
       const htmlContent = mockWindow?.document.write.mock.calls[0][0] as string;
       expectEscaped(htmlContent);
       expect(htmlContent).toContain('&lt;img src=x onerror=alert(1)&gt;');
+    });
+  });
+
+  describe('health passport weights (Phase 5c)', () => {
+    // A record entered before Phase 5c still holds its weight, now also a weight event: the passport shows it once, as the event
+    const legacyDeworming = {
+      id: 'd-legacy', householdId: 'hh-1', puppyId: 'pup-1', type: 'deworming', name: 'Credelio Plus', productName: 'Credelio Plus', date: '2026-07-21', boosterDate: '2026-08-21', weightAtTime: 7.55,
+    } as HealthRecord;
+    const dewormingWeighIn: Activity = { id: 'act-w', puppyId: 'pup-1', type: 'weight', timestamp: '2026-07-21T10:00:00.000Z', weightKg: 7.55, notes: 'Credelio Plus', loggedBy: 'Daria' };
+
+    it('the CSV lists a deworming weight once, as its weight event', async () => {
+      exportHealthPassportToCSV(mockProfile, [], [legacyDeworming], [dewormingWeighIn], 'fr', mockCaretakers);
+      const text = await (createdBlob as Blob).text();
+      expect(text.match(/"7\.55"/g)).toHaveLength(1);
+    });
+
+    it('the printed passport lists a deworming weight once, in the weight history', () => {
+      printHealthPassportReport(mockProfile, [], [legacyDeworming], [dewormingWeighIn], 'fr', fr);
+      const htmlContent = mockWindow?.document.write.mock.calls[0][0] as string;
+      expect(htmlContent.match(/7\.55 kg/g)).toHaveLength(2); // the latest-weight card and its weight history row
+      expect(htmlContent).not.toContain('Poids au Traitement');
     });
   });
 });

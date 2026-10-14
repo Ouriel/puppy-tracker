@@ -313,7 +313,8 @@ describe('useActivities: a dog switch fetches the same recent window as the dash
     await switchTo(puppy);
     await switchTo({ ...puppy, id: 'pup-2', name: 'Second' });
 
-    const switchRequest = new URL(sent.at(-1)!.url, 'http://localhost');
+    // The recent window, not the weigh-ins fetched with it
+    const switchRequest = new URL(sent.filter((request) => !request.url.includes('type=weight')).at(-1)!.url, 'http://localhost');
     expect(switchRequest.searchParams.get('puppyId')).toBe('pup-2');
     expect(switchRequest.searchParams.get('limit')).toBe('300');
     expect(hook.hasMoreRemoteActivities).toBe(false);
@@ -419,5 +420,100 @@ describe('useActivities: double-log guard (owner decision 2026-10-13)', () => {
     await logAfter(1, 'pee');
 
     expect(posts()).toHaveLength(2);
+  });
+});
+
+describe('useActivities: every weight event of the dog, whatever its date (Phase 5c)', () => {
+  const weighIn = (id: string, daysAgo: number, weightKg: number): Activity => ({ ...log(id, daysAgo * 24, 'weight'), weightKg });
+  const weightIds = () => hook.weightActivities.map((activity) => activity.id);
+
+  it('a weigh-in older than the recent window can be edited and deleted', async () => {
+    await act(async () => hook.setActivitiesForPuppy([log('act-pee', 1)], puppy.id, hook.getMutationVersion(), [weighIn('act-w-old', 40, 6.1)]));
+    expect(weightIds()).toEqual(['act-w-old']);
+
+    await start(() => hook.updateActivity({ id: 'act-w-old', weightKg: 6.2 }));
+    expect(requestFor('act-w-old').method).toBe('PUT');
+    await requestFor('act-w-old').answer(200, { ...weighIn('act-w-old', 40, 6.2) });
+    expect(hook.weightActivities.map((activity) => activity.weightKg)).toEqual([6.2]);
+
+    sent = [];
+    await start(() => hook.deleteActivity('act-w-old'));
+    expect(requestFor('act-w-old').method).toBe('DELETE');
+    expect(weightIds()).toEqual([]);
+    await requestFor('act-w-old').answer(200, { success: true, deletedId: 'act-w-old' });
+    expect(ids()).toEqual(['act-pee']);
+  });
+
+  it('a weigh-in saved from any form joins the list; a failed save leaves it', async () => {
+    await act(async () => hook.setActivitiesForPuppy([], puppy.id, hook.getMutationVersion(), [weighIn('act-w-old', 40, 6.1)]));
+    await start(() => hook.addActivity({ ...newLog('weight'), weightKg: 8.4 }));
+    const savedId = posts()[0].body!.id;
+    expect(weightIds()).toEqual([savedId, 'act-w-old']);
+
+    await posts()[0].answer(500, { error: 'Internal server error' });
+    expect(weightIds()).toEqual(['act-w-old']);
+  });
+
+  it('an edit of a weigh-in older than the recent window shows at once; refused, it gets its old weight back', async () => {
+    await act(async () => hook.setActivitiesForPuppy([], puppy.id, hook.getMutationVersion(), [weighIn('act-w-old', 40, 6.1)]));
+
+    await start(() => hook.updateActivity({ id: 'act-w-old', weightKg: 6.2 }));
+    expect(hook.weightActivities.map((activity) => activity.weightKg)).toEqual([6.2]);
+    await requestFor('act-w-old').answer(500, { error: 'Internal server error' });
+
+    expect(hook.weightActivities.map((activity) => [activity.id, activity.weightKg])).toEqual([['act-w-old', 6.1]]);
+  });
+
+  it('a refused delete of a weigh-in older than the recent window puts it back', async () => {
+    await act(async () => hook.setActivitiesForPuppy([], puppy.id, hook.getMutationVersion(), [weighIn('act-w-old', 40, 6.1)]));
+
+    await start(() => hook.deleteActivity('act-w-old'));
+    expect(weightIds()).toEqual([]);
+    await requestFor('act-w-old').answer(500, { error: 'Internal server error' });
+
+    expect(hook.weightActivities.map((activity) => [activity.id, activity.weightKg])).toEqual([['act-w-old', 6.1]]);
+  });
+
+  it('a saved weigh-in takes the server\'s answer', async () => {
+    await start(() => hook.addActivity({ ...newLog('weight'), weightKg: 8.4 }));
+
+    await posts()[0].answer(201, { ...posts()[0].body, loggedBy: 'Signed-in Owner' });
+
+    expect(hook.weightActivities.map((activity) => [activity.weightKg, activity.loggedBy])).toEqual([[8.4, 'Signed-in Owner']]);
+  });
+
+  it('a recent window sent without the weight list keeps it', async () => {
+    await act(async () => hook.setActivitiesForPuppy([], puppy.id, hook.getMutationVersion(), [weighIn('act-w-old', 40, 6.1)]));
+
+    await showRecentLogs([log('act-pee', 1)]);
+
+    expect(weightIds()).toEqual(['act-w-old']);
+  });
+
+  it('a refresh read before a weigh-in was deleted does not bring it back', async () => {
+    await act(async () => hook.setActivitiesForPuppy([], puppy.id, hook.getMutationVersion(), [weighIn('act-w-1', 40, 6.1), weighIn('act-w-2', 20, 7.3)]));
+    const mutationVersion = hook.getMutationVersion();
+    await start(() => hook.deleteActivity('act-w-1'));
+    await requestFor('act-w-1').answer(200, { success: true, deletedId: 'act-w-1' });
+
+    await act(async () => hook.setActivitiesForPuppy([], puppy.id, mutationVersion, [weighIn('act-w-1', 40, 6.1), weighIn('act-w-2', 20, 7.3)]));
+
+    expect(weightIds()).toEqual(['act-w-2']);
+  });
+
+  it('a dog switch also loads every weigh-in of that dog', async () => {
+    const secondDog: PuppyProfile = { ...puppy, id: 'pup-2', name: 'Second' };
+    answerGet = (url) => (url.searchParams.get('type') === 'weight'
+      ? [{ ...weighIn('act-w-2', 60, 3.3), puppyId: 'pup-2' }]
+      : [{ ...log('act-pee-2', 1), puppyId: 'pup-2' }]);
+
+    await act(async () => root!.render(<DogProbe dog={secondDog} onRender={(state) => { hook = state; }} />));
+    await settle();
+
+    const weightRequest = sent.find((request) => request.url.includes('type=weight'))!;
+    expect(new URL(weightRequest.url, 'http://localhost').searchParams.get('puppyId')).toBe('pup-2');
+    expect(new URL(weightRequest.url, 'http://localhost').searchParams.get('days')).toBeNull();
+    expect(weightIds()).toEqual(['act-w-2']);
+    expect(ids()).toEqual(['act-pee-2']);
   });
 });

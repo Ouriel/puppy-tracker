@@ -1,34 +1,42 @@
 import React, { useState } from 'react';
 import type { PuppyProfile, HealthRecord, Activity } from '../../types';
 import { Pill, Plus, Trash2, Pencil, Check } from 'lucide-react';
-import { Card, Button, Input, Select, ListBox, ListBoxItem, Chip, toast } from '@heroui/react';
+import { Card, Button, Input, Select, ListBox, ListBoxItem, toast } from '@heroui/react';
 import { calculateNextAntiparasiticDate, getHealthProtocols, getHealthRecordStatus } from '../../utils/health';
 import { StatusBadge } from '../../components/common/StatusBadge';
-import { getEffectivePuppyWeight } from '../../utils/weight';
+import type { UnifiedWeightEntry } from '../../utils/weight';
+import { buildVetWeighIn } from '../../utils/activityPayloads';
 import { getPuppyAge } from '../../utils/predictions';
 import { formatLocalDate } from '../../utils/date';
 import { createHealthRecord, updateHealthRecord, deleteHealthRecord } from '../../services/api';
 import { ConfirmationModal } from '../../components/common/ConfirmationModal';
+import { WeightField } from './WeightField';
 
 interface DewormingSectionProps {
   activePuppy: PuppyProfile;
-  activities: Activity[];
   dewormingLogs: HealthRecord[];
   setDewormingLogs: React.Dispatch<React.SetStateAction<HealthRecord[]>>;
+  lastWeighIn?: UnifiedWeightEntry;
+  currentUser: string;
+  onAddActivity: (activity: Omit<Activity, 'id'>) => void;
   t: any;
 }
 
 export const DewormingSection: React.FC<DewormingSectionProps> = ({
   activePuppy,
-  activities,
   dewormingLogs,
   setDewormingLogs,
+  lastWeighIn,
+  currentUser,
+  onAddActivity,
   t,
 }) => {
   const [isAddingDeworming, setIsAddingDeworming] = useState(false);
   const [productName, setProductName] = useState('Credelio Plus');
   const [dewormAdminDate, setDewormAdminDate] = useState(() => formatLocalDate());
   const [customDewormNextDate, setCustomDewormNextDate] = useState<string | null>(null);
+  const [weightText, setWeightText] = useState('');
+  const [weightError, setWeightError] = useState<'weightInvalid' | 'dateTimeInFuture' | undefined>();
   const [confirmDelete, setConfirmDelete] = useState<{id: string; type: string} | null>(null);
 
   // Edit Deworming state
@@ -36,7 +44,6 @@ export const DewormingSection: React.FC<DewormingSectionProps> = ({
   const [editDewormingName, setEditDewormingName] = useState('');
   const [editDewormingDate, setEditDewormingDate] = useState('');
   const [editDewormingBoosterDate, setEditDewormingBoosterDate] = useState('');
-  const [editDewormingWeight, setEditDewormingWeight] = useState('');
 
   const autoNextDewormDate = React.useMemo(() => {
     if (!dewormAdminDate) return '';
@@ -58,21 +65,31 @@ export const DewormingSection: React.FC<DewormingSectionProps> = ({
     event.preventDefault();
     if (!dewormAdminDate || !dewormNextDate) return;
 
+    const name = productName.trim() || 'Credelio Plus';
+    // Optional: empty saves no weight; typed, it is checked before anything is saved
+    const weighIn = buildVetWeighIn({ puppyId: activePuppy.id, date: dewormAdminDate, weightText, productName: name, loggedBy: currentUser });
+    if (weighIn.error) {
+      setWeightError(weighIn.error);
+      return;
+    }
+
     const newEntry = {
       puppyId: activePuppy.id,
       type: 'deworming' as const,
-      name: productName.trim() || 'Credelio Plus',
-      productName: productName.trim() || 'Credelio Plus',
+      name,
+      productName: name,
       date: dewormAdminDate,
       boosterDate: dewormNextDate,
-      weightAtTime: getEffectivePuppyWeight(activePuppy, activities).estimatedCurrentWeight,
     };
 
     const result = await createHealthRecord(newEntry);
     if (result.ok) {
+      // A deworming never stores a weight: the weigh-in is a weight event of its own
+      if (weighIn.activity) onAddActivity(weighIn.activity);
       setDewormingLogs((previous) => sortByDateDesc([result.data, ...previous]));
       setIsAddingDeworming(false);
       setCustomDewormNextDate(null);
+      setWeightText('');
     } else {
       toast.danger(result.error || t.toasts.errorGeneric);
     }
@@ -83,7 +100,6 @@ export const DewormingSection: React.FC<DewormingSectionProps> = ({
     setEditDewormingName(deworming.productName || deworming.name);
     setEditDewormingDate(deworming.date);
     setEditDewormingBoosterDate(deworming.boosterDate || '');
-    setEditDewormingWeight(deworming.weightAtTime ? String(deworming.weightAtTime) : '');
   };
 
   const handleUpdateDewormingSubmit = async (id: string) => {
@@ -95,8 +111,8 @@ export const DewormingSection: React.FC<DewormingSectionProps> = ({
       name: editDewormingName,
       productName: editDewormingName,
       date: editDewormingDate,
-      boosterDate: editDewormingBoosterDate || undefined,
-      weightAtTime: editDewormingWeight ? Number(editDewormingWeight) : undefined,
+      // null clears a next date the user emptied
+      boosterDate: editDewormingBoosterDate || null,
     });
 
     if (result.ok) {
@@ -194,6 +210,19 @@ export const DewormingSection: React.FC<DewormingSectionProps> = ({
                   </div>
                 </div>
 
+                <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                  <WeightField
+                    id="deworming-weight-kg"
+                    value={weightText}
+                    error={weightError}
+                    lastWeighIn={lastWeighIn}
+                    onChange={(value) => {
+                      setWeightText(value);
+                      setWeightError(undefined);
+                    }}
+                  />
+                </div>
+
                 <div className="flex justify-end">
                   <Button
                     type="submit"
@@ -241,17 +270,6 @@ export const DewormingSection: React.FC<DewormingSectionProps> = ({
                             </ListBox>
                           </Select.Popover>
                         </Select>
-                      </div>
-                      <div className="sm:col-span-2 min-w-0">
-                        <label className="block text-[10px] text-slate-400 font-semibold mb-1">{t.health.weightAtTime}</label>
-                        <Input
-                          type="number"
-                          step="0.1"
-                          placeholder={t.health.weightPlaceholder}
-                          className="bg-slate-900 border-slate-700/80 text-slate-100"
-                          value={editDewormingWeight}
-                          onChange={(event) => setEditDewormingWeight(event.target.value)}
-                        />
                       </div>
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -310,11 +328,6 @@ export const DewormingSection: React.FC<DewormingSectionProps> = ({
                   <div className="space-y-0.5 min-w-0 flex-1">
                     <div className="text-xs font-bold text-white flex items-center gap-2 flex-wrap">
                       <span className="truncate">{deworming.productName || deworming.name}</span>
-                      {deworming.weightAtTime && (
-                        <Chip color="warning" variant="soft" size="sm">
-                          {t.health.weightPrefix}: {deworming.weightAtTime} {t.units.kg}
-                        </Chip>
-                      )}
                     </div>
                     <div className="text-[11px] text-slate-400">
                       {t.health.givenOn} {deworming.date}

@@ -558,7 +558,8 @@ export function exportHealthPassportToCSV(
       escapeCsvField(vaccine.date),
       escapeCsvField(vaccine.name),
       escapeCsvField(vaccine.boosterDate || ''),
-      escapeCsvField(vaccine.weightAtTime ?? ''),
+      // A weigh-in is its own weight event, listed below: a record never holds a weight
+      escapeCsvField(''),
       escapeCsvField(vaccine.vetClinic || (isFrench ? 'Clinique Vétérinaire' : 'Veterinary Clinic')),
       escapeCsvField(vaccine.batchNumber || ''),
       escapeCsvField(''),
@@ -576,7 +577,7 @@ export function exportHealthPassportToCSV(
       escapeCsvField(deworming.date),
       escapeCsvField(deworming.productName || deworming.name),
       escapeCsvField(deworming.boosterDate || ''),
-      escapeCsvField(deworming.weightAtTime ?? ''),
+      escapeCsvField(''),
       escapeCsvField(deworming.vetClinic || ''),
       escapeCsvField(deworming.batchNumber || ''),
       escapeCsvField(''),
@@ -825,7 +826,6 @@ export function printHealthPassportReport(
             <tr>
               <th>${isFrench ? 'Date Administration' : 'Date Given'}</th>
               <th>${isFrench ? 'Produit Antiparasitaire' : 'Product Name'}</th>
-              <th>${isFrench ? 'Poids au Traitement' : 'Weight at time'}</th>
               <th>${isFrench ? 'Prochain Traitement Dû' : 'Next Due Date'}</th>
             </tr>
           </thead>
@@ -834,7 +834,6 @@ export function printHealthPassportReport(
               <tr>
                 <td><strong>${esc(deworming.date)}</strong></td>
                 <td>${esc(deworming.productName || deworming.name)}</td>
-                <td>${deworming.weightAtTime ? `${esc(deworming.weightAtTime)} kg` : '-'}</td>
                 <td>${esc(deworming.boosterDate || '-')}</td>
               </tr>
             `).join('')}
