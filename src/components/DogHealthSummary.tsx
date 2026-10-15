@@ -177,7 +177,7 @@ export const DogHealthSummary: React.FC<DogHealthSummaryProps> = React.memo(({
                 </span>
               )}
             </div>
-            <Chip size="sm" variant="soft" color="accent" className="font-bold">
+            <Chip size="sm" variant="soft" color="accent" className="font-bold text-blue-300">
               {localizedBreed}
             </Chip>
           </div>

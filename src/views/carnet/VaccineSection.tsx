@@ -343,7 +343,7 @@ export const VaccineSection: React.FC<VaccineSectionProps> = ({
                             onClick={() => setEditVaccineBoosterDate(suggestedEditBoosterDate)}
                             className="mt-1.5 text-[11px] font-semibold text-teal-300 hover:text-teal-200 underline underline-offset-2"
                           >
-                            {t.health.suggestedDate.replace('{date}', suggestedEditBoosterDate)}
+                            {t.health.suggestedDate.replace('{date}', formatShortDate(suggestedEditBoosterDate, lang))}
                           </button>
                         )}
                       </div>
@@ -452,7 +452,7 @@ export const VaccineSection: React.FC<VaccineSectionProps> = ({
           <summary className="cursor-pointer font-bold text-teal-400 flex items-center gap-1.5 hover:text-teal-300 transition-colors list-none">
             <ShieldCheck className="w-4 h-4 shrink-0" />
             <span>{t.health.frenchVaccineGuidelines}</span>
-            <span className="text-[10px] font-normal text-slate-500 ml-auto group-open:hidden">{t.health.clickToViewSchedule}</span>
+            <span className="text-[10px] font-normal text-slate-400 ml-auto group-open:hidden">{t.health.clickToViewSchedule}</span>
           </summary>
           <ul className="mt-2.5 pl-5 text-[11px] text-slate-300 space-y-1 list-disc">
             <li>{t.health.week8Initial}</li>

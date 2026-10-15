@@ -180,7 +180,7 @@ export const AuthLockScreen: React.FC<AuthLockScreenProps> = ({
           </div>
 
           {/* Security Footer Note */}
-          <div className="pt-2 border-t border-slate-800/80 text-center text-[10px] text-slate-500 flex items-center justify-center gap-1">
+          <div className="pt-2 border-t border-slate-800/80 text-center text-[10px] text-slate-400 flex items-center justify-center gap-1">
             <ShieldCheck className="w-3.5 h-3.5 text-indigo-400" />
             <span>{t.auth.requireActivationNote}</span>
           </div>
