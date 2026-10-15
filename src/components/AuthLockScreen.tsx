@@ -1,26 +1,54 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useEffectEvent, useRef } from 'react';
 import { Lock, ShieldCheck, CheckCircle2, FileText, Shield, Sparkles, ChevronDown, ChevronUp } from 'lucide-react';
 import { Card, Button, Link } from '@heroui/react';
 import { PrivacyPolicyModal } from './PrivacyPolicyModal';
 import { TermsOfServiceModal } from './TermsOfServiceModal';
 import { useI18n } from '../i18n';
+import type { SignInOutcome } from '../types';
 
 interface AuthLockScreenProps {
-  onUnlockWithSSO: (email: string, name: string, token: string) => Promise<{ success: boolean; message?: string }> | { success: boolean; message?: string };
+  onUnlockWithSSO: (email: string, name: string, token: string) => Promise<SignInOutcome>;
 }
 
 export const AuthLockScreen: React.FC<AuthLockScreenProps> = ({
   onUnlockWithSSO,
 }) => {
   const { t } = useI18n();
-  const [error, setError] = useState('');
+  // A key of t.auth, so the message follows the language
+  const [error, setError] = useState<'' | 'pendingActivation' | 'ssoFailed' | 'googleScriptFailed'>('');
   const [success] = useState('');
+  const [isSigningIn, setIsSigningIn] = useState(false);
   const [showAboutDetails, setShowAboutDetails] = useState(false);
 
   const [isPrivacyOpen, setIsPrivacyOpen] = useState(false);
   const [isTermsOpen, setIsTermsOpen] = useState(false);
   
   const googleBtnRef = useRef<HTMLDivElement>(null);
+
+  // Google calls this back with the latest props, so the setup below runs once, not at each App render
+  const handleGoogleCredential = useEffectEvent(async (credential: string) => {
+    setError('');
+    setIsSigningIn(true);
+    let outcome: SignInOutcome = 'failed';
+    try {
+      const base64Url = credential.split('.')[1];
+      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+      const jsonPayload = decodeURIComponent(
+        window
+          .atob(base64)
+          .split('')
+          .map((char) => '%' + ('00' + char.charCodeAt(0).toString(16)).slice(-2))
+          .join('')
+      );
+      const decoded = JSON.parse(jsonPayload);
+
+      outcome = await onUnlockWithSSO(decoded.email, decoded.name, credential);
+    } catch {
+      // An unreadable credential or a thrown error is a failed sign-in
+    }
+    setIsSigningIn(false);
+    if (outcome !== 'signedIn') setError(outcome === 'pending' ? 'pendingActivation' : 'ssoFailed');
+  });
 
   // Google OAuth Client ID — environment variable with default project fallback
   const googleClientId =
@@ -30,87 +58,57 @@ export const AuthLockScreen: React.FC<AuthLockScreenProps> = ({
   useEffect(() => {
     if (!googleClientId) return;
 
-    // Dynamically load Google GSI script on demand if not already loaded
-    if (!window.google?.accounts?.id) {
-      const existingScript = document.getElementById('google-gsi-script');
-      if (!existingScript) {
-        const script = document.createElement('script');
-        script.id = 'google-gsi-script';
-        script.src = 'https://accounts.google.com/gsi/client';
-        script.async = true;
-        script.defer = true;
-        document.head.appendChild(script);
+    const initGoogleSignIn = () => {
+      if (!googleBtnRef.current || !window.google?.accounts?.id) return;
+      try {
+        window.google.accounts.id.initialize({
+          client_id: googleClientId,
+          auto_select: true,
+          callback: (response: { credential: string }) => handleGoogleCredential(response.credential),
+        });
+
+        googleBtnRef.current.innerHTML = '';
+        window.google.accounts.id.renderButton(googleBtnRef.current, {
+          theme: 'outline',
+          size: 'large',
+          width: '100%',
+        });
+
+        // Trigger Google One-Tap seamless auto-sign-in
+        try {
+          window.google.accounts.id.prompt();
+        } catch {
+          // One-Tap prompt is optional/fallback
+        }
+      } catch (err) {
+        console.error('Google accounts ID initialization error', err);
       }
+    };
+
+    if (window.google?.accounts?.id) {
+      initGoogleSignIn();
+      return;
     }
 
-    let isMounted = true;
-    let timerId: ReturnType<typeof setTimeout> | null = null;
-    let attempts = 0;
-    const maxAttempts = 50; // Poll up to 5 seconds for async script load
-
-    const initGoogleSignIn = () => {
-      if (!isMounted || !googleBtnRef.current) return;
-
-      if (window.google?.accounts?.id) {
-        try {
-          window.google.accounts.id.initialize({
-            client_id: googleClientId,
-            auto_select: true,
-            callback: async (response: any) => {
-              const credential = response.credential;
-              try {
-                const base64Url = credential.split('.')[1];
-                const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-                const jsonPayload = decodeURIComponent(
-                  window
-                    .atob(base64)
-                    .split('')
-                    .map((char) => '%' + ('00' + char.charCodeAt(0).toString(16)).slice(-2))
-                    .join('')
-                );
-                const decoded = JSON.parse(jsonPayload);
-
-                const res = await onUnlockWithSSO(decoded.email, decoded.name, credential);
-                if (!res.success) {
-                  setError(res.message || t.auth.pendingActivation);
-                }
-              } catch {
-                setError(t.auth.ssoFailed);
-              }
-            },
-          });
-
-          if (googleBtnRef.current) {
-            googleBtnRef.current.innerHTML = '';
-            window.google.accounts.id.renderButton(googleBtnRef.current, {
-              theme: 'outline',
-              size: 'large',
-              width: '100%',
-            });
-          }
-
-          // Trigger Google One-Tap seamless auto-sign-in
-          try {
-            window.google.accounts.id.prompt();
-          } catch {
-            // One-Tap prompt is optional/fallback
-          }
-        } catch (err) {
-          console.error('Google accounts ID initialization error', err);
-        }
-      } else if (attempts < maxAttempts) {
-        attempts++;
-        timerId = setTimeout(initGoogleSignIn, 100);
-      }
-    };
-
-    initGoogleSignIn();
-
+    // Load Google's script on demand; its load or error event says when it is done, however slow the network
+    const script =
+      document.getElementById('google-gsi-script') ??
+      document.head.appendChild(
+        Object.assign(document.createElement('script'), {
+          id: 'google-gsi-script',
+          src: 'https://accounts.google.com/gsi/client',
+          async: true,
+          defer: true,
+        })
+      );
+    const handleScriptError = () => setError('googleScriptFailed');
+    script.addEventListener('load', initGoogleSignIn);
+    script.addEventListener('error', handleScriptError);
     return () => {
-      isMounted = false;
-      if (timerId) clearTimeout(timerId);
+      script.removeEventListener('load', initGoogleSignIn);
+      script.removeEventListener('error', handleScriptError);
     };
-  }, [onUnlockWithSSO, googleClientId, t]);
+  }, [googleClientId]);
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center p-4 selection:bg-indigo-500 selection:text-white flex-col py-8">
@@ -146,8 +144,14 @@ export const AuthLockScreen: React.FC<AuthLockScreenProps> = ({
           </div>
 
           {error && (
-            <div className="bg-red-950/40 border border-red-800/50 text-red-300 p-3 rounded-xl text-xs font-medium text-center">
-              ⚠️ {error}
+            <div role="alert" className="bg-red-950/40 border border-red-800/50 text-red-300 p-3 rounded-xl text-xs font-medium text-center">
+              ⚠️ {t.auth[error]}
+              {error === 'googleScriptFailed' && (
+                // A reload fetches the script again
+                <Button size="sm" variant="secondary" onPress={() => window.location.reload()} className="mx-auto mt-2 flex">
+                  {t.auth.retry}
+                </Button>
+              )}
             </div>
           )}
 
@@ -164,7 +168,14 @@ export const AuthLockScreen: React.FC<AuthLockScreenProps> = ({
               <label className="block text-[11px] font-semibold text-slate-400 mb-2 text-center">
                 {t.auth.signInWithGoogle}
               </label>
-              <div ref={googleBtnRef} className="w-full flex justify-center min-h-[44px]" />
+              {isSigningIn && (
+                <div role="status" className="w-full flex items-center justify-center gap-2 min-h-[44px] text-xs text-slate-300">
+                  <div className="w-5 h-5 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+                  <span>{t.auth.signingIn}</span>
+                </div>
+              )}
+              {/* Hidden, not removed, while signing in: Google renders its button here once */}
+              <div ref={googleBtnRef} className={`w-full justify-center min-h-[44px] ${isSigningIn ? 'hidden' : 'flex'}`} />
             </div>
           </div>
 

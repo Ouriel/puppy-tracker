@@ -387,6 +387,9 @@ export const fr: TranslationKeys = {
     requireActivationNote: 'Comptes soumis à activation par le Super Admin Matthieu',
     pendingActivation: 'Compte en attente d\'activation par Matthieu.',
     ssoFailed: 'Échec de la connexion Google SSO.',
+    signingIn: 'Connexion…',
+    googleScriptFailed: 'Impossible de charger la connexion Google.',
+    retry: 'Réessayer',
   },
   privacy: {
     title: 'Politique de Confidentialité',
