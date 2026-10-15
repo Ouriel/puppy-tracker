@@ -253,7 +253,8 @@ export async function fetchUsers(): Promise<ApiResult<RegisteredUserItem[]>> {
   return request<RegisteredUserItem[]>('/api/users');
 }
 
-export async function createUser(user: Partial<RegisteredUserItem>): Promise<ApiResult<RegisteredUserItem>> {
+/** A 409 means the account lives in another household: resend with confirmMove once the inviter confirms. */
+export async function createUser(user: Partial<RegisteredUserItem> & { confirmMove?: boolean }): Promise<ApiResult<RegisteredUserItem>> {
   return request<RegisteredUserItem>('/api/users', {
     method: 'POST',
     body: JSON.stringify(user),

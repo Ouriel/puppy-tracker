@@ -262,6 +262,9 @@ export const en = {
     deleteMember: 'Delete Member',
     namePlaceholder: 'e.g. Alex',
     editMemberName: 'Edit Member Name & Color',
+    alreadyHasAccount: 'This person already has an account. Add them to your family?',
+    addToFamily: 'Add to family',
+    thisIsMe: 'This is me',
   },
   puppies: {
     title: 'Puppy Profiles',
@@ -368,6 +371,10 @@ export const en = {
     isolated: 'isolated',
     householdFor: 'Household for {name}',
     deleteUserBtn: 'Delete User',
+    ownHousehold: 'Own household',
+    joinHousehold: 'Add {email} to {household}?',
+    move: 'Move',
+    moveHousehold: 'Move {email} to {household}?',
   },
   auth: {
     subtitle: 'Smart Family Puppy Activity Tracker & Potty Predictor',

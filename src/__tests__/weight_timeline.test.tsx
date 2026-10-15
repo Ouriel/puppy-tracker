@@ -223,6 +223,21 @@ describe('Weight timeline (Phase 5c, prod-shaped)', () => {
     expect(posts('/api/activities')[0].body).toMatchObject({ type: 'weight', weightKg: 11.2, timestamp: '2026-03-28T11:00:00.000Z', notes: record.name });
   });
 
+  // Owner decision 2026-10-15: no badge here carries the saved name (the account's first log made one), so the badges reload
+  it('a vet weigh-in saved under a name no badge here carries reloads the badges', async () => {
+    await openPassport();
+    await click(buttonWithText(en.health.addVaccine));
+    const weightBox = document.getElementById('vaccine-weight-kg') as HTMLInputElement;
+    await setValue(weightBox, '11.2');
+    const badgeReloads = () => requests.filter((request) => request.url === '/api/households');
+    expect(badgeReloads()).toEqual([]);
+
+    await click(weightBox.form!.querySelector<HTMLButtonElement>('button[type="submit"]')!);
+
+    expect(posts('/api/activities')).toHaveLength(1);
+    expect(badgeReloads()).toHaveLength(1);
+  });
+
   it('the dashboard summary and the log form use the latest weigh-in, whatever its date', async () => {
     await renderAppAt('/');
     await settleUntil(() => document.body.textContent!.includes(en.health.summaryTitle));

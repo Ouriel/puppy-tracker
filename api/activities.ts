@@ -1,16 +1,41 @@
-import { randomUUID } from 'crypto';
+import { createHash, randomUUID } from 'crypto';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { neon } from '@neondatabase/serverless';
 import { drizzle } from 'drizzle-orm/neon-http';
 import { eq, and, desc, gte } from 'drizzle-orm';
 import { activitiesTable, caretakersTable, puppiesTable } from '../src/db/schema.js';
-import { getCurrentCaretakerName } from '../src/utils/caretakers.js';
+import { buildInviteBadge, findLinkedCaretaker, getCurrentCaretakerName } from '../src/utils/caretakers.js';
 import { ActivityInputSchema, parseDeleteId } from '../src/utils/schemas.js';
-import { verifyAuth, sendAuthError, setCorsHeaders } from './_auth.js';
+import { verifyAuth, sendAuthError, setCorsHeaders, type AuthContext } from './_auth.js';
 
 const connectionString = process.env.POSTGRES_URL || process.env.DATABASE_URL || '';
 const sql = neon(connectionString);
 const db = drizzle(sql);
+
+/**
+ * The name a log is stored under: the account's linked badge. Owner decision 2026-10-15: an account without one gets
+ * one on its first log, in its household, linked to its email and named like an invite badge (buildInviteBadge).
+ * Its id comes from the household and email, so two first logs at once collide on the primary key (the only unique
+ * index on caretakers): the second inserts nothing and reads the badge the first one made. When that id is a badge
+ * since unlinked from this email ('This is me' unticked), the re-read finds no linked badge and a random id is used.
+ */
+async function loggedByName(auth: AuthContext, caretakers: Array<typeof caretakersTable.$inferSelect>): Promise<string> {
+  const derivedId = `c-${createHash('sha256').update(`${auth.householdId}:${auth.email.trim().toLowerCase()}`).digest('hex').slice(0, 24)}`;
+  let current = caretakers;
+  // ponytail: two first logs at once right after an unlink can make two random-id badges; derive per-attempt ids if that shows up
+  for (const id of [derivedId, `c-${randomUUID()}`]) {
+    const badge = findLinkedCaretaker(auth, current) ? null : buildInviteBadge(auth.email, current);
+    if (!badge) break;
+    const [created] = await db
+      .insert(caretakersTable)
+      .values({ ...badge, id, householdId: auth.householdId })
+      .onConflictDoNothing()
+      .returning();
+    if (created) return created.name;
+    current = await db.select().from(caretakersTable).where(eq(caretakersTable.householdId, auth.householdId));
+  }
+  return getCurrentCaretakerName(auth, current);
+}
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   setCorsHeaders(req, res, 'GET, POST, PUT, DELETE, OPTIONS');
@@ -106,6 +131,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(200).json(existing);
       }
 
+      const loggedBy = await loggedByName(auth, caretakers);
       const [created] = await db
         .insert(activitiesTable)
         .values({
@@ -114,7 +140,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           puppyId: body.puppyId,
           type: body.type,
           timestamp: body.timestamp ? new Date(body.timestamp) : new Date(),
-          loggedBy: getCurrentCaretakerName(auth, caretakers),
+          loggedBy,
           pottyLocation: body.pottyLocation || null,
           stoolConsistency: body.stoolConsistency || null,
           foodType: body.foodType || null,

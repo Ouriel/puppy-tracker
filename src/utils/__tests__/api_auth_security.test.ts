@@ -409,6 +409,110 @@ describe('API Security & Session Token Validation Test Suite', () => {
     });
   });
 
+  // loggedBy is stored as a badge name and resolved by the badge email first, so a badge email is an identity.
+  describe('badge links to a login (22): one badge per email and per name, only an admin links someone else', () => {
+    const tokenFor = (role: string) =>
+      signAppSessionToken({ email: 'user@example.com', name: 'Matthieu', householdId: 'hh-family-123', role }, 30);
+    const ownerBadge = { id: 'ct-owner', householdId: 'hh-family-123', name: 'Owner', role: 'Member', color: '#EC4899', email: 'owner@example.com' };
+    const freeBadge = { id: 'ct-free', householdId: 'hh-family-123', name: 'Guest', role: 'Member', color: '#10B981', email: null };
+    const myBadge = { id: 'ct-me', householdId: 'hh-family-123', name: 'Me', role: 'Member', color: '#F59E0B', email: 'user@example.com' };
+
+    const send = async (role: string, method: 'POST' | 'PUT', body: unknown) => {
+      dbMock.rowsByTable.users = [{ ...activeUserRow, role }];
+      const response = createMockResponse();
+      await householdsHandler(bearerRequest(tokenFor(role), method, body), response);
+      return response;
+    };
+
+    it("refuses (403) a member writing their email onto someone else's badge, or someone else's email onto a new badge", async () => {
+      dbMock.rowsByTable.caretakers = [ownerBadge, freeBadge];
+
+      expect((await send('Member', 'PUT', { id: 'ct-owner', name: 'Owner', email: 'user@example.com' })).statusCode).toBe(403);
+      expect((await send('Member', 'POST', { name: 'Someone', email: 'other@example.com' })).statusCode).toBe(403);
+      expect(dbMock.update).not.toHaveBeenCalled();
+      expect(dbMock.insert).not.toHaveBeenCalled();
+    });
+
+    it("refuses (409) a badge name another badge already uses, ignoring case", async () => {
+      dbMock.rowsByTable.caretakers = [ownerBadge, freeBadge];
+
+      expect((await send('Member', 'POST', { name: 'owner', email: 'user@example.com' })).statusCode).toBe(409);
+      expect((await send('Member', 'PUT', { id: 'ct-free', name: 'OWNER' })).statusCode).toBe(409);
+      expect(dbMock.update).not.toHaveBeenCalled();
+      expect(dbMock.insert).not.toHaveBeenCalled();
+    });
+
+    // Else a member renames Daria's badge away, takes 'Daria' for their own badge and logs as Daria.
+    it("refuses (403) a member renaming a badge linked to someone else's login; their own and unlinked badges stay editable", async () => {
+      dbMock.rowsByTable.caretakers = [ownerBadge, freeBadge, myBadge];
+
+      expect((await send('Member', 'PUT', { id: 'ct-owner', name: 'Owner (old)' })).statusCode).toBe(403);
+      expect(dbMock.update).not.toHaveBeenCalled();
+      expect((await send('Member', 'PUT', { id: 'ct-owner', name: 'Owner', color: '#000000' })).statusCode).toBe(200);
+      expect((await send('Member', 'PUT', { id: 'ct-me', name: 'Me again' })).statusCode).toBe(200);
+      expect((await send('Member', 'PUT', { id: 'ct-free', name: 'Guest 2' })).statusCode).toBe(200);
+      expect((await send('Admin', 'PUT', { id: 'ct-owner', name: 'Owner (old)' })).statusCode).toBe(200);
+    });
+
+    it('still lets a member edit a badge that already shared its name before this rule, as long as the name stays', async () => {
+      dbMock.rowsByTable.caretakers = [freeBadge, { ...freeBadge, id: 'ct-twin' }];
+
+      expect((await send('Member', 'PUT', { id: 'ct-twin', name: 'Guest', color: '#000000' })).statusCode).toBe(200);
+    });
+
+    it('lets a member claim an unlinked badge ("This is me"), storing the email in lower case', async () => {
+      dbMock.rowsByTable.caretakers = [ownerBadge, freeBadge];
+
+      const response = await send('Member', 'PUT', { id: 'ct-free', name: 'Guest', email: 'USER@example.com' });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.body).toMatchObject({ email: 'user@example.com' });
+    });
+
+    // Else the member's next log creates a second badge and leaves this one linked to nobody (decision 2026-10-15).
+    it('refuses (403) a member unlinking any badge, their own included; an admin may', async () => {
+      dbMock.rowsByTable.caretakers = [ownerBadge, myBadge];
+
+      expect((await send('Member', 'PUT', { id: 'ct-owner', name: 'Owner', email: '' })).statusCode).toBe(403);
+      expect((await send('Member', 'PUT', { id: 'ct-me', name: 'Me', email: '' })).statusCode).toBe(403);
+      expect(dbMock.update).not.toHaveBeenCalled();
+      const response = await send('Admin', 'PUT', { id: 'ct-me', name: 'Me', email: '' });
+      expect(response.statusCode).toBe(200);
+      expect(response.body).toMatchObject({ email: null });
+    });
+
+    it('refuses (409) an email another badge already carries, even for an admin', async () => {
+      dbMock.rowsByTable.caretakers = [ownerBadge, freeBadge];
+
+      expect((await send('Admin', 'POST', { name: 'Jane', email: 'OWNER@example.com' })).statusCode).toBe(409);
+      expect((await send('Member', 'PUT', { id: 'ct-free', name: 'Guest', email: 'user@example.com' })).statusCode).toBe(200);
+      dbMock.rowsByTable.caretakers = [ownerBadge, freeBadge, myBadge];
+      expect((await send('Member', 'PUT', { id: 'ct-free', name: 'Guest', email: 'user@example.com' })).statusCode).toBe(409);
+    });
+
+    it("lets an admin link a new badge to someone else's email (invite)", async () => {
+      dbMock.rowsByTable.caretakers = [ownerBadge];
+
+      const response = await send('Admin', 'POST', { id: 'c-1', name: 'Jane', color: '#10B981', email: 'Jane.Doe@example.com' });
+
+      expect(response.statusCode).toBe(201);
+      expect(response.body).toMatchObject({ name: 'Jane', email: 'jane.doe@example.com' });
+    });
+
+    // Every Members-tab invite comes from the owner, the only token that keeps the SuperAdmin role.
+    it("lets the owner (SuperAdmin) link a new badge to someone else's email (invite)", async () => {
+      dbMock.rowsByTable.users = [];
+      dbMock.rowsByTable.caretakers = [ownerBadge];
+      const token = signAppSessionToken({ email: SUPER_ADMIN_EMAIL, name: 'Owner', householdId: 'hh-family-123', role: 'SuperAdmin' }, 30);
+      const response = createMockResponse();
+
+      await householdsHandler(bearerRequest(token, 'POST', { id: 'c-1', name: 'Jane', email: 'Jane.Doe@example.com' }), response);
+
+      expect(response.statusCode).toBe(201);
+      expect(response.body).toMatchObject({ email: 'jane.doe@example.com' });
+    });
+  });
+
   describe('/api/dogs input rules (Settings form)', () => {
     const memberToken = () =>
       signAppSessionToken({ email: 'user@example.com', name: 'Matthieu', householdId: 'hh-family-123', role: 'Member' }, 30);

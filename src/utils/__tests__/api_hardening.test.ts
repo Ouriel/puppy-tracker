@@ -40,7 +40,10 @@ vi.mock('drizzle-orm/neon-http', async () => {
           const isAuthLookup = dbMock.selectCount === 1;
           const rows = isAuthLookup
             ? [{ id: 'usr-1', email: 'user@example.com', name: 'Matthieu', householdId: 'hh-family-123', role: 'Admin', status: 'ACTIVE' }]
-            : tableName === 'puppies' ? [{ id: 'pup-1', householdId: 'hh-family-123' }] : [];
+            : tableName === 'puppies' ? [{ id: 'pup-1', householdId: 'hh-family-123' }]
+              // The account's own badge: a log creates no badge here (logged_by.test.ts covers that)
+              : tableName === 'caretakers' ? [{ id: 'c-1', name: 'Matthieu', role: 'Member', color: '#EC4899', email: 'user@example.com' }]
+                : [];
           const run = () => {
             const isNegative = (dbMock.limit ?? 0) < 0 || (dbMock.offset ?? 0) < 0;
             if (!isAuthLookup && (dbMock.failAfterAuth || isNegative)) return Promise.reject(leakingError(tableName));
