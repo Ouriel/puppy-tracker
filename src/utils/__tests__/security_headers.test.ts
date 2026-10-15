@@ -33,6 +33,9 @@ function allows(directive: string, url: string): boolean {
   });
 }
 
+// Google Calendar's new-event page, opened by the Add to calendar button on Android
+const OPENED_PAGES = ['https://calendar.google.com/calendar/render'];
+
 describe('vercel.json security headers', () => {
   it.each(['/', '/settings', '/privacy', '/terms', '/sw.js', '/assets/index.js', '/api/dashboard'])('apply to %s', (path) => {
     expect(new RegExp(`^${allRoutes?.source}$`).test(path)).toBe(true);
@@ -89,7 +92,9 @@ describe('vercel.json security headers', () => {
     const referenced = [...Object.values(pages), ...Object.values(sourceFiles)]
       .flatMap((content) => content.match(/https:\/\/[^\s"'`<>)]+/g) ?? [])
       // The app's own origin is 'self'
-      .filter((url) => new URL(url).origin !== 'https://puppace.vercel.app');
+      .filter((url) => new URL(url).origin !== 'https://puppace.vercel.app')
+      // Pages the app opens in a new tab (window.open) are navigations, which CSP does not govern
+      .filter((url) => !OPENED_PAGES.some((page) => url.startsWith(page)));
     expect(referenced.length).toBeGreaterThan(0);
     expect(referenced.filter((url) => ![...policy.keys()].some((directive) => allows(directive, url)))).toEqual([]);
   });

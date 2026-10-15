@@ -208,6 +208,8 @@ export const en = {
     lastVaccination: 'Last Vaccination',
     given: 'Given',
     nextDue: 'Next due',
+    addToCalendar: 'Add to calendar',
+    calendarEventTitle: '{dog}: {name} due',
     noVaccineRecords: 'No vaccine records logged yet.',
     lastDeworming: 'Last Deworming',
     noDewormingRecords: 'No deworming records logged yet.',

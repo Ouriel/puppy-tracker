@@ -69,7 +69,7 @@ Everything is learned from the dog's own logs; recent days count more than old o
 
 ### Health summary
 
-Below the cards: last weigh-in, estimated current weight and adult weight range; the learned daily routine (bedtime, wake-up, meal times and portions); the vaccine due first among those no later shot renewed, and the latest deworming, each with its name, next date and status (a dash and no status when it has no next date). "View full health passport" opens the passport.
+Below the cards: last weigh-in, estimated current weight and adult weight range; the learned daily routine (bedtime, wake-up, meal times and portions); the vaccine due first among those no later shot renewed, and the latest deworming, each with its name, next date, status and, until it is overdue, an "Add to calendar" button (a dash, no status and no button when it has no next date). "View full health passport" opens the passport.
 
 The cards refresh every minute. The data reloads each time you come back to the app, and every 15 minutes while the app stays open on screen, so a tablet left on shows the others' logs.
 
@@ -127,6 +127,7 @@ Open it from the health summary, or at `/health-passport`.
 - An optional weight box saves a separate weigh-in (12:00 Paris time on that date, or now if noon is still ahead).
 - Editing keeps the stored next date (often set by the vet). If you change the date or the product, the form offers "Suggested: date", one tap to apply.
 - Status: up to date; due soon (14 days, the due day included); overdue (from the next day); or **Completed** ("Effectué") once a later dose of the same vaccine, or of a vaccine that contains it, is logged (an L4 booster also completes CHPPi + L4). A different vaccine given the same day never completes it. Any later deworming completes a deworming. An entry with no next date shows a dash and no status.
+- **Add to calendar** (the calendar button next to the next date, also on the health summary): one all-day event on that date, "Rex: Credelio Plus due" ("Rex : Credelio Plus à faire"), with the date given and the clinic. On Android it opens Google Calendar's new-event page in a new tab, to save there; a link cannot set reminders, so tap "Add notification" (e.g. 1 day before at 09:00) before Save, otherwise only your default for all-day events applies, often none. Elsewhere it downloads a calendar file (.ics) with reminders at 09:00 the day before and on the day; added again, most calendars keep one event per entry and date. No button without a next date, once Completed, or once overdue (its reminders would be in the past). Not yet tried on a phone: Safari on iPhone is reported to open "Add to Calendar"; in the home-screen app, a download is reported to open a screen with no way back (close the app and reopen it), so prefer Safari, which needs its own sign-in. Elsewhere, open the downloaded file; if no calendar app takes it, import it at calendar.google.com on a computer.
 
 **Medication.** The medication logs, with add and delete buttons.
 

@@ -4,6 +4,7 @@ import { Pill, Plus, Trash2, Pencil, Check } from 'lucide-react';
 import { Card, Button, Input, Select, ListBox, ListBoxItem, toast } from '@heroui/react';
 import { calculateNextAntiparasiticDate, getHealthProtocols, getHealthRecordDateError, getHealthRecordStatus } from '../../utils/health';
 import { StatusBadge } from '../../components/common/StatusBadge';
+import { AddToCalendarButton } from '../../components/common/AddToCalendarButton';
 import type { UnifiedWeightEntry } from '../../utils/weight';
 import { buildVetWeighIn } from '../../utils/activityPayloads';
 import { formatLocalDate, formatShortDate } from '../../utils/date';
@@ -354,12 +355,13 @@ export const DewormingSection: React.FC<DewormingSectionProps> = ({
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between sm:justify-end gap-3 pt-2 sm:pt-0 border-t border-slate-800/60 sm:border-t-0 shrink-0">
+                <div className="flex flex-wrap items-center justify-between sm:justify-end gap-3 pt-2 sm:pt-0 border-t border-slate-800/60 sm:border-t-0 shrink-0">
                   <div className="text-left sm:text-right">
                     <div className="text-xs font-bold text-amber-300">{t.health.nextDeworming}: {deworming.boosterDate ? formatShortDate(deworming.boosterDate, lang) : '—'}</div>
                     {deworming.boosterDate && <StatusBadge status={status} />}
                   </div>
-                  <div className="flex items-center gap-1.5 shrink-0">
+                  <div className="flex items-center gap-1.5 shrink-0 ml-auto">
+                    <AddToCalendarButton record={deworming} status={status} dogName={activePuppy.name} />
                     <button
                       type="button"
                       onClick={() => startEditDeworming(deworming)}

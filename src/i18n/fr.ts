@@ -210,6 +210,8 @@ export const fr: TranslationKeys = {
     lastVaccination: 'Dernier vaccin',
     given: 'Fait le',
     nextDue: 'Prochain prévu',
+    addToCalendar: 'Ajouter au calendrier',
+    calendarEventTitle: '{dog} : {name} à faire',
     noVaccineRecords: 'Aucun vaccin enregistré.',
     lastDeworming: 'Dernier vermifuge',
     noDewormingRecords: 'Aucun vermifuge enregistré.',
