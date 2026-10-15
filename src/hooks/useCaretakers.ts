@@ -32,10 +32,10 @@ export function useCaretakers(
         toast.success(t.toasts.memberAdded);
       } else {
         setCaretakers(previousCaretakers);
-        toast.danger(result.error || t.toasts.errorGeneric);
+        toast.danger(t.toasts[result.errorKey]);
       }
     },
-    [caretakers, setCaretakers, t.toasts.memberAdded, t.toasts.errorGeneric]
+    [caretakers, setCaretakers, t.toasts]
   );
 
   const updateCaretaker = useCallback(async (id: string, updatedFields: Partial<Caretaker>) => {
@@ -46,9 +46,9 @@ export function useCaretakers(
       setCaretakers((previous) => previous.map((caretaker) => (caretaker.id === id ? result.data : caretaker)));
     } else {
       setCaretakers(previousCaretakers);
-      toast.danger(result.error || t.toasts.errorGeneric);
+      toast.danger(t.toasts[result.errorKey]);
     }
-  }, [caretakers, setCaretakers, t.toasts.errorGeneric]);
+  }, [caretakers, setCaretakers, t.toasts]);
 
   const deleteCaretaker = useCallback(
     async (id: string) => {
@@ -59,10 +59,10 @@ export function useCaretakers(
         toast(t.toasts.memberRemoved);
       } else {
         setCaretakers(previousCaretakers);
-        toast.danger(result.error || t.toasts.errorGeneric);
+        toast.danger(t.toasts[result.errorKey]);
       }
     },
-    [caretakers, setCaretakers, t.toasts.memberRemoved, t.toasts.errorGeneric]
+    [caretakers, setCaretakers, t.toasts]
   );
 
   return {

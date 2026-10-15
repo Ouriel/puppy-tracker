@@ -6,6 +6,7 @@ import { caretakersTable, householdsTable } from '../src/db/schema.js';
 import { CaretakerInputSchema } from '../src/utils/schemas.js';
 import { verifyAuth, sendAuthError, setCorsHeaders, canDeleteHouseholdData, type AuthContext } from './_auth.js';
 import { getDatabaseUrl } from './_db.js';
+import type { MemberRefusalCode } from '../src/types/index.js';
 
 const connectionString = getDatabaseUrl();
 const sql = neon(connectionString);
@@ -23,7 +24,7 @@ function badgeWriteRefusal(
   householdBadges: CaretakerRow[],
   change: { name?: string; email?: string | null },
   existing?: CaretakerRow
-): { status: number; error: string } | null {
+): { status: number; error: string; code: MemberRefusalCode } | null {
   const otherBadges = householdBadges.filter((item) => item.id !== existing?.id);
   const name = change.name?.trim().toLowerCase();
   const isRename = name !== existing?.name?.trim().toLowerCase();
@@ -32,22 +33,22 @@ function badgeWriteRefusal(
   const isAdmin = auth.role === 'Admin' || auth.role === 'SuperAdmin';
   // A badge linked to someone else keeps its name: else a member renames it away and takes that name.
   if (!isAdmin && name && isRename && currentEmail && currentEmail !== ownEmail) {
-    return { status: 403, error: "Only an admin can rename a member linked to someone else's login." };
+    return { status: 403, error: "Only an admin can rename a member linked to someone else's login.", code: 'memberAdminOnly' };
   }
   if (name && isRename && otherBadges.some((item) => item.name.trim().toLowerCase() === name)) {
-    return { status: 409, error: 'Another member already has this name.' };
+    return { status: 409, error: 'Another member already has this name.', code: 'memberNameTaken' };
   }
   if (change.email === undefined || change.email === currentEmail) return null;
   // Unlinking is for the owner or an admin: a member's next log would create a second badge and orphan this one.
   if (!isAdmin && currentEmail && !change.email) {
-    return { status: 403, error: 'Only an admin can unlink a member from a login.' };
+    return { status: 403, error: 'Only an admin can unlink a member from a login.', code: 'memberAdminOnly' };
   }
   const touchesOnlyOwnLink = [currentEmail, change.email].every((email) => email === null || email === ownEmail);
   if (!isAdmin && !touchesOnlyOwnLink) {
-    return { status: 403, error: "Only an admin can link a member to someone else's login." };
+    return { status: 403, error: "Only an admin can link a member to someone else's login.", code: 'memberEmailTaken' };
   }
   if (change.email && otherBadges.some((item) => item.email?.toLowerCase() === change.email)) {
-    return { status: 409, error: 'Another member is already linked to this email.' };
+    return { status: 409, error: 'Another member is already linked to this email.', code: 'memberEmailTaken' };
   }
   return null;
 }
@@ -112,7 +113,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         .from(caretakersTable)
         .where(eq(caretakersTable.householdId, householdId));
       const refusal = badgeWriteRefusal(auth, householdBadges, { name: body.name, email });
-      if (refusal) return res.status(refusal.status).json({ error: refusal.error });
+      if (refusal) return res.status(refusal.status).json({ error: refusal.error, code: refusal.code });
 
       const id = body.id || `ct-${Date.now()}`;
       const color = body.color || 'bg-amber-500';
@@ -152,7 +153,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       const email = body.email === undefined ? undefined : body.email ? body.email.toLowerCase() : null;
       const refusal = badgeWriteRefusal(auth, householdBadges, { name: body.name, email }, existing);
-      if (refusal) return res.status(refusal.status).json({ error: refusal.error });
+      if (refusal) return res.status(refusal.status).json({ error: refusal.error, code: refusal.code });
 
       const updatedRole = body.role || existing.role || 'Member';
 

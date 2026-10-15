@@ -47,11 +47,11 @@ export function usePuppies(initialPuppies?: PuppyProfile[]) {
         toast.success(t.toasts.dogRegistered.replace('{name}', saved.name));
         return true;
       } else {
-        toast.danger(result.error || t.toasts.errorGeneric);
+        toast.danger(t.toasts[result.errorKey]);
         return false;
       }
     },
-    [t.toasts.dogRegistered, t.toasts.errorGeneric]
+    [t.toasts]
   );
 
   const updatePuppy = useCallback(
@@ -65,10 +65,10 @@ export function usePuppies(initialPuppies?: PuppyProfile[]) {
         return true;
       }
       setPuppies(previousPuppies);
-      toast.danger(result.error || t.toasts.errorGeneric);
+      toast.danger(t.toasts[result.errorKey]);
       return false;
     },
-    [puppies, setPuppies, t.toasts.dogUpdated, t.toasts.errorGeneric]
+    [puppies, setPuppies, t.toasts]
   );
 
   const deletePuppy = useCallback(
@@ -87,10 +87,10 @@ export function usePuppies(initialPuppies?: PuppyProfile[]) {
         toast(t.toasts.dogDeleted);
       } else {
         setPuppies(previousPuppies);
-        toast.danger(result.error || t.toasts.errorGeneric);
+        toast.danger(t.toasts[result.errorKey]);
       }
     },
-    [activePuppyId, puppies, setPuppies, t.toasts.dogDeleted, t.toasts.errorGeneric]
+    [activePuppyId, puppies, setPuppies, t.toasts]
   );
 
   return {

@@ -18,7 +18,7 @@ interface CarnetDeSanteViewProps {
   weightActivities: Activity[]; // every weigh-in of the dog, whatever its date
   currentUser: string;
   onAddActivity: (activity: Omit<Activity, 'id'>) => void;
-  onUpdateActivity: (updated: Partial<Activity> & { id: string }) => void;
+  onUpdateActivity: (updated: Partial<Activity> & { id: string }) => Promise<boolean>;
   onOpenQuickLogModal?: (type: ActivityType) => void;
   onBackToDashboard?: () => void;
   onDeleteActivity?: (id: string) => void;

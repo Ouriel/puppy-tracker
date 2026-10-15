@@ -57,7 +57,7 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
     } else if (result.status === 409) {
       setEmailToMove(email);
     } else {
-      toast.danger(result.error || t.toasts.errorGeneric);
+      toast.danger(t.toasts[result.errorKey]);
     }
   };
 

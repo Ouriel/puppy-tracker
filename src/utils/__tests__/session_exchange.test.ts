@@ -26,7 +26,7 @@ describe('exchangeSessionToken session revocation', () => {
 
     const result = await exchangeSessionToken();
 
-    expect(result).toEqual({ ok: false, error: 'Session revoked', status });
+    expect(result).toEqual({ ok: false, errorKey: 'errorGeneric', status });
     expect(getAuthToken()).toBeNull();
     expect(getStoredAuthUser()).toBeNull();
     expect(unauthorizedListener).toHaveBeenCalledTimes(1);
@@ -56,7 +56,7 @@ describe('exchangeSessionToken session revocation', () => {
 
     const result = await exchangeSessionToken();
 
-    expect(result).toEqual({ ok: false, error: 'Failed to fetch', status: 0 });
+    expect(result).toEqual({ ok: false, errorKey: 'offline', status: 0 });
     expect(getAuthToken()).toBe('stored-session-token');
     expect(unauthorizedListener).not.toHaveBeenCalled();
   });
@@ -81,7 +81,7 @@ describe('API request 401', () => {
     setAuthToken('revoked-session');
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('{}', { status: 401 })));
 
-    expect(await fetchDogs()).toEqual({ ok: false, error: 'Unauthorized', status: 401 });
+    expect(await fetchDogs()).toEqual({ ok: false, errorKey: 'errorGeneric', status: 401 });
     expect(getAuthToken()).toBeNull();
     expect(unauthorizedListener).toHaveBeenCalledTimes(1);
   });

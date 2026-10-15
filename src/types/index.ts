@@ -62,6 +62,9 @@ export interface Caretaker {
   email?: string;
 }
 
+/** Why /api/households refused a badge change; the app shows its own translated message for each. */
+export type MemberRefusalCode = 'memberNameTaken' | 'memberEmailTaken' | 'memberAdminOnly';
+
 export interface RegisteredUserItem {
   id: string;
   householdId?: string;

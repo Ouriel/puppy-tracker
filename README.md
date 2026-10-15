@@ -90,7 +90,7 @@ The **+** button (top bar) opens the form on Pee; the meal, weigh and medication
 | Notes | Optional; emptying a note in an edit deletes it |
 | Logged by | Read-only line: you for a new log, the original author for an edit. The server sets it from your login; nobody can log under someone else's name. |
 
-The form checks everything before it closes. Once saved, the log appears at once; if the server still refuses it (or the phone is offline), it is undone with a red message.
+The form checks everything before it closes, and closes only once the log is saved. If the save fails (or the phone is offline), the form stays open with what was typed and says "Not saved, try again", with a red message saying why.
 
 Your logs are stored under your **badge** (Settings > Household Members) linked to your login. If you have none yet, your first log creates one for you.
 
@@ -100,6 +100,7 @@ Your logs are stored under your **badge** (Settings > Household Members) linked 
 - "Load more" goes to 14, 30, 90, 180 days, then everything.
 - Today's meal total is compared to today's goal. Past days show plain totals ("240 g · 3 meals"), since past goals are not stored.
 - Each log can be edited (same rules as the form) or deleted. The badge colour shows who logged it.
+- A one-tap log that could not be saved stays, marked "Not saved", with **Retry** (sends it again, never twice) and **Discard** instead of edit and delete; its day stays open.
 - **Export**: CSV or a printable report of exactly the days shown. The report prints its period ("From … to …"). The CSV has separate date and time columns and opens with accents intact in Excel and Numbers. Its date is the app's 04:00 day, so a log at 01:30 carries the previous day's date.
 
 ## Health passport
@@ -147,7 +148,7 @@ Open it from the health summary, or at `/health-passport`.
 ## Phone install, offline and updates
 
 - **Install**: open the site in the phone's browser and use "Add to Home Screen". It opens full screen like an app.
-- **Offline**: the app still opens and shows the last data it loaded (dogs, badges, recent logs); vaccines, dewormings and older weigh-ins need a connection. Logging needs a connection: there is no offline queue, so a log made offline is dropped with an error message.
+- **Offline**: the app still opens and shows the last data it loaded (dogs, badges, recent logs), with "Offline, data from HH:mm" (the time of that load) on the dashboard; vaccines, dewormings and older weigh-ins need a connection. Logging needs a connection, and there is no offline queue: a one-tap log made offline stays in the history marked "Not saved" for Retry, and a log typed in the form stays in the form. Failed changes say so in the app's language ("No connection, nothing was saved" when offline).
 - **Updates**: after a new version is published, the next time the app is opened it downloads it in the background and reloads itself once.
 - **Languages**: English and French. A new phone gets French when it is set to French; the EN/FR button in the top bar switches, and the choice is remembered. The cards' explanations are translated too.
 
@@ -208,7 +209,7 @@ APIs return timestamps as ISO strings. Inputs are validated with Zod (`src/utils
 | Client GET cache | 60 s in memory; cleared on every write and on each return to the app |
 | In-flight dedupe | identical GETs started less than 2 s apart share one request, so the visibility/focus/pageshow burst of one return makes one `/api/dashboard` call |
 | localStorage | dogs, badges, active dog, the active dog's recent logs (≤ 300), session and language: paints the first frame before the network answers |
-| Writes | logs, badges and dog edits are optimistic, rolled back with a toast on failure. A dashboard answer that may predate a pending write only adds rows. |
+| Writes | logs, badges and dog edits are optimistic, rolled back with a toast on failure; a one-tap log is kept instead, marked not saved, and Retry (on the row or in its toast) resends it under its `act-<uuid>` id (POST is idempotent on it); the log form keeps one id while open, so Save again after a lost answer stores it once. Toasts come from `errorKey` (`src/services/api.ts`): no answer is `offline`, the three badge refusals of `api/households.ts` send a `code` with their own message, anything else is `errorGeneric` ("Not saved, try again." for a kept log, which is not reverted). A dashboard answer that may predate a pending write only adds rows. |
 
 ## Local setup
 
@@ -261,7 +262,7 @@ npm test
 
 ## Known limitations
 
-- **No offline logging**: logs need a connection; a failed save is dropped with an error.
+- **No offline queue**: logs need a connection. A one-tap log that fails stays marked "Not saved" until Retry or Discard, but only while the app stays open: closing it loses the log.
 - **Predictions use the logs loaded on the device**: the last 14 days at start, although the engine looks back up to 30 days. Pressing "Load more" in the history therefore feeds more days to the guesses and can shift them slightly.
 - **The day boundary is fixed at 04:00** (not learned), and on clock-change days it moves by an hour. A dog with an unusual night (e.g. awake at night) gets odd "morning" guesses.
 - **Past goals are not stored**: past days in the history show totals only.
