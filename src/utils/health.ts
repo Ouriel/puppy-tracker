@@ -78,8 +78,9 @@ const PUPPY_SERIES_VACCINES = ['chppi_l4', 'chppi_sans_l4', 'vanguard_cpv'];
 
 /**
  * Suggested booster date, from the dog's age on the injection day (owner decision 2026-10-14, French practice):
- * - CHPPi family: a puppy dose before 16 weeks -> +1 month; the dose at 16 weeks or later -> the 1st birthday;
- *   from the 1st birthday, CHPPi + L4 yearly (L4 drives it), viral-only (CHPPi sans L4, Vanguard CPV) every 3 years from 16 months.
+ * - CHPPi family: a puppy dose before 16 weeks -> +1 month; a dose from 16 weeks to before 6 months (calendar) -> the
+ *   1st birthday; a dose at 6 months or later (e.g. the annual booster given early) is not a puppy dose (owner decision
+ *   2026-10-15): CHPPi + L4 yearly (L4 drives it), viral-only (CHPPi sans L4, Vanguard CPV) every 3 years from 16 months.
  * - Other vaccines: their `defaultBoosterMonths` (12 when unknown).
  * With no birth date, a CHPPi-family dose gets +12 months.
  */
@@ -89,8 +90,7 @@ export function calculateNextVaccineBooster(injectionDate: string, vaccineType: 
 
   const ageOnInjectionDay = birthDate ? getPuppyAge(birthDate, injectionDate) : undefined;
   if (ageOnInjectionDay && ageOnInjectionDay.weeks < 16) return addMonths(injectionDate, 1);
-  const firstBirthday = birthDate ? addMonths(birthDate, 12) : undefined;
-  if (firstBirthday && injectionDate.slice(0, 10) < firstBirthday) return firstBirthday;
+  if (birthDate && injectionDate.slice(0, 10) < addMonths(birthDate, 6)) return addMonths(birthDate, 12);
 
   const isViralOnly = matched.id !== 'chppi_l4';
   return addMonths(injectionDate, isViralOnly && (ageOnInjectionDay?.months ?? 0) >= 16 ? 36 : 12);

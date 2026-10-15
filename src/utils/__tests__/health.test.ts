@@ -326,10 +326,17 @@ describe('Suggested next dates (pre-fill review items 11, 12, 13; TZ=Europe/Pari
       expect(calculateNextVaccineBooster('2026-03-02', 'vanguard_cpv', birthDate)).toBe('2026-04-02');
     });
 
-    it('the dose at 16 weeks or later suggests the 1st birthday', () => {
+    it('a dose from 16 weeks to just before 6 months suggests the 1st birthday', () => {
       expect(calculateNextVaccineBooster('2026-04-27', 'chppi_l4', birthDate)).toBe('2027-01-05'); // exactly 16 weeks
       expect(calculateNextVaccineBooster('2026-05-04', 'CHPPi / DAPPi + L4 (Eurican / Nobivac / Versican / Canigen)', birthDate)).toBe('2027-01-05');
-      expect(calculateNextVaccineBooster('2026-09-10', 'chppi_sans_l4', birthDate)).toBe('2027-01-05');
+      expect(calculateNextVaccineBooster('2026-07-04', 'chppi_sans_l4', birthDate)).toBe('2027-01-05'); // the day before 6 months
+    });
+
+    it('a dose at 6 months or later is not a puppy dose: the adult rule applies (owner decision 2026-10-15)', () => {
+      expect(calculateNextVaccineBooster('2026-07-05', 'chppi_l4', birthDate)).toBe('2027-07-05'); // exactly 6 months
+      expect(calculateNextVaccineBooster('2026-09-10', 'chppi_sans_l4', birthDate)).toBe('2027-09-10');
+      // The annual booster given a week early: +12 months, not the birthday a week later
+      expect(calculateNextVaccineBooster('2026-12-29', 'chppi_l4', birthDate)).toBe('2027-12-29');
     });
 
     it('from the 1st birthday, the adult rules apply unchanged (CHPPi + L4 yearly, viral-only every 3 years from 16 months)', () => {
