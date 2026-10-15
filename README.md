@@ -149,7 +149,7 @@ Open it from the health summary, or at `/health-passport`.
 
 - **Install**: open the site in the phone's browser and use "Add to Home Screen". It opens full screen like an app.
 - **Offline**: the app still opens and shows the last data it loaded (dogs, badges, recent logs), with "Offline, data from HH:mm" (the time of that load) on the dashboard; vaccines, dewormings and older weigh-ins need a connection. Logging needs a connection, and there is no offline queue: a one-tap log made offline stays in the history marked "Not saved" for Retry, and a log typed in the form stays in the form. Failed changes say so in the app's language ("No connection, nothing was saved" when offline).
-- **Updates**: after a new version is published, the next time the app is opened it downloads it in the background and reloads itself once.
+- **Updates**: after a new version is published, the next time the app is opened it downloads it in the background. It never reloads while you are using it: it switches to the new version (one reload) once you leave the app, so the next time you look, it is up to date.
 - **Languages**: English and French. A new phone gets French when it is set to French; the EN/FR button in the top bar switches, and the choice is remembered. The cards' explanations are translated too.
 
 ---
@@ -225,7 +225,7 @@ npm test
 |---|---|---|
 | `POSTGRES_URL` or `DATABASE_URL` | API, drizzle-kit, `db:inspect` (`DATABASE_URL`) | Postgres connection |
 | `PREVIEW_POSTGRES_URL` | API, only when `VERCEL_ENV=preview` | the preview database |
-| `SESSION_SECRET` or `AUTH_SECRET` | API | session signing key (without it, derived from `POSTGRES_URL`) |
+| `SESSION_SECRET` or `AUTH_SECRET` | API | session signing key: a random value (e.g. `openssl rand -base64 32`), Sensitive, Production only (Preview and Development, if set, get other values). Without it, the key is derived from `POSTGRES_URL`. With it, a token signed with the derived key still works, and its renewal at the next app start is signed with `SESSION_SECRET`. That fallback goes 90 days after the secret went live (2027-01-20 if live by 2026-10-21); until then keep the production `POSTGRES_URL` value byte-identical (no password rotation, no variable re-created with another value), or devices not opened since are signed out. Never remove or change the secret, and never roll production back to a deployment built without it: every session renewed since would be refused. Keep a copy: Vercel cannot show a Sensitive value again. |
 | `VITE_GOOGLE_CLIENT_ID` (or `GOOGLE_CLIENT_ID` on the server) | sign-in screen, API | Google OAuth client id |
 | `SUPER_ADMIN_EMAIL` | API | the owner's email. The browser cannot read it and always uses the default in `src/utils/auth.ts`: set it only to that same value, or the API and the app disagree on who the owner is. |
 
@@ -256,7 +256,7 @@ npm test
 - **CI** (`.github/workflows/ci.yml`): on pushes to `main` and `feature/**`, pull requests to `main`, every Monday 06:00 UTC, and on demand. Node 24: `npm ci`, lint, build, test. The job id `ci` is the required check on `main`. When it fails on a Dependabot PR, a comment pings the owner.
 - **Dependabot** (`.github/dependabot.yml`): weekly (Monday) for npm and GitHub Actions. HeroUI and its React Aria peers always move in one PR; other minor and patch updates are grouped; `@types/node` majors are ignored (it follows the Node 24 runtime).
 - **Auto-merge** (`.github/workflows/dependabot-automerge.yml`): turns on GitHub's native auto-merge (squash), so a Dependabot PR merges only once `ci` is green. The repository variable `AUTOMERGE_MANUAL` lists package patterns that are never auto-merged (a group stays manual if one package matches); when it is set, every other update auto-merges, majors included; when it is unset, only minor and patch do.
-- **Vercel** builds every branch: `main` goes to production, other branches get a preview deployment.
+- **Vercel** builds every branch but Dependabot's (`git.deploymentEnabled` in `vercel.json`: no build for an unreviewed dependency, and it saves the Hobby plan's 100 deployments a day): `main` goes to production, other branches get a preview deployment.
 - **Preview database**: a preview deployment reads `PREVIEW_POSTGRES_URL` (a Neon `preview` branch copied from production), so tests on a preview can save without touching production data.
 - **Demo seed** (`scripts/preview-seed.sql`): demo families, members, dogs, 30 days of logs and health passports, relative to the run time, plus a demo dog and an account waiting for approval in the owner's household. Run it in the Neon SQL editor on the `preview` branch (or `psql "$PREVIEW_POSTGRES_URL" -f scripts/preview-seed.sql`) at the start of a test session. It refuses to write on any other branch, and it can be re-run: it first deletes its own `seed-` rows. After a "reset from parent" of the preview branch, run it again.
 
