@@ -228,6 +228,7 @@ export const WeightGrowthChart: React.FC<WeightGrowthChartProps> = ({
               key={`edit-${editingWeight.id}`}
               isOpen={true}
               activityToEdit={editingWeight}
+              dailyFoodGramGoal={profile.dailyFoodGramGoal}
               currentUser={editingWeight.loggedBy}
               onClose={() => setEditingWeight(null)}
               onSave={(activityData) => {

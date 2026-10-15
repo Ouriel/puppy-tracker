@@ -30,6 +30,17 @@ describe('getDayFoodPill', () => {
       .toEqual({ text: '230g', mealsText: '(2/2)', tone: 'goalReached' });
   });
 
+  // Owner decision 2026-10-15: such a dog's meals may have no grams (stored as null): never shown as '0g'
+  it('with no gram goal, meals saved without grams show the meal count only, under goal until the target', () => {
+    const noGoal = { dailyGoalGrams: 0, targetMealsCount: 2 };
+    expect(getDayFoodPill({ isToday: true, totalFoodGrams: 0, mealsCount: 1, ...noGoal }, en.dashboard.mealsCount))
+      .toEqual({ text: '', mealsText: '(1/2)', tone: 'underGoal' });
+    expect(getDayFoodPill({ isToday: true, totalFoodGrams: 0, mealsCount: 2, ...noGoal }, en.dashboard.mealsCount))
+      .toEqual({ text: '', mealsText: '(2/2)', tone: 'goalReached' });
+    expect(getDayFoodPill({ isToday: false, totalFoodGrams: 0, mealsCount: 2, ...noGoal }, en.dashboard.mealsCount))
+      .toEqual({ text: '2 meal(s)', tone: 'neutral' });
+  });
+
   it('shows a past day as plain totals, not against the current goal (owner report "240g / 200g (3/2)")', () => {
     const pastDay = { isToday: false, totalFoodGrams: 240, mealsCount: 3, ...currentGoal };
     expect(getDayFoodPill(pastDay, en.dashboard.mealsCount)).toEqual({ text: '240g · 3 meal(s)', tone: 'neutral' });

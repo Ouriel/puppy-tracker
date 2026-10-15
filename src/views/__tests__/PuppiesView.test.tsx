@@ -192,6 +192,17 @@ describe('PuppiesView gram goal (optional: "No gram goal" counts meals only)', (
     expect(field('dog-food-goal-error').textContent).toBe('Enter 10 to 2000 g, or tick "No gram goal"');
   });
 
+  it('the goal error goes away once "No gram goal" is ticked', async () => {
+    await renderView();
+    await click(editButton());
+    await setValue('dog-food-goal', '5');
+    await submit();
+    expect(field('dog-food-goal-error')).not.toBeNull();
+
+    await click(field('dog-no-gram-goal'));
+    expect(field('dog-food-goal-error')).toBeNull();
+  });
+
   it('a new dog starts with an empty goal box, not a made-up 200 g', async () => {
     await renderView();
     await click(buttonByText('Add Dog'));
@@ -203,6 +214,14 @@ describe('PuppiesView gram goal (optional: "No gram goal" counts meals only)', (
     await renderView({ puppies: [{ ...REX, dailyFoodGramGoal: 0, targetMealsPerDay: 2 }] });
     expect(document.body.textContent).toContain('2 meals');
     expect(document.body.textContent).not.toMatch(/\d+g/);
+  });
+
+  it('the dog card label names grams only when there is a gram goal', async () => {
+    await renderView({ puppies: [REX, { ...REX, id: 'dog-2', name: 'Max', dailyFoodGramGoal: 0 }] });
+    const cardLabels = [...document.querySelectorAll('.text-\\[10px\\]')].map((label) => label.textContent);
+    expect(cardLabels).toContain('Daily Food Goal (Grams)');
+    expect(cardLabels).toContain('Meals per day');
+    expect(cardLabels.filter((label) => label === 'Daily Food Goal (Grams)')).toHaveLength(1);
   });
 });
 
@@ -278,6 +297,8 @@ describe('PuppiesView add form', () => {
     await submit();
     expect(onAddPuppy).not.toHaveBeenCalled();
     expect(field('dog-breed-error').textContent).toBe('Pick a breed, or Other / Mixed');
+    // Read out with the breed picker, like the other fields' errors
+    expect((document.querySelector('[data-slot="select-trigger"]')!.getAttribute('aria-describedby') ?? '').split(' ')).toContain('dog-breed-error');
   });
 
   it.each([

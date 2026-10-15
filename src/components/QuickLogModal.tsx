@@ -14,6 +14,8 @@ interface QuickLogModalProps {
   initialType?: ActivityType;
   activityToEdit?: Activity;
   defaultMealPortionGrams?: number;
+  // The dog's daily gram goal; 0 (no gram goal): a meal may be saved without grams
+  dailyFoodGramGoal?: number;
   // Shown as a hint under the weight box, which always starts empty
   lastWeighIn?: UnifiedWeightEntry;
   onClose: () => void;
@@ -31,6 +33,7 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
   initialType = 'pee',
   activityToEdit,
   defaultMealPortionGrams,
+  dailyFoodGramGoal,
   lastWeighIn,
   onClose,
   onSave,
@@ -81,6 +84,7 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
       quantityGrams,
       weightKg,
       medicationName,
+      dailyFoodGramGoal,
     };
     // Checked before closing: once closed, a value the server refuses is lost.
     const error = validateQuickLogForm(form);

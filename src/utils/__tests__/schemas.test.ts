@@ -3,6 +3,7 @@ import {
   ActivitySchema,
   ActivityInputSchema,
   DogInputSchema,
+  PuppyProfileSchema,
   HealthRecordInputSchema,
   CaretakerInputSchema,
   UserInputSchema,
@@ -69,6 +70,13 @@ describe('Zod Schemas Validation', () => {
   it('rejects activity inputs with an unknown type and health record inputs without puppyId or date', () => {
     expect(ActivityInputSchema.safeParse({ puppyId: 'pup-1', type: 'unknown_action', timestamp: '2026-08-17T12:00:00.000Z' }).success).toBe(false);
     expect(HealthRecordInputSchema.safeParse({ type: 'invalid_type', name: 'Test' }).success).toBe(false);
+  });
+
+  it('PuppyProfileSchema accepts a dog as the API returns it: null sex and adult weight when not set', () => {
+    const dog = { id: 'dog-1', name: 'Rex', breed: 'Beagle', birthDate: '2026-05-01', dailyFoodGramGoal: 200, targetMealsPerDay: 3 };
+    expect(PuppyProfileSchema.safeParse({ ...dog, gender: null, expectedAdultWeightKg: null }).error?.issues).toBeUndefined();
+    expect(PuppyProfileSchema.safeParse({ ...dog, gender: 'female', expectedAdultWeightKg: 14 }).success).toBe(true);
+    expect(PuppyProfileSchema.safeParse({ ...dog, gender: 'other' }).success).toBe(false);
   });
 
   it('validates DogInputSchema accepts gender and expectedAdultWeightKg', () => {

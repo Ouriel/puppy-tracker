@@ -635,6 +635,15 @@ describe('predictions utility — comprehensive test suite', () => {
         expect(threeMeals.portionGrams).toBeUndefined();
       });
 
+      it('with no daily gram goal and 1 meal a day, the reason says "1 meal"', () => {
+        const oneMealADay: PuppyProfile = { ...mockProfile, dailyFoodGramGoal: 0, targetMealsPerDay: 1 };
+        const predictions = calculatePredictions(
+          [act('food', '2026-08-10T08:00:00+02:00')], oneMealADay, new Date('2026-08-10T12:00:00+02:00'), 'Europe/Paris'
+        );
+        expect(predictions.foodMode).toBe('goal_reached');
+        expect(predictions.foodReason).toBe('Daily goal reached (1 meal)');
+      });
+
       it('enters night sleep mode for food during overnight hours', () => {
         const referenceTime = new Date('2026-08-08T02:00:00+02:00'); // 02:00 AM Paris
         const predictions = calculatePredictions(dataset, mockProfile, referenceTime, 'Europe/Paris');

@@ -264,7 +264,7 @@ export const en = {
     breed: 'Breed',
     specifyCustomBreed: 'Specify custom breed name...',
     foodGramGoal: 'Daily Food Goal (Grams)',
-    mealsPerDay: 'Target Meals per Day',
+    mealsPerDay: 'Meals per day',
     birthDate: 'Birth Date',
     careInstructionsPlaceholder: 'Care instructions, favorite treats, microchip ID...',
     savePuppyProfile: 'Save Puppy Profile',

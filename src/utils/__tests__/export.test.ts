@@ -206,6 +206,22 @@ describe('export utilities — CSV and PDF export test suite', () => {
       expect(htmlContent).toContain('Outside');
       expect(htmlContent).toContain('Indoors');
     });
+
+    // Owner decision 2026-10-15: a dog with no gram goal may log meals without grams (stored as null)
+    it('the Meals card prints the grams only when some were logged, never "0g"', () => {
+      const mealsCard = (activities: Activity[]) => {
+        vi.mocked(mockWindow!.document.write).mockClear();
+        printActivitiesReport(activities, { ...mockProfile, dailyFoodGramGoal: 0 }, 'en', en, mockCaretakers);
+        const htmlContent = (vi.mocked(mockWindow!.document.write).mock.calls[0][0] as string).replace(/\s+/g, ' ');
+        return htmlContent.match(/card-label">Meals<\/div>.*?<div class="card-sub">.*?<\/div>/)![0];
+      };
+      const gramlessMeals: Activity[] = ['2026-08-19T06:00:00.000Z', '2026-08-19T16:00:00.000Z']
+        .map((timestamp, index) => ({ id: `meal-${index}`, puppyId: 'pup-1', type: 'food', timestamp, loggedBy: 'Daria' }));
+
+      expect(mealsCard(gramlessMeals)).toContain('>2</div>');
+      expect(mealsCard(gramlessMeals)).not.toMatch(/\dg/);
+      expect(mealsCard(mockActivities)).toContain('80g logged');
+    });
   });
 
   describe('exportHealthPassportToCSV', () => {

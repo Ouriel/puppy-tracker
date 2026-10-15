@@ -84,6 +84,33 @@ describe('validateQuickLogForm', () => {
   });
 });
 
+// Owner decision 2026-10-15: a dog with no gram goal may log a meal without grams (stored as null, never 0)
+describe('a meal of a dog with no gram goal (dailyFoodGramGoal 0)', () => {
+  const noGoalMeal = { ...form, dailyFoodGramGoal: 0 };
+
+  it.each(['', '   '])('an empty grams box %j saves the meal without grams', (quantityGrams) => {
+    expect(validateQuickLogForm({ ...noGoalMeal, quantityGrams })).toBeNull();
+    const sent = JSON.parse(JSON.stringify(buildQuickLogActivity({ ...noGoalMeal, quantityGrams })));
+    // No grams key: the server stores null
+    expect(sent).not.toHaveProperty('quantityGrams');
+    expect(sent).not.toHaveProperty('quantityCups');
+    expect(sent.type).toBe('food');
+  });
+
+  it.each(['0', 'abc', '-5'])('typed grams %j still block the save', (quantityGrams) => {
+    expect(validateQuickLogForm({ ...noGoalMeal, quantityGrams })).toEqual({ field: 'quantityGrams', messageKey: 'gramsRequired' });
+  });
+
+  it('typed grams are saved', () => {
+    expect(validateQuickLogForm({ ...noGoalMeal, quantityGrams: '35' })).toBeNull();
+    expect(buildQuickLogActivity({ ...noGoalMeal, quantityGrams: '35' }).quantityGrams).toBe(35);
+  });
+
+  it('a dog with a gram goal still needs the grams', () => {
+    expect(validateQuickLogForm({ ...form, dailyFoodGramGoal: 200, quantityGrams: '' })).toEqual({ field: 'quantityGrams', messageKey: 'gramsRequired' });
+  });
+});
+
 // 32: an edit sends null for an emptied note, so the server deletes it (JSON drops undefined)
 describe('buildQuickLogActivity notes', () => {
   it.each(['', '   '])('an empty note %j is sent as null', (notes) => {

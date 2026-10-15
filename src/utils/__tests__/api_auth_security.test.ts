@@ -451,7 +451,11 @@ describe('API Security & Session Token Validation Test Suite', () => {
       ['a 5 g goal', 'PUT', { id: 'dog-1', dailyFoodGramGoal: 5 }],
       ['a 2001 g goal', 'PUT', { id: 'dog-1', dailyFoodGramGoal: 2001 }],
       ['a 150.5 g goal', 'PUT', { id: 'dog-1', dailyFoodGramGoal: 150.5 }],
-      ['a negative goal', 'POST', { id: 'dog-new', name: 'Rex', birthDate: '2026-05-01', dailyFoodGramGoal: -5 }],
+      ['a negative goal', 'POST', { id: 'dog-new', name: 'Rex', breed: 'Beagle', birthDate: '2026-05-01', dailyFoodGramGoal: -5 }],
+      // No made-up 'Unknown' breed: the form requires one
+      ['POST without a breed', 'POST', { id: 'dog-new', name: 'Rex', birthDate: '2026-05-01' }],
+      ['POST with a blank breed', 'POST', { id: 'dog-new', name: 'Rex', breed: '   ', birthDate: '2026-05-01' }],
+      ['PUT with a blank breed', 'PUT', { id: 'dog-1', breed: '   ' }],
     ])('refuses %s (400) and writes nothing', async (_case, method, body) => {
       const response = createMockResponse();
 

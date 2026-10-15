@@ -86,7 +86,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           id,
           householdId,
           name: body.name,
-          breed: body.breed || 'Unknown',
+          breed: body.breed,
           birthDate: body.birthDate,
           weightKg: Number(body.weightKg) || 4.5,
           dailyFoodGramGoal: body.dailyFoodGramGoal ?? 200,

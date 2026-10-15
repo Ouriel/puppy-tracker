@@ -266,7 +266,7 @@ export const fr: TranslationKeys = {
     breed: 'Race',
     specifyCustomBreed: 'Précisez la race...',
     foodGramGoal: 'Objectif Nourriture / Jour (Grammes)',
-    mealsPerDay: 'Nombre de Repas Souhaité',
+    mealsPerDay: 'Repas par jour',
     birthDate: 'Date de Naissance',
     careInstructionsPlaceholder: 'Consignes de soin, friandises préférées, puce électronique...',
     savePuppyProfile: 'Enregistrer le Profil',

@@ -528,6 +528,7 @@ function App() {
             }}
             currentUser={caretakerState.currentUser}
             defaultMealPortionGrams={nextMealPortionGrams}
+            dailyFoodGramGoal={puppyState.activePuppy?.dailyFoodGramGoal}
             lastWeighIn={lastWeighIn}
           />
         </Suspense>

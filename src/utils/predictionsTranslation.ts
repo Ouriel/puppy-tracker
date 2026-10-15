@@ -18,7 +18,7 @@ const PATTERNS_FR: [RegExp, string][] = [
   [/Meal (\d+) of (\d+) \(spaced ~([0-9.]+)h\)/, "Repas $1 sur $2 (espacés de ~$3h)"],
   [/Remaining portion \(spaced ~([0-9.]+)h\)/, "Portion restante (espacée de ~$1h)"],
   [/Daily goal reached \((\d+g)\)/, "Objectif du jour atteint ($1)"],
-  [/Daily goal reached \((\d+) meals\)/, "Objectif du jour atteint ($1 repas)"],
+  [/Daily goal reached \((\d+) meals?\)/, "Objectif du jour atteint ($1 repas)"],
 ];
 
 /**

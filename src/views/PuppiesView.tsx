@@ -156,7 +156,8 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
   const nameError = errorFor('name');
   const breedError = errorFor('breed');
   const birthDateError = errorFor('birthDate');
-  const goalError = errorFor('dailyFoodGramGoal');
+  // Not once "No gram goal" is ticked: the box it was about is gone
+  const goalError = formData.hasGramGoal ? errorFor('dailyFoodGramGoal') : null;
   const mealsError = errorFor('targetMealsPerDay');
 
   // The add and edit forms show the same fields (only one form is open at a time).
@@ -186,6 +187,7 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
           placeholder={t.puppies.chooseBreed}
           aria-label={t.puppies.breed}
           isInvalid={!!breedError}
+          aria-describedby={breedError ? 'dog-breed-error' : undefined}
         >
           <Select.Trigger className="bg-slate-950 border-slate-800 text-slate-100">
             <Select.Value />
@@ -497,7 +499,9 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
                     <div className="flex items-center gap-2">
                       <Utensils className="w-4 h-4 text-purple-400 shrink-0" />
                       <div>
-                        <div className="text-[10px] text-slate-500 font-semibold">{t.puppies.foodGramGoal}</div>
+                        <div className="text-[10px] text-slate-500 font-semibold">
+                          {pup.dailyFoodGramGoal > 0 ? t.puppies.foodGramGoal : t.puppies.mealsPerDay}
+                        </div>
                         <div className="font-bold text-slate-200">
                           {pup.dailyFoodGramGoal > 0
                             ? `${pup.dailyFoodGramGoal}${t.units.grams} (${pup.targetMealsPerDay || 3} ${t.puppies.meals})`

@@ -1024,7 +1024,7 @@ export function predictNextFood(
     nextExpectedAt = nextBreakfast;
     reason = profile.dailyFoodGramGoal > 0
       ? `Daily goal reached (${todayGramTotal}g)`
-      : `Daily goal reached (${todayMeals.length} meals)`;
+      : `Daily goal reached (${todayMeals.length} meal${todayMeals.length === 1 ? '' : 's'})`;
   } else if (todayMeals.length === 0) {
     nextExpectedAt = todayBreakfast;
     const minsUntilBreakfast = (todayBreakfast.getTime() - now.getTime()) / 60000;

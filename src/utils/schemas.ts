@@ -55,8 +55,8 @@ export const PuppyProfileSchema: z.ZodType<PuppyProfile> = z.object({
   targetMealsPerDay: z.number(),
   avatarUrl: z.string().optional(),
   notes: z.string().optional(),
-  gender: z.enum(['male', 'female']).optional(),
-  expectedAdultWeightKg: z.number().positive().optional(),
+  gender: z.enum(['male', 'female']).nullable().optional(),
+  expectedAdultWeightKg: z.number().positive().nullable().optional(),
 });
 
 export const CaretakerSchema: z.ZodType<Caretaker> = z.object({
@@ -134,7 +134,8 @@ export const ActivityInputSchema = z.object({
 export const DogInputSchema = z.object({
   id: z.string().optional(),
   name: z.string().min(1, 'Name is required'),
-  breed: z.string().min(1, 'Breed is required').optional(),
+  // Required on POST (PUT uses .partial()): a DOG_BREEDS entry, or the name typed under 'Other'
+  breed: z.string().trim().min(1, 'Breed is required'),
   // Required on POST (PUT uses .partial()). A real day, at most one day ahead of UTC: it is already tomorrow east of it.
   birthDate: z.iso.date().refine((value) => Date.parse(value) <= Date.now() + 24 * 60 * 60 * 1000, 'birthDate is in the future'),
   weightKg: z.number().or(z.string()).optional(),

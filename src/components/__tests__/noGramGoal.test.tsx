@@ -85,4 +85,42 @@ describe('a dog with no gram goal: no goal in grams on any screen', () => {
     expect(container.textContent).toContain('80g');
     expect(container.textContent).not.toMatch(/\d+g \/ \d+g/);
   });
+
+  it('timeline: a meal saved without grams shows the meal count, no "0g"', async () => {
+    const gramlessMeal = log('food', '2026-08-07T08:00:00+02:00');
+    const container = await render(
+      <ActivityTimeline activities={[gramlessMeal]} caretakers={[]} activePuppy={noGoal} onDeleteActivity={vi.fn()} referenceTime={now} />
+    );
+    const foodPill = container.querySelector<HTMLElement>('[title^="Food intake"]')!;
+    expect(foodPill.title).toBe('Food intake: (1/3)');
+    expect(foodPill.textContent).toBe('(1/3)');
+    expect(foodPill.querySelectorAll('span')).toHaveLength(1);
+  });
+
+  it('timeline edit: a meal can be saved with its grams box emptied', async () => {
+    // jsdom lacks it; the HeroUI modal reads it
+    window.matchMedia ??= ((query: string) => ({
+      matches: false, media: query, onchange: null, addListener() {}, removeListener() {}, addEventListener() {}, removeEventListener() {}, dispatchEvent: () => false,
+    })) as typeof window.matchMedia;
+    const onUpdateActivity = vi.fn();
+    await render(
+      <ActivityTimeline activities={meals} caretakers={[]} activePuppy={noGoal} onDeleteActivity={vi.fn()} onUpdateActivity={onUpdateActivity} referenceTime={now} />
+    );
+    const dayHeader = [...document.querySelectorAll<HTMLButtonElement>('button[aria-expanded]')].find((button) => button.textContent?.includes('80g'))!;
+    await act(async () => dayHeader.click());
+    await act(async () => document.querySelector<HTMLButtonElement>('button[aria-label="Edit activity log"]')!.click());
+    // The edit form is a lazy chunk
+    await act(async () => { await import('../QuickLogModal'); });
+    const grams = document.getElementById('quicklog-quantity-grams') as HTMLInputElement;
+    expect(grams.value).toBe('80');
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(grams, '');
+      grams.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    await act(async () => document.querySelector<HTMLButtonElement>('button[type="submit"]')!.click());
+
+    expect(onUpdateActivity).toHaveBeenCalledTimes(1);
+    expect(onUpdateActivity.mock.calls[0][0]).toMatchObject({ id: meals[0].id, type: 'food' });
+    expect(onUpdateActivity.mock.calls[0][0].quantityGrams).toBeUndefined();
+  });
 });

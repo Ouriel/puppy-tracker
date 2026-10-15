@@ -80,6 +80,13 @@ describe("predictionsTranslation utility", () => {
     );
   });
 
+  it.each([
+    ["Daily goal reached (1 meal)", "Objectif du jour atteint (1 repas)"],
+    ["Daily goal reached (2 meals)", "Objectif du jour atteint (2 repas)"],
+  ])("translates %j (no gram goal) into French", (enReason, frReason) => {
+    expect(translatePredictionReason(enReason, "fr")).toBe(frReason);
+  });
+
   it("passes an unknown reason through unchanged", () => {
     expect(translatePredictionReason("Some future reason (~42m)", "fr")).toBe("Some future reason (~42m)");
   });
