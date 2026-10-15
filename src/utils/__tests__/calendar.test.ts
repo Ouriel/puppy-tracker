@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import type { HealthRecord } from '../../types';
-import { buildDueDateIcs, downloadDueDateIcs } from '../calendar';
+import { buildDueDateIcs, buildGoogleCalendarUrl, downloadDueDateIcs, isAndroid } from '../calendar';
 import { en } from '../../i18n/en';
 import { fr } from '../../i18n/fr';
 
@@ -157,5 +157,58 @@ describe('downloadDueDateIcs', () => {
 
     vi.advanceTimersByTime(60_000);
     expect(revokeObjectURL).toHaveBeenCalledWith('blob:calendar');
+  });
+});
+
+describe('buildGoogleCalendarUrl: the same event as a Google Calendar template link (Android)', () => {
+  const params = (url: string) => new URL(url).searchParams;
+
+  it('opens Google Calendar\'s event template with the .ics title and description, all day on the next date', () => {
+    const url = buildGoogleCalendarUrl(credelio, 'Rex', en, 'en');
+
+    expect(url.startsWith('https://calendar.google.com/calendar/render?')).toBe(true);
+    expect(params(url).get('action')).toBe('TEMPLATE');
+    expect(params(url).get('text')).toBe('Rex: Credelio Plus due');
+    expect(params(url).get('dates')).toBe('20261020/20261021');
+    expect(params(url).get('details')).toBe('Given on September 20, 2026');
+  });
+
+  it('ends the day after (exclusive), across a month end and a year end', () => {
+    expect(params(buildGoogleCalendarUrl({ ...credelio, boosterDate: '2026-10-31' }, 'Rex', en, 'en')).get('dates')).toBe('20261031/20261101');
+    expect(params(buildGoogleCalendarUrl({ ...credelio, boosterDate: '2026-12-31' }, 'Rex', en, 'en')).get('dates')).toBe('20261231/20270101');
+  });
+
+  it('in French: the title, the given date and the clinic, URL-encoded', () => {
+    const url = buildGoogleCalendarUrl(vaccine, 'Rex', fr, 'fr');
+
+    expect(params(url).get('text')).toBe(`Rex : ${chppiL4} à faire`);
+    expect(params(url).get('details')).toBe('Donné le 1 juillet 2026\nClinique: Clinique des Lilas');
+    expect(url).not.toMatch(/[\s àé]/);
+    expect(url).toContain('%C3%A0+faire');
+    expect(url).toContain('%0A');
+  });
+
+  it('keeps &, #, + and = inside their parameter, and sends Google nothing else (no notes, batch, ids)', () => {
+    const record = { ...vaccine, name: 'Rage #2 + L4', vetClinic: 'Vet A&B=1', notes: 'Rappel chez le véto', batchNumber: 'LOT-123' };
+    const url = buildGoogleCalendarUrl(record, 'Rex & Co', en, 'en');
+
+    expect(params(url).get('text')).toBe('Rex & Co: Rage #2 + L4 due');
+    expect(params(url).get('details')).toBe('Given on July 1, 2026\nClinic: Vet A&B=1');
+    expect(params(url).get('dates')).toBe('20270701/20270702');
+    expect([...params(url).keys()]).toEqual(['action', 'text', 'dates', 'details']);
+    expect(decodeURIComponent(url)).not.toMatch(/Rappel|LOT-123|hr-chppi|hh-1|pup-1/);
+  });
+});
+
+describe('isAndroid', () => {
+  it('is true for an Android phone, false for an iPhone and a desktop', () => {
+    const userAgent = vi.spyOn(navigator, 'userAgent', 'get');
+
+    userAgent.mockReturnValue('Mozilla/5.0 (Linux; Android 15; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Mobile Safari/537.36');
+    expect(isAndroid()).toBe(true);
+    userAgent.mockReturnValue('Mozilla/5.0 (iPhone; CPU iPhone OS 26_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Mobile/15E148 Safari/604.1');
+    expect(isAndroid()).toBe(false);
+    userAgent.mockReturnValue('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36');
+    expect(isAndroid()).toBe(false);
   });
 });

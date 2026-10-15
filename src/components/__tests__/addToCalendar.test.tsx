@@ -143,3 +143,43 @@ describe('dashboard health card', () => {
     expect(calendarButtons(container)).toHaveLength(0);
   });
 });
+
+describe('by phone', () => {
+  const android = 'Mozilla/5.0 (Linux; Android 15; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Mobile Safari/537.36';
+  const iPhone = 'Mozilla/5.0 (iPhone; CPU iPhone OS 26_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Mobile/15E148 Safari/604.1';
+  const renderCard = () =>
+    render(<DogHealthSummary profile={puppy} activities={[]} weightActivities={[]} healthRecords={[dueDeworming]} onOpenHealthPassport={vi.fn()} />);
+
+  it('on Android, opens Google Calendar\'s event template in a new tab and downloads nothing', async () => {
+    vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue(android);
+    const open = vi.spyOn(window, 'open').mockReturnValue(null);
+    const container = await renderCard();
+
+    await act(async () => calendarButtons(container)[0].click());
+
+    expect(open).toHaveBeenCalledTimes(1);
+    const [url, target, features] = open.mock.calls[0];
+    const params = new URL(String(url)).searchParams;
+    expect(String(url).startsWith('https://calendar.google.com/calendar/render?')).toBe(true);
+    expect(params.get('action')).toBe('TEMPLATE');
+    expect(params.get('text')).toBe('Rex : Credelio Plus à faire');
+    expect(params.get('dates')).toBe('20261101/20261102');
+    expect(params.get('details')).toBe('Donné le 1 octobre 2026');
+    expect([target, features]).toEqual(['_blank', 'noopener']);
+    expect(globalThis.URL.createObjectURL).not.toHaveBeenCalled();
+    expect(downloads).toEqual([]);
+  });
+
+  it('on iPhone, downloads the .ics as before and opens nothing', async () => {
+    vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue(iPhone);
+    const open = vi.spyOn(window, 'open').mockReturnValue(null);
+    const container = await renderCard();
+
+    await act(async () => calendarButtons(container)[0].click());
+
+    expect(open).not.toHaveBeenCalled();
+    expect(blobs).toHaveLength(1);
+    expect(await blobs[0].text()).toContain('SUMMARY:Rex : Credelio Plus à faire');
+    expect(downloads).toEqual(['rex-credelio-plus-2026-11-01.ics']);
+  });
+});
