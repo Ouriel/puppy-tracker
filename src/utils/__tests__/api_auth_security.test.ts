@@ -443,6 +443,18 @@ describe('API Security & Session Token Validation Test Suite', () => {
       expect(dbMock.insert).not.toHaveBeenCalled();
     });
 
+    // Else a member renames Daria's badge away, takes 'Daria' for their own badge and logs as Daria.
+    it("refuses (403) a member renaming a badge linked to someone else's login; their own and unlinked badges stay editable", async () => {
+      dbMock.rowsByTable.caretakers = [ownerBadge, freeBadge, myBadge];
+
+      expect((await send('Member', 'PUT', { id: 'ct-owner', name: 'Owner (old)' })).statusCode).toBe(403);
+      expect(dbMock.update).not.toHaveBeenCalled();
+      expect((await send('Member', 'PUT', { id: 'ct-owner', name: 'Owner', color: '#000000' })).statusCode).toBe(200);
+      expect((await send('Member', 'PUT', { id: 'ct-me', name: 'Me again' })).statusCode).toBe(200);
+      expect((await send('Member', 'PUT', { id: 'ct-free', name: 'Guest 2' })).statusCode).toBe(200);
+      expect((await send('Admin', 'PUT', { id: 'ct-owner', name: 'Owner (old)' })).statusCode).toBe(200);
+    });
+
     it('still lets a member edit a badge that already shared its name before this rule, as long as the name stays', async () => {
       dbMock.rowsByTable.caretakers = [freeBadge, { ...freeBadge, id: 'ct-twin' }];
 
@@ -483,6 +495,19 @@ describe('API Security & Session Token Validation Test Suite', () => {
 
       expect(response.statusCode).toBe(201);
       expect(response.body).toMatchObject({ name: 'Jane', email: 'jane.doe@example.com' });
+    });
+
+    // Every Members-tab invite comes from the owner, the only token that keeps the SuperAdmin role.
+    it("lets the owner (SuperAdmin) link a new badge to someone else's email (invite)", async () => {
+      dbMock.rowsByTable.users = [];
+      dbMock.rowsByTable.caretakers = [ownerBadge];
+      const token = signAppSessionToken({ email: SUPER_ADMIN_EMAIL, name: 'Owner', householdId: 'hh-family-123', role: 'SuperAdmin' }, 30);
+      const response = createMockResponse();
+
+      await householdsHandler(bearerRequest(token, 'POST', { id: 'c-1', name: 'Jane', email: 'Jane.Doe@example.com' }), response);
+
+      expect(response.statusCode).toBe(201);
+      expect(response.body).toMatchObject({ email: 'jane.doe@example.com' });
     });
   });
 

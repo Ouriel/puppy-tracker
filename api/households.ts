@@ -26,13 +26,17 @@ function badgeWriteRefusal(
   const otherBadges = householdBadges.filter((item) => item.id !== existing?.id);
   const name = change.name?.trim().toLowerCase();
   const isRename = name !== existing?.name?.trim().toLowerCase();
+  const currentEmail = existing?.email?.toLowerCase() ?? null;
+  const ownEmail = auth.email.toLowerCase();
+  const isAdmin = auth.role === 'Admin' || auth.role === 'SuperAdmin';
+  // A badge linked to someone else keeps its name: else a member renames it away and takes that name.
+  if (!isAdmin && name && isRename && currentEmail && currentEmail !== ownEmail) {
+    return { status: 403, error: "Only an admin can rename a member linked to someone else's login." };
+  }
   if (name && isRename && otherBadges.some((item) => item.name.trim().toLowerCase() === name)) {
     return { status: 409, error: 'Another member already has this name.' };
   }
-  const currentEmail = existing?.email?.toLowerCase() ?? null;
   if (change.email === undefined || change.email === currentEmail) return null;
-  const ownEmail = auth.email.toLowerCase();
-  const isAdmin = auth.role === 'Admin' || auth.role === 'SuperAdmin';
   const touchesOnlyOwnLink = [currentEmail, change.email].every((email) => email === null || email === ownEmail);
   if (!isAdmin && !touchesOnlyOwnLink) {
     return { status: 403, error: "Only an admin can link a member to someone else's login." };

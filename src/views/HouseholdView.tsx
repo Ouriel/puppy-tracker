@@ -6,7 +6,7 @@ import { buildInviteBadge, findLinkedCaretaker, firstFreeBadgeColor } from '../u
 import { isSuperAdminEmail } from '../utils/auth';
 import { useI18n } from '../i18n';
 import { Card, Button, Input, Chip, toast } from '@heroui/react';
-import { ConfirmDialog } from '../components/ConfirmDialog';
+import { ConfirmationModal } from '../components/common/ConfirmationModal';
 
 interface HouseholdViewProps {
   caretakers: Caretaker[];
@@ -117,10 +117,12 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
         </Card.Content>
       </Card>
 
-      <ConfirmDialog
+      <ConfirmationModal
         isOpen={!!emailToMove}
+        title={t.household.addToFamily}
         message={t.household.alreadyHasAccount}
         confirmLabel={t.household.addToFamily}
+        cancelLabel={t.potty.cancel}
         onConfirm={() => emailToMove && void inviteMember(emailToMove, true)}
         onClose={() => setEmailToMove(null)}
       />

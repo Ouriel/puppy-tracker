@@ -119,6 +119,34 @@ describe('Members tab invite (19, 20, 42)', () => {
     expect(onAddCaretaker).toHaveBeenCalledWith(expect.objectContaining({ email: 'jane.doe@example.com' }));
   });
 
+  it('Cancel on that question moves nobody, adds no badge and closes it', async () => {
+    apiMock.createUser.mockResolvedValueOnce({ ok: false, status: 409, error: 'exists' });
+    const { onAddCaretaker } = await renderMembers(owner);
+    await inviteFromMembersTab('jane.doe@example.com');
+
+    await click(buttons('Cancel').at(-1)!);
+    // The modal leaves with an exit animation.
+    await act(async () => new Promise((resolve) => setTimeout(resolve, 400)));
+
+    expect(apiMock.createUser).toHaveBeenCalledTimes(1);
+    expect(onAddCaretaker).not.toHaveBeenCalled();
+    expect(document.body.textContent).not.toContain('This person already has an account');
+  });
+
+  it('Escape on that question moves nobody and adds no badge', async () => {
+    apiMock.createUser.mockResolvedValueOnce({ ok: false, status: 409, error: 'exists' });
+    const { onAddCaretaker } = await renderMembers(owner);
+    await inviteFromMembersTab('jane.doe@example.com');
+
+    await act(async () => {
+      document.querySelector('[role="dialog"]')!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    });
+    await act(async () => new Promise((resolve) => setTimeout(resolve, 400)));
+
+    expect(apiMock.createUser).toHaveBeenCalledTimes(1);
+    expect(onAddCaretaker).not.toHaveBeenCalled();
+  });
+
   it('shows the pre-approve button only to the owner (the server refuses members)', async () => {
     await renderMembers(member);
     expect(buttons('Pre-Approve Member Email')).toHaveLength(0);
@@ -160,6 +188,57 @@ describe('Members tab identity (22)', () => {
 
     expect(onUpdateCaretaker).toHaveBeenCalledWith('c-guest', expect.objectContaining({ name: 'Guest', email: 'member@example.com' }));
   });
+
+  const pencils = () => document.querySelectorAll<HTMLButtonElement>('[aria-label="Edit Member Name & Color"]');
+
+  it('"This is me" starts ticked on my own badge, and renaming it keeps the link (sends no email)', async () => {
+    const { onUpdateCaretaker } = await renderMembers(owner);
+    await click(pencils()[0]);
+
+    expect(document.querySelector<HTMLInputElement>('input[type="checkbox"]')!.checked).toBe(true);
+    await setValue(document.querySelector<HTMLInputElement>('input[type="text"]')!, 'Matt');
+    await click(buttons('Save Changes')[0]);
+
+    expect(onUpdateCaretaker).toHaveBeenCalledTimes(1);
+    expect(onUpdateCaretaker.mock.calls[0][1]).toMatchObject({ name: 'Matt' });
+    expect(onUpdateCaretaker.mock.calls[0][1]).not.toHaveProperty('email');
+  });
+
+  it('unticking "This is me" on my own badge unlinks it', async () => {
+    const { onUpdateCaretaker } = await renderMembers(owner);
+    await click(pencils()[0]);
+    await click(document.querySelector<HTMLInputElement>('input[type="checkbox"]')!);
+    await click(buttons('Save Changes')[0]);
+
+    expect(onUpdateCaretaker).toHaveBeenCalledWith('c-owner', expect.objectContaining({ email: '' }));
+  });
+
+  it('offers no "This is me" on an unlinked badge while another badge carries my email', async () => {
+    const caretakers: Caretaker[] = [{ id: 'c-guest', name: 'Guest', role: 'Member', color: '#F59E0B' }, ...badges];
+    await renderMembers(owner, caretakers);
+    await click(pencils()[0]);
+
+    expect(document.querySelector('input[type="checkbox"]')).toBeNull();
+  });
+
+  it('reads "C\'est moi" and the move question in French', async () => {
+    localStorage.setItem('puppace_lang_v1', 'fr');
+    try {
+      apiMock.createUser.mockResolvedValueOnce({ ok: false, status: 409, error: 'exists' });
+      await renderMembers(owner, [{ id: 'c-guest', name: 'Guest', role: 'Member', color: '#F59E0B' }]);
+      await click(document.querySelector<HTMLButtonElement>('[aria-label="Modifier Nom & Couleur"]')!);
+      expect(document.body.textContent).toContain("C'est moi");
+
+      await click([...document.querySelectorAll('button')].find((button) => /Autoriser un E-mail/.test(button.textContent ?? ''))!);
+      await setValue(document.querySelector<HTMLInputElement>('form input[type="email"]')!, 'x@example.com');
+      await act(async () => document.querySelector<HTMLFormElement>('form:has(input[type="email"])')!.requestSubmit());
+
+      expect(document.body.textContent).toContain("Cette personne a déjà un compte. L'ajouter à ta famille ?");
+      expect(buttons('Ajouter')).toHaveLength(1);
+    } finally {
+      localStorage.removeItem('puppace_lang_v1');
+    }
+  });
 });
 
 describe('Admin panel (27, 28)', () => {
@@ -182,16 +261,17 @@ describe('Admin panel (27, 28)', () => {
 
   const assignSelect = () => document.querySelectorAll<HTMLSelectElement>('select')[0];
 
-  it("'Assign to' defaults to the user's own household, and Approve keeps them there", async () => {
-    await renderAdmin();
+  it("'Assign to' defaults to the user's own household, and Approve keeps them there, with no badge in the family", async () => {
+    const { onAddCaretaker } = await renderAdmin();
     expect(assignSelect().value).toBe('house-stranger');
 
     await click(buttons('Approve & Assign')[0]);
     expect(apiMock.updateUser).toHaveBeenCalledWith({ email: 'jane.doe@example.com', status: 'ACTIVE', householdId: 'house-stranger' });
+    expect(onAddCaretaker).not.toHaveBeenCalled();
   });
 
-  it("joining the owner's family is an explicit choice, confirmed first", async () => {
-    await renderAdmin();
+  it("joining the owner's family is an explicit choice, confirmed first, and creates the same linked badge as an invite", async () => {
+    const { onAddCaretaker } = await renderAdmin();
     await setValue(assignSelect(), 'FAMILY-COCKER-2026');
     await click(buttons('Approve & Assign')[0]);
 
@@ -200,6 +280,18 @@ describe('Admin panel (27, 28)', () => {
 
     await click(buttons('Approve & Assign').at(-1)!);
     expect(apiMock.updateUser).toHaveBeenCalledWith({ email: 'jane.doe@example.com', status: 'ACTIVE', householdId: 'FAMILY-COCKER-2026' });
+    expect(onAddCaretaker).toHaveBeenCalledWith(
+      expect.objectContaining({ name: 'Jane', email: 'jane.doe@example.com', color: FIRST_FREE_COLOR })
+    );
+  });
+
+  it('Cancel on the join question approves nobody', async () => {
+    await renderAdmin();
+    await setValue(assignSelect(), 'FAMILY-COCKER-2026');
+    await click(buttons('Approve & Assign')[0]);
+    await click(buttons('Cancel').at(-1)!);
+
+    expect(apiMock.updateUser).not.toHaveBeenCalled();
   });
 
   async function preApprove(email: string) {
@@ -242,5 +334,24 @@ describe('Admin panel (27, 28)', () => {
 
     expect(apiMock.createUser.mock.calls[1][0]).toMatchObject({ email: 'jane.doe@example.com', householdId: 'FAMILY-COCKER-2026', confirmMove: true });
     expect(onAddCaretaker).toHaveBeenCalledWith(expect.objectContaining({ email: 'jane.doe@example.com' }));
+  });
+
+  it('Cancel on that question moves nobody and adds no badge', async () => {
+    apiMock.createUser.mockResolvedValueOnce({ ok: false, status: 409, error: 'exists' });
+    const { onAddCaretaker } = await renderAdmin();
+    await preApprove('jane.doe@example.com');
+    await click(buttons('Cancel').at(-1)!);
+
+    expect(apiMock.createUser).toHaveBeenCalledTimes(1);
+    expect(onAddCaretaker).not.toHaveBeenCalled();
+  });
+
+  it('names the other household in that question when the invite targets it', async () => {
+    apiMock.createUser.mockResolvedValueOnce({ ok: false, status: 409, error: 'exists' });
+    await renderAdmin();
+    await setValue(document.querySelectorAll<HTMLSelectElement>('select')[1], 'hh-other');
+    await preApprove('jane.doe@example.com');
+
+    expect(document.body.textContent).toContain('Add jane.doe@example.com to Other Family?');
   });
 });

@@ -12,7 +12,7 @@ import { useI18n } from '../i18n';
 import { Button, Input, Card, Chip, Modal } from '@heroui/react';
 import { SUPER_ADMIN_EMAIL, isSuperAdminEmail } from '../utils/auth';
 import { buildInviteBadge } from '../utils/caretakers';
-import { ConfirmDialog } from '../components/ConfirmDialog';
+import { ConfirmationModal } from '../components/common/ConfirmationModal';
 
 interface AdminViewProps {
   currentUserEmail: string;
@@ -85,6 +85,9 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail, caretake
     try {
       const res = await updateUser({ email, status: 'ACTIVE', householdId: targetHouseholdId });
       if (res.ok) {
+        // Joining the admin's family: the same linked badge as an invite (28), so they never log under a guessed name.
+        const badge = targetHouseholdId && targetHouseholdId === currentHouseholdId ? buildInviteBadge(email, caretakers) : null;
+        if (badge) onAddCaretaker(badge);
         setUsers((previous) =>
           previous.map((registeredUser) =>
             registeredUser.email === email
@@ -247,16 +250,20 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail, caretake
         </div>
       )}
 
-      <ConfirmDialog
+      <ConfirmationModal
         isOpen={!!userToJoin}
+        title={t.admin.approveAndAssign}
         message={t.admin.joinHousehold.replace('{email}', userToJoin?.email ?? '').replace('{household}', householdName(userToJoin?.householdId ?? ''))}
         confirmLabel={t.admin.approveAndAssign}
+        cancelLabel={t.potty.cancel}
         onConfirm={() => userToJoin && void activateUser(userToJoin.email, userToJoin.householdId)}
         onClose={() => setUserToJoin(null)}
       />
 
-      <ConfirmDialog
+      <ConfirmationModal
         isOpen={!!inviteToMove}
+        title={t.household.addToFamily}
+        cancelLabel={t.potty.cancel}
         message={
           inviteToMove?.householdId === currentHouseholdId
             ? t.household.alreadyHasAccount

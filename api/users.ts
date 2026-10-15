@@ -73,6 +73,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(403).json({ error: 'SuperAdmin role assignment is restricted.' });
       }
 
+      // As in PUT: only the owner manages the owner's account.
+      if (email === SUPER_ADMIN_EMAIL && auth.email.toLowerCase() !== SUPER_ADMIN_EMAIL) {
+        return res.status(403).json({ error: 'This person already has an account. Ask the owner to add them.' });
+      }
+
       // Looked up in every household: the email is unique, so an existing account is moved, never re-created.
       const [existing] = await db
         .select()

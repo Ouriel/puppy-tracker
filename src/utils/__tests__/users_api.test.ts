@@ -159,4 +159,24 @@ describe('POST /api/users: pre-approving someone who already has an account (20)
     expect(response.statusCode).toBe(201);
     expect(dbMock.insertedValues[0]).toMatchObject({ email: 'new.person@example.com', name: 'new.person', householdId: 'hh-admin', status: 'ACTIVE' });
   });
+
+  it('lets the owner pre-approve a new account into another household (Admin panel household select)', async () => {
+    const response = createMockResponse();
+    await usersHandler(asOwner({ email: 'new.person@example.com', householdId: 'hh-other', status: 'ACTIVE' }), response);
+
+    expect(response.statusCode).toBe(201);
+    expect(dbMock.insertedValues[0]).toMatchObject({ householdId: 'hh-other' });
+  });
+
+  // As PUT already refuses: else an admin of the owner's household revokes the owner, whose next Google sign-in fails.
+  it("refuses (403) an admin who is not the super admin rewriting the owner's account, and changes nothing", async () => {
+    dbMock.users.push({ id: 'usr-owner', email: SUPER_ADMIN_EMAIL, name: 'Owner Fullname', householdId: adminRow.householdId, role: 'SuperAdmin', status: 'ACTIVE' });
+    const response = createMockResponse();
+    await usersHandler(asAdmin({ email: SUPER_ADMIN_EMAIL, role: 'Member', status: 'PENDING_APPROVAL' }), response);
+
+    expect(response.statusCode).toBe(403);
+    expect(response.body).toEqual({ error: expect.any(String) });
+    expect(dbMock.updatedValues).toEqual([]);
+    expect(dbMock.insertedValues).toEqual([]);
+  });
 });
