@@ -143,6 +143,18 @@ export function exportActivitiesToCSV(
 }
 
 /**
+ * Writes the report into the print window and prints it from here once it has loaded:
+ * the about:blank window inherits the app's Content-Security-Policy, which runs no inline script.
+ * The listener goes after write(), which opens a new document and drops the window's listeners,
+ * and before close(), which can fire load synchronously.
+ */
+function writeAndPrint(windowPrint: Window, html: string): void {
+  windowPrint.document.write(html);
+  windowPrint.addEventListener('load', () => windowPrint.print(), { once: true });
+  windowPrint.document.close();
+}
+
+/**
  * Opens a print-optimized window for the Puppy Activity Timeline and triggers browser PDF/print dialog.
  */
 export function printActivitiesReport(
@@ -498,18 +510,11 @@ export function printActivitiesReport(
             ? 'Document généré via PupPace — Suivi Intelligent des Besoins & Carnet Familial du Chiot.'
             : 'Document generated with PupPace — Smart Puppy Care & Potty Predictor.'}
         </div>
-
-        <script>
-          window.onload = function() {
-            window.print();
-          };
-        </script>
       </body>
     </html>
   `;
 
-  windowPrint.document.write(html);
-  windowPrint.document.close();
+  writeAndPrint(windowPrint, html);
   return true;
 }
 
@@ -878,16 +883,11 @@ export function printHealthPassportReport(
             ? 'Document généré via PupPace — Application de Suivi & Carnet de Santé Familial du Chiot.'
             : 'Document generated with PupPace — Family Puppy Care & Health Passport.'}
         </div>
-
-        <script>
-          window.onload = function() { window.print(); };
-        </script>
       </body>
     </html>
   `;
 
-  windowPrint.document.write(html);
-  windowPrint.document.close();
+  writeAndPrint(windowPrint, html);
   return true;
 }
 

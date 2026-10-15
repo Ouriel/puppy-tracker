@@ -74,7 +74,8 @@ describe('export utilities — CSV and PDF export test suite', () => {
 
   let createdBlob: Blob | null = null;
   let clickedDownload = false;
-  let mockWindow: { document: { write: ReturnType<typeof vi.fn>; close: ReturnType<typeof vi.fn> } } | null = null;
+  // The print window: a real EventTarget, so a test can fire its load event
+  let mockWindow: (EventTarget & { document: { write: ReturnType<typeof vi.fn>; close: ReturnType<typeof vi.fn> }; print: ReturnType<typeof vi.fn> }) | null = null;
 
   beforeEach(() => {
     createdBlob = null;
@@ -97,12 +98,13 @@ describe('export utilities — CSV and PDF export test suite', () => {
       return element;
     });
 
-    mockWindow = {
+    mockWindow = Object.assign(new EventTarget(), {
       document: {
         write: vi.fn(),
         close: vi.fn(),
       },
-    };
+      print: vi.fn(),
+    });
     vi.spyOn(window, 'open').mockReturnValue(mockWindow as unknown as Window);
   });
 
@@ -188,7 +190,6 @@ describe('export utilities — CSV and PDF export test suite', () => {
       // The period printed; no goal: today's goal is not the goal of past days (history display decision (a))
       expect(htmlContent).toContain('Du 14 août 2026 au 20 août 2026');
       expect(htmlContent).not.toContain('240g /');
-      expect(htmlContent).toContain('window.print()');
       expect(htmlContent).toContain('<div class="card-value">5</div>'); // total logs card
       expect(htmlContent).toContain('Dehors');
       expect(htmlContent).toContain('Accident Intérieur');
@@ -318,7 +319,6 @@ describe('export utilities — CSV and PDF export test suite', () => {
       expect(htmlContent).toContain('Carnet de Santé & Passeport Vaccinal');
       expect(htmlContent).toContain('CHPPiL4');
       expect(htmlContent).toContain('Credelio Plus');
-      expect(htmlContent).toContain('window.print()');
     });
 
     it('renders printable English veterinary health passport when lang is en', () => {
@@ -329,6 +329,28 @@ describe('export utilities — CSV and PDF export test suite', () => {
       expect(htmlContent).toContain('Health Passport & Vaccine Record');
       expect(htmlContent).toContain('Vaccination History');
       expect(htmlContent).toContain('Deworming & Parasitology');
+    });
+  });
+
+  // The print window is about:blank, so it inherits the app's Content-Security-Policy: no inline script may run in it
+  describe('print windows run no script of their own', () => {
+    it.each([
+      ['activity report', () => printActivitiesReport(mockActivities, mockProfile, 'fr', fr, mockCaretakers, period)],
+      ['health passport', () => printHealthPassportReport(mockProfile, [], [], mockActivities, 'fr', fr)],
+    ])('the %s window gets no inline script; the app prints it once it has loaded', (_reportName, printReport) => {
+      const addListener = vi.spyOn(mockWindow!, 'addEventListener');
+      expect(printReport()).toBe(true);
+
+      const htmlContent = mockWindow?.document.write.mock.calls[0][0] as string;
+      expect(htmlContent).not.toMatch(/<script/i);
+      expect(mockWindow?.print).not.toHaveBeenCalled();
+      // In a browser, write() opens a new document and drops the window's listeners: listen after it,
+      // and before close(), which can fire load synchronously
+      expect(addListener.mock.invocationCallOrder[0]).toBeGreaterThan(mockWindow!.document.write.mock.invocationCallOrder[0]);
+      expect(addListener.mock.invocationCallOrder[0]).toBeLessThan(mockWindow!.document.close.mock.invocationCallOrder[0]);
+
+      mockWindow?.dispatchEvent(new Event('load'));
+      expect(mockWindow?.print).toHaveBeenCalledTimes(1);
     });
   });
 
