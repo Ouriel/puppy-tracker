@@ -410,7 +410,7 @@ export function printActivitiesReport(
           <div class="card">
             <div class="card-label">${isFrench ? 'Repas' : 'Meals'}</div>
             <div class="card-value" style="color: #7c3aed;">${totalMeals}</div>
-            <div class="card-sub">${totalFoodGrams}g ${isFrench ? 'total' : 'logged'}</div>
+            <div class="card-sub">${totalFoodGrams > 0 ? `${totalFoodGrams}g ${isFrench ? 'total' : 'logged'}` : ''}</div>
           </div>
           <div class="card">
             <div class="card-label">${isFrench ? 'Taux Réussite' : 'Potty Rate'}</div>

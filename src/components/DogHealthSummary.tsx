@@ -108,11 +108,11 @@ export const DogHealthSummary: React.FC<DogHealthSummaryProps> = React.memo(({
     const sleepDurationStr = sleepM > 0 ? `${sleepH}h ${sleepM}m` : `${sleepH}h`;
 
     const targetMeals = profile.targetMealsPerDay || 3;
-    const dailyGrams = profile.dailyFoodGramGoal || 200;
-    const portionGrams = Math.round(dailyGrams / targetMeals);
+    const dailyGrams = profile.dailyFoodGramGoal; // 0: no gram goal, no grams shown
+    const portionGrams = dailyGrams > 0 ? Math.round(dailyGrams / targetMeals) : undefined;
 
     // Build meal items list based on targetMealsPerDay
-    const mealItems: { name: string; timeStr: string; grams: number }[] = [];
+    const mealItems: { name: string; timeStr: string; grams?: number }[] = [];
     if (targetMeals === 2) {
       mealItems.push({ name: t.health.breakfast, timeStr: formatMinsToClock(meals.breakfastMins), grams: portionGrams });
       mealItems.push({ name: t.health.dinner, timeStr: formatMinsToClock(meals.dinnerMins), grams: portionGrams });
@@ -279,7 +279,8 @@ export const DogHealthSummary: React.FC<DogHealthSummaryProps> = React.memo(({
                   <span>{t.health.mealSchedule}</span>
                 </div>
                 <span className="text-[11px] font-semibold text-emerald-300/90 bg-emerald-950/50 border border-emerald-800/40 px-2 py-0.5 rounded">
-                  {t.health.mealsPerDay.replace('{count}', String(scheduleData.targetMeals))} ({scheduleData.dailyGrams}g)
+                  {t.health.mealsPerDay.replace('{count}', String(scheduleData.targetMeals))}
+                  {scheduleData.dailyGrams > 0 && ` (${scheduleData.dailyGrams}g)`}
                 </span>
               </div>
 
@@ -288,7 +289,7 @@ export const DogHealthSummary: React.FC<DogHealthSummaryProps> = React.memo(({
                   <div key={index} className="bg-slate-950/70 p-2 sm:p-2.5 rounded-lg border border-slate-800/70 text-center sm:text-left">
                     <div className="text-[11px] text-slate-400 font-medium truncate" title={item.name}>{item.name}</div>
                     <div className="font-extrabold text-emerald-300 text-xs sm:text-sm mt-0.5">~{item.timeStr}</div>
-                    <div className="text-[10px] text-slate-400 mt-0.5 font-medium">~{item.grams}g</div>
+                    {item.grams !== undefined && <div className="text-[10px] text-slate-400 mt-0.5 font-medium">~{item.grams}g</div>}
                   </div>
                 ))}
               </div>

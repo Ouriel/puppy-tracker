@@ -332,7 +332,7 @@ describe('API Security & Session Token Validation Test Suite', () => {
       dbMock.rowsByTable.users = [{ ...activeUserRow, role: 'Member' }];
       const response = createMockResponse();
 
-      await dogsHandler(bearerRequest(tokenFor('Member'), 'POST', { id: 'dog-new', name: 'Balma', breed: 'Cocker' }), response);
+      await dogsHandler(bearerRequest(tokenFor('Member'), 'POST', { id: 'dog-new', name: 'Balma', breed: 'Cocker', birthDate: '2026-05-01' }), response);
 
       expect(response.statusCode).toBe(201);
       expect(response.body).toMatchObject({ id: 'dog-new', householdId: 'hh-family-123', name: 'Balma' });
@@ -407,6 +407,64 @@ describe('API Security & Session Token Validation Test Suite', () => {
       expect(dogResponse.statusCode).toBe(200);
       expect(caretakerResponse.statusCode).toBe(200);
       expect(dbMock.delete).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  describe('/api/dogs input rules (Settings form)', () => {
+    const memberToken = () =>
+      signAppSessionToken({ email: 'user@example.com', name: 'Matthieu', householdId: 'hh-family-123', role: 'Member' }, 30);
+
+    it('PUT accepts null to clear the adult weight and the sex, as the API returns them for a dog without one', async () => {
+      const response = createMockResponse();
+
+      await dogsHandler(
+        bearerRequest(memberToken(), 'PUT', { id: 'dog-1', name: 'Rex', breed: 'Beagle', expectedAdultWeightKg: null, gender: null, notes: '' }),
+        response
+      );
+
+      expect(response.statusCode).toBe(200);
+      expect(response.body).toMatchObject({ expectedAdultWeightKg: null, gender: null, notes: '' });
+    });
+
+    it.each([
+      ['POST', { id: 'dog-new', name: 'Rex', breed: 'Beagle', birthDate: '2026-05-01', dailyFoodGramGoal: 0 }, 0],
+      ['PUT', { id: 'dog-1', dailyFoodGramGoal: 0 }, 0],
+      ['PUT', { id: 'dog-1', dailyFoodGramGoal: 10 }, 10],
+      ['PUT', { id: 'dog-1', dailyFoodGramGoal: 2000 }, 2000],
+    ])('%s stores the gram goal as sent (0 = no gram goal, count meals only): %j', async (method, body, storedGoal) => {
+      const response = createMockResponse();
+
+      await dogsHandler(bearerRequest(memberToken(), method, body), response);
+
+      expect(response.statusCode).toBeLessThan(300);
+      expect(response.body.dailyFoodGramGoal).toBe(storedGoal);
+    });
+
+    it.each([
+      ['POST without a birth date', 'POST', { id: 'dog-new', name: 'Rex', breed: 'Beagle' }],
+      ['POST with a future birth date', 'POST', { id: 'dog-new', name: 'Rex', breed: 'Beagle', birthDate: '2099-01-01' }],
+      ['PUT with an emptied birth date', 'PUT', { id: 'dog-1', birthDate: '' }],
+      ['PUT with an impossible date', 'PUT', { id: 'dog-1', birthDate: '2026-02-31' }],
+      ['0 meals a day', 'PUT', { id: 'dog-1', targetMealsPerDay: 0 }],
+      ['7 meals a day', 'PUT', { id: 'dog-1', targetMealsPerDay: 7 }],
+      ['2.5 meals a day', 'PUT', { id: 'dog-1', targetMealsPerDay: 2.5 }],
+      ['a 5 g goal', 'PUT', { id: 'dog-1', dailyFoodGramGoal: 5 }],
+      ['a 2001 g goal', 'PUT', { id: 'dog-1', dailyFoodGramGoal: 2001 }],
+      ['a 150.5 g goal', 'PUT', { id: 'dog-1', dailyFoodGramGoal: 150.5 }],
+      ['a negative goal', 'POST', { id: 'dog-new', name: 'Rex', breed: 'Beagle', birthDate: '2026-05-01', dailyFoodGramGoal: -5 }],
+      // No made-up 'Unknown' breed: the form requires one
+      ['POST without a breed', 'POST', { id: 'dog-new', name: 'Rex', birthDate: '2026-05-01' }],
+      ['POST with a blank breed', 'POST', { id: 'dog-new', name: 'Rex', breed: '   ', birthDate: '2026-05-01' }],
+      ['PUT with a blank breed', 'PUT', { id: 'dog-1', breed: '   ' }],
+      ['POST with a breed name over 80 characters', 'POST', { id: 'dog-new', name: 'Rex', breed: 'x'.repeat(81), birthDate: '2026-05-01' }],
+    ])('refuses %s (400) and writes nothing', async (_case, method, body) => {
+      const response = createMockResponse();
+
+      await dogsHandler(bearerRequest(memberToken(), method, body), response);
+
+      expect(response.statusCode).toBe(400);
+      expect(dbMock.insert).not.toHaveBeenCalled();
+      expect(dbMock.update).not.toHaveBeenCalled();
     });
   });
 

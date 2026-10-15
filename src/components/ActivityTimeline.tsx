@@ -146,7 +146,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
 
   const hasMorePriorLogs = sortedCoreActivities.length > visibleActivities.length || hasMoreRemote;
 
-  const dailyGoalGrams = activePuppy?.dailyFoodGramGoal || 200;
+  const dailyGoalGrams = activePuppy?.dailyFoodGramGoal ?? 200; // 0: no gram goal
   const targetMealsCount = activePuppy?.targetMealsPerDay || 3;
 
   // Group visible activities by logical day
@@ -440,10 +440,10 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
                             ? 'bg-amber-950/60 border-amber-700/50 text-amber-300'
                             : 'bg-slate-900 border-slate-800 text-slate-400'
                         }`}
-                        title={`${t.dashboard.foodIntake}: ${foodPill.text}`}
+                        title={`${t.dashboard.foodIntake}: ${foodPill.text || foodPill.mealsText}`}
                       >
                         <Utensils className="w-3.5 h-3.5 shrink-0" />
-                        <span>{foodPill.text}</span>
+                        {foodPill.text && <span>{foodPill.text}</span>}
                         {foodPill.mealsText && (
                           <span className="text-[10px] opacity-80">{foodPill.mealsText}</span>
                         )}
@@ -644,6 +644,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
               key={`edit-${editingActivity.id}`}
               isOpen={true}
               activityToEdit={editingActivity}
+              dailyFoodGramGoal={activePuppy?.dailyFoodGramGoal}
               currentUser={editingActivity.loggedBy}
               onClose={() => setEditingActivity(null)}
               onSave={(activityData) => {

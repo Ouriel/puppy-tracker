@@ -299,6 +299,24 @@ describe('Weight timeline (Phase 5c, prod-shaped)', () => {
     const put = requests.find((request) => request.method === 'PUT' && request.url === '/api/health-records')!;
     expect(put.body.boosterDate).toBeNull();
   });
+
+  // Owner decision 2026-10-15: a dog with no gram goal may log a meal without grams (stored as null, never 0)
+  it('a dog with no gram goal: a weigh-in edited into a meal saves with the grams box left empty', async () => {
+    const noGoalPuppy: PuppyProfile = { ...puppy, dailyFoodGramGoal: 0 };
+    setStoredPuppies([noGoalPuppy]);
+    answerDashboard = () => respond({ ...prodShapedDashboard(), puppies: [noGoalPuppy] });
+    await openPassport();
+
+    await click(weightRows()[0].querySelector<HTMLButtonElement>('button[aria-label="Edit weight entry"]')!);
+    await settleUntil(() => document.getElementById('quicklog-form') !== null);
+    await click([...document.querySelectorAll<HTMLButtonElement>('[role="radio"]')].find((button) => button.textContent === en.potty.food)!);
+    expect((document.getElementById('quicklog-quantity-grams') as HTMLInputElement).value).toBe('');
+    await click(document.querySelector<HTMLButtonElement>('button[form="quicklog-form"]')!);
+
+    const put = requests.find((request) => request.method === 'PUT' && request.url.startsWith('/api/activities'))!;
+    expect(put.body).toMatchObject({ type: 'food' });
+    expect(put.body).not.toHaveProperty('quantityGrams');
+  });
 });
 
 describe.each([

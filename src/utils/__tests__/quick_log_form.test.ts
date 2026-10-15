@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import type { ActivityType } from '../../types';
 import { buildQuickLogActivity, buildVetWeighIn, parseDecimalInput, validateQuickLogForm } from '../activityPayloads';
-import { isDailyGramGoalMet, suggestNextMealGrams } from '../predictions';
+import { calculateNextMealPortion, getRecommendedMealsPerDay, isDailyGramGoalMet, suggestNextMealGrams } from '../predictions';
 
 const form = {
   puppyId: 'pup-1',
@@ -84,6 +84,33 @@ describe('validateQuickLogForm', () => {
   });
 });
 
+// Owner decision 2026-10-15: a dog with no gram goal may log a meal without grams (stored as null, never 0)
+describe('a meal of a dog with no gram goal (dailyFoodGramGoal 0)', () => {
+  const noGoalMeal = { ...form, dailyFoodGramGoal: 0 };
+
+  it.each(['', '   '])('an empty grams box %j saves the meal without grams', (quantityGrams) => {
+    expect(validateQuickLogForm({ ...noGoalMeal, quantityGrams })).toBeNull();
+    const sent = JSON.parse(JSON.stringify(buildQuickLogActivity({ ...noGoalMeal, quantityGrams })));
+    // No grams key: the server stores null
+    expect(sent).not.toHaveProperty('quantityGrams');
+    expect(sent).not.toHaveProperty('quantityCups');
+    expect(sent.type).toBe('food');
+  });
+
+  it.each(['0', 'abc', '-5'])('typed grams %j still block the save', (quantityGrams) => {
+    expect(validateQuickLogForm({ ...noGoalMeal, quantityGrams })).toEqual({ field: 'quantityGrams', messageKey: 'gramsRequired' });
+  });
+
+  it('typed grams are saved', () => {
+    expect(validateQuickLogForm({ ...noGoalMeal, quantityGrams: '35' })).toBeNull();
+    expect(buildQuickLogActivity({ ...noGoalMeal, quantityGrams: '35' }).quantityGrams).toBe(35);
+  });
+
+  it('a dog with a gram goal still needs the grams', () => {
+    expect(validateQuickLogForm({ ...form, dailyFoodGramGoal: 200, quantityGrams: '' })).toEqual({ field: 'quantityGrams', messageKey: 'gramsRequired' });
+  });
+});
+
 // 32: an edit sends null for an emptied note, so the server deletes it (JSON drops undefined)
 describe('buildQuickLogActivity notes', () => {
   it.each(['', '   '])('an empty note %j is sent as null', (notes) => {
@@ -109,6 +136,20 @@ describe('suggestNextMealGrams (feed button label and meal box share it)', () =>
   it.each([[179, 21], [180, undefined]])('goal 200 g, 2 meals, 1 eaten, %d g eaten -> %s', (grams, expected) => {
     expect(suggestNextMealGrams(200, 2, grams, 1)).toBe(expected);
   });
+
+  it('a dog with no gram goal gets no grams suggested: no "(Xg)" on the button, an empty box', () => {
+    expect(suggestNextMealGrams(0, 2, 0, 0)).toBeUndefined();
+    expect(suggestNextMealGrams(0, 2, 80, 1)).toBeUndefined();
+    expect(calculateNextMealPortion(0, 2, 0, 0)).toBeUndefined();
+  });
+});
+
+describe('getRecommendedMealsPerDay (engine fallback and new-dog default)', () => {
+  it.each([['2026-07-18', 4], ['2026-07-17', 3], ['2026-04-17', 3], ['2026-04-16', 2], ['2026-01-01', 2]])(
+    'born %s, on 2026-10-15 -> %i meals', (birthDate, meals) => {
+      expect(getRecommendedMealsPerDay(birthDate, new Date('2026-10-15T12:00:00+02:00'))).toBe(meals);
+    }
+  );
 });
 
 describe('buildVetWeighIn (the optional weight box of the vaccine and deworming forms)', () => {

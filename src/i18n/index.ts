@@ -16,7 +16,8 @@ function getStoredLanguage(): Language {
   } catch {
     // Ignore localStorage access errors in private/iframe modes
   }
-  return 'en'; // default English
+  // No saved choice yet: French on a phone set to French, English otherwise
+  return typeof navigator !== 'undefined' && navigator.language?.toLowerCase().startsWith('fr') ? 'fr' : 'en';
 }
 
 function setStoredLanguage(lang: Language) {
