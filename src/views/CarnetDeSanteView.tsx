@@ -21,7 +21,7 @@ interface CarnetDeSanteViewProps {
   isDashboardDown: boolean;
   currentUser: string;
   onAddActivity: (activity: Omit<Activity, 'id'>) => void;
-  onUpdateActivity: (updated: Partial<Activity> & { id: string }) => void;
+  onUpdateActivity: (updated: Partial<Activity> & { id: string }) => Promise<boolean>;
   onOpenQuickLogModal?: (type: ActivityType) => void;
   onBackToDashboard?: () => void;
   onDeleteActivity?: (id: string) => void;

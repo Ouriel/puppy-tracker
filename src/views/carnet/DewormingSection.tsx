@@ -95,7 +95,7 @@ export const DewormingSection: React.FC<DewormingSectionProps> = ({
       setCustomDewormNextDate(null);
       setWeightText('');
     } else {
-      toast.danger(result.error || t.toasts.errorGeneric);
+      toast.danger(t.toasts[result.errorKey]);
     }
   };
 
@@ -124,7 +124,7 @@ export const DewormingSection: React.FC<DewormingSectionProps> = ({
       setEditingDewormingId(null);
       toast.success(t.toasts.dewormingUpdated);
     } else {
-      toast.danger(result.error || t.toasts.errorGeneric);
+      toast.danger(t.toasts[result.errorKey]);
     }
   };
 
@@ -133,7 +133,7 @@ export const DewormingSection: React.FC<DewormingSectionProps> = ({
     if (result.ok) {
       setHealthRecords((previous) => previous.filter((record) => record.id !== id));
     } else {
-      toast.danger(result.error || t.toasts.errorGeneric);
+      toast.danger(t.toasts[result.errorKey]);
     }
   };
 

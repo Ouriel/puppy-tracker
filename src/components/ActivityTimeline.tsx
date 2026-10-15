@@ -1,6 +1,6 @@
 import React, { useState, useMemo, lazy, Suspense, useRef, useEffect, useCallback } from 'react';
 import type { Activity, ActivityType, Caretaker, PuppyProfile } from '../types';
-import { Droplet, Utensils, Trash2, Pencil, User, ChevronDown, Calendar, CheckCircle2, ChevronsUpDown, AlertTriangle, Download, FileSpreadsheet, Printer, Pill, Scale } from 'lucide-react';
+import { Droplet, Utensils, Trash2, Pencil, User, ChevronDown, Calendar, CheckCircle2, ChevronsUpDown, AlertTriangle, Download, FileSpreadsheet, Printer, Pill, Scale, RotateCw, X } from 'lucide-react';
 import { PoopIcon } from './common/PoopIcon';
 import { Button, Card } from '@heroui/react';
 import { useI18n } from '../i18n';
@@ -17,7 +17,11 @@ interface ActivityTimelineProps {
   caretakers: Caretaker[];
   activePuppy?: PuppyProfile | null;
   onDeleteActivity: (id: string) => void;
-  onUpdateActivity?: (updated: Partial<Activity> & { id: string }) => void;
+  onUpdateActivity?: (updated: Partial<Activity> & { id: string }) => Promise<boolean>;
+  // Logs the server did not take: marked, with Retry and Discard instead of Edit and Delete
+  unsavedIds?: ReadonlySet<string>;
+  onRetry?: (unsaved: Activity) => void;
+  onDiscard?: (id: string) => void;
   onLoadMore?: (targetDays?: number) => Promise<void>;
   isLoadingMore?: boolean;
   hasMoreRemote?: boolean;
@@ -66,6 +70,9 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
   activePuppy,
   onDeleteActivity,
   onUpdateActivity,
+  unsavedIds,
+  onRetry,
+  onDiscard,
   onLoadMore,
   isLoadingMore = false,
   hasMoreRemote = true,
@@ -382,7 +389,8 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
         ) : (
           <div className="space-y-3">
             {dayGroups.map((group) => {
-              const isExpanded = expandedDays.has(group.dateKey);
+              // A day holding a log not saved stays open, so its Retry is never hidden
+              const isExpanded = expandedDays.has(group.dateKey) || group.activities.some((activity) => unsavedIds?.has(activity.id));
               const foodPill = getDayFoodPill(group, t.dashboard.mealsCount);
 
               return (
@@ -491,6 +499,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
                           {group.activities.map((item) => {
                             const color = getCaretakerColor(item.loggedBy);
                             const caretakerName = resolveCaretakerName(item.loggedBy, caretakers);
+                            const isUnsaved = unsavedIds?.has(item.id);
 
                             return (
                               <div
@@ -513,6 +522,13 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
                                       <span className="text-xs font-bold text-slate-100 capitalize">
                                         {t.potty[item.type as keyof typeof t.potty] || item.type}
                                       </span>
+
+                                      {isUnsaved && (
+                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold bg-amber-950/70 border border-amber-700/60 text-amber-300 whitespace-nowrap">
+                                          <AlertTriangle className="w-3 h-3 shrink-0" />
+                                          <span>{t.potty.notSaved}</span>
+                                        </span>
+                                      )}
 
                                       {/* Potty location pill */}
                                       {item.pottyLocation === 'outside' && (
@@ -581,27 +597,54 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
                                   </div>
                                 </div>
 
-                                {/* Actions: Edit & Delete */}
+                                {/* Actions: Edit & Delete, or Retry & Discard for a log not saved */}
                                 <div className="flex items-center justify-end gap-1.5 shrink-0 self-end sm:self-start pt-1 sm:pt-0 border-t border-slate-800/40 sm:border-t-0 w-full sm:w-auto">
-                                  {onUpdateActivity && (
-                                    <button
-                                      type="button"
-                                      onClick={() => setEditingActivity(item)}
-                                      aria-label={t.potty.editActivity}
-                                      className="p-1.5 sm:p-2 min-h-[36px] min-w-[36px] flex items-center justify-center text-slate-400 hover:text-indigo-300 hover:bg-slate-800 rounded-lg border border-slate-800 bg-slate-950 transition-colors"
-                                    >
-                                      <Pencil className="w-3.5 h-3.5" />
-                                    </button>
-                                  )}
+                                  {isUnsaved ? (
+                                    <>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          // Its day stays open once it is saved and no longer marked
+                                          setExpandedDays((previous) => new Set(previous).add(group.dateKey));
+                                          onRetry?.(item);
+                                        }}
+                                        className="px-2.5 min-h-[36px] inline-flex items-center gap-1.5 text-xs font-bold text-amber-200 hover:bg-slate-800 rounded-lg border border-amber-700/60 bg-slate-950 transition-colors"
+                                      >
+                                        <RotateCw className="w-3.5 h-3.5" />
+                                        <span>{t.potty.retry}</span>
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => onDiscard?.(item.id)}
+                                        aria-label={t.potty.discard}
+                                        className="p-1.5 sm:p-2 min-h-[36px] min-w-[36px] flex items-center justify-center text-slate-400 hover:text-red-400 hover:bg-slate-800 rounded-lg border border-slate-800 bg-slate-950 transition-colors"
+                                      >
+                                        <X className="w-3.5 h-3.5" />
+                                      </button>
+                                    </>
+                                  ) : (
+                                    <>
+                                      {onUpdateActivity && (
+                                        <button
+                                          type="button"
+                                          onClick={() => setEditingActivity(item)}
+                                          aria-label={t.potty.editActivity}
+                                          className="p-1.5 sm:p-2 min-h-[36px] min-w-[36px] flex items-center justify-center text-slate-400 hover:text-indigo-300 hover:bg-slate-800 rounded-lg border border-slate-800 bg-slate-950 transition-colors"
+                                        >
+                                          <Pencil className="w-3.5 h-3.5" />
+                                        </button>
+                                      )}
 
-                                  <button
-                                    type="button"
-                                    onClick={() => setConfirmDelete({ id: item.id, type: 'activity' })}
-                                    aria-label={t.potty.deleteActivityTitle}
-                                    className="p-1.5 sm:p-2 min-h-[36px] min-w-[36px] flex items-center justify-center text-slate-400 hover:text-red-400 hover:bg-slate-800 rounded-lg border border-slate-800 bg-slate-950 transition-colors"
-                                  >
-                                    <Trash2 className="w-3.5 h-3.5" />
-                                  </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => setConfirmDelete({ id: item.id, type: 'activity' })}
+                                        aria-label={t.potty.deleteActivityTitle}
+                                        className="p-1.5 sm:p-2 min-h-[36px] min-w-[36px] flex items-center justify-center text-slate-400 hover:text-red-400 hover:bg-slate-800 rounded-lg border border-slate-800 bg-slate-950 transition-colors"
+                                      >
+                                        <Trash2 className="w-3.5 h-3.5" />
+                                      </button>
+                                    </>
+                                  )}
                                 </div>
                               </div>
                             );
@@ -647,10 +690,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
               dailyFoodGramGoal={activePuppy?.dailyFoodGramGoal}
               currentUser={editingActivity.loggedBy}
               onClose={() => setEditingActivity(null)}
-              onSave={(activityData) => {
-                onUpdateActivity({ id: editingActivity.id, ...activityData });
-                setEditingActivity(null);
-              }}
+              onSave={(activityData) => onUpdateActivity({ id: editingActivity.id, ...activityData })}
             />
           </Suspense>
         )}
