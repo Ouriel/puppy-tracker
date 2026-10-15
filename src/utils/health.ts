@@ -69,7 +69,7 @@ function addMonths(isoDate: string, months: number): string {
   return new Date(Date.UTC(year, month - 1 + months, Math.min(day, lastDayOfTargetMonth))).toISOString().slice(0, 10);
 }
 
-function addDays(isoDate: string, days: number): string {
+export function addDays(isoDate: string, days: number): string {
   const [year, month, day] = isoDate.slice(0, 10).split('-').map(Number);
   return new Date(Date.UTC(year, month - 1, day + days)).toISOString().slice(0, 10);
 }

@@ -31,6 +31,11 @@ import { getUnifiedWeightEntries } from './utils/weight';
 
 import { getStoredRecentActivities, getStoredRecentActivitiesTime } from './utils/storage';
 
+// One list for the sign-in and the deferred session exchange, so a returning Admin keeps the role the sign-in test pins.
+const FAMILY_ROLES: readonly string[] = ['Husband', 'Wife', 'Partner', 'Child', 'Dog Walker', 'Sitter', 'Relative', 'Member', 'Admin', 'SuperAdmin'];
+// A screen left open (a tablet in the kitchen) reloads data this old, so it shows the others' logs
+const DASHBOARD_RELOAD_MS = 15 * 60 * 1000;
+
 function App() {
   const { t } = useI18n();
 
@@ -77,6 +82,9 @@ function App() {
   const healthRecordsVersionRef = useRef(0);
   // Records the passport deleted: a dashboard answer read before the delete must not bring them back
   const deletedHealthRecordIdsRef = useRef(new Set<string>());
+  // /api/dashboard requests running, and when the last one ended (ms), failed or not
+  const dashboardRequestsRef = useRef(0);
+  const lastDashboardLoadRef = useRef(0);
 
   const updateHealthRecords = useCallback((update: SetStateAction<HealthRecord[]>) => {
     healthRecordsVersionRef.current += 1;
@@ -121,7 +129,11 @@ function App() {
     // Read first: a log added, edited or deleted before the answer arrives may be missing from it
     const mutationVersion = getMutationVersion();
     const healthRecordsVersion = healthRecordsVersionRef.current;
-    const dashboardRes = await fetchDashboard(puppyId || undefined, 14);
+    dashboardRequestsRef.current += 1;
+    const dashboardRes = await fetchDashboard(puppyId || undefined, 14).finally(() => {
+      dashboardRequestsRef.current -= 1;
+      lastDashboardLoadRef.current = Date.now();
+    });
     setOfflineDataTime(!dashboardRes.ok && dashboardRes.errorKey === 'offline' ? getStoredRecentActivitiesTime(puppyId) : null);
     setIsDashboardDown(!dashboardRes.ok);
     if (!dashboardRes.ok) return false;
@@ -222,7 +234,7 @@ function App() {
                   id: sessionResult.data.user.id || 'u-1',
                   email: sessionResult.data.user.email,
                   name: sessionResult.data.user.name,
-                  role: (['Husband', 'Wife', 'Partner', 'Child', 'Dog Walker', 'Sitter', 'Relative', 'Member', 'SuperAdmin'].includes(sessionResult.data.user.role) ? sessionResult.data.user.role : 'Member') as FamilyRole,
+                  role: (FAMILY_ROLES.includes(sessionResult.data.user.role) ? sessionResult.data.user.role : 'Member') as FamilyRole,
                 };
                 setUser(userAccount);
                 setStoredAuthUser(userAccount);
@@ -248,7 +260,12 @@ function App() {
     };
 
     const interval = setInterval(() => {
-      if (document.visibilityState === 'visible') setNow(new Date());
+      if (document.visibilityState !== 'visible') return;
+      setNow(new Date());
+      // Never next to a running request, however old: the in-flight dedupe joins only one under 2 s old
+      if (dashboardRequestsRef.current === 0 && Date.now() - lastDashboardLoadRef.current >= DASHBOARD_RELOAD_MS && getAuthToken()) {
+        loadDashboard().catch((error) => console.error('Failed to refresh PupPace data', error));
+      }
     }, 60000);
 
     document.addEventListener('visibilitychange', refreshData);
@@ -368,7 +385,7 @@ function App() {
         id: sessionRes.data.user.id || `u-${Date.now()}`,
         email: sessionRes.data.user.email,
         name: sessionRes.data.user.name,
-        role: (['Husband', 'Wife', 'Partner', 'Child', 'Dog Walker', 'Sitter', 'Relative', 'Member', 'SuperAdmin'].includes(sessionRes.data.user.role) ? sessionRes.data.user.role : 'Member') as FamilyRole,
+        role: (FAMILY_ROLES.includes(sessionRes.data.user.role) ? sessionRes.data.user.role : 'Member') as FamilyRole,
       };
       setIsLoading(true);
       setUser(userAccount);
@@ -414,23 +431,23 @@ function App() {
           />
         ) : (
           <div className="h-14 border-b border-slate-800 bg-slate-900/50 backdrop-blur flex items-center px-4 gap-3">
-            <div className="w-9 h-9 rounded-full bg-slate-800 animate-pulse" />
-            <div className="w-24 h-4 rounded bg-slate-800 animate-pulse" />
+            <div className="w-9 h-9 rounded-full bg-slate-800 motion-safe:animate-pulse" />
+            <div className="w-24 h-4 rounded bg-slate-800 motion-safe:animate-pulse" />
           </div>
         )}
         {/* Skeleton PredictorWidget — 3 hero card placeholders */}
         <main className="flex-1 max-w-6xl w-full mx-auto px-4 py-6 space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {[1, 2, 3].map((index) => (
-              <div key={index} className="h-48 rounded-2xl bg-slate-900 border border-slate-800 animate-pulse" />
+              <div key={index} className="h-48 rounded-2xl bg-slate-900 border border-slate-800 motion-safe:animate-pulse" />
             ))}
           </div>
           {/* Skeleton Health Summary */}
-          <div className="h-32 rounded-2xl bg-slate-900 border border-slate-800 animate-pulse" />
+          <div className="h-32 rounded-2xl bg-slate-900 border border-slate-800 motion-safe:animate-pulse" />
           {/* Skeleton Timeline */}
           <div className="space-y-3">
             {[1, 2, 3].map((index) => (
-              <div key={index} className="h-16 rounded-xl bg-slate-900 border border-slate-800 animate-pulse" />
+              <div key={index} className="h-16 rounded-xl bg-slate-900 border border-slate-800 motion-safe:animate-pulse" />
             ))}
           </div>
         </main>

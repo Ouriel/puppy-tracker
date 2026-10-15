@@ -139,6 +139,61 @@ describe('Night Mode, Evening Outings, and Age Transitions Comprehensive Test Su
     expect(pred.peeUrgency).toBe('overdue');
   });
 
+  // 8. The overdue pre-bed pee card ends at bedtime + 90 min, even when half the interval is longer
+  it('keeps an overdue pre-bed pee card until bedtime (22:35) + 90 min, then rolls over to the morning outing', () => {
+    // 19:00 + 4h = 23:00, due before bedtime + interval/2 (00:35): tonight's outing, but only until 00:05
+    const activities = [act('pee', '2026-08-23T19:00:00+02:00')];
+
+    const beforeCap = calculatePredictions(newestFirst(activities), BALMA, new Date('2026-08-24T00:00:00+02:00'), 'Europe/Paris', balmaSleepSchedule);
+    expect(beforeCap.peeMode).toBe('daytime_baseline');
+    expect(at(beforeCap.nextPeeExpectedAt!)).toBe('2026-08-23 23:00');
+    expect(beforeCap.peeUrgency).toBe('overdue');
+
+    const afterCap = calculatePredictions(newestFirst(activities), BALMA, new Date('2026-08-24T00:15:00+02:00'), 'Europe/Paris', balmaSleepSchedule);
+    expect(afterCap.peeMode).toBe('night_sleep');
+    expect(afterCap.peeReason).toContain('Morning outing');
+    expect(at(afterCap.nextPeeExpectedAt!)).toBe('2026-08-24 07:34');
+    expect(afterCap.peeUrgency).toBe('safe');
+  });
+
+  // 8b. Under 90 min, the window stays half the interval: the age cap shortens a young puppy's pre-bed card
+  it('ends a 1.9-month puppy overdue pre-bed pee card at bedtime (20:30) + half its 2.9 h age cap (87 min)', () => {
+    // Gaps of 190 and 270 min learn 270, capped at (1.9 + 1) h = 174 min: 14:30 + 174 = 17:24
+    const puppy = { ...BALMA, birthDate: '2026-06-12' };
+    const schedule: SleepSchedule = { bedtimeHour: 20.5, wakeupHour: 6 + 50 / 60, bedtimeStr: '20:30', wakeupStr: '06:50' };
+    const activities = newestFirst(['06:50', '10:00', '14:30'].map((time) => act('pee', `2026-08-08T${time}:00+02:00`)));
+
+    const lastMinute = calculatePredictions(activities, puppy, new Date('2026-08-08T21:57:00+02:00'), 'Europe/Paris', schedule);
+    expect(at(lastMinute.nextPeeExpectedAt!)).toBe('2026-08-08 17:24');
+    expect(lastMinute.peeUrgency).toBe('overdue');
+
+    const ended = calculatePredictions(activities, puppy, new Date('2026-08-08T21:58:00+02:00'), 'Europe/Paris', schedule);
+    expect(ended.peeMode).toBe('night_sleep');
+  });
+
+  // 8c. The 90-min cap is for the pre-bed card only: a post-meal pee reminder after bedtime keeps the bedtime + interval/2 window
+  it('keeps a post-meal pee reminder for a 23:50 meal past bedtime (22:35) + 90 min, until bedtime + half the interval (00:17)', () => {
+    // 3.4 months: fallback interval 204 min, 19:00 + 204 = 22:24, due before bedtime + 102 min (00:17); reminder due 00:10
+    const puppy = { ...BALMA, birthDate: '2026-05-13' };
+    const pee = act('pee', '2026-08-23T19:00:00+02:00');
+    const activities = newestFirst([pee, act('food', '2026-08-23T23:50:00+02:00', { quantityGrams: 50 })]);
+
+    const pastCap = calculatePredictions(activities, puppy, new Date('2026-08-24T00:10:00+02:00'), 'Europe/Paris', balmaSleepSchedule);
+    expect(pastCap.peeMode).toBe('post_meal_override');
+    expect(at(pastCap.nextPeeExpectedAt!)).toBe('2026-08-24 00:10');
+
+    const ended = calculatePredictions(activities, puppy, new Date('2026-08-24T00:18:00+02:00'), 'Europe/Paris', balmaSleepSchedule);
+    expect(ended.peeMode).toBe('night_sleep');
+    expect(ended.peeReason).toContain('Morning outing');
+
+    // Without the meal, or once its reminder has passed (23:00 meal, reminder over at 00:00), the pre-bed card ends at 00:05
+    const withoutMeal = calculatePredictions([pee], puppy, new Date('2026-08-24T00:10:00+02:00'), 'Europe/Paris', balmaSleepSchedule);
+    expect(withoutMeal.peeMode).toBe('night_sleep');
+    const earlierMeal = newestFirst([pee, act('food', '2026-08-23T23:00:00+02:00', { quantityGrams: 50 })]);
+    const reminderPassed = calculatePredictions(earlierMeal, puppy, new Date('2026-08-24T00:10:00+02:00'), 'Europe/Paris', balmaSleepSchedule);
+    expect(reminderPassed.peeMode).toBe('night_sleep');
+  });
+
   // 9. Quick action logging smoothly transitions from overdue pre-bed to night sleep (Bug 2)
   it('smoothly transitions to night mode when bedtime poop is logged at 22:48 PM', () => {
     const refTime = new Date('2026-08-23T22:48:15+02:00');

@@ -366,15 +366,23 @@ export function detectMealSchedule(
 }
 
 /**
+ * Highest learned daytime pee interval: a healthy adult dog holds 6-8 h in the day, and a puppy
+ * (age in months + 1) h below that. Overnight holding is handled by night mode, which has no such cap.
+ */
+const PEE_INTERVAL_CEILING_HOURS = 8;
+
+/**
  * Calculates adaptive average daytime interval between activities using exponential time decay
  * (prioritizing recent days as puppy grows) and computes dynamic ± delta tolerances via semi-IQR.
+ * `ageMonths` (the dog's age now) sets the pee ceiling; without it, the adult PEE_INTERVAL_CEILING_HOURS.
  */
 export function calculateLearnedIntervalMinutes(
   activities: Activity[],
   type: 'pee' | 'poop' | 'food',
   fallbackMinutes: number,
   sleepSchedule: SleepSchedule = { bedtimeHour: 22, wakeupHour: 7, bedtimeStr: '22:00', wakeupStr: '07:00' },
-  timeZone?: string
+  timeZone?: string,
+  ageMonths?: number
 ): { intervalMins: number; deltaMins: number; sampleCount: number; isLearned: boolean } {
   const maxLogTime = activities.reduce((max, act) => Math.max(max, parseIsoDate(act.timestamp).getTime()), 0);
   const nowTime = maxLogTime > 0 ? maxLogTime : Date.now();
@@ -460,7 +468,7 @@ export function calculateLearnedIntervalMinutes(
   const deltaMins = Math.max(minDelta, Math.min(rawDelta, maxDelta));
 
   const minInterval = type === 'pee' ? 30 : 180;
-  const maxInterval = type === 'pee' ? 360 : 1440;
+  const maxInterval = type === 'pee' ? Math.min((ageMonths ?? Infinity) + 1, PEE_INTERVAL_CEILING_HOURS) * 60 : 1440;
 
   return {
     intervalMins: Math.max(minInterval, Math.min(learnedMinutes, maxInterval)),
@@ -662,7 +670,7 @@ export function predictNextPee(
   const { months } = getPuppyAge(profile.birthDate, now);
   const baseBladderHours = Math.max(1, Math.min(months, 4));
   const fallbackPeeIntervalMins = baseBladderHours * 60;
-  const learnedPee = calculateLearnedIntervalMinutes(past, 'pee', fallbackPeeIntervalMins, sleepSchedule, tz);
+  const learnedPee = calculateLearnedIntervalMinutes(past, 'pee', fallbackPeeIntervalMins, sleepSchedule, tz, months);
 
   const ageFallbackPeeDelay = months < 3 ? 15 : months < 6 ? 20 : 30;
   const ageFallbackPeeDelta = months < 3 ? 8 : months < 6 ? 10 : 15;
@@ -684,9 +692,20 @@ export function predictNextPee(
   const lastPeeTime = lastPeeDate.getTime();
   const standardExpectedAt = new Date(lastPeeTime + learnedPee.intervalMins * 60 * 1000);
 
+  const foodTime = lastFood ? parseIsoDate(lastFood.timestamp).getTime() : 0;
+  const isAfterMeal = shouldApplyPostMealOverride(months, learnedPostMealPee) && lastFood !== undefined && foodTime > lastPeeTime;
+  const minsBetweenPeeAndMeal = Math.round((foodTime - lastPeeTime) / 60000);
+  const minsSinceMeal = Math.round((now.getTime() - foodTime) / 60000);
+  // If puppy emptied bladder shortly before meal (<= 30m before eating on a walk)
+  const peedRightBeforeMeal = minsBetweenPeeAndMeal <= 30;
+  const isPostMealReminder = isAfterMeal && !peedRightBeforeMeal && minsSinceMeal <= postMealPeeDelay + 40;
+
   const isNightTime = isNightTimeMode(now, sorted, sleepSchedule, tz);
   const isDeepNight = isDeepNightTime(standardExpectedAt, learnedPee.intervalMins, sleepSchedule, tz, now);
-  const preservePreBed = shouldPreservePreBedPotty(lastPeeTime, learnedPee.intervalMins, learnedPee.intervalMins / 2, now, sleepSchedule, tz);
+  // The pee pre-bed outing ends at bedtime + half the interval, at most 90 min: half a long interval would keep an overdue card until about bedtime + 4 h.
+  // A post-meal reminder keeps the uncapped bedtime + half the interval.
+  const preBedWindowMins = isPostMealReminder ? learnedPee.intervalMins / 2 : Math.min(learnedPee.intervalMins / 2, 90);
+  const preservePreBed = shouldPreservePreBedPotty(lastPeeTime, learnedPee.intervalMins, preBedWindowMins, now, sleepSchedule, tz);
 
   let nextExpectedAt: Date = standardExpectedAt;
   let mode: ScheduleMode = 'daytime_baseline';
@@ -720,14 +739,7 @@ export function predictNextPee(
     const todayWakeup = getOccurrenceOfClockTimeInTimezone(now, sleepSchedule.wakeupHour, tz, 0);
     nextExpectedAt = todayWakeup;
     reason = `Morning outing (~${wakeupStr})`;
-  } else if (shouldApplyPostMealOverride(months, learnedPostMealPee) && lastFood && parseIsoDate(lastFood.timestamp).getTime() > lastPeeTime) {
-    const foodTime = parseIsoDate(lastFood.timestamp).getTime();
-    const minsBetweenPeeAndMeal = Math.round((foodTime - lastPeeTime) / 60000);
-    const minsSinceMeal = Math.round((now.getTime() - foodTime) / 60000);
-
-    // If puppy emptied bladder shortly before meal (<= 30m before eating on a walk)
-    const peedRightBeforeMeal = minsBetweenPeeAndMeal <= 30;
-
+  } else if (isAfterMeal) {
     if (peedRightBeforeMeal) {
       mode = 'daytime_baseline';
       nextExpectedAt = standardExpectedAt;

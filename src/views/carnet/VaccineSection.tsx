@@ -4,6 +4,7 @@ import { Syringe, ShieldCheck, Plus, Trash2, Pencil, Check } from 'lucide-react'
 import { Card, Button, Input, Select, ListBox, ListBoxItem, Chip, toast } from '@heroui/react';
 import { calculateNextVaccineBooster, getHealthProtocols, getHealthRecordDateError, getHealthRecordStatus } from '../../utils/health';
 import { StatusBadge } from '../../components/common/StatusBadge';
+import { AddToCalendarButton } from '../../components/common/AddToCalendarButton';
 import { formatLocalDate, formatShortDate } from '../../utils/date';
 import { useI18n } from '../../i18n';
 import { createHealthRecord, updateHealthRecord, deleteHealthRecord } from '../../services/api';
@@ -343,7 +344,7 @@ export const VaccineSection: React.FC<VaccineSectionProps> = ({
                             onClick={() => setEditVaccineBoosterDate(suggestedEditBoosterDate)}
                             className="mt-1.5 text-[11px] font-semibold text-teal-300 hover:text-teal-200 underline underline-offset-2"
                           >
-                            {t.health.suggestedDate.replace('{date}', suggestedEditBoosterDate)}
+                            {t.health.suggestedDate.replace('{date}', formatShortDate(suggestedEditBoosterDate, lang))}
                           </button>
                         )}
                       </div>
@@ -418,12 +419,13 @@ export const VaccineSection: React.FC<VaccineSectionProps> = ({
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between sm:justify-end gap-3 pt-2 sm:pt-0 border-t border-slate-800/60 sm:border-t-0 shrink-0">
+                <div className="flex flex-wrap items-center justify-between sm:justify-end gap-3 pt-2 sm:pt-0 border-t border-slate-800/60 sm:border-t-0 shrink-0">
                   <div className="text-left sm:text-right">
                     <div className="text-xs font-bold text-amber-300">{t.health.booster}: {vaccine.boosterDate ? formatShortDate(vaccine.boosterDate, lang) : '—'}</div>
                     {vaccine.boosterDate && <StatusBadge status={status} />}
                   </div>
-                  <div className="flex items-center gap-1.5 shrink-0">
+                  <div className="flex items-center gap-1.5 shrink-0 ml-auto">
+                    <AddToCalendarButton record={vaccine} status={status} dogName={activePuppy.name} />
                     <button
                       type="button"
                       onClick={() => startEditVaccine(vaccine)}
@@ -452,7 +454,7 @@ export const VaccineSection: React.FC<VaccineSectionProps> = ({
           <summary className="cursor-pointer font-bold text-teal-400 flex items-center gap-1.5 hover:text-teal-300 transition-colors list-none">
             <ShieldCheck className="w-4 h-4 shrink-0" />
             <span>{t.health.frenchVaccineGuidelines}</span>
-            <span className="text-[10px] font-normal text-slate-500 ml-auto group-open:hidden">{t.health.clickToViewSchedule}</span>
+            <span className="text-[10px] font-normal text-slate-400 ml-auto group-open:hidden">{t.health.clickToViewSchedule}</span>
           </summary>
           <ul className="mt-2.5 pl-5 text-[11px] text-slate-300 space-y-1 list-disc">
             <li>{t.health.week8Initial}</li>

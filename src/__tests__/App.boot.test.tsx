@@ -99,7 +99,7 @@ async function renderApp() {
   await settle();
 }
 
-const isSkeletonShown = () => document.querySelector('.h-48.animate-pulse') !== null;
+const isSkeletonShown = () => document.querySelector('.h-48.motion-safe\\:animate-pulse') !== null;
 const isTimelineEmpty = () => document.body.textContent!.includes(en.dashboard.noActivityLogs);
 const isLockScreenShown = () => document.getElementById('sign-in') !== null;
 const dashboardUrl = '/api/dashboard?puppyId=pup-1&days=14';
@@ -844,6 +844,96 @@ describe('a dashboard that cannot be reached', () => {
   });
 });
 
+
+// Backlog item 15 (owner default: yes, only while visible)
+describe('a screen left open, like a tablet in the kitchen', () => {
+  // The session extension sent 3 s after boot is not a dashboard load
+  const dashboardRequests = () => requestedUrls.filter((url) => url.startsWith('/api/dashboard'));
+
+  /** Moves the clock minute by minute, as the app's 60 s ticker sees it. */
+  async function waitMinutes(minutes: number) {
+    for (let minute = 0; minute < minutes; minute += 1) {
+      await act(async () => vi.advanceTimersByTime(60_000));
+      await settle();
+    }
+  }
+
+  it('reloads the dashboard once its data is 15 minutes old, so a log made on another phone shows; never while the screen is hidden', async () => {
+    vi.useFakeTimers({ toFake: ['Date', 'setTimeout', 'clearTimeout', 'setInterval', 'clearInterval'] });
+    signedInWithCachedDogOnly();
+    let dashboardAnswers = 0;
+    stubApi({ '/api/dashboard': () => respond(dashboardPayload(dashboardAnswers++ === 0 ? [] : [recentPee()])) });
+    await renderApp();
+    requestedUrls = [];
+
+    await waitMinutes(14);
+    expect(dashboardRequests()).toEqual([]);
+    expect(isTimelineEmpty()).toBe(true);
+
+    await waitMinutes(1);
+    expect(dashboardRequests()).toEqual([dashboardUrl]);
+    expect(isTimelineEmpty()).toBe(false);
+
+    vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('hidden');
+    await waitMinutes(30);
+    expect(dashboardRequests()).toEqual([dashboardUrl]);
+  });
+
+  it('a return to the app just before the reload is due makes one request: the reload joins it', async () => {
+    vi.useFakeTimers({ toFake: ['Date', 'setTimeout', 'clearTimeout', 'setInterval', 'clearInterval'] });
+    signedInWithCachedDogOnly();
+    let dashboardAnswers = 0;
+    // The return's request is slow: still running when the reload is due
+    stubApi({ '/api/dashboard': () => (dashboardAnswers++ === 0 ? respond(dashboardPayload()) : heldUntilTeardown()) });
+    await renderApp();
+    requestedUrls = [];
+
+    await act(async () => vi.advanceTimersByTime(14 * 60_000 + 59_000));
+    await act(async () => {
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+    await act(async () => vi.advanceTimersByTime(1_000));
+    await settle();
+
+    expect(dashboardRequests()).toEqual([dashboardUrl]);
+  });
+
+  it('a return to the app whose request is still running when the reload is due makes one request, even if it hangs for minutes', async () => {
+    vi.useFakeTimers({ toFake: ['Date', 'setTimeout', 'clearTimeout', 'setInterval', 'clearInterval'] });
+    signedInWithCachedDogOnly();
+    let dashboardAnswers = 0;
+    stubApi({ '/api/dashboard': () => (dashboardAnswers++ === 0 ? respond(dashboardPayload()) : heldUntilTeardown()) });
+    await renderApp();
+    requestedUrls = [];
+
+    await act(async () => vi.advanceTimersByTime(14 * 60_000 + 57_000));
+    await act(async () => {
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+    // The reload is due while the return's request is 3 s old: too old to join it
+    await act(async () => vi.advanceTimersByTime(3_000));
+    await settle();
+    await waitMinutes(24);
+
+    expect(dashboardRequests()).toEqual([dashboardUrl]);
+  });
+
+  it('a dashboard that keeps failing is retried every 15 minutes, not every minute', async () => {
+    vi.useFakeTimers({ toFake: ['Date', 'setTimeout', 'clearTimeout', 'setInterval', 'clearInterval'] });
+    signedInWithCachedDogOnly();
+    let dashboardAnswers = 0;
+    stubApi({
+      '/api/dashboard': () =>
+        dashboardAnswers++ === 0 ? respond(dashboardPayload()) : respond({ error: 'Failed to fetch dashboard payload' }, 500),
+    });
+    await renderApp();
+    requestedUrls = [];
+
+    await waitMinutes(45);
+
+    expect(dashboardRequests()).toEqual([dashboardUrl, dashboardUrl, dashboardUrl]);
+  });
+});
 
 // Backlog item 20: /api/dashboard sends the owner's deleted dogs; Settings lists them and Restore brings one back
 describe('restorable dog delete', () => {
