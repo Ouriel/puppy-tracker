@@ -195,7 +195,7 @@ describe('Activity & CRUD Regression Tests', () => {
       expect(await updateActivity({ id: 'act-100', quantityGrams: 80 })).toEqual({ ok: true, data: savedActivity });
       expect(await updateActivity({ id: 'act-100', quantityGrams: -1 })).toEqual({
         ok: false,
-        error: 'Invalid activity payload',
+        errorKey: 'errorGeneric',
         status: 400,
       });
     });

@@ -13,11 +13,11 @@ const PRODUCTION_CARETAKERS = [
 ];
 const PRODUCTION_ACCOUNTS = [
   { email: 'owner@example.com', name: 'Owner Fullname', badge: 'Matthieu' },
-  { email: 'daria@example.com', name: 'daria.risko', badge: 'Daria' },
+  { email: 'daria@example.com', name: 'daria.doe', badge: 'Daria' },
   { email: 'DASHA@example.com', name: 'dasha.handle', badge: 'Dasha' },
 ];
 
-const DARIA_ACCOUNT = { id: 'usr-2', email: 'daria@example.com', name: 'daria.risko', householdId: 'hh-1', role: 'Member', status: 'ACTIVE' };
+const DARIA_ACCOUNT = { id: 'usr-2', email: 'daria@example.com', name: 'daria.doe', householdId: 'hh-1', role: 'Member', status: 'ACTIVE' };
 
 const dbMock = vi.hoisted(() => ({
   // The users row verifyAuth reads, and the household's badges (shared by concurrent requests)

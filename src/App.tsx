@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo, lazy, Suspense } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef, lazy, Suspense, type SetStateAction } from 'react';
 import type { Activity, UserAccount, ActivityType, PottyLocation, FamilyRole, HealthRecord, SignInOutcome } from './types';
 import { getAuthToken, setAuthToken, getStoredAuthUser, setStoredAuthUser } from './utils/auth';
 import { isSuperAdminEmail } from './utils/auth';
@@ -11,7 +11,7 @@ import {
 } from './services/api';
 import { calculatePredictions, excludeFutureLogs, suggestNextMealGrams } from './utils/predictions';
 import { buildQuickActionActivity } from './utils/activityPayloads';
-import { isSameLogicalDate } from './utils/date';
+import { formatLocalTime, isSameLogicalDate } from './utils/date';
 import { Navbar } from './components/Navbar';
 import { PredictorWidget } from './components/PredictorWidget';
 import { ActivityTimeline } from './components/ActivityTimeline';
@@ -29,7 +29,7 @@ import { useCaretakers } from './hooks/useCaretakers';
 import { useActivities, mergeOlderActivities } from './hooks/useActivities';
 import { getUnifiedWeightEntries } from './utils/weight';
 
-import { getStoredRecentActivities } from './utils/storage';
+import { getStoredRecentActivities, getStoredRecentActivitiesTime } from './utils/storage';
 
 function App() {
   const { t } = useI18n();
@@ -44,7 +44,11 @@ function App() {
   const caretakerState = useCaretakers(user);
   const activityState = useActivities(puppyState.activePuppy, { skipInitialFetch: true });
   const [healthRecords, setHealthRecords] = useState<HealthRecord[]>([]);
+  // While /api/dashboard fails, the health passport loads the dog's records itself
+  const [isDashboardDown, setIsDashboardDown] = useState<boolean>(false);
   const [now, setNow] = useState<Date>(() => new Date());
+  // The dashboard could not be reached: when the data shown was loaded (ms); null otherwise
+  const [offlineDataTime, setOfflineDataTime] = useState<number | null>(null);
 
   const [isLoading, setIsLoading] = useState<boolean>(() => {
     if (!getAuthToken()) return false;
@@ -67,7 +71,24 @@ function App() {
 
   const { activePuppyId, setPuppies, selectPuppy } = puppyState;
   const { setCaretakers } = caretakerState;
-  const { setActivitiesForPuppy, getMutationVersion, addActivity } = activityState;
+  const { setActivitiesForPuppy, getMutationVersion, addActivity, retryActivity } = activityState;
+
+  // Counts the health passport's changes: a dashboard answer read before one may miss it
+  const healthRecordsVersionRef = useRef(0);
+  // Records the passport deleted: a dashboard answer read before the delete must not bring them back
+  const deletedHealthRecordIdsRef = useRef(new Set<string>());
+
+  const updateHealthRecords = useCallback((update: SetStateAction<HealthRecord[]>) => {
+    healthRecordsVersionRef.current += 1;
+    setHealthRecords((previous) => {
+      const next = typeof update === 'function' ? update(previous) : update;
+      const nextIds = new Set(next.map((record) => record.id));
+      previous.forEach((record) => {
+        if (!nextIds.has(record.id)) deletedHealthRecordIdsRef.current.add(record.id);
+      });
+      return next;
+    });
+  }, []);
 
   const handleNavigate = useCallback((view: 'dashboard' | 'carnetdesante' | 'settings') => {
     setCurrentView(view);
@@ -99,7 +120,10 @@ function App() {
   const loadDashboard = useCallback(async (puppyId: string = activePuppyId): Promise<boolean> => {
     // Read first: a log added, edited or deleted before the answer arrives may be missing from it
     const mutationVersion = getMutationVersion();
+    const healthRecordsVersion = healthRecordsVersionRef.current;
     const dashboardRes = await fetchDashboard(puppyId || undefined, 14);
+    setOfflineDataTime(!dashboardRes.ok && dashboardRes.errorKey === 'offline' ? getStoredRecentActivitiesTime(puppyId) : null);
+    setIsDashboardDown(!dashboardRes.ok);
     if (!dashboardRes.ok) return false;
     const { puppies, caretakers, activities, healthRecords: records, weightActivities } = dashboardRes.data;
     if (puppies && puppies.length > 0) {
@@ -112,9 +136,14 @@ function App() {
     if (Array.isArray(caretakers)) {
       setCaretakers(caretakers);
     }
-    // An empty list too: the last record may have been deleted
+    // An empty list too: the last record may have been deleted. One read before a passport change only adds the records missing here.
     if (records) {
-      setHealthRecords(records);
+      const isStale = healthRecordsVersion !== healthRecordsVersionRef.current;
+      setHealthRecords((previous) => {
+        if (!isStale) return records;
+        const keptIds = new Set(previous.map((record) => record.id));
+        return [...previous, ...records.filter((record) => !keptIds.has(record.id) && !deletedHealthRecordIdsRef.current.has(record.id))];
+      });
     }
     return true;
   }, [activePuppyId, getMutationVersion, setPuppies, selectPuppy, setCaretakers, setActivitiesForPuppy]);
@@ -283,12 +312,24 @@ function App() {
 
   // Owner decision 2026-10-15: the server gives an account without a linked badge one on its first log, and stores
   // the log under it. A saved name that no badge here carries means the badges here are stale: reload them.
-  const logActivity = useCallback(async (activity: Omit<Activity, 'id'>) => {
-    const saved = await addActivity(activity);
-    if (!saved || caretakerState.caretakers.some((item) => item.name === saved.loggedBy)) return;
+  const reloadBadgesIfUnknown = useCallback(async (saved: Activity) => {
+    if (caretakerState.caretakers.some((item) => item.name === saved.loggedBy)) return;
     const householdRes = await fetchHousehold();
     if (householdRes.ok && Array.isArray(householdRes.data?.caretakers)) setCaretakers(householdRes.data.caretakers);
-  }, [addActivity, caretakerState.caretakers, setCaretakers]);
+  }, [caretakerState.caretakers, setCaretakers]);
+
+  // Resolves to whether the log form may close: the log was saved, or ignored as a double tap ("Already logged")
+  const logActivity = useCallback(async (activity: Omit<Activity, 'id'>, options?: { keepUnsaved?: boolean; id?: string }): Promise<boolean> => {
+    const saved = await addActivity(activity, options);
+    if (saved === 'alreadyLogged') return true;
+    if (saved) await reloadBadgesIfUnknown(saved);
+    return Boolean(saved);
+  }, [addActivity, reloadBadgesIfUnknown]);
+
+  const retryLog = useCallback(async (unsaved: Activity) => {
+    const saved = await retryActivity(unsaved);
+    if (saved) await reloadBadgesIfUnknown(saved);
+  }, [retryActivity, reloadBadgesIfUnknown]);
 
   const handleQuickAction = useCallback((type: ActivityType, pottyLocation?: PottyLocation) => {
     if (!puppyState.activePuppy) return;
@@ -302,7 +343,8 @@ function App() {
       actionTime,
     });
 
-    void logActivity(newAct);
+    // One tap, nothing typed to keep: a log the server did not take stays in the feed, marked, for Retry
+    void logActivity(newAct, { keepUnsaved: true });
   }, [puppyState.activePuppy, caretakerState.currentUser, logActivity]);
 
   const handleOpenQuickLogModal = useCallback((type?: ActivityType) => {
@@ -431,6 +473,9 @@ function App() {
               activePuppy={puppyState.activePuppy}
               activities={activePuppyActivities}
               weightActivities={activePuppyWeights}
+              healthRecords={healthRecords}
+              setHealthRecords={updateHealthRecords}
+              isDashboardDown={isDashboardDown}
               currentUser={caretakerState.currentUser}
               onAddActivity={logActivity}
               onUpdateActivity={activityState.updateActivity}
@@ -481,6 +526,12 @@ function App() {
           </Card>
         ) : (
           <div className="space-y-6">
+            {offlineDataTime !== null && (
+              <p role="status" className="text-xs font-semibold text-amber-300">
+                {t.dashboard.offlineDataFrom.replace('{time}', formatLocalTime(new Date(offlineDataTime)))}
+              </p>
+            )}
+
             {/* Active Puppy Predictor Hero Bar (3 Cards: Next Pee, Next Poop, Next Meal) */}
             {predictions && puppyState.activePuppy && (
               <PredictorWidget
@@ -515,6 +566,9 @@ function App() {
               activePuppy={puppyState.activePuppy}
               onDeleteActivity={activityState.deleteActivity}
               onUpdateActivity={activityState.updateActivity}
+              unsavedIds={activityState.unsavedActivityIds}
+              onRetry={retryLog}
+              onDiscard={activityState.discardActivity}
               hasMoreRemote={activityState.hasMoreRemoteActivities}
               onLoadMore={activityState.loadMoreActivities}
               isLoadingMore={activityState.isFetchingMoreActivities}

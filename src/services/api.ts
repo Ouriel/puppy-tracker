@@ -1,11 +1,22 @@
-import type { Activity, PuppyProfile, Caretaker, RegisteredUserItem, HealthRecord, DashboardPayload } from '../types';
+import type { Activity, PuppyProfile, Caretaker, RegisteredUserItem, HealthRecord, DashboardPayload, MemberRefusalCode } from '../types';
 import { getAuthToken, setAuthToken, clearAuthToken } from '../utils/auth';
 
 export type { RegisteredUserItem, DashboardPayload };
 
+/** The `t.toasts` message of a failure: no answer is 'offline', a refusal the app explains has its own key, anything else is generic. */
+export type ApiErrorKey = 'offline' | 'errorGeneric' | MemberRefusalCode;
+
 export type ApiResult<T> =
   | { ok: true; data: T }
-  | { ok: false; error: string; status: number };
+  | { ok: false; errorKey: ApiErrorKey; status: number };
+
+const MEMBER_REFUSAL_CODES: readonly unknown[] = ['memberNameTaken', 'memberEmailTaken', 'memberAdminOnly'] satisfies MemberRefusalCode[];
+
+/** The message key of a refused request, from the `code` of its JSON body. */
+async function errorKeyOf(response: Response): Promise<ApiErrorKey> {
+  const body = await response.json().catch(() => ({}));
+  return MEMBER_REFUSAL_CODES.includes(body?.code) ? (body.code as MemberRefusalCode) : 'errorGeneric';
+}
 
 const apiCache = new Map<string, { data: any; timestamp: number }>();
 const inflightRequests = new Map<string, { promise: Promise<ApiResult<any>>; startedAt: number }>();
@@ -75,16 +86,14 @@ async function request<T>(url: string, options: RequestInit = {}): Promise<ApiRe
             window.dispatchEvent(new CustomEvent('puppace:unauthorized'));
           }
         }
-        return { ok: false, error: 'Unauthorized', status: 401 };
+        return { ok: false, errorKey: 'errorGeneric', status: 401 };
       }
 
-      const body = await res.json().catch(() => ({}));
-      const errorMsg = body.error || `Server error (${res.status})`;
-      return { ok: false, error: errorMsg, status: res.status };
+      return { ok: false, errorKey: await errorKeyOf(res), status: res.status };
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Network error connecting to server.';
       console.error(`API request error on ${url}:`, message);
-      return { ok: false, error: message, status: 0 };
+      return { ok: false, errorKey: 'offline', status: 0 };
     } finally {
       // A late answer must not remove a newer request for the same URL
       if (method === 'GET' && inflightRequests.get(url)?.startedAt === startedAt) {
@@ -276,7 +285,7 @@ export async function deleteUser(email: string): Promise<ApiResult<{ success: bo
 
 export async function exchangeSessionToken(rawToken?: string): Promise<ApiResult<{ sessionToken: string; user: RegisteredUserItem }>> {
   const token = rawToken || getAuthToken();
-  if (!token) return { ok: false, error: 'No auth token available', status: 401 };
+  if (!token) return { ok: false, errorKey: 'errorGeneric', status: 401 };
 
   try {
     const res = await fetch('/api/auth/session', {
@@ -303,12 +312,11 @@ export async function exchangeSessionToken(rawToken?: string): Promise<ApiResult
       apiCache.clear();
       window.dispatchEvent(new CustomEvent('puppace:unauthorized'));
     }
-    const body = await res.json().catch(() => ({}));
-    return { ok: false, error: body.error || 'Failed to exchange session token', status: res.status };
+    return { ok: false, errorKey: await errorKeyOf(res), status: res.status };
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Network error';
     console.error('Failed to exchange session token', message);
-    return { ok: false, error: message, status: 0 };
+    return { ok: false, errorKey: 'offline', status: 0 };
   }
 }
 

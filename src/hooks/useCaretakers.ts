@@ -31,10 +31,10 @@ export function useCaretakers(
         toast.success(t.toasts.memberAdded);
       } else {
         setCaretakers((previous) => previous.filter((item) => item.id !== caretaker.id));
-        toast.danger(result.error || t.toasts.errorGeneric);
+        toast.danger(t.toasts[result.errorKey]);
       }
     },
-    [setCaretakers, t.toasts.memberAdded, t.toasts.errorGeneric]
+    [setCaretakers, t.toasts]
   );
 
   const updateCaretaker = useCallback(async (id: string, updatedFields: Partial<Caretaker>) => {
@@ -46,9 +46,9 @@ export function useCaretakers(
     } else {
       // Only this badge goes back: a later change the server saved stays
       setCaretakers((previous) => previous.map((caretaker) => (caretaker.id === id ? target ?? caretaker : caretaker)));
-      toast.danger(result.error || t.toasts.errorGeneric);
+      toast.danger(t.toasts[result.errorKey]);
     }
-  }, [caretakers, setCaretakers, t.toasts.errorGeneric]);
+  }, [caretakers, setCaretakers, t.toasts]);
 
   const deleteCaretaker = useCallback(
     async (id: string) => {
@@ -61,10 +61,10 @@ export function useCaretakers(
       } else {
         // Back in its place, unless a reload already brought it back
         if (removed) setCaretakers((previous) => (previous.some((caretaker) => caretaker.id === id) ? previous : previous.toSpliced(index, 0, removed)));
-        toast.danger(result.error || t.toasts.errorGeneric);
+        toast.danger(t.toasts[result.errorKey]);
       }
     },
-    [caretakers, setCaretakers, t.toasts.memberRemoved, t.toasts.errorGeneric]
+    [caretakers, setCaretakers, t.toasts]
   );
 
   return {

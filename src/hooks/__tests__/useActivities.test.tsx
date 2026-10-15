@@ -167,6 +167,20 @@ describe('useActivities: a failed change rolls back only itself (N5)', () => {
   });
 });
 
+// The edit form closes only once the edit is saved, and keeps what was typed when it is refused
+it('an edit resolves to whether it was saved', async () => {
+  await showRecentLogs([log('act-x', 1), log('act-y', 2)]);
+
+  let refused: boolean | undefined;
+  let saved: boolean | undefined;
+  await start(async () => { refused = await hook.updateActivity({ id: 'act-x', notes: 'refused' }); });
+  await requestFor('act-x').answer(500, { error: 'Internal server error' });
+  await start(async () => { saved = await hook.updateActivity({ id: 'act-y', notes: 'saved' }); });
+  await requestFor('act-y').answer(200, { ...log('act-y', 2), notes: 'saved' });
+
+  expect([refused, saved]).toEqual([false, true]);
+});
+
 describe('useActivities: history loaded with "load more" (N4 + P3)', () => {
   /** The server's logs, newest first (default: 1200 logs, 24 a day): like GET /api/activities with days, limit and offset. */
   function serveHistory(history = Array.from({ length: 1200 }, (_unused, index) => log(`act-${index}`, index + 0.5))) {
@@ -260,6 +274,17 @@ describe('useActivities: history loaded with "load more" (N4 + P3)', () => {
     history.unshift(posts()[0].body!);
     await act(async () => hook.loadMoreActivities(90));
     expect(sentOffset()).toBe('361');
+  });
+
+  it('a quick log kept as not saved does not shift the next page', async () => {
+    const history = serveHistory(everyTwoHours(480));
+    await showRecentLogs(lastDays(history, 14));
+    await start(() => hook.addActivity(newLog('pee'), { keepUnsaved: true }));
+    await posts()[0].answer(500, { error: 'Internal server error' });
+
+    await act(async () => hook.loadMoreActivities(30));
+
+    expect(sentOffset()).toBe('168');
   });
 
   it('the next page starts after the selected dog\'s logs only, when the window holds every dog\'s logs', async () => {
@@ -517,3 +542,43 @@ describe('useActivities: every weight event of the dog, whatever its date (Phase
     expect(ids()).toEqual(['act-pee-2']);
   });
 });
+
+// Backlog item 5: a quick log that could not be saved stays, marked, until it is sent again or discarded
+describe('useActivities: a quick log kept as not saved', () => {
+  it('a dog switch keeps it, still marked', async () => {
+    const secondDog: PuppyProfile = { ...puppy, id: 'pup-2', name: 'Second' };
+    answerGet = () => [];
+    await act(async () => root!.render(<DogProbe dog={puppy} onRender={(state) => { hook = state; }} />));
+    await settle();
+    await start(() => hook.addActivity(newLog('pee'), { keepUnsaved: true }));
+    const peeId = posts()[0].body!.id;
+    await posts()[0].answer(500, { error: 'Internal server error' });
+
+    await act(async () => root!.render(<DogProbe dog={secondDog} onRender={(state) => { hook = state; }} />));
+    await settle();
+
+    expect(ids()).toContain(peeId);
+    expect(hook.unsavedActivityIds.has(peeId)).toBe(true);
+  });
+});
+
+// A save whose answer is lost may be stored: the log form keeps one id while open, so Save again never stores it twice
+describe('useActivities: a log form saved again after a failure', () => {
+  it('sends the same id', async () => {
+    await start(() => hook.addActivity(newLog('food'), { id: 'act-form' }));
+    await posts()[0].answer(500, { error: 'Internal server error' });
+    await start(() => hook.addActivity(newLog('food'), { id: 'act-form' }));
+
+    expect(posts().map((post) => post.body!.id)).toEqual(['act-form', 'act-form']);
+  });
+
+  it('shows its log once when a refresh brought it in meanwhile', async () => {
+    await start(() => hook.addActivity(newLog('food'), { id: 'act-form' }));
+    await posts()[0].answer(500, { error: 'Internal server error' });
+    await showRecentLogs([log('act-form', 0, 'food')]);
+    await start(() => hook.addActivity(newLog('food'), { id: 'act-form' }));
+
+    expect(ids()).toEqual(['act-form']);
+  });
+});
+

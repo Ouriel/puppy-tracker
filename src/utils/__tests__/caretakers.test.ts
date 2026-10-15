@@ -10,8 +10,8 @@ describe('household caretakers & identity binding — comprehensive test suite',
 
   it('resolves Google SSO full name to clean Household Caretaker name', () => {
     expect(resolveCaretakerName('Matthieu Jacquet', defaultCaretakers)).toBe('Matthieu');
-    expect(resolveCaretakerName('Daria Risko', defaultCaretakers)).toBe('Daria');
-    expect(resolveCaretakerName('daria.risko@gmail.com', defaultCaretakers)).toBe('Daria');
+    expect(resolveCaretakerName('Daria Doe', defaultCaretakers)).toBe('Daria');
+    expect(resolveCaretakerName('daria@example.com', defaultCaretakers)).toBe('Daria');
     expect(resolveCaretakerName('Matthieu', defaultCaretakers)).toBe('Matthieu');
   });
 

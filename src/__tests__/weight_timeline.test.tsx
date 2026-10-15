@@ -7,7 +7,7 @@ import { en } from '../i18n/en';
 import { setAuthToken, clearAuthToken, setStoredAuthUser } from '../utils/auth';
 import { setStoredPuppies, setActivePuppyId, setStoredRecentActivities } from '../utils/storage';
 import { clearApiCache } from '../services/api';
-import { formatLocalDate } from '../utils/date';
+import { formatLocalDate, formatShortDate } from '../utils/date';
 import type { Activity, HealthRecord, PuppyProfile, UserAccount } from '../types';
 
 // Phase 5c: every weigh-in is its own weight event; a vaccine or deworming record never holds a weight.
@@ -46,9 +46,9 @@ let root: Root | null = null;
 let requests: Array<{ url: string; method: string; body?: any }> = [];
 /** The status POST /api/health-records answers (201: saved). */
 let healthRecordPostStatus = 201;
-/** The vaccinations GET /api/health-records answers. */
+/** The vaccinations /api/dashboard and GET /api/health-records answer. */
 let vaccinationRecords: HealthRecord[] = [vaccination];
-const prodShapedDashboard = () => ({ puppies: [puppy], caretakers: [], activities: [], healthRecords: legacyDewormings, weightActivities: [...homeWeighIns, ...migratedWeighIns] });
+const prodShapedDashboard = () => ({ puppies: [puppy], caretakers: [], activities: [], healthRecords: [...legacyDewormings, ...vaccinationRecords], weightActivities: [...homeWeighIns, ...migratedWeighIns] });
 /** What GET /api/dashboard answers. */
 let answerDashboard = () => respond(prodShapedDashboard());
 
@@ -190,6 +190,20 @@ describe('Weight timeline (Phase 5c, prod-shaped)', () => {
     await click(buttonWithText('Delete'));
     expect(requests.find((request) => request.method === 'DELETE')!.url).toBe('/api/activities?id=act-vet-1');
     expect(weightRows()).toHaveLength(10);
+  });
+
+  it('a weigh-in edit the server does not take keeps the edit form open with the typed weight', async () => {
+    await openPassport();
+    await click(weightRows().find((row) => rowWeight(row) === 3.85)!.querySelector<HTMLButtonElement>('button[aria-label="Edit weight entry"]')!);
+    await settleUntil(() => document.getElementById('quicklog-weight-kg') !== null);
+    const serverStub = globalThis.fetch;
+    vi.stubGlobal('fetch', vi.fn((url: string, init: RequestInit = {}) => (init.method === 'PUT' ? Promise.reject(new TypeError('Load failed')) : serverStub(url, init))));
+
+    await setValue(document.getElementById('quicklog-weight-kg') as HTMLInputElement, '3,9');
+    await click(document.querySelector<HTMLButtonElement>('button[form="quicklog-form"]')!);
+
+    expect((document.getElementById('quicklog-weight-kg') as HTMLInputElement | null)?.value).toBe('3,9');
+    expect(document.querySelector('[role="alert"]')?.textContent).toBe(en.potty.saveFailed);
   });
 
   it('a deworming saved with a weight: the record holds no weight, the weight is its own event at 12:00 Paris named after the product', async () => {
@@ -564,7 +578,7 @@ describe('Carnet add and edit forms (pre-fill review items 11, 12, 23, 35-38)', 
     expect(put.body).toMatchObject({ productName: 'Drontal Chiot (Sirop / Comprimés)', date: '2026-09-21', boosterDate: '2026-12-21' });
   });
 
-  it('the dashboard summary, for a last record with no next date, counts from her age on the dose day', async () => {
+  it('the dashboard summary, for a last record with no next date, shows an em dash, never a date the rules make up (backlog item 1)', async () => {
     const backLogged = { householdId: 'hh-1', puppyId: puppy.id, boosterDate: null };
     answerDashboard = () => respond({
       ...prodShapedDashboard(),
@@ -577,8 +591,9 @@ describe('Carnet add and edit forms (pre-fill review items 11, 12, 23, 35-38)', 
     await renderAppAt('/');
     await settleUntil(() => document.body.textContent!.includes(en.health.summaryTitle));
 
-    expect(document.body.textContent).toContain(`${en.health.nextDue} 2026-05-26`);
-    expect(document.body.textContent).toContain(`${en.health.nextDue} 2026-05-17`);
+    // The rules would give 26 May (+1 month at 8 weeks) and 17 May (+14 days at 9 weeks)
+    expect(document.body.textContent!.split(`${en.health.nextDue} —`)).toHaveLength(3);
+    expect(document.body.textContent).not.toMatch(/2026-05-26|2026-05-17|May 26|May 17/);
   });
 
   it('item 11: a CHPPi edit moved to 16 weeks suggests the 1st birthday, from her age on the injection day', async () => {
@@ -689,5 +704,193 @@ describe('Carnet add and edit forms (pre-fill review items 11, 12, 23, 35-38)', 
     await openPassport();
 
     expect(document.body.textContent).toContain(`${en.health.clinic}: -`);
+  });
+});
+
+describe('one copy of the health records (backlog item 2)', () => {
+  const healthRecordGets = () => requests.filter((request) => request.method === 'GET' && request.url.startsWith('/api/health-records'));
+
+  it('a dose added in the passport shows on the dashboard card after Back, and the passport sends no /api/health-records GET', async () => {
+    await renderAppAt('/');
+    await settleUntil(() => document.body.textContent!.includes(en.health.summaryTitle));
+    await click(buttonWithText(en.health.viewFullHealthPassport));
+    await settleUntil(() => document.body.textContent!.includes(en.health.addDeworming));
+    await click(buttonWithText(en.health.addDeworming));
+    const form = document.getElementById('deworming-weight-kg')!.closest('form')!;
+    await setValue(form.querySelector<HTMLInputElement>('input[type="date"]')!, '2026-09-28'); // Credelio Plus: next dose 2026-10-28
+
+    await click(form.querySelector<HTMLButtonElement>('button[type="submit"]')!);
+    await click(buttonWithText(en.nav.backToDashboard));
+    await settleUntil(() => document.body.textContent!.includes(en.health.summaryTitle));
+
+    expect(document.body.textContent).toContain(`${en.health.nextDue} ${formatShortDate('2026-10-28', 'en')}`);
+    expect(healthRecordGets()).toEqual([]);
+  });
+
+  it('a dose added while a refresh is in flight stays when that refresh answers without it', async () => {
+    await openPassport();
+    let answerRefresh: (response: Response) => void = () => {};
+    answerDashboard = () => new Promise<Response>((resolve) => { answerRefresh = resolve; });
+    await act(async () => {
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+    await click(buttonWithText(en.health.addDeworming));
+    const form = document.getElementById('deworming-weight-kg')!.closest('form')!;
+    await setValue(form.querySelector<HTMLInputElement>('input[type="date"]')!, '2026-09-28');
+    await click(form.querySelector<HTMLButtonElement>('button[type="submit"]')!);
+    expect(document.body.textContent).toContain(`${en.health.deworming} (6)`);
+
+    // The refresh read the records before the dose was saved
+    answerRefresh(new Response(JSON.stringify(prodShapedDashboard())));
+    await settle();
+
+    expect(document.body.textContent).toContain(`${en.health.deworming} (6)`);
+  });
+
+  it.each([
+    { form: 'deworming', addButton: en.health.addDeworming, weightBoxId: 'deworming-weight-kg', listTitle: en.health.deworming, savedDose: { type: 'deworming', name: 'Credelio Plus', productName: 'Credelio Plus' } },
+    { form: 'vaccine', addButton: en.health.addVaccine, weightBoxId: 'vaccine-weight-kg', listTitle: en.health.vaccinations, savedDose: { type: 'vaccination', name: vaccination.name } },
+  ])('a $form a refresh already brought is not listed twice when its save answers', async ({ addButton, weightBoxId, listTitle, savedDose: dose }) => {
+    await openPassport();
+    const savedDose = { id: 'hr-new', householdId: 'hh-1', puppyId: puppy.id, date: '2026-09-28', boosterDate: '2026-10-28', ...dose } as HealthRecord;
+    const countBefore = Number(document.body.textContent!.match(new RegExp(`${listTitle} \\((\\d+)\\)`))![1]);
+    let answerSave: () => void = () => {};
+    const stubbedFetch = globalThis.fetch;
+    vi.stubGlobal('fetch', vi.fn((url: string, init: RequestInit = {}) => (url === '/api/health-records' && init.method === 'POST'
+      ? new Promise<Response>((resolve) => { answerSave = () => resolve(new Response(JSON.stringify(savedDose), { status: 201 })); })
+      : stubbedFetch(url, init))));
+    await click(buttonWithText(addButton));
+    const form = document.getElementById(weightBoxId)!.closest('form')!;
+    await setValue(form.querySelector<HTMLInputElement>('input[type="date"]')!, '2026-09-28');
+    await click(form.querySelector<HTMLButtonElement>('button[type="submit"]')!);
+
+    // A refresh sent while the save is in flight already holds the dose
+    answerDashboard = () => respond({ ...prodShapedDashboard(), healthRecords: [savedDose, ...legacyDewormings, ...vaccinationRecords] });
+    await act(async () => {
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+    await settle();
+    expect(document.body.textContent).toContain(`${listTitle} (${countBefore + 1})`);
+    answerSave();
+    await settle();
+
+    expect(document.body.textContent).toContain(`${listTitle} (${countBefore + 1})`);
+  });
+
+  it('a vaccine added in the passport shows on the dashboard card after Back', async () => {
+    await openPassport();
+    await click(buttonWithText(en.health.addVaccine));
+    const form = document.getElementById('vaccine-weight-kg')!.closest('form')!;
+    const [given, next] = form.querySelectorAll<HTMLInputElement>('input[type="date"]');
+    await setValue(given, '2026-10-01');
+    await setValue(next, '2026-11-05');
+
+    await click(form.querySelector<HTMLButtonElement>('button[type="submit"]')!);
+    await click(buttonWithText(en.nav.backToDashboard));
+    await settleUntil(() => document.body.textContent!.includes(en.health.summaryTitle));
+
+    expect(document.body.textContent).toContain(`${en.health.nextDue} ${formatShortDate('2026-11-05', 'en')}`);
+    expect(healthRecordGets()).toEqual([]);
+  });
+
+  describe.each([
+    // The newest deworming (21 Sep) is the one the card shows; once deleted, the 21 Aug dose is
+    { form: 'deworming', editLabel: en.health.editDewormingEntry, deleteLabel: en.health.deleteDewormingConfirm, newNextDate: '2026-11-21', afterDelete: `${en.health.given} ${formatShortDate('2026-08-21', 'en')}` },
+    { form: 'vaccine', editLabel: en.health.editVaccineEntry, deleteLabel: en.health.deleteVaccineConfirm, newNextDate: '2027-08-01', afterDelete: en.health.noVaccineRecords },
+  ])('the $form list writes its changes to the dashboard card', ({ editLabel, deleteLabel, newNextDate, afterDelete }) => {
+    async function backToDashboard() {
+      await click(buttonWithText(en.nav.backToDashboard));
+      await settleUntil(() => document.body.textContent!.includes(en.health.summaryTitle));
+    }
+
+    it('an edited next date shows on the card after Back', async () => {
+      await openPassport();
+      await click(document.querySelector<HTMLButtonElement>(`[aria-label="${editLabel}"]`)!);
+      const editCard = buttonWithText(en.potty.saveChanges).closest('.space-y-3')!;
+      await setValue(editCard.querySelectorAll<HTMLInputElement>('input[type="date"]')[1], newNextDate);
+      await click(buttonWithText(en.potty.saveChanges));
+
+      await backToDashboard();
+
+      expect(document.body.textContent).toContain(`${en.health.nextDue} ${formatShortDate(newNextDate, 'en')}`);
+      expect(healthRecordGets()).toEqual([]);
+    });
+
+    it('a deleted dose leaves the card after Back', async () => {
+      await openPassport();
+      await click(document.querySelector<HTMLButtonElement>(`[aria-label="${deleteLabel}"]`)!);
+      await click(buttonWithText('Delete'));
+
+      await backToDashboard();
+
+      expect(document.body.textContent).toContain(afterDelete);
+      expect(healthRecordGets()).toEqual([]);
+    });
+  });
+
+  it('booted on the passport, a dose saved before the first dashboard answer keeps every record that answer brings', async () => {
+    let answerBoot: (response: Response) => void = () => {};
+    answerDashboard = () => new Promise<Response>((resolve) => { answerBoot = resolve; });
+    await renderAppAt('/health-passport');
+    await settleUntil(() => document.body.textContent!.includes(en.health.addDeworming));
+    await click(buttonWithText(en.health.addDeworming));
+    const form = document.getElementById('deworming-weight-kg')!.closest('form')!;
+    await setValue(form.querySelector<HTMLInputElement>('input[type="date"]')!, '2026-09-28');
+    await click(form.querySelector<HTMLButtonElement>('button[type="submit"]')!);
+    expect(document.body.textContent).toContain(`${en.health.deworming} (1)`);
+
+    // The answer was read before the dose was saved
+    answerBoot(new Response(JSON.stringify(prodShapedDashboard())));
+    await settle();
+
+    expect(document.body.textContent).toContain(`${en.health.deworming} (6)`);
+    expect(document.body.textContent).toContain(`${en.health.vaccinations} (1)`);
+  });
+
+  it('a dose deleted while a refresh is in flight does not come back when that refresh answers', async () => {
+    await openPassport();
+    let answerRefresh: (response: Response) => void = () => {};
+    answerDashboard = () => new Promise<Response>((resolve) => { answerRefresh = resolve; });
+    await act(async () => {
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+    await click(document.querySelector<HTMLButtonElement>(`[aria-label="${en.health.deleteDewormingConfirm}"]`)!);
+    await click(buttonWithText('Delete'));
+    expect(document.body.textContent).toContain(`${en.health.deworming} (4)`);
+
+    // The refresh read the records before the delete
+    answerRefresh(new Response(JSON.stringify(prodShapedDashboard())));
+    await settle();
+
+    expect(document.body.textContent).toContain(`${en.health.deworming} (4)`);
+  });
+
+  it('another dog\'s dose stays out of this dog\'s passport and card, and renews none of its doses', async () => {
+    const otherDog: PuppyProfile = { ...puppy, id: 'pup-2', name: 'Other' };
+    const otherDose: HealthRecord = { id: 'hr-other', householdId: 'hh-1', puppyId: otherDog.id, type: 'deworming', name: 'Credelio Plus', productName: 'Credelio Plus', date: '2026-10-01', boosterDate: '2026-11-01' };
+    setStoredPuppies([puppy, otherDog]);
+    answerDashboard = () => respond({ ...prodShapedDashboard(), puppies: [puppy, otherDog], healthRecords: [...prodShapedDashboard().healthRecords, otherDose] });
+
+    await openPassport();
+
+    expect(document.body.textContent).toContain(`${en.health.deworming} (5)`);
+    // Rex's 21 Sep dose is still overdue: the other dog's later dose does not renew it
+    expect([...document.querySelectorAll('.chip')].map((chip) => chip.textContent)).toContain(en.potty.overdue);
+
+    await click(buttonWithText(en.nav.backToDashboard));
+    await settleUntil(() => document.body.textContent!.includes(en.health.summaryTitle));
+
+    expect(document.body.textContent).toContain(`${en.health.nextDue} ${formatShortDate('2026-09-21', 'en')}`);
+    expect(document.body.textContent).not.toContain(formatShortDate('2026-11-01', 'en'));
+  });
+
+  it('with the dashboard down, the passport loads the records itself', async () => {
+    answerDashboard = () => respond({ error: 'Internal server error' }, 500);
+
+    await renderAppAt('/health-passport');
+    await settleUntil(() => document.body.textContent!.includes(vaccination.name));
+
+    expect(document.body.textContent).toContain('Credelio Plus');
+    expect(healthRecordGets()).toHaveLength(1);
   });
 });

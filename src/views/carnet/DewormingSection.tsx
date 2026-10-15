@@ -6,7 +6,8 @@ import { calculateNextAntiparasiticDate, getHealthProtocols, getHealthRecordDate
 import { StatusBadge } from '../../components/common/StatusBadge';
 import type { UnifiedWeightEntry } from '../../utils/weight';
 import { buildVetWeighIn } from '../../utils/activityPayloads';
-import { formatLocalDate } from '../../utils/date';
+import { formatLocalDate, formatShortDate } from '../../utils/date';
+import { useI18n } from '../../i18n';
 import { createHealthRecord, updateHealthRecord, deleteHealthRecord } from '../../services/api';
 import { ConfirmationModal } from '../../components/common/ConfirmationModal';
 import { WeightField } from './WeightField';
@@ -14,7 +15,7 @@ import { WeightField } from './WeightField';
 interface DewormingSectionProps {
   activePuppy: PuppyProfile;
   dewormingLogs: HealthRecord[];
-  setDewormingLogs: React.Dispatch<React.SetStateAction<HealthRecord[]>>;
+  setHealthRecords: React.Dispatch<React.SetStateAction<HealthRecord[]>>; // every record, not only dewormings
   lastWeighIn?: UnifiedWeightEntry;
   currentUser: string;
   onAddActivity: (activity: Omit<Activity, 'id'>) => void;
@@ -24,7 +25,7 @@ interface DewormingSectionProps {
 export const DewormingSection: React.FC<DewormingSectionProps> = ({
   activePuppy,
   dewormingLogs,
-  setDewormingLogs,
+  setHealthRecords,
   lastWeighIn,
   currentUser,
   onAddActivity,
@@ -44,6 +45,8 @@ export const DewormingSection: React.FC<DewormingSectionProps> = ({
   const [editDewormingDate, setEditDewormingDate] = useState('');
   const [editDewormingBoosterDate, setEditDewormingBoosterDate] = useState('');
 
+  const { lang } = useI18n();
+
   // From her age on the dose day, not today's: doses are often entered weeks later
   const autoNextDewormDate = React.useMemo(() => {
     if (!dewormAdminDate) return '';
@@ -60,14 +63,6 @@ export const DewormingSection: React.FC<DewormingSectionProps> = ({
     && (editDewormingDate !== editedDeworming.date || editDewormingName !== (editedDeworming.productName || editedDeworming.name))
     ? calculateNextAntiparasiticDate(editDewormingDate, editDewormingName, activePuppy.birthDate)
     : '';
-
-  const sortByDateDesc = (arr: HealthRecord[]): HealthRecord[] => {
-    return [...arr].sort((recordA, recordB) => new Date(recordB.date).getTime() - new Date(recordA.date).getTime());
-  };
-
-  const getDewormingStatus = (deworming: HealthRecord, allDewormings: HealthRecord[]) => {
-    return getHealthRecordStatus(deworming, allDewormings, `✅ ${t.health.statusUpToDate}`, `✅ ${t.health.statusFulfilled}`);
-  };
 
   const handleAddDewormingSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -94,12 +89,13 @@ export const DewormingSection: React.FC<DewormingSectionProps> = ({
     if (result.ok) {
       // A deworming never stores a weight: the weigh-in is a weight event of its own
       if (weighIn.activity) onAddActivity(weighIn.activity);
-      setDewormingLogs((previous) => sortByDateDesc([result.data, ...previous]));
+      // A refresh answered meanwhile may hold it already
+      setHealthRecords((previous) => [result.data, ...previous.filter((record) => record.id !== result.data.id)]);
       setIsAddingDeworming(false);
       setCustomDewormNextDate(null);
       setWeightText('');
     } else {
-      toast.danger(result.error || t.toasts.errorGeneric);
+      toast.danger(t.toasts[result.errorKey]);
     }
   };
 
@@ -124,22 +120,20 @@ export const DewormingSection: React.FC<DewormingSectionProps> = ({
     });
 
     if (result.ok) {
-      setDewormingLogs((previous) =>
-        sortByDateDesc(previous.map((deworming) => (deworming.id === id ? { ...deworming, ...result.data } : deworming)))
-      );
+      setHealthRecords((previous) => previous.map((record) => (record.id === id ? { ...record, ...result.data } : record)));
       setEditingDewormingId(null);
       toast.success(t.toasts.dewormingUpdated);
     } else {
-      toast.danger(result.error || t.toasts.errorGeneric);
+      toast.danger(t.toasts[result.errorKey]);
     }
   };
 
   const handleDeleteDeworming = async (id: string) => {
     const result = await deleteHealthRecord(id);
     if (result.ok) {
-      setDewormingLogs((previous) => previous.filter((deworming) => deworming.id !== id));
+      setHealthRecords((previous) => previous.filter((record) => record.id !== id));
     } else {
-      toast.danger(result.error || t.toasts.errorGeneric);
+      toast.danger(t.toasts[result.errorKey]);
     }
   };
 
@@ -339,7 +333,7 @@ export const DewormingSection: React.FC<DewormingSectionProps> = ({
               );
             }
 
-            const status = getDewormingStatus(deworming, dewormingLogs);
+            const status = getHealthRecordStatus(deworming, dewormingLogs);
 
             return (
               <div
@@ -355,15 +349,15 @@ export const DewormingSection: React.FC<DewormingSectionProps> = ({
                       <span className="truncate">{deworming.productName || deworming.name}</span>
                     </div>
                     <div className="text-[11px] text-slate-400">
-                      {t.health.givenOn} {deworming.date}
+                      {t.health.givenOn} {formatShortDate(deworming.date, lang)}
                     </div>
                   </div>
                 </div>
 
                 <div className="flex items-center justify-between sm:justify-end gap-3 pt-2 sm:pt-0 border-t border-slate-800/60 sm:border-t-0 shrink-0">
                   <div className="text-left sm:text-right">
-                    <div className="text-xs font-bold text-amber-300">{t.health.nextDeworming}: {deworming.boosterDate}</div>
-                    <StatusBadge status={status.urgency} label={status.label} />
+                    <div className="text-xs font-bold text-amber-300">{t.health.nextDeworming}: {deworming.boosterDate ? formatShortDate(deworming.boosterDate, lang) : '—'}</div>
+                    {deworming.boosterDate && <StatusBadge status={status} />}
                   </div>
                   <div className="flex items-center gap-1.5 shrink-0">
                     <button
