@@ -29,9 +29,9 @@ React 19 · Vite 8 · HeroUI v3 · Tailwind 4 · Vercel serverless functions · 
 
 ## Signing in and families
 
-- Sign in with Google. The first sign-in of a new person creates an account **waiting for approval**, in a new household of its own; the app shows "pending activation" until the owner approves it.
-- The owner can also **invite** someone by email in advance (Settings > Household Members). An invited person lands directly in the owner's family.
-- Several families can use the same app: each household sees only its own dogs, logs and members. Only the owner moves an account from one household to another, and always after a confirmation.
+- Sign in with Google. The first sign-in of a new person creates an account **waiting for approval**, in a new household of its own; the app shows "pending activation" until the owner approves it. Approved there, alone, that person becomes the family's **Admin**: the first member of a new family invites the rest of it.
+- The owner, or a family's Admin, can also **invite** someone by email in advance (Settings > Household Members). An invited person lands directly in the inviter's family, as a member. Someone who signed in before being invited and still waits alone, in a household with no dog, joins it too.
+- Several families can use the same app: each household sees only its own dogs, logs and members. Apart from that case, only the owner moves an account from one household to another, and always after a confirmation.
 - A session lasts 90 days and is renewed each time the app is opened. A removed or revoked account is sent back to the sign-in screen on its next request.
 
 ## Dashboard
@@ -50,7 +50,7 @@ A one-tap log is timed at the tap and stored under your name. A second log of th
 
 Everything is learned from the dog's own logs; recent days count more than old ones.
 
-- **Pee**: the usual daytime gap between two pees (gaps of 45 min to 8 h on the same day), read at the 70th percentile so short "just in case" walks don't shorten it. Kept between 30 min and 6 h. Before there is enough history: 1 hour per month of age, from 1 h to 4 h.
+- **Pee**: the usual daytime gap between two pees (gaps of 45 min to 8 h on the same day), read at the 70th percentile so short "just in case" walks don't shorten it. Kept between 30 min and the dog's age in months + 1 h (3 h at 2 months), never above 8 h, a healthy adult's daytime maximum. Before there is enough history: 1 hour per month of age, from 1 h to 4 h.
 - **Poop**: the median gap between poops (1.5 h to 24 h), kept between 3 h and 24 h; 6 h before there is history. The first poop of the day is expected a learned delay after the first morning pee.
 - **After a meal**: puppies under 3.5 months always get a post-meal potty reminder. From 3.5 months they get it only if their logs show they usually go soon after eating (at least 40 % of meals, 50 % from 5 months); with fewer than 3 meals logged, the reminder stays on until 5 months. The card then also shows a "Baseline" line: the time without the meal. A dog that peed (or pooped) in the 30 min before eating gets no pee (or poop) reminder.
 - **Stool**: diarrhoea or soft stool (or a note saying liquid/diarrhoea) switches the poop card to hourly checks for 12 h, night included. A hard stool pauses the poop card (badge calm) for 8 h or more.
@@ -64,7 +64,7 @@ Everything is learned from the dog's own logs; recent days count more than old o
 - Bedtime and wake-up time are learned from the last 14 days (the last log of the evening, the first log after 05:00). Until there are 5 logs: 22:00 and 07:00.
 - Between bedtime and wake-up the cards point to the **morning outing** and never turn red (the pee card turns amber in the last 20 min), except for a pre-bed outing still on the card (below) or the hourly stool checks (above). A puppy under 2.5 months also gets one mid-night pee break, 4 h after its last pee.
 - Logging something after 04:00 (or after wake-up time minus 3 h, whichever is later) ends night mode early.
-- A pee due before bedtime + half the usual gap stays on the card as tonight's pre-bed outing until that time; a poop until bedtime + 1 h. Later than that, the card moves to the morning. A missed meal stays on the card until bedtime + 1 h.
+- A pee due before bedtime + half the usual gap stays on the card as tonight's pre-bed outing until then, but no later than bedtime + 1 h 30; a poop until bedtime + 1 h. Later than that, the card moves to the morning. A post-meal pee reminder after bedtime follows the pee rule without the 1 h 30 limit: it can show until bedtime + half the usual gap. A missed meal stays on the card until bedtime + 1 h.
 - **A day runs from 04:00 to 04:00**, everywhere in the app: a pee at 01:30 counts for the evening before, in the cards, the totals and the history.
 
 ### Health summary
@@ -141,9 +141,9 @@ Open it from the health summary, or at `/health-passport`.
 - Your badge is the one carrying your email; failing that, a badge without an email whose name is exactly your Google account name. It shows the "Active" chip and has no delete button.
 - **This is me**: tick it on a badge without an email to link it to your login (when no badge carries your email yet).
 - Only the owner (or an admin) renames a badge linked to someone else, or unlinks a badge. Only the owner deletes badges.
-- **Invite** (owner): pre-approve an email. It joins your family with a badge already linked to it. If that person already has an account in another family, the app asks before moving them.
+- **Invite** (owner or Admin): pre-approve an email. It joins your family with a badge already linked to it. If that person already has an account in another family, the app asks the owner before moving them, and tells an Admin to ask the owner (unless that account is a sign-up still waiting alone in a household with no dog: it simply joins).
 
-**Super-Admin Panel** (owner only): every account, pending ones first. Approve (the person stays in their own household unless you pick another, which asks first), move to another household, revoke (back to pending), delete, or pre-approve an email into a chosen household.
+**Super-Admin Panel** (owner only): every account, pending ones first. Approve (the person stays in their own household unless you pick another, which asks first; approved alone in their own household, they become its Admin), move to another household, revoke (back to pending), delete, or pre-approve an email into a chosen household.
 
 ## Phone install, offline and updates
 
@@ -171,6 +171,7 @@ Browser (React SPA, PWA)  ──/api/*──▶  Vercel functions (api/*.ts)  �
 - **BFF**: `GET /api/dashboard?puppyId=&days=` returns, in one Neon batch: the household's dogs and badges, the dog's logs of the last `days` (default 14, max 90, at most 300 rows), the household's health records, and **every** weight event of the dog (weigh-ins are weeks apart). The app calls it at boot, on every return to the foreground, and every 15 minutes while the app stays visible (never while hidden, and never while one is still running). Switching dogs loads that dog's logs from `/api/activities`; the passport and the health summary share its health records (the passport calls `/api/health-records?puppyId=` only while `/api/dashboard` fails).
 - Other endpoints: `api/activities.ts`, `api/dogs.ts`, `api/health-records.ts`, `api/households.ts` (badges), `api/users.ts` (accounts), `api/auth/session.ts`.
 - `vercel.json`: `npm ci` install, SPA rewrite (except `/api/` and files), `/privacy` and `/terms` static pages, long cache on `/assets/`.
+  Security headers on every route: `nosniff`, `strict-origin-when-cross-origin`, `X-Frame-Options: DENY`, and a Content-Security-Policy sent as `Content-Security-Policy-Report-Only` until checked on production (violations show in the browser console; scripts only from the app and Google sign-in, no inline script).
 - Vercel Web Analytics and Speed Insights are on; the URLs they send are reduced to the route.
 
 ## Auth and permissions
@@ -181,7 +182,8 @@ Browser (React SPA, PWA)  ──/api/*──▶  Vercel functions (api/*.ts)  �
 4. The client renews the token 3 s after each app start. A 401 (or 401/403 on renewal) clears it and shows the sign-in screen; a 5xx keeps the session.
 5. Every endpoint also accepts a Google ID token directly (same check as step 2). The app relies on it in one case: when the session exchange fails for the owner, it keeps the Google ID token as the session, which Google expires after about an hour.
 
-- **Owner** = the SuperAdmin, recognised by email only, never by a role claim. Only the owner deletes dogs and badges, sees the Super-Admin Panel, and moves accounts between households.
+- **Owner** = the SuperAdmin, recognised by email only, never by a role claim. Only the owner deletes dogs and badges, sees the Super-Admin Panel, and moves accounts between households (an Admin only takes in a sign-up waiting alone in a household with no dog, below).
+- **Admin**: the first member of a new family, set when the owner approves that sign-up alone in its own household (`PUT /api/users`); an Admin approved or moved into another household becomes a `Member` there. An Admin also invites into its own household (`POST /api/users`): a newcomer is always a `Member` (someone already in the family keeps their role), never another household or role (403). An account living elsewhere gets 409, except a sign-up still `PENDING_APPROVAL` alone in a household with no dog, which is moved in and activated. The API also lets an Admin change the role or status of, or remove, accounts of its household; the app has no screen for that.
 - Every other active account (role `Member`) logs, edits and deletes logs and health records, and adds or edits dogs and badges in its household, within the badge rules of `api/households.ts`.
 - `loggedBy` is never taken from the request: `POST /api/activities` resolves it from the account's linked badge (`findLinkedCaretaker`), creating the badge on the first log; `PUT` never changes it.
 
@@ -271,4 +273,4 @@ npm test
 - **Delete buttons for dogs and badges show for every member**; the server refuses the delete to anyone but the owner, and the item comes back with an error.
 - **CSV exports are comma-separated**: Excel set to French may put every column in column A.
 - **`drizzle/` lags `src/db/schema.ts`**: the index `idx_health_records_household_date` is in the schema and in production but in no migration, so the next `db:generate` emits it.
-- **One owner per installation**: only the owner's account approves sign-ups, deletes dogs and badges, and moves accounts. The API knows an `Admin` role, but the app never assigns it (only the demo seed does).
+- **One owner per installation**: only the owner's account approves sign-ups, deletes dogs and badges, and moves accounts (a family's Admin only takes in a sign-up waiting alone in a household with no dog).
