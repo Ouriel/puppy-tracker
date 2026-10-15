@@ -192,6 +192,20 @@ describe('Weight timeline (Phase 5c, prod-shaped)', () => {
     expect(weightRows()).toHaveLength(10);
   });
 
+  it('a weigh-in edit the server does not take keeps the edit form open with the typed weight', async () => {
+    await openPassport();
+    await click(weightRows().find((row) => rowWeight(row) === 3.85)!.querySelector<HTMLButtonElement>('button[aria-label="Edit weight entry"]')!);
+    await settleUntil(() => document.getElementById('quicklog-weight-kg') !== null);
+    const serverStub = globalThis.fetch;
+    vi.stubGlobal('fetch', vi.fn((url: string, init: RequestInit = {}) => (init.method === 'PUT' ? Promise.reject(new TypeError('Load failed')) : serverStub(url, init))));
+
+    await setValue(document.getElementById('quicklog-weight-kg') as HTMLInputElement, '3,9');
+    await click(document.querySelector<HTMLButtonElement>('button[form="quicklog-form"]')!);
+
+    expect((document.getElementById('quicklog-weight-kg') as HTMLInputElement | null)?.value).toBe('3,9');
+    expect(document.querySelector('[role="alert"]')?.textContent).toBe(en.potty.saveFailed);
+  });
+
   it('a deworming saved with a weight: the record holds no weight, the weight is its own event at 12:00 Paris named after the product', async () => {
     await openPassport();
     await click(buttonWithText(en.health.addDeworming));

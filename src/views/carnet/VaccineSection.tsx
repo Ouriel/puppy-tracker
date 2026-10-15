@@ -107,7 +107,7 @@ export const VaccineSection: React.FC<VaccineSectionProps> = ({
       setBatchNumber('');
       setWeightText('');
     } else {
-      toast.danger(result.error || t.toasts.errorGeneric);
+      toast.danger(t.toasts[result.errorKey]);
     }
   };
 
@@ -139,7 +139,7 @@ export const VaccineSection: React.FC<VaccineSectionProps> = ({
       setEditingVaccineId(null);
       toast.success(t.toasts.vaccineUpdated);
     } else {
-      toast.danger(result.error || t.toasts.errorGeneric);
+      toast.danger(t.toasts[result.errorKey]);
     }
   };
 
@@ -148,7 +148,7 @@ export const VaccineSection: React.FC<VaccineSectionProps> = ({
     if (result.ok) {
       setHealthRecords((previous) => previous.filter((record) => record.id !== id));
     } else {
-      toast.danger(result.error || t.toasts.errorGeneric);
+      toast.danger(t.toasts[result.errorKey]);
     }
   };
 

@@ -61,19 +61,30 @@ const STORAGE_KEY_CACHED_ACTIVITIES = 'puppace_cached_activities_recent';
 interface StoredActivitiesPayload {
   puppyId: string;
   activities: import('../types').Activity[];
+  // When the server sent them; missing in a cache written before it was recorded
+  savedAt?: number;
 }
 
-export function getStoredRecentActivities(puppyId: string): import('../types').Activity[] | null {
+function getStoredActivitiesPayload(puppyId: string): StoredActivitiesPayload | null {
   if (typeof localStorage === 'undefined' || !puppyId) return null;
   try {
     const raw = localStorage.getItem(STORAGE_KEY_CACHED_ACTIVITIES);
     if (!raw) return null;
-    // No age limit: the cache only paints the first frame; /api/dashboard replaces it as soon as it answers.
-    const { puppyId: id, activities }: StoredActivitiesPayload = JSON.parse(raw);
-    return id === puppyId ? activities : null;
+    const payload: StoredActivitiesPayload = JSON.parse(raw);
+    return payload.puppyId === puppyId ? payload : null;
   } catch {
     return null;
   }
+}
+
+// No age limit: the cache only paints the first frame; /api/dashboard replaces it as soon as it answers.
+export function getStoredRecentActivities(puppyId: string): import('../types').Activity[] | null {
+  return getStoredActivitiesPayload(puppyId)?.activities ?? null;
+}
+
+/** When the server sent the stored logs (ms), or null. */
+export function getStoredRecentActivitiesTime(puppyId: string): number | null {
+  return getStoredActivitiesPayload(puppyId)?.savedAt ?? null;
 }
 
 export function setStoredRecentActivities(puppyId: string, activities: import('../types').Activity[]): void {
@@ -81,7 +92,7 @@ export function setStoredRecentActivities(puppyId: string, activities: import('.
   try {
     localStorage.setItem(
       STORAGE_KEY_CACHED_ACTIVITIES,
-      JSON.stringify({ puppyId, activities: activities.slice(0, 300) })
+      JSON.stringify({ puppyId, activities: activities.slice(0, 300), savedAt: Date.now() })
     );
   } catch {}
 }

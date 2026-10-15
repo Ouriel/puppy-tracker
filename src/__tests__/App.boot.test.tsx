@@ -2,6 +2,7 @@
 import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from 'vitest';
 import { act, type ComponentProps } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
+import { toast } from '@heroui/react';
 import App from '../App';
 import { en } from '../i18n/en';
 import { setAuthToken, clearAuthToken, setStoredAuthUser } from '../utils/auth';
@@ -579,3 +580,267 @@ describe('App log state', () => {
     });
   });
 });
+
+const buttonWithText = (text: string) => [...document.querySelectorAll('button')].find((button) => button.textContent === text);
+
+/** The dashboard answers; each POST is refused as by a phone with no signal until `isOnline` is set. */
+function stubOfflineSaves(connection: { isOnline: boolean }) {
+  const posted: Activity[] = [];
+  stubApi({
+    '/api/dashboard': () => respond(dashboardPayload([])),
+    '/api/activities': (_url, init) => {
+      posted.push(JSON.parse(String(init!.body)));
+      return connection.isOnline ? respond(posted.at(-1), 201) : Promise.reject(new TypeError('Load failed'));
+    },
+  });
+  return posted;
+}
+
+async function tapPeeOutside() {
+  await act(async () => buttonWithText(en.potty.peedOutside)!.click());
+  await settle();
+}
+
+// Backlog item 5: a quick log tapped with no signal used to vanish, so its real time had to be typed again by hand
+describe('a quick log that could not be saved', () => {
+  const isMarkedNotSaved = () => document.body.textContent!.includes(en.potty.notSaved);
+  const retryButtons = () => [...document.querySelectorAll('button')].filter((button) => button.textContent === en.potty.retry);
+
+  it('stays in the feed marked "not saved"; Retry sends it again under the same id and clears the mark', async () => {
+    signedInWithCachedDogOnly();
+    const connection = { isOnline: false };
+    const posted = stubOfflineSaves(connection);
+    const danger = vi.spyOn(toast, 'danger');
+    await renderApp();
+
+    await tapPeeOutside();
+    expect(danger.mock.calls.map(([message]) => message)).toEqual([en.toasts.offline]);
+    expect(isMarkedNotSaved()).toBe(true);
+
+    connection.isOnline = true;
+    await act(async () => buttonWithText(en.potty.retry)!.click());
+    await settle();
+
+    expect(posted).toHaveLength(2);
+    expect(posted[1].id).toBe(posted[0].id);
+    expect(isMarkedNotSaved()).toBe(false);
+    expect(isTimelineEmpty()).toBe(false);
+  });
+
+  it('a Retry that fails again keeps the mark', async () => {
+    signedInWithCachedDogOnly();
+    stubOfflineSaves({ isOnline: false });
+    await renderApp();
+
+    await tapPeeOutside();
+    await act(async () => buttonWithText(en.potty.retry)!.click());
+    await settle();
+
+    expect(isMarkedNotSaved()).toBe(true);
+  });
+
+  it('Retry keeps the row in view: marked while the request runs, then shown saved', async () => {
+    signedInWithCachedDogOnly();
+    const posted: Activity[] = [];
+    let answerRetry: (response: Response) => void = () => {};
+    stubApi({
+      '/api/dashboard': () => respond(dashboardPayload([])),
+      '/api/activities': (_url, init) => {
+        posted.push(JSON.parse(String(init!.body)));
+        return posted.length === 1 ? Promise.reject(new TypeError('Load failed')) : new Promise<Response>((resolve) => { answerRetry = resolve; });
+      },
+    });
+    await renderApp();
+    await tapPeeOutside();
+
+    await act(async () => buttonWithText(en.potty.retry)!.click());
+    await settle();
+    expect(isMarkedNotSaved()).toBe(true);
+    expect(retryButtons()).toHaveLength(1);
+
+    await act(async () => answerRetry(new Response(JSON.stringify(posted[1]), { status: 201 })));
+    await settle();
+    expect(isMarkedNotSaved()).toBe(false);
+    expect(document.querySelector(`[aria-label="${en.potty.deleteActivityTitle}"]`)).not.toBeNull();
+  });
+
+  it('the red message carries Retry too, since the marked row may be off screen', async () => {
+    signedInWithCachedDogOnly();
+    const connection = { isOnline: false };
+    const posted = stubOfflineSaves(connection);
+    const danger = vi.spyOn(toast, 'danger');
+    await renderApp();
+    await tapPeeOutside();
+
+    const [message, options] = danger.mock.calls[0];
+    expect(message).toBe(en.toasts.offline);
+    expect(options?.actionProps?.children).toBe(en.potty.retry);
+
+    connection.isOnline = true;
+    await act(async () => (options!.actionProps!.onPress as () => void)());
+    await settle();
+
+    expect(posted.map((post) => post.id)).toEqual([posted[0].id, posted[0].id]);
+    expect(isMarkedNotSaved()).toBe(false);
+  });
+
+  it('a server error says "Not saved, try again.", never "changes reverted": the log is kept', async () => {
+    signedInWithCachedDogOnly();
+    stubApi({
+      '/api/dashboard': () => respond(dashboardPayload([])),
+      '/api/activities': () => respond({ error: 'Internal server error' }, 500),
+    });
+    const danger = vi.spyOn(toast, 'danger');
+    await renderApp();
+    await tapPeeOutside();
+
+    expect(danger.mock.calls.map(([message]) => message)).toEqual([en.potty.saveFailed]);
+    expect(isMarkedNotSaved()).toBe(true);
+  });
+
+  it('a second tap within 5 s is still a double tap: one POST, one marked row', async () => {
+    signedInWithCachedDogOnly();
+    const posted = stubOfflineSaves({ isOnline: false });
+    const warning = vi.spyOn(toast, 'warning');
+    await renderApp();
+
+    await tapPeeOutside();
+    await tapPeeOutside();
+
+    expect(posted).toHaveLength(1);
+    expect(warning).toHaveBeenCalledWith(en.toasts.alreadyLogged);
+    expect(retryButtons()).toHaveLength(1);
+  });
+
+  it('a return to the app keeps it', async () => {
+    signedInWithCachedDogOnly();
+    stubOfflineSaves({ isOnline: false });
+    await renderApp();
+    await tapPeeOutside();
+
+    await act(async () => {
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+    await settle();
+
+    expect(isMarkedNotSaved()).toBe(true);
+  });
+
+  it('Discard removes it and sends nothing', async () => {
+    signedInWithCachedDogOnly();
+    const posted = stubOfflineSaves({ isOnline: false });
+    await renderApp();
+    await tapPeeOutside();
+
+    await act(async () => document.querySelector<HTMLElement>(`[aria-label="${en.potty.discard}"]`)!.click());
+    await settle();
+
+    expect(posted).toHaveLength(1);
+    expect(isTimelineEmpty()).toBe(true);
+  });
+});
+
+// Backlog item 5: the log form closed before the save was answered, so a failed save lost what was typed
+describe('a log form whose save fails', () => {
+  const notesBox = () => document.getElementById('quicklog-notes') as HTMLInputElement | null;
+  const alertText = () => document.querySelector('[role="alert"]')?.textContent;
+
+  async function typeNotes(text: string) {
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!;
+    await act(async () => {
+      setter.call(notesBox(), text);
+      notesBox()!.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+  }
+
+  async function openLogForm() {
+    await act(async () => document.querySelector<HTMLElement>(`[aria-label="${en.nav.logEvent}"]`)!.click());
+    await settleUntil(() => notesBox() !== null);
+  }
+
+  async function pressSave() {
+    await act(async () => document.querySelector<HTMLButtonElement>('button[form="quicklog-form"]')!.click());
+    await settle();
+  }
+
+  it('stays open with what was typed; Save again sends the same log under the same id and closes it', async () => {
+    signedInWithCachedDogOnly();
+    const connection = { isOnline: false };
+    const posted = stubOfflineSaves(connection);
+    await renderApp();
+    await openLogForm();
+    await typeNotes('by the door');
+
+    await pressSave();
+    expect(notesBox()?.value).toBe('by the door');
+    expect(alertText()).toBe(en.potty.saveFailed);
+
+    connection.isOnline = true;
+    await pressSave();
+    expect(posted.map((post) => post.id)).toEqual([posted[0].id, posted[0].id]);
+    expect(notesBox()).toBeNull();
+  });
+
+  it('a Save the double-tap guard ignores closes the form, as before ("Already logged")', async () => {
+    signedInWithCachedDogOnly();
+    const posted = stubOfflineSaves({ isOnline: true });
+    const warning = vi.spyOn(toast, 'warning');
+    await renderApp();
+    await tapPeeOutside();
+    await openLogForm();
+
+    await pressSave();
+
+    expect(warning).toHaveBeenCalledWith(en.toasts.alreadyLogged);
+    expect(posted).toHaveLength(1);
+    expect(notesBox()).toBeNull();
+  });
+
+  it('an edit the server does not take keeps the edit form open with the edited note', async () => {
+    signedInWithCachedDogOnly();
+    stubApi({
+      '/api/dashboard': () => respond(dashboardPayload()),
+      '/api/activities': () => Promise.reject(new TypeError('Load failed')),
+    });
+    await renderApp();
+    await act(async () => document.querySelector<HTMLButtonElement>(`button[title="${en.dashboard.expandAll}"]`)!.click());
+    await act(async () => document.querySelector<HTMLElement>(`[aria-label="${en.potty.editActivity}"]`)!.click());
+    await settleUntil(() => notesBox() !== null);
+    await typeNotes('edited');
+
+    await pressSave();
+
+    expect(notesBox()?.value).toBe('edited');
+    expect(alertText()).toBe(en.potty.saveFailed);
+  });
+});
+
+// Backlog item 5: an app opened with no connection showed cached cards and predictions with no sign they were old
+describe('a dashboard that cannot be reached', () => {
+  it('says "Offline, data from HH:mm" with the time of the logs it shows, until a load works again', async () => {
+    vi.useFakeTimers({ toFake: ['Date', 'setTimeout', 'clearTimeout', 'setInterval', 'clearInterval'] });
+    // 09:15 in Paris: the last load that worked, before the app was closed
+    vi.setSystemTime(new Date('2026-10-14T07:15:00.000Z'));
+    signedInWithCachedDogOnly();
+    const connection = { isOnline: true };
+    stubApi({ '/api/dashboard': () => (connection.isOnline ? respond(dashboardPayload()) : Promise.reject(new TypeError('Load failed'))) });
+    await renderApp();
+    expect(document.body.textContent).not.toContain('Offline');
+    await act(async () => root!.unmount());
+
+    // Opened again at 11:40 with no signal
+    vi.setSystemTime(new Date('2026-10-14T09:40:00.000Z'));
+    connection.isOnline = false;
+    clearApiCache();
+    await renderApp();
+    expect(document.body.textContent).toContain('Offline, data from 09:15');
+
+    connection.isOnline = true;
+    await act(async () => {
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+    await settle();
+    expect(document.body.textContent).not.toContain('Offline');
+  });
+});
+

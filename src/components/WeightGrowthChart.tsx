@@ -21,7 +21,7 @@ interface WeightGrowthChartProps {
   profile: PuppyProfile;
   onOpenQuickLogModal: (type: 'weight') => void;
   onDeleteActivity?: (id: string) => void;
-  onUpdateActivity?: (updated: Partial<Activity> & { id: string }) => void;
+  onUpdateActivity?: (updated: Partial<Activity> & { id: string }) => Promise<boolean>;
 }
 
 export const WeightGrowthChart: React.FC<WeightGrowthChartProps> = ({
@@ -230,10 +230,7 @@ export const WeightGrowthChart: React.FC<WeightGrowthChartProps> = ({
               dailyFoodGramGoal={profile.dailyFoodGramGoal}
               currentUser={editingWeight.loggedBy}
               onClose={() => setEditingWeight(null)}
-              onSave={(activityData) => {
-                onUpdateActivity({ id: editingWeight.id, ...activityData });
-                setEditingWeight(null);
-              }}
+              onSave={(activityData) => onUpdateActivity({ id: editingWeight.id, ...activityData })}
             />
           </Suspense>
         )}

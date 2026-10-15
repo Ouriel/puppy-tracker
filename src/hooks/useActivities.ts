@@ -1,8 +1,9 @@
 import { useState, useCallback, useEffect, useRef, startTransition } from 'react';
 import { toast } from '@heroui/react';
 import type { Activity, PuppyProfile } from '../types';
-import { fetchActivities, createActivity, updateActivity as apiUpdateActivity, deleteActivity as apiDeleteActivity } from '../services/api';
+import { fetchActivities, createActivity, updateActivity as apiUpdateActivity, deleteActivity as apiDeleteActivity, type ApiErrorKey } from '../services/api';
 import { useI18n } from '../i18n';
+import type { TranslationKeys } from '../i18n/types';
 import { getStoredRecentActivities, setStoredRecentActivities } from '../utils/storage';
 
 // Construct sanitized optimistic activity without stale fields from previous types
@@ -55,6 +56,13 @@ function recentWindowStart(recentActivities: Activity[]): number {
     : Date.now() - RECENT_LOGS_DAYS * DAY_MS;
 }
 
+/** A log kept as not saved: why, never "changes reverted" since it is kept, and Retry, since its marked row may be off screen. */
+function toastNotSaved(t: TranslationKeys, errorKey: ApiErrorKey, onRetry: () => void) {
+  const key = toast.danger(errorKey === 'offline' ? t.toasts.offline : t.potty.saveFailed, {
+    actionProps: { children: t.potty.retry, onPress: () => { toast.close(key); onRetry(); } },
+  });
+}
+
 /** Counts an add, edit or delete from its request to its answer: a dashboard answer read meanwhile may miss it. */
 async function trackMutation<T>(mutations: { version: number; pending: number }, request: Promise<T>): Promise<T> {
   mutations.pending += 1;
@@ -87,6 +95,8 @@ export function useActivities(
   const [weightActivities, setWeightActivities] = useState<Activity[]>([]);
   const [isFetchingMore, setIsFetchingMore] = useState(false);
   const [hasMoreRemote, setHasMoreRemote] = useState(true);
+  // Quick logs the server did not take, kept in the list for Retry or Discard
+  const [unsavedIds, setUnsavedIds] = useState<ReadonlySet<string>>(() => new Set());
   const loadedPuppyIdRef = useRef<string | null>(null);
   const isInitialMountRef = useRef(true);
   // Tap time of the last log per dog and type, for the double-log guard
@@ -96,7 +106,7 @@ export function useActivities(
   const locallyDeletedIdsRef = useRef(new Set<string>());
   // Since when the server's logs of the loaded dog are all here: "load more" pages after the local logs since then
   const historyStartRef = useRef(Infinity);
-  // Adds not answered yet: not on the server, so not counted in the next page's offset
+  // Adds not on the server (not answered yet, or kept as not saved): not counted in the next page's offset, kept by a refresh
   const pendingAddIdsRef = useRef(new Set<string>());
 
   // Read before requesting the recent window, and given back to setActivitiesForPuppy with the answer
@@ -116,7 +126,8 @@ export function useActivities(
         ? mergeOlderActivities(previous, recentActivities.filter((activity) => !locallyDeletedIdsRef.current.has(activity.id)))
         : mergeOlderActivities(
           recentActivities,
-          previous.filter((activity) => activity.puppyId === puppyId && Date.parse(activity.timestamp) <= windowStart)
+          previous.filter((activity) => pendingAddIdsRef.current.has(activity.id)
+            || (activity.puppyId === puppyId && Date.parse(activity.timestamp) <= windowStart))
         )));
       if (allWeightActivities) {
         setWeightActivities((previous) => (isStale
@@ -157,7 +168,7 @@ export function useActivities(
       if (isMounted && result.ok) {
         loadedPuppyIdRef.current = activePuppy!.id;
         historyStartRef.current = recentWindowStart(result.data);
-        setActivities(result.data);
+        setActivities((previous) => mergeOlderActivities(result.data, previous.filter((activity) => pendingAddIdsRef.current.has(activity.id))));
         setHasMoreRemote(result.data.length >= RECENT_LOGS_LIMIT);
       }
       if (isMounted && weightResult.ok) {
@@ -208,9 +219,32 @@ export function useActivities(
     setIsFetchingMore(false);
   }, [activePuppyId, activities, isFetchingMore]);
 
-  /** The saved log, or undefined when it was not saved. */
+  /** Sends a log kept as not saved again, under the same id (the server keeps one copy). The saved log, or undefined. */
+  const retryActivity = useCallback(async function retry(unsaved: Activity): Promise<Activity | undefined> {
+    // Discarded, or saved by an earlier Retry
+    if (!pendingAddIdsRef.current.has(unsaved.id)) return;
+    // The mark stays until the answer: its row (and its open day) stays in view meanwhile
+    const result = await trackMutation(mutationsRef.current, createActivity(unsaved));
+    if (!result.ok) {
+      toastNotSaved(t, result.errorKey, () => void retry(unsaved));
+      return;
+    }
+    pendingAddIdsRef.current.delete(unsaved.id);
+    setUnsavedIds((previous) => new Set([...previous].filter((unsavedId) => unsavedId !== unsaved.id)));
+    startTransition(() => {
+      setActivities((previous) => previous.map((activity) => (activity.id === unsaved.id ? result.data : activity)));
+      setWeightActivities((previous) => replaceWeightRow(previous, unsaved.id, result.data));
+    });
+    toast.success(t.toasts.activityLogged);
+    return result.data;
+  }, [t]);
+
+  /**
+   * The saved log; 'alreadyLogged' for a double tap, ignored; undefined when it was not saved.
+   * `keepUnsaved`: a refused log stays, marked, for Retry. `id`: the log form's own, the same for each Save of one form.
+   */
   const addActivity = useCallback(
-    async (activityData: Omit<Activity, 'id'>): Promise<Activity | undefined> => {
+    async (activityData: Omit<Activity, 'id'>, options?: { keepUnsaved?: boolean; id?: string }): Promise<Activity | 'alreadyLogged' | undefined> => {
       if (!activePuppy) {
         toast.danger(t.toasts.selectPuppyFirst);
         return;
@@ -223,24 +257,25 @@ export function useActivities(
       const elapsedSinceLastTap = tapTime - (lastLogTapRef.current.get(tapKey) ?? -Infinity);
       if (elapsedSinceLastTap >= 0 && elapsedSinceLastTap < DOUBLE_LOG_WINDOW_MS) {
         toast.warning(t.toasts.alreadyLogged);
-        return;
+        return 'alreadyLogged';
       }
       lastLogTapRef.current.set(tapKey, tapTime);
 
       const newActivity: Activity = {
         ...activityData,
-        id: `act-${crypto.randomUUID()}`,
+        id: options?.id ?? `act-${crypto.randomUUID()}`,
         puppyId: activePuppy.id,
       };
 
       startTransition(() => {
-        setActivities((previous) => [newActivity, ...previous]);
+        // A form saved again after a lost answer: a refresh may have brought its log in meanwhile
+        setActivities((previous) => [newActivity, ...previous.filter((activity) => activity.id !== newActivity.id)]);
         setWeightActivities((previous) => replaceWeightRow(previous, newActivity.id, newActivity));
       });
 
       pendingAddIdsRef.current.add(newActivity.id);
       const result = await trackMutation(mutationsRef.current, createActivity(newActivity));
-      pendingAddIdsRef.current.delete(newActivity.id);
+      if (result.ok || !options?.keepUnsaved) pendingAddIdsRef.current.delete(newActivity.id);
       if (result.ok) {
         startTransition(() => {
           setActivities((previous) => previous.map((activity) => (activity.id === newActivity.id ? result.data : activity)));
@@ -248,23 +283,37 @@ export function useActivities(
         });
         toast.success(t.toasts.activityLogged);
         return result.data;
+      } else if (options?.keepUnsaved) {
+        // Still on screen, marked: a second tap within the window stays a double tap
+        setUnsavedIds((previous) => new Set(previous).add(newActivity.id));
+        // ponytail: the toast's Retry skips App's badge reload (an account's first log); the next dashboard load brings the badge
+        toastNotSaved(t, result.errorKey, () => void retryActivity(newActivity));
       } else {
-        // Not saved: the same log can be tapped again at once
+        // Gone from the list: the form can be saved again at once
         if (lastLogTapRef.current.get(tapKey) === tapTime) lastLogTapRef.current.delete(tapKey);
         startTransition(() => {
           setActivities((previous) => previous.filter((activity) => activity.id !== newActivity.id));
           setWeightActivities((previous) => replaceWeightRow(previous, newActivity.id));
         });
-        toast.danger(result.error || t.toasts.errorGeneric);
+        toast.danger(t.toasts[result.errorKey]);
       }
     },
-    [activePuppy, t]
+    [activePuppy, t, retryActivity]
   );
 
-  const updateActivity = useCallback(async (updatedFields: Partial<Activity> & { id: string }) => {
+  /** Drops a log kept as not saved, without sending anything. */
+  const discardActivity = useCallback((id: string) => {
+    pendingAddIdsRef.current.delete(id);
+    setUnsavedIds((previous) => new Set([...previous].filter((unsavedId) => unsavedId !== id)));
+    setActivities((previous) => previous.filter((activity) => activity.id !== id));
+    setWeightActivities((previous) => replaceWeightRow(previous, id));
+  }, []);
+
+  /** Whether the edit was saved; refused, the row gets its old values back. */
+  const updateActivity = useCallback(async (updatedFields: Partial<Activity> & { id: string }): Promise<boolean> => {
     // A weigh-in older than the loaded logs is only in the weight list
     const target = activities.find((act) => act.id === updatedFields.id) ?? weightActivities.find((weight) => weight.id === updatedFields.id);
-    if (!target) return;
+    if (!target) return false;
 
     const optimisticActivity = sanitizeActivityUpdate(target, updatedFields);
 
@@ -276,11 +325,12 @@ export function useActivities(
       setActivities((previous) => previous.map((activity) => (activity.id === updatedFields.id ? result.data : activity)));
       setWeightActivities((previous) => replaceWeightRow(previous, updatedFields.id, result.data));
       toast.success(t.toasts.activityUpdated);
-    } else {
-      setActivities((previous) => previous.map((activity) => (activity.id === updatedFields.id ? target : activity)));
-      setWeightActivities((previous) => replaceWeightRow(previous, updatedFields.id, target));
-      toast.danger(result.error || t.toasts.errorGeneric);
+      return true;
     }
+    setActivities((previous) => previous.map((activity) => (activity.id === updatedFields.id ? target : activity)));
+    setWeightActivities((previous) => replaceWeightRow(previous, updatedFields.id, target));
+    toast.danger(t.toasts[result.errorKey]);
+    return false;
   }, [activities, weightActivities, t]);
 
   const deleteActivity = useCallback(
@@ -298,7 +348,7 @@ export function useActivities(
         locallyDeletedIdsRef.current.delete(id);
         if (removed) setActivities((previous) => [removed, ...previous]);
         if (removedWeight) setWeightActivities((previous) => replaceWeightRow(previous, id, removedWeight));
-        toast.danger(result.error || t.toasts.errorGeneric);
+        toast.danger(t.toasts[result.errorKey]);
       }
     },
     [activities, weightActivities, t]
@@ -317,5 +367,8 @@ export function useActivities(
     addActivity,
     updateActivity,
     deleteActivity,
+    unsavedActivityIds: unsavedIds,
+    retryActivity,
+    discardActivity,
   };
 }

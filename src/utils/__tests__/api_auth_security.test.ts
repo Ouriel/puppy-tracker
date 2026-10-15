@@ -590,6 +590,17 @@ describe('API Security & Session Token Validation Test Suite', () => {
       expect((await send('Member', 'PUT', { id: 'ct-free', name: 'Guest', email: 'user@example.com' })).statusCode).toBe(409);
     });
 
+    // The app shows its own translated message for each, not the English error
+    it('names each refusal with a code: a taken name, a taken or foreign email, an admin-only change', async () => {
+      dbMock.rowsByTable.caretakers = [ownerBadge, freeBadge, myBadge];
+
+      expect((await send('Member', 'PUT', { id: 'ct-free', name: 'OWNER' })).body).toMatchObject({ code: 'memberNameTaken' });
+      expect((await send('Admin', 'POST', { name: 'Jane', email: 'OWNER@example.com' })).body).toMatchObject({ code: 'memberEmailTaken' });
+      expect((await send('Member', 'POST', { name: 'Someone', email: 'other@example.com' })).body).toMatchObject({ code: 'memberEmailTaken' });
+      expect((await send('Member', 'PUT', { id: 'ct-owner', name: 'Owner (old)' })).body).toMatchObject({ code: 'memberAdminOnly' });
+      expect((await send('Member', 'PUT', { id: 'ct-me', name: 'Me', email: '' })).body).toMatchObject({ code: 'memberAdminOnly' });
+    });
+
     it("lets an admin link a new badge to someone else's email (invite)", async () => {
       dbMock.rowsByTable.caretakers = [ownerBadge];
 
