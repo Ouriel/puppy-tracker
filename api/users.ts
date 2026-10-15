@@ -64,29 +64,42 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
       const body = parsed.data;
       const email = body.email.toLowerCase();
-      const targetHouseholdId = (isSuperAdmin && body.householdId) ? body.householdId : householdId;
+      if (body.householdId && body.householdId !== householdId && !isSuperAdmin) {
+        return res.status(403).json({ error: 'Only SuperAdmin can choose another household.' });
+      }
+      const targetHouseholdId = body.householdId || householdId;
 
       if (body.role === 'SuperAdmin' && email !== SUPER_ADMIN_EMAIL) {
         return res.status(403).json({ error: 'SuperAdmin role assignment is restricted.' });
       }
 
-      const whereClause = isSuperAdmin
-        ? eq(usersTable.email, email)
-        : and(eq(usersTable.email, email), eq(usersTable.householdId, householdId));
+      // As in PUT: only the owner manages the owner's account.
+      if (email === SUPER_ADMIN_EMAIL && auth.email.toLowerCase() !== SUPER_ADMIN_EMAIL) {
+        return res.status(403).json({ error: 'This person already has an account. Ask the owner to add them.' });
+      }
 
+      // Looked up in every household: the email is unique, so an existing account is moved, never re-created.
       const [existing] = await db
         .select()
         .from(usersTable)
-        .where(whereClause);
+        .where(eq(usersTable.email, email));
 
       if (existing) {
+        const isMove = existing.householdId !== targetHouseholdId;
+        // Only the owner moves accounts between households, and only once confirmed. Refusals carry no row data.
+        if (isMove && !isSuperAdmin) {
+          return res.status(403).json({ error: 'This person already has an account. Ask the owner to add them.' });
+        }
+        if (isMove && !body.confirmMove) {
+          return res.status(409).json({ error: 'This person already has an account in another household.' });
+        }
         const [updated] = await db
           .update(usersTable)
           .set({
-            name: body.name || existing.name,
+            // Never the name: the account keeps its Google name.
             role: body.role || existing.role,
             status: body.status || existing.status,
-            ...(isSuperAdmin && body.householdId ? { householdId: body.householdId } : {}),
+            ...(isMove ? { householdId: targetHouseholdId } : {}),
           })
           .where(eq(usersTable.id, existing.id))
           .returning();

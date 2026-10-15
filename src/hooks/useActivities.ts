@@ -208,8 +208,9 @@ export function useActivities(
     setIsFetchingMore(false);
   }, [activePuppyId, activities, isFetchingMore]);
 
+  /** The saved log, or undefined when it was not saved. */
   const addActivity = useCallback(
-    async (activityData: Omit<Activity, 'id'>) => {
+    async (activityData: Omit<Activity, 'id'>): Promise<Activity | undefined> => {
       if (!activePuppy) {
         toast.danger(t.toasts.selectPuppyFirst);
         return;
@@ -246,6 +247,7 @@ export function useActivities(
           setWeightActivities((previous) => replaceWeightRow(previous, newActivity.id, result.data));
         });
         toast.success(t.toasts.activityLogged);
+        return result.data;
       } else {
         // Not saved: the same log can be tapped again at once
         if (lastLogTapRef.current.get(tapKey) === tapTime) lastLogTapRef.current.delete(tapKey);

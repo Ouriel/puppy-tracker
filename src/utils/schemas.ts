@@ -182,6 +182,8 @@ export const UserInputSchema = z.object({
   role: z.string().optional(),
   status: z.enum(['ACTIVE', 'PENDING_APPROVAL']).optional(),
   householdId: z.string().optional(),
+  // POST only: the inviter confirmed moving an account that lives in another household
+  confirmMove: z.boolean().optional(),
 });
 
 export const DeleteSchema = z.object({

@@ -259,6 +259,9 @@ export const fr: TranslationKeys = {
     deleteMember: 'Supprimer Membre',
     namePlaceholder: 'ex: Alex',
     editMemberName: 'Modifier Nom & Couleur',
+    alreadyHasAccount: 'Cette personne a déjà un compte. L\'ajouter à ta famille ?',
+    addToFamily: 'Ajouter',
+    thisIsMe: 'C\'est moi',
   },
   puppies: {
     title: 'Profils des Chiens',
@@ -363,6 +366,10 @@ export const fr: TranslationKeys = {
     isolated: 'isolé',
     householdFor: 'Foyer pour {name}',
     deleteUserBtn: 'Supprimer l\'utilisateur',
+    ownHousehold: 'Son propre foyer',
+    joinHousehold: 'Ajouter {email} à {household} ?',
+    move: 'Déplacer',
+    moveHousehold: 'Déplacer {email} vers {household} ?',
   },
   auth: {
     subtitle: 'Application Familiale de Suivi d\'Activité & Propreté du Chiot',

@@ -4,11 +4,52 @@ import { drizzle } from 'drizzle-orm/neon-http';
 import { eq, and } from 'drizzle-orm';
 import { caretakersTable, householdsTable } from '../src/db/schema.js';
 import { CaretakerInputSchema } from '../src/utils/schemas.js';
-import { verifyAuth, setCorsHeaders, canDeleteHouseholdData } from './_auth.js';
+import { verifyAuth, setCorsHeaders, canDeleteHouseholdData, type AuthContext } from './_auth.js';
 
 const connectionString = process.env.POSTGRES_URL || process.env.DATABASE_URL || '';
 const sql = neon(connectionString);
 const db = drizzle(sql);
+
+type CaretakerRow = typeof caretakersTable.$inferSelect;
+
+/**
+ * Why a badge write is refused, or null. loggedBy is stored as a badge name and resolved by the badge email first,
+ * so names and emails stay unique in a household, and only an admin links a badge to someone else's login.
+ * `email`: undefined = unchanged, null = unlinked, else lower case.
+ */
+function badgeWriteRefusal(
+  auth: AuthContext,
+  householdBadges: CaretakerRow[],
+  change: { name?: string; email?: string | null },
+  existing?: CaretakerRow
+): { status: number; error: string } | null {
+  const otherBadges = householdBadges.filter((item) => item.id !== existing?.id);
+  const name = change.name?.trim().toLowerCase();
+  const isRename = name !== existing?.name?.trim().toLowerCase();
+  const currentEmail = existing?.email?.toLowerCase() ?? null;
+  const ownEmail = auth.email.toLowerCase();
+  const isAdmin = auth.role === 'Admin' || auth.role === 'SuperAdmin';
+  // A badge linked to someone else keeps its name: else a member renames it away and takes that name.
+  if (!isAdmin && name && isRename && currentEmail && currentEmail !== ownEmail) {
+    return { status: 403, error: "Only an admin can rename a member linked to someone else's login." };
+  }
+  if (name && isRename && otherBadges.some((item) => item.name.trim().toLowerCase() === name)) {
+    return { status: 409, error: 'Another member already has this name.' };
+  }
+  if (change.email === undefined || change.email === currentEmail) return null;
+  // Unlinking is for the owner or an admin: a member's next log would create a second badge and orphan this one.
+  if (!isAdmin && currentEmail && !change.email) {
+    return { status: 403, error: 'Only an admin can unlink a member from a login.' };
+  }
+  const touchesOnlyOwnLink = [currentEmail, change.email].every((email) => email === null || email === ownEmail);
+  if (!isAdmin && !touchesOnlyOwnLink) {
+    return { status: 403, error: "Only an admin can link a member to someone else's login." };
+  }
+  if (change.email && otherBadges.some((item) => item.email?.toLowerCase() === change.email)) {
+    return { status: 409, error: 'Another member is already linked to this email.' };
+  }
+  return null;
+}
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   setCorsHeaders(req, res, 'GET, POST, PUT, DELETE, OPTIONS');
@@ -65,6 +106,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(400).json({ error: 'Invalid caretaker payload', details: parsed.error.issues });
       }
       const body = parsed.data;
+      const email = body.email ? body.email.toLowerCase() : null;
+
+      const householdBadges = await db
+        .select()
+        .from(caretakersTable)
+        .where(eq(caretakersTable.householdId, householdId));
+      const refusal = badgeWriteRefusal(auth, householdBadges, { name: body.name, email });
+      if (refusal) return res.status(refusal.status).json({ error: refusal.error });
 
       const id = body.id || `ct-${Date.now()}`;
       const color = body.color || 'bg-amber-500';
@@ -78,7 +127,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           name: body.name,
           role,
           color,
-          email: body.email || null,
+          email,
         })
         .returning();
 
@@ -94,12 +143,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const body = parsed.data;
       if (!body.id) return res.status(400).json({ error: 'caretaker id is required' });
 
-      const [existing] = await db
+      const householdBadges = await db
         .select()
         .from(caretakersTable)
-        .where(and(eq(caretakersTable.id, body.id), eq(caretakersTable.householdId, householdId)));
+        .where(eq(caretakersTable.householdId, householdId));
+      const existing = householdBadges.find((item) => item.id === body.id);
 
       if (!existing) return res.status(404).json({ error: 'Caretaker not found' });
+
+      const email = body.email === undefined ? undefined : body.email ? body.email.toLowerCase() : null;
+      const refusal = badgeWriteRefusal(auth, householdBadges, { name: body.name, email }, existing);
+      if (refusal) return res.status(refusal.status).json({ error: refusal.error });
 
       const updatedRole = body.role || existing.role || 'Member';
 
@@ -109,7 +163,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           name: body.name,
           role: updatedRole,
           ...(body.color ? { color: body.color } : {}),
-          ...(body.email !== undefined ? { email: body.email || null } : {}),
+          ...(email !== undefined ? { email } : {}),
         })
         .where(and(eq(caretakersTable.id, body.id), eq(caretakersTable.householdId, householdId)))
         .returning();
