@@ -3,8 +3,8 @@ import type { Activity, ActivityType, Caretaker, PuppyProfile } from '../types';
 import { Droplet, Utensils, Trash2, Pencil, User, ChevronDown, Calendar, CheckCircle2, ChevronsUpDown, AlertTriangle, Download, FileSpreadsheet, Printer, Pill, Scale, RotateCw, X } from 'lucide-react';
 import { PoopIcon } from './common/PoopIcon';
 import { Button, Card } from '@heroui/react';
-import { useI18n } from '../i18n';
-import { formatRelativeTime, formatLogicalDate, getUserTimezone } from '../utils/date';
+import { useI18n, formatCount } from '../i18n';
+import { formatLocalTime, formatLogicalDate, getUserTimezone } from '../utils/date';
 import { resolveCaretakerName } from '../utils/caretakers';
 import { exportActivitiesToCSV, printActivitiesReport } from '../utils/export';
 import { getDayFoodPill } from '../utils/dayFoodPill';
@@ -215,13 +215,6 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
     }
   }, [nextDaysLimit, onLoadMore]);
 
-  const formatTime = useCallback((isoString: string) => {
-    return formatRelativeTime(isoString, lang as 'en' | 'fr', {
-      today: t.dashboard.today,
-      yesterday: t.dashboard.yesterday,
-    });
-  }, [lang, t.dashboard.today, t.dashboard.yesterday]);
-
   const toggleDay = useCallback((dateKey: string) => {
     setExpandedDays((previous) => {
       const next = new Set(previous);
@@ -384,14 +377,14 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
         {dayGroups.length === 0 ? (
           <div className="text-center py-10 text-slate-400 bg-slate-950/60 rounded-xl border border-dashed border-slate-800 space-y-1">
             <p className="text-sm font-semibold">{t.dashboard.noActivityLogs}</p>
-            <p className="text-xs text-slate-500">{t.dashboard.tapLogEvent}</p>
+            <p className="text-xs text-slate-400">{t.dashboard.tapLogEvent}</p>
           </div>
         ) : (
           <div className="space-y-3">
             {dayGroups.map((group) => {
               // A day holding a log not saved stays open, so its Retry is never hidden
               const isExpanded = expandedDays.has(group.dateKey) || group.activities.some((activity) => unsavedIds?.has(activity.id));
-              const foodPill = getDayFoodPill(group, t.dashboard.mealsCount);
+              const foodPill = getDayFoodPill(group, formatCount(t.dashboard.mealsCount, group.mealsCount, lang));
 
               return (
                 <div
@@ -426,7 +419,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
                             {group.dateLabel}
                           </span>
                           <span className="text-[10px] font-bold bg-slate-800/90 text-slate-300 px-2 py-0.5 rounded-full border border-slate-700/60 shrink-0">
-                            {t.dashboard.eventsCount.replace('{count}', String(group.activities.length))}
+                            {formatCount(t.dashboard.eventsCount, group.activities.length, lang)}
                           </span>
                         </div>
                       </div>
@@ -461,7 +454,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
                       {/* Potty Pills: Pee */}
                       <div
                         className="inline-flex items-center gap-1 px-2 py-1 rounded-xl text-xs font-bold bg-sky-950/60 border border-sky-800/50 text-sky-300"
-                        title={t.dashboard.peesCount.replace('{count}', String(group.peeCount))}
+                        title={formatCount(t.dashboard.peesCount, group.peeCount, lang)}
                       >
                         <Droplet className="w-3.5 h-3.5 shrink-0" />
                         <span>{group.peeCount}</span>
@@ -470,7 +463,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
                       {/* Potty Pills: Poop */}
                       <div
                         className="inline-flex items-center gap-1 px-2 py-1 rounded-xl text-xs font-bold bg-amber-950/60 border border-amber-800/50 text-amber-300"
-                        title={t.dashboard.poopsCount.replace('{count}', String(group.poopCount))}
+                        title={formatCount(t.dashboard.poopsCount, group.poopCount, lang)}
                       >
                         <PoopIcon className="w-3.5 h-3.5 shrink-0" />
                         <span>{group.poopCount}</span>
@@ -479,8 +472,8 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
                       {/* Accidents Warning Chip (if any) */}
                       {group.accidentCount > 0 && (
                         <div
-                          className="inline-flex items-center gap-1 px-2 py-1 rounded-xl text-xs font-bold bg-rose-950/80 border border-rose-700 text-rose-300 animate-pulse"
-                          title={t.dashboard.accidentsCount.replace('{count}', String(group.accidentCount))}
+                          className="inline-flex items-center gap-1 px-2 py-1 rounded-xl text-xs font-bold bg-rose-950/80 border border-rose-700 text-rose-300 motion-safe:animate-pulse"
+                          title={formatCount(t.dashboard.accidentsCount, group.accidentCount, lang)}
                         >
                           <AlertTriangle className="w-3.5 h-3.5 text-rose-400 shrink-0" />
                           <span>{group.accidentCount}</span>
@@ -493,7 +486,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
                   {isExpanded && (
                     <div className="border-t border-slate-800/80 bg-slate-950/40 p-3 sm:p-5 pt-4">
                       {group.activities.length === 0 ? (
-                        <p className="text-xs text-slate-500 italic py-2">{t.dashboard.noLogsThisDay}</p>
+                        <p className="text-xs text-slate-400 italic py-2">{t.dashboard.noLogsThisDay}</p>
                       ) : (
                         <div className="relative pl-5 sm:pl-6 space-y-3 before:absolute before:left-2.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-800/80">
                           {group.activities.map((item) => {
@@ -583,7 +576,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
 
                                     {/* Caretaker Name & Timestamp Line */}
                                     <div className="flex items-center gap-1.5 sm:gap-2 text-xs text-slate-400 pt-0.5 min-w-0">
-                                      <span className="font-medium text-slate-300 shrink-0 whitespace-nowrap">{formatTime(item.timestamp)}</span>
+                                      <span className="font-medium text-slate-300 shrink-0 whitespace-nowrap">{formatLocalTime(new Date(item.timestamp), tz)}</span>
                                       <span className="text-slate-600 shrink-0">&bull;</span>
                                       <span
                                         className="inline-flex items-center gap-1 font-bold px-2 py-0.5 rounded-full bg-slate-950 border border-slate-800 text-[11px] max-w-[130px] sm:max-w-[220px] min-w-0"

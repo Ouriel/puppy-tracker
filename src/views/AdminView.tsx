@@ -321,14 +321,14 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail, caretake
         <Card.Header>
           <Card.Title className="flex items-center justify-between text-amber-300">
             <span>{t.admin.pendingActivations.replace('{count}', String(pendingUsers.length))}</span>
-            <span className="text-[10px] text-slate-500 font-mono font-normal">
+            <span className="text-[10px] text-slate-400 font-mono font-normal">
               {t.admin.requiresApprovalAndHousehold}
             </span>
           </Card.Title>
         </Card.Header>
         <Card.Content>
           {pendingUsers.length === 0 ? (
-            <p className="text-xs text-slate-500 bg-slate-950/40 p-4 rounded-xl border border-slate-800 text-center">
+            <p className="text-xs text-slate-400 bg-slate-950/40 p-4 rounded-xl border border-slate-800 text-center">
               {t.admin.noPendingActivations}
             </p>
           ) : (

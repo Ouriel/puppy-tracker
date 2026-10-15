@@ -158,12 +158,13 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
               <form id="quicklog-form" onSubmit={handleSubmit} noValidate className="space-y-5">
                 {/* Activity Type Segmented Selector */}
                 <div>
-                  <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2.5">
+                  <label id="quicklog-type-label" className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2.5">
                     {t.potty.activityType}
                   </label>
                   <div 
                     className="flex flex-wrap sm:grid sm:grid-cols-5 gap-2" 
                     role="radiogroup"
+                    aria-labelledby="quicklog-type-label"
                     onKeyDown={(event) => {
                       if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
                         event.preventDefault();
@@ -211,12 +212,13 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
                 {(type === 'pee' || type === 'poop') && (
                   <div className="space-y-4 pt-1">
                     <div>
-                      <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">
+                      <label id="quicklog-location-label" className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">
                         {t.potty.location}
                       </label>
                       <div 
                         className="grid grid-cols-2 gap-3" 
                         role="radiogroup"
+                        aria-labelledby="quicklog-location-label"
                         onKeyDown={(event) => {
                           if (event.key === 'ArrowRight' || event.key === 'ArrowDown' || event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
                             event.preventDefault();
@@ -264,12 +266,13 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
                     {/* Stool Consistency Segmented Pills (Poop only: Hard, Normal, Diarrhea) */}
                     {type === 'poop' && (
                       <div>
-                        <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">
+                        <label id="quicklog-stool-label" className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">
                           {t.potty.stoolConsistency}
                         </label>
                         <div 
                           className="grid grid-cols-3 gap-2" 
                           role="radiogroup"
+                          aria-labelledby="quicklog-stool-label"
                           onKeyDown={(event) => {
                             const options: StoolConsistency[] = ['hard', 'normal', 'diarrhea'];
                             const idx = options.indexOf(stoolConsistency);

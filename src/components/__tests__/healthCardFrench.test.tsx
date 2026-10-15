@@ -237,3 +237,54 @@ describe('status chips on the dark cards (accessibility)', () => {
     expect(chipClasses(`✅ ${fr.health.statusFulfilled}`)).toContain('text-emerald-300');
   });
 });
+
+describe('health card leftovers, in French', () => {
+  const setDate = async (input: HTMLInputElement, value: string) => {
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!;
+    await act(async () => {
+      setter.call(input, value);
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+  };
+  const suggestionButtons = (container: HTMLElement) =>
+    [...container.querySelectorAll('button')].map((button) => button.textContent!.trim()).filter((text) => text.startsWith('Suggéré'));
+
+  it('the growth card names the WALTHAM category and milestones (8s, not 8w) in French, and weigh-in dates read "Hier 18:00", "1 oct. 10:00"', async () => {
+    const weighIns: Activity[] = [
+      { id: 'act-w1', puppyId: puppy.id, type: 'weight', timestamp: '2026-10-01T08:00:00.000Z', weightKg: 10, loggedBy: 'Owner' },
+      { id: 'act-w2', puppyId: puppy.id, type: 'weight', timestamp: '2026-10-14T16:00:00.000Z', weightKg: 10.4, loggedBy: 'Owner' },
+    ];
+    const container = await render(
+      <CarnetDeSanteView activePuppy={puppy} weightActivities={weighIns} healthRecords={[]} setHealthRecords={vi.fn()} isDashboardDown={false} currentUser="Owner" onAddActivity={vi.fn()} onUpdateActivity={vi.fn()} />
+    );
+
+    expect(container.textContent).toMatch(/Catégorie WALTHAM™ [IV]+/);
+    expect(container.textContent).not.toContain('WALTHAM™ Category');
+    expect(container.textContent).toContain('Hier 18:00');
+    expect(container.textContent).toContain('1 oct. 10:00');
+    expect(container.textContent).not.toMatch(/Yesterday|Oct 1/);
+    const leafTexts = [...container.querySelectorAll('*')].filter((element) => element.children.length === 0).map((element) => element.textContent);
+    expect(leafTexts).toEqual(expect.arrayContaining(['8s', '12s', '16s', '6m', '12m']));
+    expect(leafTexts).not.toContain('8w');
+  });
+
+  it('the edit forms offer "Suggéré : 10 juil. 2027" and "Suggéré : 21 oct.", never an ISO date', async () => {
+    const container = await renderPassport([
+      record({ id: 'hr-rage', type: 'vaccination', name: rage, date: '2026-07-01', boosterDate: '2027-07-01' }),
+      record({ id: 'hr-dose', type: 'deworming', name: 'Credelio Plus', productName: 'Credelio Plus', date: '2026-09-20', boosterDate: '2026-10-20' }),
+    ]);
+    await act(async () => container.querySelector<HTMLButtonElement>(`[aria-label="${fr.health.editVaccineEntry}"]`)!.click());
+    await setDate(container.querySelector<HTMLInputElement>('input[type="date"][value="2026-07-01"]')!, '2026-07-10');
+    await act(async () => container.querySelector<HTMLButtonElement>(`[aria-label="${fr.health.editDewormingEntry}"]`)!.click());
+    await setDate(container.querySelector<HTMLInputElement>('input[type="date"][value="2026-09-20"]')!, '2026-09-21');
+
+    expect(suggestionButtons(container)).toEqual(['Suggéré : 10 juil. 2027', 'Suggéré : 21 oct.']);
+  });
+
+  it('the dashboard card\'s breed chip is light enough to read on the dark card', async () => {
+    const container = await renderCard([]);
+    const breedChip = [...container.querySelectorAll('.chip')].find((chip) => chip.textContent === 'Beagle')!;
+
+    expect(breedChip.className.split(/\s+/)).toContain('text-blue-300');
+  });
+});

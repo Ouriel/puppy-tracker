@@ -7,17 +7,16 @@ export interface DayFoodPill {
 /**
  * Food pill of one timeline day. Only today is compared to the profile's goal: past goals are not stored
  * (e.g. 250 g / 3 meals until ~6 months, then 200 g / 2), so past days show plain totals in a neutral style.
- * `mealsCountTemplate` is `t.dashboard.mealsCount` ('{count} meal(s)').
+ * `mealsCountText` is the day's meal count in words ('3 meals').
  */
 export function getDayFoodPill(
   day: { isToday: boolean; totalFoodGrams: number; mealsCount: number; dailyGoalGrams: number; targetMealsCount: number },
-  mealsCountTemplate: string
+  mealsCountText: string
 ): DayFoodPill {
   // No gram goal (0): the day's target is its meal count, and no goal in grams is shown.
   // Its meals may have no grams (stored as null): no grams eaten shows no '0g'.
   const hasGramGoal = day.dailyGoalGrams > 0;
   const showsGrams = hasGramGoal || day.totalFoodGrams > 0;
-  const mealsCountText = mealsCountTemplate.replace('{count}', String(day.mealsCount));
   if (!day.isToday) {
     return { text: showsGrams ? `${day.totalFoodGrams}g · ${mealsCountText}` : mealsCountText, tone: 'neutral' };
   }
