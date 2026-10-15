@@ -2,6 +2,7 @@
 import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from 'vitest';
 import { act, type ReactElement } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
+import { toast } from '@heroui/react';
 import type { Caretaker, UserAccount } from '../../types';
 import { SUPER_ADMIN_EMAIL } from '../../utils/auth';
 import { CaretakerInputSchema } from '../../utils/schemas';
@@ -77,6 +78,7 @@ async function setValue(element: HTMLInputElement | HTMLSelectElement, value: st
 
 const owner: UserAccount = { id: 'usr-owner', email: SUPER_ADMIN_EMAIL, name: 'Owner Fullname', role: 'SuperAdmin' };
 const member: UserAccount = { id: 'usr-member', email: 'member@example.com', name: 'Member Person', role: 'Member' };
+const familyAdmin: UserAccount = { id: 'usr-admin', email: 'admin@example.com', name: 'Family Admin', role: 'Admin' };
 const badges: Caretaker[] = [
   { id: 'c-owner', name: 'Matthieu', role: 'Member', color: '#EC4899', email: SUPER_ADMIN_EMAIL },
   { id: 'c-daria', name: 'Daria', role: 'Member', color: '#10B981', email: 'daria@example.com' },
@@ -148,9 +150,35 @@ describe('Members tab invite (19, 20, 42)', () => {
     expect(onAddCaretaker).not.toHaveBeenCalled();
   });
 
-  it('shows the pre-approve button only to the owner (the server refuses members)', async () => {
+  it('shows the pre-approve button to an Admin, not to a member (the server refuses members)', async () => {
     await renderMembers(member);
     expect(buttons('Pre-Approve Member Email')).toHaveLength(0);
+    await act(async () => root?.unmount());
+
+    await renderMembers(familyAdmin);
+    expect(buttons('Pre-Approve Member Email')).toHaveLength(1);
+  });
+
+  // Backlog 12: the first member of a new family is its Admin and invites the rest of it.
+  it("an Admin's invite creates the same linked badge as the owner's", async () => {
+    const { onAddCaretaker } = await renderMembers(familyAdmin);
+    await inviteFromMembersTab('jane.doe@example.com');
+
+    expect(apiMock.createUser.mock.calls[0][0]).toEqual({ email: 'jane.doe@example.com', role: 'Member', status: 'ACTIVE' });
+    expect(onAddCaretaker).toHaveBeenCalledWith(expect.objectContaining({ name: 'Jane', email: 'jane.doe@example.com' }));
+  });
+
+  it('tells an Admin to ask the owner for someone who already has an account elsewhere: no move question, no badge', async () => {
+    const danger = vi.spyOn(toast, 'danger').mockImplementation(() => '');
+    apiMock.createUser.mockResolvedValueOnce({ ok: false, status: 409, error: 'exists' });
+    const { onAddCaretaker } = await renderMembers(familyAdmin);
+    await inviteFromMembersTab('jane.doe@example.com');
+
+    expect(danger).toHaveBeenCalledWith('This person already has an account. Ask Matthieu to add them.');
+    expect(document.body.textContent).not.toContain('Add them to your family?');
+    expect(apiMock.createUser).toHaveBeenCalledTimes(1);
+    expect(onAddCaretaker).not.toHaveBeenCalled();
+    danger.mockRestore();
   });
 
   it('opens "Add Member" on the first colour no badge uses', async () => {
@@ -271,8 +299,8 @@ describe('Admin panel (27, 28)', () => {
   const ownerRow = { id: 'usr-owner', email: SUPER_ADMIN_EMAIL, name: 'Owner Fullname', householdId: 'FAMILY-COCKER-2026', role: 'SuperAdmin', status: 'ACTIVE' };
   const activeElsewhere = { id: 'usr-bob', email: 'bob.smith@example.com', name: 'Bob Smith', householdId: 'hh-other', role: 'Member', status: 'ACTIVE' };
 
-  async function renderAdmin() {
-    apiMock.fetchUsers.mockResolvedValue({ ok: true, data: [ownerRow, pendingStranger, activeElsewhere] });
+  async function renderAdmin(users = [ownerRow, pendingStranger, activeElsewhere]) {
+    apiMock.fetchUsers.mockResolvedValue({ ok: true, data: users });
     apiMock.fetchAllHouseholds.mockResolvedValue({
       ok: true,
       data: [
@@ -295,6 +323,25 @@ describe('Admin panel (27, 28)', () => {
     await click(buttons('Approve & Assign')[0]);
     expect(apiMock.updateUser).toHaveBeenCalledWith({ email: 'jane.doe@example.com', status: 'ACTIVE', householdId: 'house-stranger' });
     expect(onAddCaretaker).not.toHaveBeenCalled();
+  });
+
+  it('shows the role the approval gave: a sign-up approved alone in its household is its Admin', async () => {
+    apiMock.updateUser.mockResolvedValueOnce({ ok: true, data: { ...pendingStranger, status: 'ACTIVE', role: 'Admin' } });
+    await renderAdmin();
+    await click(buttons('Approve & Assign')[0]);
+
+    const janeRow = [...document.querySelectorAll('.font-mono')].find((element) => element.textContent === pendingStranger.email)!.parentElement!;
+    expect(janeRow.textContent).toContain('Admin');
+  });
+
+  // A stale row: a family Admin took the sign-up in since the panel loaded, and the server refuses (409).
+  it('reloads the accounts when an approval is refused, so a stale row shows where the account is now', async () => {
+    apiMock.updateUser.mockResolvedValueOnce({ ok: false, status: 409, error: 'no longer pending' });
+    await renderAdmin();
+    expect(apiMock.fetchUsers).toHaveBeenCalledTimes(1);
+
+    await click(buttons('Approve & Assign')[0]);
+    expect(apiMock.fetchUsers).toHaveBeenCalledTimes(2);
   });
 
   it("joining the owner's family is an explicit choice, confirmed first, and creates the same linked badge as an invite", async () => {
@@ -408,6 +455,17 @@ describe('Admin panel (27, 28)', () => {
       expect(apiMock.updateUser).not.toHaveBeenCalled();
       expect(onAddCaretaker).not.toHaveBeenCalled();
       expect(moveSelect().value).toBe('hh-other');
+    });
+
+    it('shows the role the move gave: an Admin moved into another household is a Member there', async () => {
+      apiMock.updateUser.mockResolvedValueOnce({ ok: true, data: { ...activeElsewhere, householdId: 'hh-third', role: 'Member' } });
+      await renderAdmin([ownerRow, pendingStranger, { ...activeElsewhere, role: 'Admin' }]);
+      await setValue(moveSelect(), 'hh-third');
+      await click(buttons('Move').at(-1)!);
+
+      const bobRow = [...document.querySelectorAll('.font-mono')].find((element) => element.textContent === activeElsewhere.email)!.parentElement!;
+      expect(bobRow.textContent).toContain('Member');
+      expect(bobRow.textContent).not.toContain('Admin');
     });
 
     it('a confirmed move into another household creates no badge', async () => {

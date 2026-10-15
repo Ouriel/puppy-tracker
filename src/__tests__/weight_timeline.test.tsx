@@ -534,7 +534,7 @@ describe('Carnet add and edit forms (pre-fill review items 11, 12, 23, 35-38)', 
 
     await setValue(injected, '2026-07-10');
     expect(booster.value).toBe('2027-07-01');
-    await click(buttonWithText('Suggested: 2027-07-10'));
+    await click(buttonWithText(`Suggested: ${formatShortDate('2027-07-10', 'en')}`));
     expect(booster.value).toBe('2027-07-10');
     expect(editCard.textContent).not.toContain('Suggested');
     await click(buttonWithText(en.potty.saveChanges));
@@ -551,8 +551,8 @@ describe('Carnet add and edit forms (pre-fill review items 11, 12, 23, 35-38)', 
 
     await pickOption(editCard, chppiL4); // Rage -> CHPPi + L4, same day: Rex is 17 weeks old, so the 1st birthday
     expect(booster.value).toBe('2027-07-01');
-    expect(editCard.textContent).toContain('Suggested: 2027-03-01');
-    await click(buttonWithText('Suggested: 2027-03-01'));
+    expect(editCard.textContent).toContain(`Suggested: ${formatShortDate('2027-03-01', 'en')}`);
+    await click(buttonWithText(`Suggested: ${formatShortDate('2027-03-01', 'en')}`));
     expect(booster.value).toBe('2027-03-01');
     await click(buttonWithText(en.potty.saveChanges));
 
@@ -569,8 +569,8 @@ describe('Carnet add and edit forms (pre-fill review items 11, 12, 23, 35-38)', 
 
     await pickOption(editCard, 'Drontal Chiot (Sirop / Comprimés)'); // Rex is over 6 months old that day: every 3 months
     expect(next.value).toBe('2026-09-21');
-    expect(editCard.textContent).toContain('Suggested: 2026-12-21');
-    await click(buttonWithText('Suggested: 2026-12-21'));
+    expect(editCard.textContent).toContain(`Suggested: ${formatShortDate('2026-12-21', 'en')}`);
+    await click(buttonWithText(`Suggested: ${formatShortDate('2026-12-21', 'en')}`));
     expect(next.value).toBe('2026-12-21');
     await click(buttonWithText(en.potty.saveChanges));
 
@@ -603,7 +603,7 @@ describe('Carnet add and edit forms (pre-fill review items 11, 12, 23, 35-38)', 
     const editCard = buttonWithText(en.potty.saveChanges).closest('.space-y-3')!;
 
     await setValue(dateInputs(editCard)[0], '2026-06-21'); // Rex is 16 weeks old that day
-    expect(editCard.textContent).toContain('Suggested: 2027-03-01');
+    expect(editCard.textContent).toContain(`Suggested: ${formatShortDate('2027-03-01', 'en')}`);
   });
 
   it('item 12: a Drontal edit moved to 11 weeks suggests +14 days, from her age on the dose day, applied in one tap', async () => {
@@ -615,7 +615,7 @@ describe('Carnet add and edit forms (pre-fill review items 11, 12, 23, 35-38)', 
     expect(given.value).toBe('2026-05-18');
 
     await setValue(given, '2026-05-17'); // Rex is 11 weeks old that day
-    await click(buttonWithText('Suggested: 2026-05-31'));
+    await click(buttonWithText(`Suggested: ${formatShortDate('2026-05-31', 'en')}`));
 
     expect(next.value).toBe('2026-05-31');
     expect(editCard.textContent).not.toContain('Suggested');

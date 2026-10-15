@@ -63,6 +63,11 @@ export const I18nProvider: React.FC<{ children: React.ReactNode }> = ({ children
   return React.createElement(I18nContext.Provider, { value }, children);
 };
 
+/** '{count} event' or '{count} events', by the language's plural rule: French says "0 pipi", English "0 pees". */
+export function formatCount(forms: { one: string; other: string }, count: number, lang: Language): string {
+  return (new Intl.PluralRules(lang).select(count) === 'one' ? forms.one : forms.other).replace('{count}', String(count));
+}
+
 export function useI18n(): I18nContextType {
   const context = useContext(I18nContext);
   if (!context) {

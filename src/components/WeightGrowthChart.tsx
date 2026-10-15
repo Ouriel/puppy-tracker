@@ -33,7 +33,7 @@ export const WeightGrowthChart: React.FC<WeightGrowthChartProps> = ({
 }) => {
   const [editingWeight, setEditingWeight] = useState<Activity | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
 
   // Every weight event, a vet visit's included: each one is its own entry
   const unifiedLogs = React.useMemo(() => {
@@ -131,17 +131,17 @@ export const WeightGrowthChart: React.FC<WeightGrowthChartProps> = ({
               <Sparkles className="w-3 h-3 text-pink-400" />
               {t.weightChart.benchmarks}
             </span>
-            <span className="text-[10px] text-slate-500 font-medium">
-              WALTHAM™ Category {projectedWeight.walthamCategory}
+            <span className="text-[10px] text-slate-400 font-medium">
+              {t.weightChart.walthamCategory.replace('{category}', projectedWeight.walthamCategory ?? '')}
             </span>
           </div>
 
           <div className="grid grid-cols-5 gap-1.5 text-center">
             {benchmarks.map((b) => (
               <div key={b.label} className="bg-slate-900/90 p-1.5 sm:p-2 rounded-lg border border-slate-800">
-                <div className="text-[10px] font-bold text-slate-400">{b.label}</div>
+                <div className="text-[10px] font-bold text-slate-400">{b.label.endsWith('w') ? t.weightChart.weeksShort.replace('{weeks}', String(b.weeks)) : b.label}</div>
                 <div className="text-xs sm:text-sm font-extrabold text-slate-200 mt-0.5">~{b.expectedKg} kg</div>
-                <div className="text-[9px] text-slate-500 hidden sm:block mt-0.5">{b.minKg}–{b.maxKg}</div>
+                <div className="text-[9px] text-slate-400 hidden sm:block mt-0.5">{b.minKg}–{b.maxKg}</div>
               </div>
             ))}
           </div>
@@ -158,7 +158,7 @@ export const WeightGrowthChart: React.FC<WeightGrowthChartProps> = ({
               {t.weightChart.recentHistory}
             </div>
             {displayLogs.map((log) => {
-              const formattedDate = formatRelativeTime(log.timestamp);
+              const formattedDate = formatRelativeTime(log.timestamp, lang, { today: t.dashboard.today, yesterday: t.dashboard.yesterday });
               const logAgeWeeks = profile.birthDate ? getPuppyAge(profile.birthDate, log.timestamp).weeks : null;
               const isVetRecord = isVetVisitWeight(log);
 

@@ -110,6 +110,29 @@ describe('screen readers hear the app language (French)', () => {
   });
 });
 
+// Backlog item 27
+describe('choice groups, small text and pulsing chips (French)', () => {
+  it('log form: VoiceOver names each choice group by its label (type, place, stool)', async () => {
+    await render(<QuickLogModal isOpen initialType="poop" onClose={vi.fn()} onSave={vi.fn()} currentUser="Tester" />, 'fr');
+    const groupNames = [...document.querySelectorAll('[role="radiogroup"]')]
+      .map((group) => document.getElementById(group.getAttribute('aria-labelledby') ?? '')?.textContent?.trim());
+    expect(groupNames).toEqual(["Type d'Activité", 'Lieu', 'Consistance des Selles']);
+  });
+
+  it('activity feed: the accident chip pulses only when motion is allowed, and the empty-feed hint is light enough to read', async () => {
+    const accident = log('pee', new Date(now.getTime() - 10 * 60 * 1000).toISOString(), { pottyLocation: 'indoor_accident' });
+    await render(<ActivityTimeline activities={[accident]} caretakers={[]} activePuppy={BALMA} onDeleteActivity={vi.fn()} referenceTime={now} />, 'fr');
+    const accidentChipClasses = document.querySelector('[title="1 accident"]')!.className.split(/\s+/);
+    expect(accidentChipClasses).toContain('motion-safe:animate-pulse');
+    expect(accidentChipClasses).not.toContain('animate-pulse');
+
+    await act(async () => root!.unmount());
+    await render(<ActivityTimeline activities={[]} caretakers={[]} activePuppy={BALMA} onDeleteActivity={vi.fn()} referenceTime={now} />, 'fr');
+    const hint = [...document.querySelectorAll('p')].find((paragraph) => paragraph.textContent === 'Cliquez sur "+ Nouveau Log" pour enregistrer une activité.')!;
+    expect(hint.classList).toContain('text-slate-400');
+  });
+});
+
 describe('English plurals: 1 meal, N meals', () => {
   const renderMealCard = (targetMealsPerDay: number) => {
     const profile = { ...BALMA, dailyFoodGramGoal: 0, targetMealsPerDay };

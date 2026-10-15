@@ -79,7 +79,7 @@ const DogGenderAndWeightFields: React.FC<{
             value={expectedWeightKg ?? ''}
             onChange={(event) => onChange({ expectedAdultWeightKg: event.target.valueAsNumber || undefined })}
           />
-          <p className="text-[10px] text-slate-500 mt-1">{t.puppies.expectedWeightHint}</p>
+          <p className="text-[10px] text-slate-400 mt-1">{t.puppies.expectedWeightHint}</p>
         </div>
       )}
     </>
@@ -503,7 +503,7 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
                     <div className="flex items-center gap-2">
                       <Utensils className="w-4 h-4 text-purple-400 shrink-0" />
                       <div>
-                        <div className="text-[10px] text-slate-500 font-semibold">
+                        <div className="text-[10px] text-slate-400 font-semibold">
                           {pup.dailyFoodGramGoal > 0 ? t.puppies.foodGramGoal : t.puppies.mealsPerDay}
                         </div>
                         <div className="font-bold text-slate-200">
@@ -517,7 +517,7 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
                     <div className="flex items-center gap-2">
                       <Calendar className="w-4 h-4 text-indigo-400 shrink-0" />
                       <div>
-                        <div className="text-[10px] text-slate-500 font-semibold">{t.puppies.birthDate}</div>
+                        <div className="text-[10px] text-slate-400 font-semibold">{t.puppies.birthDate}</div>
                         <div className="font-bold text-slate-200">{pup.birthDate || t.puppies.unknownDate}</div>
                       </div>
                     </div>
