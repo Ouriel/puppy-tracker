@@ -88,6 +88,20 @@ describe('Veterinary Breed Catalog & Resolution Tests', () => {
     // Unrecognized breed without custom weight falls back to 13 kg
     // ('Unknown ...' names would hit the catalog's own 'unknown' entry, so use a name nothing matches)
     expect(findBreed('Xyzzy')).toBeUndefined();
+  });
+
+  it('matches an alias only as a whole word: a custom "Labradoodle" is not a Labrador', () => {
+    expect(findBreed('Labradoodle')).toBeUndefined();
+    expect(formatBreedName('Labradoodle', 'fr')).toBe('Labradoodle');
+    expect(findBreed('Cockapoo')).toBeUndefined();
+    // Whole-word aliases still match, inside a longer name too
+    expect(findBreed('lab')?.id).toBe('labrador-retriever');
+    expect(findBreed('Black lab')?.id).toBe('labrador-retriever');
+    expect(findBreed('pug')?.id).toBeDefined();
+    // Nothing to match: blank or punctuation-only text is no breed (it used to give Australian Shepherd / Newfoundland)
+    expect(findBreed('   ')).toBeUndefined();
+    expect(findBreed('-')).toBeUndefined();
+    expect(findBreed('. ')).toBeUndefined();
     const unknownFallback = getExpectedAdultWeight('Xyzzy', undefined, undefined);
     expect(unknownFallback).toBe(13);
   });
