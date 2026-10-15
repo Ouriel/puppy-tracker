@@ -21,7 +21,6 @@ const dbMock = vi.hoisted(() => ({
 
 vi.mock('@neondatabase/serverless', () => ({
   neon: vi.fn(() => vi.fn()),
-  neonConfig: { fetchConnectionCache: false },
 }));
 
 vi.mock('drizzle-orm/neon-http', async () => {

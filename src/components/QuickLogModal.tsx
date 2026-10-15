@@ -136,7 +136,7 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
                 type="button"
                 onClick={onClose}
                 className="p-2 text-slate-400 hover:text-white rounded-xl hover:bg-slate-800 transition-colors"
-                aria-label="Close"
+                aria-label={t.potty.close}
               >
                 <X className="w-5 h-5" />
               </button>

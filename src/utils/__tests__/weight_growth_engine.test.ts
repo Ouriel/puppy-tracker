@@ -52,7 +52,6 @@ describe('Canine Weight Prediction & WALTHAM Growth Engine', () => {
         balmaProfile.breed,
         unified,
         balmaBirthDate,
-        balmaProfile.weightKg,
         balmaProfile.gender
       );
 
@@ -101,14 +100,14 @@ describe('Canine Weight Prediction & WALTHAM Growth Engine', () => {
         ['2026-05-01', 3], ['2026-05-15', 4], ['2026-06-01', 5], ['2026-06-15', 6], ['2026-07-01', 7], ['2026-07-15', 8],
       ].map(([date, weightKg]) => ({ id: `w-${date}`, puppyId: 'pup-balma', type: 'weight', timestamp: `${date}T00:00:00.000Z`, weightKg: Number(weightKg), loggedBy: 'Matthieu' }));
 
-      const result = calculateProjectedAdultWeightRange('English Cocker Spaniel', sixWeighIns, '2026-03-27T00:00:00.000Z', 7.8, 'female');
+      const result = calculateProjectedAdultWeightRange('English Cocker Spaniel', sixWeighIns, '2026-03-27T00:00:00.000Z', 'female');
 
       expect(result.isTrajectoryBased).toBe(true);
       expect(result.projectedAdultKg).toBe(14.9);
     });
 
     it('without weigh-ins, projects the breed baseline with a -12% / +15% range', () => {
-      expect(calculateProjectedAdultWeightRange('English Cocker Spaniel', [], 20, undefined, 'female')).toMatchObject({
+      expect(calculateProjectedAdultWeightRange('English Cocker Spaniel', [], 20, 'female')).toMatchObject({
         projectedAdultKg: 13,
         minAdultKg: 11.4,
         maxAdultKg: 15,
@@ -195,6 +194,19 @@ describe('Canine Weight Prediction & WALTHAM Growth Engine', () => {
       } finally {
         vi.useRealTimers();
       }
+    });
+  });
+
+  describe('a new dog before its first weigh-in: the profile weight is made up (4.5 kg by default), never used', () => {
+    const newChihuahua: PuppyProfile = { ...balmaProfile, breed: 'Chihuahua', birthDate: '2026-06-18', weightKg: 4.5 };
+
+    it('the current weight is the breed curve at its age, and there is no last weigh-in', () => {
+      // 12 weeks old: WALTHAM category I is at 50 % of the 2.5 kg female baseline
+      expect(getEffectivePuppyWeight(newChihuahua, [], '2026-09-10T10:00:00.000Z')).toMatchObject({
+        lastLoggedWeight: undefined,
+        estimatedCurrentWeight: 1.25,
+        isEstimated: true,
+      });
     });
   });
 

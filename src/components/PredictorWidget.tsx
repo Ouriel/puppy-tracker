@@ -76,6 +76,23 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = React.memo(({
     return <StatusBadge status={urgency} />;
   };
 
+  // "1 hour 30 minutes" / "1 heure 30 minutes", for screen readers
+  const formatSpokenDuration = (totalMinutes: number) => {
+    const locale = lang === 'fr' ? 'fr-FR' : 'en-US';
+    const formatUnit = (value: number, unit: 'hour' | 'minute') => new Intl.NumberFormat(locale, { style: 'unit', unit, unitDisplay: 'long' }).format(value);
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+    return [hours > 0 ? formatUnit(hours, 'hour') : '', minutes > 0 || hours === 0 ? formatUnit(minutes, 'minute') : ''].filter(Boolean).join(' ');
+  };
+
+  // The short visual text ("~1h 30m") is hidden from screen readers, which read the spoken sentence instead
+  const renderCountdown = (visualText: string, spokenTemplate: string, totalMinutes: number) => (
+    <>
+      <span aria-hidden="true">{visualText}</span>
+      <span className="sr-only">{spokenTemplate.replace('{time}', formatSpokenDuration(totalMinutes))}</span>
+    </>
+  );
+
   const formatCountdown = (dateObj: Date | null) => {
     if (!dateObj) return 'N/A';
     const diffMins = Math.round((dateObj.getTime() - now.getTime()) / 60000);
@@ -85,16 +102,16 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = React.memo(({
       const formattedOverdue = overdueMins < 60
         ? `${overdueMins}m`
         : `${Math.floor(overdueMins / 60)}h ${overdueMins % 60 > 0 ? (overdueMins % 60) + 'm' : ''}`.trim();
-      return <span aria-label={`Overdue by ${formattedOverdue}`}>{`${t.dashboard.overduePrefix}${formattedOverdue}`}</span>;
+      return renderCountdown(`${t.dashboard.overduePrefix}${formattedOverdue}`, t.dashboard.overdueBy, overdueMins);
     }
 
     if (diffMins === 0) return t.dashboard.dueNowCount;
 
-    if (diffMins < 60) return <span aria-label={`Due in ${diffMins} minutes`}>~{diffMins}m</span>;
+    if (diffMins < 60) return renderCountdown(`~${diffMins}m`, t.dashboard.dueIn, diffMins);
     const hours = Math.floor(diffMins / 60);
     const remMins = diffMins % 60;
     const timeStr = remMins > 0 ? `${hours}h ${remMins}m` : `${hours}h`;
-    return <span aria-label={`Due in ${hours} hours and ${remMins} minutes`}>~{timeStr}</span>;
+    return renderCountdown(`~${timeStr}`, t.dashboard.dueIn, diffMins);
   };
 
   return (
@@ -316,7 +333,7 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = React.memo(({
                 <span className="font-bold text-purple-300">
                   {dailyGoal > 0
                     ? `${todayFoodLoggedGrams}g / ${dailyGoal}g (${todayMealsCount}/${targetMeals})`
-                    : `${todayMealsCount}/${targetMeals} ${t.puppies.meals}`}
+                    : `${todayMealsCount}/${targetMeals} ${targetMeals === 1 ? t.puppies.meal : t.puppies.meals}`}
                 </span>
               </div>
               <div className="flex justify-between font-medium">

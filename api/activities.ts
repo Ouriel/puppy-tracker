@@ -1,14 +1,12 @@
 import { randomUUID } from 'crypto';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { neon, neonConfig } from '@neondatabase/serverless';
+import { neon } from '@neondatabase/serverless';
 import { drizzle } from 'drizzle-orm/neon-http';
 import { eq, and, desc, gte } from 'drizzle-orm';
 import { activitiesTable, caretakersTable, puppiesTable } from '../src/db/schema.js';
 import { getCurrentCaretakerName } from '../src/utils/caretakers.js';
 import { ActivityInputSchema, parseDeleteId } from '../src/utils/schemas.js';
-import { verifyAuth, setCorsHeaders } from './_auth.js';
-
-neonConfig.fetchConnectionCache = true;
+import { verifyAuth, sendAuthError, setCorsHeaders } from './_auth.js';
 
 const connectionString = process.env.POSTGRES_URL || process.env.DATABASE_URL || '';
 const sql = neon(connectionString);
@@ -22,10 +20,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   let auth;
   try {
     auth = await verifyAuth(req);
-  } catch (err: unknown) {
-    const status = (err && typeof err === 'object' && 'status' in err) ? (err as { status: number }).status : 500;
-    const message = (err && typeof err === 'object' && 'message' in err) ? (err as { message: string }).message : 'Internal server error';
-    return res.status(status).json({ error: message });
+  } catch (error: unknown) {
+    return sendAuthError(res, error);
   }
 
   const householdId = auth.householdId;

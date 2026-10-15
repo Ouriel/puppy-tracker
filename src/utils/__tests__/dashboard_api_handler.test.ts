@@ -8,7 +8,6 @@ import { calculatePredictions } from '../predictions';
 // Mock Neon & Drizzle DB queries so handler tests run hermetically without external network
 vi.mock('@neondatabase/serverless', () => ({
   neon: vi.fn(() => vi.fn()),
-  neonConfig: { fetchConnectionCache: false },
 }));
 
 const mockPuppies = [

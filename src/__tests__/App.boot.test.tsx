@@ -72,11 +72,15 @@ function dashboardPayload(activities: Activity[] = [recentPee()]) {
   return { puppies: [puppy], caretakers: [], activities, healthRecords: [] };
 }
 
-/** Lets pending responses, lazy chunks and React updates finish. */
+// Captured before the fake timers: lazy chunks need real time to load
+const realSetTimeout = globalThis.setTimeout;
+
+/** Lets pending responses, lazy chunks and React updates finish. Of the app's timers, only those due now (0 ms) run. */
 async function settle() {
   for (let round = 0; round < 10; round += 1) {
     await act(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 0));
+      await new Promise((resolve) => realSetTimeout(resolve, 0));
+      vi.advanceTimersByTime(0);
     });
   }
 }
@@ -128,6 +132,9 @@ beforeAll(() => {
 });
 
 beforeEach(() => {
+  // App timers fire only when a test moves the fake clock. On a real clock, the session extension sent
+  // 3 s after boot (never cleared on unmount) lands in whichever test runs then, on a slow machine.
+  vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval'] });
   window.history.pushState({}, '', '/');
   requestedUrls = [];
   heldResponses = [];
@@ -142,7 +149,7 @@ afterEach(async () => {
   root = null;
   document.body.innerHTML = '';
   heldResponses.forEach((answer) => answer());
-  await new Promise((resolve) => setTimeout(resolve, 0));
+  await new Promise((resolve) => realSetTimeout(resolve, 0));
   vi.useRealTimers();
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
@@ -480,7 +487,7 @@ describe('App log state', () => {
   });
 
   it('14: a meal dated later today counts neither in today\'s grams nor in today\'s meals', async () => {
-    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.useFakeTimers({ toFake: ['Date', 'setTimeout', 'clearTimeout', 'setInterval', 'clearInterval'] });
     vi.setSystemTime(new Date('2026-10-14T08:00:00.000Z'));
     signedInWithCachedDogOnly();
     const laterMeal: Activity = { id: 'act-meal', puppyId: puppy.id, type: 'food', timestamp: '2026-10-14T12:00:00.000Z', loggedBy: 'Owner', quantityGrams: 150 };

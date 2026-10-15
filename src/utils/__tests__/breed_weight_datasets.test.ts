@@ -13,7 +13,7 @@ describe('Multi-Breed Weight Trajectory & Custom Weight Dataset Tests', () => {
       { timestamp: '2026-04-01T00:00:00.000Z', weightKg: 1.8 },
       { timestamp: '2026-05-01T00:00:00.000Z', weightKg: 2.3 },
     ];
-    const result = calculateProjectedAdultWeightRange('Chihuahua', logs, birthDate, 2.3, 'female');
+    const result = calculateProjectedAdultWeightRange('Chihuahua', logs, birthDate, 'female');
     expect(result.isTrajectoryBased).toBe(true);
     expect(result.walthamCategory).toBe('I');
     expect(result.projectedAdultKg).toBeCloseTo(3.2);
@@ -26,7 +26,7 @@ describe('Multi-Breed Weight Trajectory & Custom Weight Dataset Tests', () => {
       { timestamp: '2026-04-01T00:00:00.000Z', weightKg: 3.8 },
       { timestamp: '2026-05-01T00:00:00.000Z', weightKg: 5.1 },
     ];
-    const result = calculateProjectedAdultWeightRange('Jack Russell Terrier', logs, birthDate, 5.1, 'female');
+    const result = calculateProjectedAdultWeightRange('Jack Russell Terrier', logs, birthDate, 'female');
     expect(result.isTrajectoryBased).toBe(true);
     expect(result.walthamCategory).toBe('II');
     expect(result.projectedAdultKg).toBeCloseTo(7.2);
@@ -41,7 +41,7 @@ describe('Multi-Breed Weight Trajectory & Custom Weight Dataset Tests', () => {
       { timestamp: '2026-08-25T00:00:00.000Z', weightKg: 9.5 },
     ];
     // Female Cocker
-    const femaleRes = calculateProjectedAdultWeightRange('English Cocker Spaniel', logs, birthDate, 9.5, 'female');
+    const femaleRes = calculateProjectedAdultWeightRange('English Cocker Spaniel', logs, birthDate, 'female');
     expect(femaleRes.isTrajectoryBased).toBe(true);
     expect(femaleRes.walthamCategory).toBe('III');
     expect(femaleRes.projectedAdultKg).toBeCloseTo(14.0);
@@ -55,7 +55,7 @@ describe('Multi-Breed Weight Trajectory & Custom Weight Dataset Tests', () => {
       { timestamp: '2026-05-01T00:00:00.000Z', weightKg: 13.8 },
       { timestamp: '2026-06-01T00:00:00.000Z', weightKg: 17.5 },
     ];
-    const result = calculateProjectedAdultWeightRange('Australian Shepherd', logs, birthDate, 17.5, 'male');
+    const result = calculateProjectedAdultWeightRange('Australian Shepherd', logs, birthDate, 'male');
     expect(result.isTrajectoryBased).toBe(true);
     expect(result.walthamCategory).toBe('IV');
     expect(result.projectedAdultKg).toBeCloseTo(28.0);
@@ -69,7 +69,7 @@ describe('Multi-Breed Weight Trajectory & Custom Weight Dataset Tests', () => {
       { timestamp: '2026-05-01T00:00:00.000Z', weightKg: 17.5 },
       { timestamp: '2026-06-01T00:00:00.000Z', weightKg: 22.0 },
     ];
-    const result = calculateProjectedAdultWeightRange('Golden Retriever', logs, birthDate, 22.0, 'male');
+    const result = calculateProjectedAdultWeightRange('Golden Retriever', logs, birthDate, 'male');
     expect(result.isTrajectoryBased).toBe(true);
     expect(result.walthamCategory).toBe('V');
     expect(result.projectedAdultKg).toBeCloseTo(38.5);
@@ -90,7 +90,6 @@ describe('Multi-Breed Weight Trajectory & Custom Weight Dataset Tests', () => {
       'Mixed Breed',
       logs,
       birthDate,
-      15.5,
       undefined,
       customWeightKg
     );

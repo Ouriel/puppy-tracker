@@ -25,3 +25,6 @@ dist-ssr
 .vercel
 .env*
 .codegraph/
+
+# Local test reports
+.vitest/

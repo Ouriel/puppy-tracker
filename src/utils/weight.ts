@@ -171,7 +171,6 @@ export function calculateProjectedAdultWeightRange(
   breed: string,
   weightLogs: Array<Activity | UnifiedWeightEntry | { timestamp: string; weightKg: number }>,
   ageWeeksOrBirthDate?: number | string,
-  fallbackProfileWeight?: number,
   gender?: 'male' | 'female' | null,
   customExpectedWeight?: number | null
 ): WeightProjectionResult {
@@ -183,10 +182,9 @@ export function calculateProjectedAdultWeightRange(
       Boolean(log && typeof log.weightKg === 'number' && log.weightKg > 0)
   );
 
+  // Before the first weigh-in: the breed baseline. Never the profile weight, a new dog's is a made-up 4.5 kg.
   if (validLogs.length === 0) {
-    const adultTarget = (fallbackProfileWeight && fallbackProfileWeight > 0 && fallbackProfileWeight >= breedBaselineKg * 0.7)
-      ? fallbackProfileWeight
-      : breedBaselineKg;
+    const adultTarget = breedBaselineKg;
     const minAdultKg = Math.round(adultTarget * 0.88 * 10) / 10;
     const maxAdultKg = Math.round(adultTarget * 1.15 * 10) / 10;
     return {
@@ -303,19 +301,22 @@ export function getEffectivePuppyWeight(
   activities: Activity[] = [],
   targetDateISO: string = new Date().toISOString()
 ): EffectiveWeightInfo {
-  const fallbackWeight = profile?.weightKg || 4.2;
   const birthDate = profile?.birthDate || '2025-01-01';
   const ageWeeks = getPuppyAge(birthDate, targetDateISO).weeks;
+  const breed = profile?.breed || 'English Cocker Spaniel';
+  const adultBaseline = getExpectedAdultWeight(breed, profile?.gender, profile?.expectedAdultWeightKg);
 
   const unifiedEntries = getUnifiedWeightEntries(activities);
 
+  // Before the first weigh-in: the breed curve at this age. Never the profile weight, a new dog's is a made-up 4.5 kg.
   if (unifiedEntries.length === 0) {
+    const breedCurveKg = adultBaseline * getWalthamGrowthFraction(getWalthamCategory(adultBaseline), ageWeeks);
     return {
-      lastLoggedWeight: fallbackWeight,
+      lastLoggedWeight: undefined,
       lastLoggedTimestamp: undefined,
-      estimatedCurrentWeight: fallbackWeight,
+      estimatedCurrentWeight: Number(breedCurveKg.toFixed(2)),
       daysSinceLastLog: 0,
-      isEstimated: false,
+      isEstimated: true,
       dailyGainGrams: 0,
     };
   }
@@ -329,8 +330,6 @@ export function getEffectivePuppyWeight(
     (new Date(targetDateISO).getTime() - new Date(lastLoggedTimestamp).getTime()) / (1000 * 3600 * 24)
   );
 
-  const breed = profile?.breed || 'English Cocker Spaniel';
-  const adultBaseline = getExpectedAdultWeight(breed, profile?.gender, profile?.expectedAdultWeightKg);
   const dailyGainGrams = getWalthamGrowthVelocity(adultBaseline, ageWeeks);
 
   if (daysSinceLastLog <= 0.5) {

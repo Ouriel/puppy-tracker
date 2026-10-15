@@ -51,11 +51,10 @@ export const WeightGrowthChart: React.FC<WeightGrowthChartProps> = ({
       profile.breed,
       unifiedLogs,
       profile.birthDate,
-      profile.weightKg,
       profile.gender,
       profile.expectedAdultWeightKg
     );
-  }, [profile.breed, unifiedLogs, profile.birthDate, profile.weightKg, profile.gender, profile.expectedAdultWeightKg]);
+  }, [profile.breed, unifiedLogs, profile.birthDate, profile.gender, profile.expectedAdultWeightKg]);
 
   // Centralized effective puppy weight from WALTHAM growth velocity curve
   const effectiveWeight = React.useMemo(() => {
@@ -97,7 +96,7 @@ export const WeightGrowthChart: React.FC<WeightGrowthChartProps> = ({
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
           <div className="bg-slate-950/60 p-3 sm:p-3.5 rounded-xl border border-slate-800 flex flex-col justify-between">
             <div className="text-[11px] text-slate-400 uppercase font-bold tracking-wider">{t.weightChart.lastLogged}</div>
-            <div className="text-lg sm:text-xl font-black text-slate-100 mt-1">{latestWeight} kg</div>
+            <div className="text-lg sm:text-xl font-black text-slate-100 mt-1">{latestWeight !== undefined ? `${latestWeight} kg` : '—'}</div>
           </div>
           <div className="bg-slate-950/60 p-3 sm:p-3.5 rounded-xl border border-slate-800 flex flex-col justify-between">
             <div className="flex items-center justify-between">
@@ -210,7 +209,7 @@ export const WeightGrowthChart: React.FC<WeightGrowthChartProps> = ({
                     <button
                       type="button"
                       onClick={() => setConfirmDeleteId(log.id)}
-                      aria-label="Delete weight entry"
+                      aria-label={t.weightChart.deleteWeightEntry}
                       className="p-2 min-h-[38px] min-w-[38px] flex items-center justify-center text-slate-400 hover:text-red-400 hover:bg-slate-800 rounded-lg border border-slate-800 bg-slate-950 transition-colors shrink-0"
                     >
                       <Trash2 className="w-3.5 h-3.5" />

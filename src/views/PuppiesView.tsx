@@ -127,8 +127,8 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
 
   // A new dog's meals per day follow its age (4 / 3 / 2, as the engine assumes), still editable; a stored dog keeps its own.
   const handleBirthDateChange = (birthDate: string) => {
-    setFormData((prev) => ({
-      ...prev,
+    setFormData((previous) => ({
+      ...previous,
       birthDate,
       ...(isAdding && birthDate ? { targetMealsPerDay: String(getRecommendedMealsPerDay(birthDate)) } : {}),
     }));
@@ -159,6 +159,7 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
   // Not once "No gram goal" is ticked: the box it was about is gone
   const goalError = formData.hasGramGoal ? errorFor('dailyFoodGramGoal') : null;
   const mealsError = errorFor('targetMealsPerDay');
+  const mealsText = (count: number) => `${count} ${count === 1 ? t.puppies.meal : t.puppies.meals}`;
 
   // The add and edit forms show the same fields (only one form is open at a time).
   const formFields = (
@@ -171,7 +172,7 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
           placeholder={t.puppies.namePlaceholder}
           className="bg-slate-950 border-slate-800 text-slate-100"
           value={formData.name}
-          onChange={(event) => setFormData((prev) => ({ ...prev, name: event.target.value }))}
+          onChange={(event) => setFormData((previous) => ({ ...previous, name: event.target.value }))}
           required
           aria-invalid={nameError ? true : undefined}
           aria-describedby={nameError ? 'dog-name-error' : undefined}
@@ -183,7 +184,7 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
         <label className="block text-xs font-semibold text-slate-400 mb-1">{t.puppies.breed}</label>
         <Select
           value={formData.breed || null}
-          onChange={(value) => setFormData((prev) => ({ ...prev, breed: (value as string | null) ?? '' }))}
+          onChange={(value) => setFormData((previous) => ({ ...previous, breed: (value as string | null) ?? '' }))}
           placeholder={t.puppies.chooseBreed}
           aria-label={t.puppies.breed}
           isInvalid={!!breedError}
@@ -210,7 +211,7 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
             type="text"
             placeholder={t.puppies.specifyCustomBreed}
             value={formData.customBreed}
-            onChange={(event) => setFormData((prev) => ({ ...prev, customBreed: event.target.value }))}
+            onChange={(event) => setFormData((previous) => ({ ...previous, customBreed: event.target.value }))}
             className="mt-2 bg-slate-950 border-slate-800 text-slate-100"
           />
         )}
@@ -221,7 +222,7 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
         breed={formData.breed}
         gender={formData.gender}
         expectedWeightKg={formData.expectedAdultWeightKg}
-        onChange={(patch) => setFormData((prev) => ({ ...prev, ...patch }))}
+        onChange={(patch) => setFormData((previous) => ({ ...previous, ...patch }))}
         t={t}
       />
 
@@ -252,7 +253,7 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
             max="2000"
             className="bg-slate-950 border-slate-800 text-slate-100"
             value={formData.dailyFoodGramGoal}
-            onChange={(event) => setFormData((prev) => ({ ...prev, dailyFoodGramGoal: event.target.value }))}
+            onChange={(event) => setFormData((previous) => ({ ...previous, dailyFoodGramGoal: event.target.value }))}
             aria-invalid={goalError ? true : undefined}
             aria-describedby={goalError ? 'dog-food-goal-error' : undefined}
           />
@@ -263,7 +264,7 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
             type="checkbox"
             className="accent-indigo-500"
             checked={!formData.hasGramGoal}
-            onChange={(event) => setFormData((prev) => ({ ...prev, hasGramGoal: !event.target.checked }))}
+            onChange={(event) => setFormData((previous) => ({ ...previous, hasGramGoal: !event.target.checked }))}
           />
           {t.puppies.noGramGoal}
         </label>
@@ -280,7 +281,7 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
           className="bg-slate-950 border-slate-800 text-slate-100"
           inputMode="numeric"
           value={formData.targetMealsPerDay}
-          onChange={(event) => setFormData((prev) => ({ ...prev, targetMealsPerDay: event.target.value }))}
+          onChange={(event) => setFormData((previous) => ({ ...previous, targetMealsPerDay: event.target.value }))}
           aria-invalid={mealsError ? true : undefined}
           aria-describedby={mealsError ? 'dog-meals-per-day-error' : undefined}
         />
@@ -295,7 +296,7 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
           placeholder={t.puppies.notesPlaceholder}
           className="bg-slate-950 border-slate-800 text-slate-100"
           value={formData.notes}
-          onChange={(event) => setFormData((prev) => ({ ...prev, notes: event.target.value }))}
+          onChange={(event) => setFormData((previous) => ({ ...previous, notes: event.target.value }))}
         />
       </div>
     </>
@@ -504,8 +505,8 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
                         </div>
                         <div className="font-bold text-slate-200">
                           {pup.dailyFoodGramGoal > 0
-                            ? `${pup.dailyFoodGramGoal}${t.units.grams} (${pup.targetMealsPerDay || 3} ${t.puppies.meals})`
-                            : `${pup.targetMealsPerDay || 3} ${t.puppies.meals}`}
+                            ? `${pup.dailyFoodGramGoal}${t.units.grams} (${mealsText(pup.targetMealsPerDay || 3)})`
+                            : mealsText(pup.targetMealsPerDay || 3)}
                         </div>
                       </div>
                     </div>

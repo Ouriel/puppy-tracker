@@ -587,7 +587,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
                                     <button
                                       type="button"
                                       onClick={() => setEditingActivity(item)}
-                                      aria-label="Edit activity log"
+                                      aria-label={t.potty.editActivity}
                                       className="p-1.5 sm:p-2 min-h-[36px] min-w-[36px] flex items-center justify-center text-slate-400 hover:text-indigo-300 hover:bg-slate-800 rounded-lg border border-slate-800 bg-slate-950 transition-colors"
                                     >
                                       <Pencil className="w-3.5 h-3.5" />
@@ -597,7 +597,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
                                   <button
                                     type="button"
                                     onClick={() => setConfirmDelete({ id: item.id, type: 'activity' })}
-                                    aria-label="Delete log"
+                                    aria-label={t.potty.deleteActivityTitle}
                                     className="p-1.5 sm:p-2 min-h-[36px] min-w-[36px] flex items-center justify-center text-slate-400 hover:text-red-400 hover:bg-slate-800 rounded-lg border border-slate-800 bg-slate-950 transition-colors"
                                   >
                                     <Trash2 className="w-3.5 h-3.5" />

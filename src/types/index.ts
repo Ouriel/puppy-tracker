@@ -155,7 +155,7 @@ export interface DashboardPayload {
 }
 
 export interface EffectiveWeightInfo {
-  lastLoggedWeight: number;
+  lastLoggedWeight?: number; // undefined before the first weigh-in
   lastLoggedTimestamp?: string;
   estimatedCurrentWeight: number;
   daysSinceLastLog: number;

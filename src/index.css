@@ -1,8 +1,6 @@
 @import "tailwindcss";
 @import "@heroui/styles";
 
-@source "../node_modules/@heroui/theme/dist/components/{button,card,chip,input,modal,select,listbox,toast}/*.{js,ts}";
-
 @layer base {
   body {
     font-family: 'Inter', system-ui, -apple-system, sans-serif;

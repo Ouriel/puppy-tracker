@@ -98,7 +98,7 @@ PupPace — Smart Household Puppy Activity Tracker & Potty Predictor. React 19 +
 | ------------------------------------- | ------------------------------------------------------------------------------------- |
 | `src/types/index.ts`                  | Canonical domain interfaces (`Activity`, `PuppyProfile`, `PredictionResult`)         |
 | `src/db/schema.ts`                    | Single source of truth Drizzle ORM database tables                                    |
-| `api/dashboard.ts`                    | Backend-for-Frontend (BFF) single-roundtrip boot endpoint (dogs + caretakers + acts + health records) |
+| `api/dashboard.ts`                    | Backend-for-Frontend (BFF) single-roundtrip boot endpoint (dogs + caretakers + recent acts + health records + every weight event of the dog) |
 | `src/data/healthProtocols.json`       | Dataset for vaccine types, antiparasitics (Credelio Plus, etc.), and ESCCAP rules     |
 | `src/services/api.ts`                 | SWR-cached REST API client & fetch helpers                                            |
 | `scripts/inspect_db.ts`               | Safe database inspection & live prediction engine diagnostics script                    |
@@ -125,10 +125,6 @@ PupPace — Smart Household Puppy Activity Tracker & Potty Predictor. React 19 +
 - Within the in-memory TTL window (60s), serve from cache directly without spawning redundant background `fetch()` requests on every tab switch.
 - Clear cache synchronously on mutations (`createActivity`, `updateActivity`, `deleteActivity`, `createDog`, etc.), and clear the cache and in-flight GETs again when the mutation is answered: a GET sent or answered while it was in flight may miss it and is never reused.
 
-### HeroUI CSS Performance
-
-- `src/index.css` uses a **targeted `@source` directive** scanning only the 8 HeroUI components used in the app (`button,card,chip,input,modal,select,listbox,toast`). Never use the wildcard `@source "../node_modules/@heroui/theme/dist/**/*"` — it pulls in ~40+ component stylesheets (611KB render-blocking CSS).
-
 ### SQL-Side Date Filtering & Progressive Timeline Pagination
 
 - Initial dashboard boot fetches a minimal 30-day window (`{ days: 30, limit: 300 }`), supplying 100% of data needed for the AI Prediction Engine while keeping network payloads light (~90 KB).
@@ -153,7 +149,6 @@ PupPace — Smart Household Puppy Activity Tracker & Potty Predictor. React 19 +
 - Don't write tests that assert `null === null` or `true === true` — exercise real domain code
 - Don't write or commit code when asked to research — present options and wait for explicit user choice first
 - Don't add secondary `useEffect` fetches in dashboard components — fold data into the BFF `/api/dashboard` `Promise.all`
-- Don't use `@source` wildcards for HeroUI theme scanning — list only the components actually imported
 - Don't use per-request `getDb()` in API handlers — use module-level `neon()`/`drizzle()` for connection reuse across warm invocations
 
 <!-- caveman-begin -->

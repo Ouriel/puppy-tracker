@@ -41,6 +41,23 @@ function getSessionSecret(): string {
   return secret;
 }
 
+/** A deliberate refusal from verifyAuth: its status and message are safe to send. */
+export class AuthError {
+  status: number;
+  message: string;
+  constructor(status: number, message: string) {
+    this.status = status;
+    this.message = message;
+  }
+}
+
+/** Answers a failed verifyAuth. Any error other than an AuthError (a database error carries SQL and the email) is logged and answers a generic 500. */
+export function sendAuthError(res: VercelResponse, error: unknown) {
+  if (error instanceof AuthError) return res.status(error.status).json({ error: error.message });
+  console.error('Authentication failed:', error);
+  return res.status(500).json({ error: 'Internal server error' });
+}
+
 export interface AuthContext {
   email: string;
   name: string;
@@ -121,7 +138,7 @@ export function verifyAppSessionToken(token: string): AuthContext | null {
 export async function verifyAuth(req: VercelRequest): Promise<AuthContext> {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    throw { status: 401, message: 'Missing Authorization header' };
+    throw new AuthError(401, 'Missing Authorization header');
   }
 
   const token = authHeader.slice(7);
@@ -142,10 +159,10 @@ export async function verifyAuth(req: VercelRequest): Promise<AuthContext> {
         .where(eq(usersTable.email, appSession.email.toLowerCase()));
     } catch (error: unknown) {
       console.error('verifyAuth users lookup failed:', error);
-      throw { status: 500, message: 'Internal server error' };
+      throw new AuthError(500, 'Internal server error');
     }
     if (!user || user.status !== 'ACTIVE') {
-      throw { status: 401, message: 'Session revoked' };
+      throw new AuthError(401, 'Session revoked');
     }
     return {
       email: appSession.email,
@@ -182,16 +199,16 @@ export async function verifyAuth(req: VercelRequest): Promise<AuthContext> {
     };
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
-    throw { status: 401, message: `Invalid authentication token: ${message}` };
+    throw new AuthError(401, `Invalid authentication token: ${message}`);
   }
 
   if (!payload || !payload.email || !payload.email_verified) {
-    throw { status: 401, message: 'Invalid token payload' };
+    throw new AuthError(401, 'Invalid token payload');
   }
 
   // Look up user in database
   if (!connectionString) {
-    throw { status: 500, message: 'Database connection URL missing' };
+    throw new AuthError(500, 'Database connection URL missing');
   }
 
   const userEmail = payload.email.toLowerCase();
@@ -220,7 +237,7 @@ export async function verifyAuth(req: VercelRequest): Promise<AuthContext> {
   }
 
   if (user.status !== 'ACTIVE') {
-    throw { status: 403, message: 'Account pending activation by Super Admin.' };
+    throw new AuthError(403, 'Account pending activation by Super Admin.');
   }
 
   return {
