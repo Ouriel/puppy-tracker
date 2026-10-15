@@ -41,8 +41,9 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
   const myEmail = user.email.toLowerCase();
   // The same rule as logged-by: the chip and the delete guard follow the email link, never a name guess.
   const linkedCaretaker = findLinkedCaretaker(user, caretakers);
-  // Only the owner pre-approves: the server refuses members and keeps moves between households for the owner.
-  const canPreApprove = isSuperAdminEmail(user.email);
+  const isOwner = isSuperAdminEmail(user.email);
+  // The owner and a family's Admin pre-approve into their own family: the server refuses members.
+  const canPreApprove = isOwner || user.role === 'Admin';
 
   // Into the inviter's own household (the server's default): the account keeps its Google name, and the badge
   // carries the invited email.
@@ -55,7 +56,9 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
       const badge = buildInviteBadge(email, caretakers);
       if (badge) onAddCaretaker(badge);
     } else if (result.status === 409) {
-      setEmailToMove(email);
+      // Only the owner moves an account out of another household.
+      if (isOwner) setEmailToMove(email);
+      else toast.danger(t.household.askOwnerToAdd);
     } else {
       toast.danger(result.error || t.toasts.errorGeneric);
     }

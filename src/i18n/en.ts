@@ -263,6 +263,7 @@ export const en = {
     namePlaceholder: 'e.g. Alex',
     editMemberName: 'Edit Member Name & Color',
     alreadyHasAccount: 'This person already has an account. Add them to your family?',
+    askOwnerToAdd: 'This person already has an account. Ask Matthieu to add them.',
     addToFamily: 'Add to family',
     thisIsMe: 'This is me',
   },

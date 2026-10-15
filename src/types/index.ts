@@ -41,7 +41,7 @@ export interface PuppyProfile {
   notes?: string;
 }
 
-export type FamilyRole = 'Husband' | 'Wife' | 'Partner' | 'Child' | 'Dog Walker' | 'Sitter' | 'Relative' | 'Member' | 'SuperAdmin';
+export type FamilyRole = 'Husband' | 'Wife' | 'Partner' | 'Child' | 'Dog Walker' | 'Sitter' | 'Relative' | 'Member' | 'Admin' | 'SuperAdmin';
 
 export interface UserAccount {
   id: string;

@@ -92,12 +92,16 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail, caretake
         setUsers((previous) =>
           previous.map((registeredUser) =>
             registeredUser.email === email
-              ? { ...registeredUser, status: 'ACTIVE' as const, householdId: targetHouseholdId }
+              // The server makes a sign-up approved alone in its household that family's Admin.
+              ? { ...registeredUser, status: 'ACTIVE' as const, householdId: targetHouseholdId, role: res.data.role || registeredUser.role }
               : registeredUser
           )
         );
         setStatusMessage(`Activated ${email} in household "${targetHouseholdId ? householdName(targetHouseholdId) : ''}"`);
         setTimeout(() => setStatusMessage(''), 3500);
+      } else {
+        // Refused (409) when the row is stale, e.g. a family Admin took the sign-up in since: show where it is now.
+        void loadData();
       }
     } catch (err) {
       console.error('Failed to activate user', err);
@@ -114,7 +118,8 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail, caretake
         setUsers((previous) =>
           previous.map((registeredUser) =>
             registeredUser.email === email
-              ? { ...registeredUser, householdId: newHouseholdId }
+              // The server makes an Admin moved into another household a Member there.
+              ? { ...registeredUser, householdId: newHouseholdId, role: res.data.role || registeredUser.role }
               : registeredUser
           )
         );

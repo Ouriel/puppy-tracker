@@ -2,8 +2,8 @@ import { randomUUID } from 'crypto';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { neon } from '@neondatabase/serverless';
 import { drizzle } from 'drizzle-orm/neon-http';
-import { eq, and } from 'drizzle-orm';
-import { usersTable } from '../src/db/schema.js';
+import { eq, and, ne } from 'drizzle-orm';
+import { puppiesTable, usersTable } from '../src/db/schema.js';
 import { SUPER_ADMIN_EMAIL } from '../src/utils/auth.js';
 import { UserInputSchema } from '../src/utils/schemas.js';
 import { verifyAuth, sendAuthError, setCorsHeaders } from './_auth.js';
@@ -12,6 +12,27 @@ import { getDatabaseUrl } from './_db.js';
 const connectionString = getDatabaseUrl();
 const sql = neon(connectionString);
 const db = drizzle(sql);
+
+type UserRow = typeof usersTable.$inferSelect;
+
+function householdHasOtherUser(account: UserRow) {
+  return db
+    .select({ id: usersTable.id })
+    .from(usersTable)
+    .where(and(eq(usersTable.householdId, account.householdId), ne(usersTable.id, account.id)))
+    .limit(1)
+    .then((rows) => rows.length > 0);
+}
+
+/** A sign-up still waiting for approval, alone in a household with no dog. */
+async function isUnclaimedSignUp(account: UserRow) {
+  if (account.status !== 'PENDING_APPROVAL') return false;
+  const [hasOtherUser, dogs] = await Promise.all([
+    householdHasOtherUser(account),
+    db.select({ id: puppiesTable.id }).from(puppiesTable).where(eq(puppiesTable.householdId, account.householdId)).limit(1),
+  ]);
+  return !hasOtherUser && dogs.length === 0;
+}
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   setCorsHeaders(req, res, 'GET, POST, PUT, DELETE, OPTIONS');
@@ -66,6 +87,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (body.householdId && body.householdId !== householdId && !isSuperAdmin) {
         return res.status(403).json({ error: 'Only SuperAdmin can choose another household.' });
       }
+      // An admin's invitees are Members of the admin's own family.
+      if (body.role && body.role !== 'Member' && !isSuperAdmin) {
+        return res.status(403).json({ error: 'Only SuperAdmin can choose a role.' });
+      }
       const targetHouseholdId = body.householdId || householdId;
 
       if (body.role === 'SuperAdmin' && email !== SUPER_ADMIN_EMAIL) {
@@ -85,18 +110,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       if (existing) {
         const isMove = existing.householdId !== targetHouseholdId;
-        // Only the owner moves accounts between households, and only once confirmed. Refusals carry no row data.
-        if (isMove && !isSuperAdmin) {
-          return res.status(403).json({ error: 'This person already has an account. Ask the owner to add them.' });
-        }
-        if (isMove && !body.confirmMove) {
+        // The owner moves an account between households once confirmed. An admin takes in only a sign-up waiting
+        // alone in a household with no dog (a second parent who signed in before being invited); never another
+        // family's account. Refusals carry no row data.
+        if (isMove && (isSuperAdmin ? !body.confirmMove : !(await isUnclaimedSignUp(existing)))) {
           return res.status(409).json({ error: 'This person already has an account in another household.' });
         }
         const [updated] = await db
           .update(usersTable)
           .set({
-            // Never the name: the account keeps its Google name.
-            role: body.role || existing.role,
+            // Never the name: the account keeps its Google name. An admin's take-in is a Member; an admin re-inviting
+            // someone already in the family (themselves included) keeps their role.
+            role: isSuperAdmin ? body.role || existing.role : isMove ? 'Member' : existing.role,
             status: body.status || existing.status,
             ...(isMove ? { householdId: targetHouseholdId } : {}),
           })
@@ -145,6 +170,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (body.status) updateFields.status = body.status;
       if (body.name) updateFields.name = body.name;
       if (body.householdId && isSuperAdmin) updateFields.householdId = body.householdId;
+
+      // The owner's approval of a sign-up that stays alone in its own household makes it that family's Admin,
+      // who can then invite the rest of the family. An Admin approved or moved into another household is a Member there.
+      if (isSuperAdmin && (body.status === 'ACTIVE' || body.householdId)) {
+        const [account] = await db.select().from(usersTable).where(eq(usersTable.email, targetEmail));
+        const isMove = !!account && !!body.householdId && body.householdId !== account.householdId;
+        // A stale Admin panel row (an Admin took the sign-up in since) must not move it back out.
+        if (isMove && body.status === 'ACTIVE' && account?.status !== 'PENDING_APPROVAL') {
+          return res.status(409).json({ error: 'This account is no longer waiting for approval.' });
+        }
+        if (!body.role && isMove && account?.role === 'Admin') {
+          updateFields.role = 'Member';
+        } else if (!body.role && !isMove && body.status === 'ACTIVE' && account?.status === 'PENDING_APPROVAL' && !(await householdHasOtherUser(account))) {
+          updateFields.role = 'Admin';
+        }
+      }
 
       const whereClause = isSuperAdmin
         ? eq(usersTable.email, targetEmail)

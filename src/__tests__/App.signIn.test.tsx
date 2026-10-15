@@ -161,6 +161,18 @@ describe('Sign-in screen', () => {
     expectGoogleButtonUsable(googleId);
   });
 
+  it("keeps the Admin role a sign-in returns, so a family's first member sees the invite form", async () => {
+    const googleId = stubGoogle();
+    const session = { user: { email: 'sitter@example.com', name: 'Sitter', householdId: 'house-sitter', role: 'Admin' }, sessionToken: 'session-token', expiresInDays: 90 };
+    stubSession(() => Promise.resolve(new Response(JSON.stringify(session), { status: 200 })));
+    await renderApp();
+
+    await signInWithGoogle(googleId);
+    await settle();
+
+    expect(getStoredAuthUser()?.role).toBe('Admin');
+  });
+
   it('three minutes on the sign-in screen set Google up once: no rebuilt button, no new One Tap', async () => {
     const googleId = stubGoogle();
     await renderApp();
