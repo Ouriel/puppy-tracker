@@ -7,6 +7,7 @@ import { DogHealthSummary } from '../DogHealthSummary';
 import { ActivityTimeline } from '../ActivityTimeline';
 import { calculatePredictions } from '../../utils/predictions';
 import { act as log, BALMA } from '../../utils/__tests__/fixtures';
+import { en } from '../../i18n/en';
 
 let root: Root | null = null;
 
@@ -108,7 +109,7 @@ describe('a dog with no gram goal: no goal in grams on any screen', () => {
     );
     const dayHeader = [...document.querySelectorAll<HTMLButtonElement>('button[aria-expanded]')].find((button) => button.textContent?.includes('80g'))!;
     await act(async () => dayHeader.click());
-    await act(async () => document.querySelector<HTMLButtonElement>('button[aria-label="Edit activity log"]')!.click());
+    await act(async () => document.querySelector<HTMLButtonElement>(`button[aria-label="${en.potty.editActivity}"]`)!.click());
     // The edit form is a lazy chunk
     await act(async () => { await import('../QuickLogModal'); });
     const grams = document.getElementById('quicklog-quantity-grams') as HTMLInputElement;

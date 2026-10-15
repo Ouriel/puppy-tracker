@@ -6,7 +6,7 @@ import { eq, and } from 'drizzle-orm';
 import { usersTable } from '../src/db/schema.js';
 import { SUPER_ADMIN_EMAIL } from '../src/utils/auth.js';
 import { UserInputSchema } from '../src/utils/schemas.js';
-import { verifyAuth, setCorsHeaders } from './_auth.js';
+import { verifyAuth, sendAuthError, setCorsHeaders } from './_auth.js';
 
 const connectionString = process.env.POSTGRES_URL || process.env.DATABASE_URL || '';
 const sql = neon(connectionString);
@@ -20,10 +20,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   let auth;
   try {
     auth = await verifyAuth(req);
-  } catch (err: unknown) {
-    const status = (err && typeof err === 'object' && 'status' in err) ? (err as { status: number }).status : 500;
-    const message = (err && typeof err === 'object' && 'message' in err) ? (err as { message: string }).message : 'Internal server error';
-    return res.status(status).json({ error: message });
+  } catch (error: unknown) {
+    return sendAuthError(res, error);
   }
 
   const householdId = auth.householdId;

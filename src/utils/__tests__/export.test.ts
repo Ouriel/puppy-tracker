@@ -416,6 +416,13 @@ describe('export utilities — CSV and PDF export test suite', () => {
       expect(text.match(/"7\.55"/g)).toHaveLength(1);
     });
 
+    it('the printed passport of a dog without a weigh-in shows "-", never the profile weight (a new dog\'s is made up)', () => {
+      printHealthPassportReport(mockProfile, [], [], [], 'fr', fr);
+      const htmlContent = mockWindow?.document.write.mock.calls[0][0] as string;
+      expect(htmlContent).not.toContain(`${mockProfile.weightKg} kg`);
+      expect(htmlContent).toContain('<div class="card-value">-</div>');
+    });
+
     it('the printed passport lists a deworming weight once, in the weight history', () => {
       printHealthPassportReport(mockProfile, [], [legacyDeworming], [dewormingWeighIn], 'fr', fr);
       const htmlContent = mockWindow?.document.write.mock.calls[0][0] as string;
@@ -449,6 +456,52 @@ describe('export utilities — CSV and PDF export test suite', () => {
       const weightHistory = htmlContent.slice(htmlContent.indexOf('Historique des Pesées'));
       expect(weightHistory.match(/<strong>[\d.]+ kg<\/strong>/g)).toHaveLength(20);
       expect(weightHistory).toContain('<strong>3 kg</strong>'); // the oldest
+    });
+  });
+
+  describe('CSV exports never hand a spreadsheet a formula (OWASP CSV injection)', () => {
+    const formulaLog = (id: string, extra: Partial<Activity>): Activity => ({
+      id, puppyId: 'pup-1', type: 'pee', timestamp: '2026-08-19T08:30:00.000Z', loggedBy: 'Daria', ...extra,
+    });
+
+    it('a text cell starting with = + - @, even after leading whitespace, gets a leading quote in the activity CSV; numbers stay numbers', async () => {
+      exportActivitiesToCSV([
+        formulaLog('f-1', { notes: '=HYPERLINK("http://example.com","x")' }),
+        formulaLog('f-2', { type: 'medication', medicationName: '+SUM(1,1)', loggedBy: '@cmd' }),
+        formulaLog('f-3', { notes: '-2+3' }),
+        formulaLog('f-4', { notes: '\t=1+1' }),
+        formulaLog('f-5', { notes: '\r@SUM(A1)' }),
+        formulaLog('f-8', { notes: ' =1+1' }),
+        formulaLog('f-9', { notes: '\n=1+1' }),
+        formulaLog('f-6', { type: 'weight', weightKg: 6.8 }),
+        formulaLog('f-7', { type: 'food', quantityGrams: 80, durationMinutes: -5 }),
+      ], mockProfile, 'en', mockCaretakers);
+      const text = await (createdBlob as Blob).text();
+
+      expect(text).toContain('"\'=HYPERLINK(""http://example.com"",""x"")"');
+      expect(text).toContain('"\'+SUM(1,1)"');
+      expect(text).toContain('"\'@cmd"');
+      expect(text).toContain('"\'-2+3"');
+      expect(text.match(/"'=1\+1"/g)).toHaveLength(3); // after a tab, a space, a line feed
+      expect(text).toContain('"\'@SUM(A1)"');
+      expect(text).toContain('"6.8"');
+      expect(text).toContain('"80"');
+      expect(text).toContain('"-5"');
+      expect(text).not.toMatch(/"=|"\+|"@/);
+    });
+
+    it('a text cell starting with = + - @, even after leading whitespace, gets a leading quote in the health passport CSV', async () => {
+      const formulaVaccine = { id: 'v-f', householdId: 'hh-1', puppyId: 'pup-1', type: 'vaccination', name: '=cmd|"/C calc"!A0', date: '2026-07-01', vetClinic: '@evil', batchNumber: '+1', notes: '-1' } as HealthRecord;
+      const whitespaceVaccine = { ...formulaVaccine, id: 'v-w', name: ' =1+1', vetClinic: '', batchNumber: '', notes: '\n=1+1' } as HealthRecord;
+      exportHealthPassportToCSV(mockProfile, [formulaVaccine, whitespaceVaccine], [], [], 'en', mockCaretakers);
+      const text = await (createdBlob as Blob).text();
+
+      expect(text).toContain('"\'=cmd|""/C calc""!A0"');
+      expect(text).toContain('"\'@evil"');
+      expect(text).toContain('"\'+1"');
+      expect(text).toContain('"\'-1"');
+      expect(text.match(/"'=1\+1"/g)).toHaveLength(2); // after a space, a line feed
+      expect(text).not.toMatch(/"=|"\+|"@/);
     });
   });
 });

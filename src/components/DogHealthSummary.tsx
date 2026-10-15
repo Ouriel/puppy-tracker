@@ -66,7 +66,6 @@ export const DogHealthSummary: React.FC<DogHealthSummaryProps> = React.memo(({
       profile.breed,
       unifiedLogs,
       profile.birthDate,
-      profile.weightKg,
       profile.gender,
       profile.expectedAdultWeightKg
     );
@@ -198,7 +197,7 @@ export const DogHealthSummary: React.FC<DogHealthSummaryProps> = React.memo(({
             <div className="grid grid-cols-2 gap-2 text-xs pt-1">
               <div className="bg-slate-950/60 p-2.5 rounded-lg border border-slate-800/80">
                 <div className="text-xs text-slate-400 font-semibold">{t.health.lastLogged}</div>
-                <div className="font-extrabold text-slate-100">{weightData.lastWeightKg} kg</div>
+                <div className="font-extrabold text-slate-100">{weightData.lastWeightKg !== undefined ? `${weightData.lastWeightKg} kg` : '—'}</div>
                 <div className="text-xs text-slate-400 mt-0.5 truncate">
                   {weightData.lastLogDateStr ? `${weightData.lastLogDateStr} ${weightData.lastLogAgeWeeks ? `(${weightData.lastLogAgeWeeks}w)` : ''}` : t.health.noLogsYet}
                 </div>

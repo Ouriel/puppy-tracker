@@ -47,7 +47,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               <Select
                 value={activePuppy.id}
                 onChange={(val) => onSelectPuppy(val as string)}
-                aria-label="Select Active Dog"
+                aria-label={t.nav.selectDog}
               >
                 <Select.Trigger className="bg-slate-950/80 border-slate-700/80 min-h-0 h-9 font-bold text-xs text-slate-100 px-2 sm:px-3">
                   <Select.Value />
@@ -82,7 +82,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           <button
             type="button"
             onClick={() => changeLanguage(lang === 'en' ? 'fr' : 'en')}
-            aria-label="Toggle language"
+            aria-label={t.nav.changeLanguage}
             className="h-11 min-h-[44px] px-3 flex items-center justify-center gap-1.5 rounded-xl bg-slate-950/80 border border-slate-800 text-slate-300 hover:text-white hover:bg-slate-800 transition-colors shrink-0 text-xs font-bold"
           >
             <Globe className="w-4 h-4 text-indigo-400 shrink-0" />
@@ -93,7 +93,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           <button
             type="button"
             onClick={onOpenSettings}
-            aria-label="Settings & Administration"
+            aria-label={t.nav.settings}
             className="h-11 w-11 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl bg-slate-950/80 border border-slate-800 text-slate-300 hover:text-white hover:bg-slate-800 transition-colors shrink-0"
           >
             <Settings className="w-4 h-4" />

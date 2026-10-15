@@ -4,7 +4,7 @@ import { drizzle } from 'drizzle-orm/neon-http';
 import { eq } from 'drizzle-orm';
 import { usersTable } from '../../src/db/schema.js';
 import { isSuperAdminEmail } from '../../src/utils/auth.js';
-import { verifyAuth, signAppSessionToken, setCorsHeaders } from '../_auth.js';
+import { verifyAuth, sendAuthError, signAppSessionToken, setCorsHeaders } from '../_auth.js';
 
 const connectionString = process.env.POSTGRES_URL || process.env.DATABASE_URL || '';
 const sql = neon(connectionString);
@@ -49,9 +49,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       sessionToken,
       expiresInDays: 90,
     });
-  } catch (err: unknown) {
-    const status = (err && typeof err === 'object' && 'status' in err) ? (err as { status: number }).status : 500;
-    const message = (err && typeof err === 'object' && 'message' in err) ? (err as { message: string }).message : 'Internal server error';
-    return res.status(status).json({ error: message });
+  } catch (error: unknown) {
+    return sendAuthError(res, error);
   }
 }

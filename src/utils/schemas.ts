@@ -1,19 +1,7 @@
 import { z } from 'zod';
-import type { Activity, Caretaker, PuppyProfile, UserAccount, HealthRecord, DashboardPayload } from '../types/index.js';
-
-const ActivityTypeSchema = z.enum([
-  'pee',
-  'poop',
-  'food',
-  'weight',
-  'medication',
-]);
+import type { UserAccount } from '../types/index.js';
 
 const PottyLocationSchema = z.enum(['outside', 'indoor_accident']);
-
-const StoolConsistencySchema = z.enum(['hard', 'normal', 'diarrhea', 'soft', 'runny']);
-
-const FoodTypeSchema = z.enum(['kibble', 'wet', 'raw', 'treats', 'topper']);
 
 const FamilyRoleSchema = z.enum([
   'Husband',
@@ -26,47 +14,6 @@ const FamilyRoleSchema = z.enum([
   'Member',
 ]);
 
-export const ActivitySchema: z.ZodType<Activity> = z.object({
-  id: z.string(),
-  householdId: z.string().optional(),
-  puppyId: z.string(),
-  type: ActivityTypeSchema,
-  timestamp: z.string(),
-  loggedBy: z.string(),
-  pottyLocation: PottyLocationSchema.optional(),
-  stoolConsistency: StoolConsistencySchema.optional(),
-  foodType: FoodTypeSchema.optional(),
-  quantityGrams: z.number().optional(),
-  quantityCups: z.number().optional(),
-  durationMinutes: z.number().optional(),
-  weightKg: z.number().optional(),
-  medicationName: z.string().optional(),
-  notes: z.string().nullable().optional(),
-});
-
-export const PuppyProfileSchema: z.ZodType<PuppyProfile> = z.object({
-  id: z.string(),
-  householdId: z.string().optional(),
-  name: z.string().min(1),
-  breed: z.string(),
-  birthDate: z.string(),
-  weightKg: z.number().optional(),
-  dailyFoodGramGoal: z.number(),
-  targetMealsPerDay: z.number(),
-  avatarUrl: z.string().optional(),
-  notes: z.string().optional(),
-  gender: z.enum(['male', 'female']).nullable().optional(),
-  expectedAdultWeightKg: z.number().positive().nullable().optional(),
-});
-
-export const CaretakerSchema: z.ZodType<Caretaker> = z.object({
-  id: z.string(),
-  name: z.string().min(1),
-  role: FamilyRoleSchema,
-  color: z.string(),
-  email: z.string().optional(),
-});
-
 export const UserAccountSchema: z.ZodType<UserAccount> = z.object({
   id: z.string(),
   name: z.string(),
@@ -74,28 +21,6 @@ export const UserAccountSchema: z.ZodType<UserAccount> = z.object({
   role: FamilyRoleSchema,
   avatarColor: z.string(),
   familyPackId: z.string(),
-});
-
-export const HealthRecordSchema: z.ZodType<HealthRecord> = z.object({
-  id: z.string(),
-  householdId: z.string(),
-  puppyId: z.string(),
-  type: z.enum(['vaccination', 'deworming']),
-  name: z.string().min(1),
-  date: z.string(),
-  boosterDate: z.string().optional(),
-  batchNumber: z.string().optional(),
-  vetClinic: z.string().optional(),
-  productName: z.string().optional(),
-  weightAtTime: z.number().optional(),
-  notes: z.string().optional(),
-});
-
-export const DashboardPayloadSchema: z.ZodType<DashboardPayload> = z.object({
-  puppies: z.array(PuppyProfileSchema),
-  caretakers: z.array(CaretakerSchema),
-  activities: z.array(ActivitySchema),
-  healthRecords: z.array(HealthRecordSchema).optional(),
 });
 
 export const DashboardQuerySchema = z.object({

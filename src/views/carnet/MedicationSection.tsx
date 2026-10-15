@@ -104,7 +104,7 @@ export const MedicationSection: React.FC<MedicationSectionProps> = ({
                     <button
                       type="button"
                       onClick={() => setConfirmDeleteId(log.id)}
-                      aria-label="Delete medication log"
+                      aria-label={t.health.deleteMedicationTitle}
                       className="p-1.5 text-slate-500 hover:text-red-400 hover:bg-red-950/40 rounded-lg transition-colors"
                       title={t.health.deleteMedicationConfirm}
                     >

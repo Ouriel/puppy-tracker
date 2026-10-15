@@ -359,3 +359,13 @@ describe('PuppiesView dog card picture', () => {
     expect(document.querySelector('img[src="/balma.jpg"]')).not.toBeNull();
   });
 });
+
+describe('PuppiesView dog card meals (English plurals)', () => {
+  it('"1 meal" for a dog on one meal a day, "3 meals" otherwise, with or without a gram goal', async () => {
+    await renderView({ puppies: [{ ...REX, targetMealsPerDay: 1 }, { ...REX, id: 'dog-2', dailyFoodGramGoal: 0, targetMealsPerDay: 1 }, { ...REX, id: 'dog-3' }] });
+
+    expect(document.body.textContent).toContain('200g (1 meal)');
+    expect(document.body.textContent).not.toContain('1 meals');
+    expect(document.body.textContent).toContain('200g (3 meals)');
+  });
+});

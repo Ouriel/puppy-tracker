@@ -23,10 +23,13 @@ function esc(value: unknown): string {
   return String(value ?? '').replace(/[&<>"']/g, (character) => HTML_ESCAPES[character]);
 }
 
+/** Quotes a CSV cell. Text starting with = + - @ gets a leading ' so a spreadsheet never runs it as a formula (OWASP); numbers stay numbers. */
 export function escapeCsvField(value: string | number | null | undefined): string {
   if (value === null || value === undefined) return '""';
-  const stringValue = String(value).trim().replace(/"/g, '""');
-  return `"${stringValue}"`;
+  const trimmedValue = String(value).trim();
+  // Checked after trim(), which already drops a leading tab, CR, LF or space
+  const safeValue = typeof value === 'string' && /^[=+\-@]/.test(trimmedValue) ? `'${trimmedValue}` : trimmedValue;
+  return `"${safeValue.replace(/"/g, '""')}"`;
 }
 
 /**
@@ -653,7 +656,8 @@ export function printHealthPassportReport(
     .filter((activity) => activity.type === 'weight' && activity.weightKg && activity.weightKg > 0)
     .sort((activityA, activityB) => new Date(activityB.timestamp).getTime() - new Date(activityA.timestamp).getTime());
 
-  const latestWeight = weightLogs.length > 0 ? weightLogs[0].weightKg : (profile.weightKg || '-');
+  // Never the profile weight: a new dog's is a made-up 4.5 kg
+  const latestWeight = weightLogs.length > 0 ? `${weightLogs[0].weightKg} kg` : '-';
   const breedLabel = formatBreedName(profile?.breed || 'Puppy', lang);
 
   const html = `
@@ -793,7 +797,7 @@ export function printHealthPassportReport(
           </div>
           <div class="card">
             <div class="card-label">${isFrench ? 'Dernier Poids Connu' : 'Latest Known Weight'}</div>
-            <div class="card-value">${esc(latestWeight)} kg</div>
+            <div class="card-value">${esc(latestWeight)}</div>
           </div>
         </div>
 

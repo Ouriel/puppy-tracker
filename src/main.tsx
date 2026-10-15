@@ -9,12 +9,7 @@ import App from './App.tsx';
 import { I18nProvider } from './i18n';
 import { registerSW } from 'virtual:pwa-register';
 
-registerSW({
-  immediate: true,
-  onNeedRefresh() {
-    window.location.reload();
-  },
-});
+registerSW({ immediate: true });
 
 interface ErrorBoundaryState {
   hasError: boolean;

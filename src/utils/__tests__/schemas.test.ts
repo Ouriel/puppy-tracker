@@ -1,33 +1,16 @@
 import { describe, it, expect } from 'vitest';
 import {
-  ActivitySchema,
   ActivityInputSchema,
   DogInputSchema,
-  PuppyProfileSchema,
   HealthRecordInputSchema,
   CaretakerInputSchema,
   UserInputSchema,
   DeleteSchema,
-  DashboardPayloadSchema,
   DashboardQuerySchema,
 } from '../schemas';
 import { buildQuickActionActivity, buildQuickLogActivity, validateQuickLogForm } from '../activityPayloads';
 
 describe('Zod Schemas Validation', () => {
-  it('should reject invalid potty locations like indoor_pad', () => {
-    const invalidActivity = {
-      id: 'act-124',
-      puppyId: 'pup-1',
-      type: 'pee',
-      timestamp: '2026-07-28T12:00:00.000Z',
-      loggedBy: 'Matthieu',
-      pottyLocation: 'indoor_pad',
-    };
-
-    const parsed = ActivitySchema.safeParse(invalidActivity);
-    expect(parsed.success).toBe(false);
-  });
-
   it('should validate activity input mutation schema with string numbers', () => {
     const inputActivity = {
       puppyId: 'pup-1',
@@ -70,13 +53,6 @@ describe('Zod Schemas Validation', () => {
   it('rejects activity inputs with an unknown type and health record inputs without puppyId or date', () => {
     expect(ActivityInputSchema.safeParse({ puppyId: 'pup-1', type: 'unknown_action', timestamp: '2026-08-17T12:00:00.000Z' }).success).toBe(false);
     expect(HealthRecordInputSchema.safeParse({ type: 'invalid_type', name: 'Test' }).success).toBe(false);
-  });
-
-  it('PuppyProfileSchema accepts a dog as the API returns it: null sex and adult weight when not set', () => {
-    const dog = { id: 'dog-1', name: 'Rex', breed: 'Beagle', birthDate: '2026-05-01', dailyFoodGramGoal: 200, targetMealsPerDay: 3 };
-    expect(PuppyProfileSchema.safeParse({ ...dog, gender: null, expectedAdultWeightKg: null }).error?.issues).toBeUndefined();
-    expect(PuppyProfileSchema.safeParse({ ...dog, gender: 'female', expectedAdultWeightKg: 14 }).success).toBe(true);
-    expect(PuppyProfileSchema.safeParse({ ...dog, gender: 'other' }).success).toBe(false);
   });
 
   it('validates DogInputSchema accepts gender and expectedAdultWeightKg', () => {
@@ -139,30 +115,6 @@ describe('Zod Schemas Validation', () => {
     expect(DeleteSchema.safeParse({ id: 'act-123' }).success).toBe(true);
     expect(DeleteSchema.safeParse({ id: '' }).success).toBe(false);
     expect(DeleteSchema.safeParse({}).success).toBe(false);
-  });
-
-  it('should validate DashboardPayloadSchema with empty arrays and full datasets', () => {
-    const emptyPayload = {
-      puppies: [],
-      caretakers: [],
-      activities: [],
-      healthRecords: [],
-    };
-    expect(DashboardPayloadSchema.safeParse(emptyPayload).success).toBe(true);
-
-    const missingHealthRecordsPayload = {
-      puppies: [],
-      caretakers: [],
-      activities: [],
-    };
-    expect(DashboardPayloadSchema.safeParse(missingHealthRecordsPayload).success).toBe(true);
-
-    const invalidPayload = {
-      puppies: [{ id: 123 }], // invalid id type
-      caretakers: [],
-      activities: [],
-    };
-    expect(DashboardPayloadSchema.safeParse(invalidPayload).success).toBe(false);
   });
 
   it('should validate DashboardQuerySchema parsing and sanitization', () => {
@@ -256,7 +208,7 @@ describe('Zod Schemas Validation', () => {
 
     it('accepts a weight from 0.3 to 100 kg (number, numeric string or null), on POST and PUT', () => {
       const weight = { ...base, type: 'weight' as const };
-      for (const weightKg of [0.3, 10.15, 100, '7.4', null]) {
+      for (const weightKg of [0.3, 12.34, 100, '7.4', null]) {
         expect(ActivityInputSchema.safeParse({ ...weight, weightKg }).success, String(weightKg)).toBe(true);
       }
       expect(ActivityInputSchema.parse({ ...weight, weightKg: '7.4' }).weightKg).toBe(7.4);
