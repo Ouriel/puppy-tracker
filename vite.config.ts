@@ -1,4 +1,4 @@
-import { defineConfig } from 'vite'
+import { defineConfig, configDefaults } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
@@ -63,5 +63,9 @@ export default defineConfig({
         },
       },
     },
+  },
+  test: {
+    // Claude Code session worktrees (.claude/worktrees) are full repo copies: never run their tests too
+    exclude: [...configDefaults.exclude, '.claude/**'],
   },
 })
