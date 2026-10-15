@@ -95,6 +95,14 @@ PupPace — Smart Household Puppy Activity Tracker & Potty Predictor. React 19 +
 
 - Safe DB Inspection Script: `npm run db:inspect` (or `npx tsx scripts/inspect_db.ts`) — inspects tables, row counts, puppy profiles, live prediction engine diagnostics, and recent activity trail with location, stool consistency, food grams, caretakers, and notes.
 
+### Preview Data
+
+- Vercel preview deployments read the Neon `preview` branch, a child of production `main`. Never write to `main`.
+- Refresh it from production: Neon console > Branches > `preview` > Reset from parent (or `neon branches reset preview --parent`, adding `--project-id` when the CLI has no linked project). It replaces everything on `preview`, the demo data included: re-run the seed after.
+- Demo data: `scripts/preview-seed.sql`, one `DO $$ ... $$` block. Run it in the Neon SQL editor with `preview` selected, or `psql "$PREVIEW_POSTGRES_URL" -f scripts/preview-seed.sql`. It adds a puppy (Pistache) and an account waiting for approval to the real household, plus 'Famille Martin (demo)' (2 dogs, an Admin, members, an unlinked badge, an account without a badge) and 'Famille Dupont (demo)', with `v_days` (default 30) days of logs and health passports, relative to now (Europe/Paris). Logs stop at the run time: re-run the seed at the start of each test session.
+- Rerunnable: every seed id starts with `seed-`; the block first deletes the seed and what the app attached to seeded households or dogs, and never touches other rows.
+- Guard: the block raises before any write unless `md5(neon.branch_id)` is the `preview` branch's (fails closed: production, other branches, non-Neon hosts). A reset from parent keeps the branch id; a recreated `preview` branch needs the new hash in the guard. Keep it.
+
 ## Key Files
 
 | File                                  | Role                                                                                  |
