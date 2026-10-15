@@ -1,8 +1,8 @@
 import type { Caretaker } from '../types/index.js';
 
 /**
- * Resolves a raw Google SSO full name (e.g. "Matthieu Jacquet" or "Daria Risko")
- * or email (e.g. "daria.risko@gmail.com") to the clean, friendly, editable Household Caretaker name
+ * Resolves a raw Google SSO full name (e.g. "Matthieu Jacquet" or "Daria Doe")
+ * or email (e.g. "daria@example.com") to the clean, friendly, editable Household Caretaker name
  * (e.g. "Matthieu" or "Daria").
  */
 export function resolveCaretakerName(rawNameOrEmail: string, caretakers: Caretaker[]): string {
@@ -29,7 +29,7 @@ export function resolveCaretakerName(rawNameOrEmail: string, caretakers: Caretak
   );
   if (prefixMatch) return prefixMatch.name;
 
-  // 4. Email username match (e.g. "daria.risko@gmail.com" -> "Daria")
+  // 4. Email username match (e.g. "daria@example.com" -> "Daria")
   const emailUsername = cleanInput.split('@')[0].split('.')[0];
   const emailMatch = caretakers.find((c) => c.name.trim().toLowerCase() === emailUsername);
   if (emailMatch) return emailMatch.name;
