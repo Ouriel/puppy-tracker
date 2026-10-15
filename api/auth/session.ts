@@ -5,8 +5,9 @@ import { eq } from 'drizzle-orm';
 import { usersTable } from '../../src/db/schema.js';
 import { isSuperAdminEmail } from '../../src/utils/auth.js';
 import { verifyAuth, sendAuthError, signAppSessionToken, setCorsHeaders } from '../_auth.js';
+import { getDatabaseUrl } from '../_db.js';
 
-const connectionString = process.env.POSTGRES_URL || process.env.DATABASE_URL || '';
+const connectionString = getDatabaseUrl();
 const sql = neon(connectionString);
 const db = drizzle(sql);
 

@@ -7,8 +7,9 @@ import { usersTable } from '../src/db/schema.js';
 import { SUPER_ADMIN_EMAIL } from '../src/utils/auth.js';
 import { UserInputSchema } from '../src/utils/schemas.js';
 import { verifyAuth, sendAuthError, setCorsHeaders } from './_auth.js';
+import { getDatabaseUrl } from './_db.js';
 
-const connectionString = process.env.POSTGRES_URL || process.env.DATABASE_URL || '';
+const connectionString = getDatabaseUrl();
 const sql = neon(connectionString);
 const db = drizzle(sql);
 

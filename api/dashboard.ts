@@ -5,9 +5,10 @@ import { eq, and, desc, gte } from 'drizzle-orm';
 import { activitiesTable, caretakersTable, puppiesTable, healthRecordsTable } from '../src/db/schema.js';
 import { DashboardQuerySchema } from '../src/utils/schemas.js';
 import { verifyAuth, sendAuthError, setCorsHeaders } from './_auth.js';
+import { getDatabaseUrl } from './_db.js';
 
 // Module-level connection pooling to stay warm across invocations
-const connectionString = process.env.POSTGRES_URL || process.env.DATABASE_URL || '';
+const connectionString = getDatabaseUrl();
 const sql = neon(connectionString);
 const db = drizzle(sql);
 

@@ -5,8 +5,9 @@ import { eq, and } from 'drizzle-orm';
 import { puppiesTable } from '../src/db/schema.js';
 import { DogInputSchema, parseDeleteId } from '../src/utils/schemas.js';
 import { verifyAuth, sendAuthError, setCorsHeaders, canDeleteHouseholdData } from './_auth.js';
+import { getDatabaseUrl } from './_db.js';
 
-const connectionString = process.env.POSTGRES_URL || process.env.DATABASE_URL || '';
+const connectionString = getDatabaseUrl();
 const sql = neon(connectionString);
 const db = drizzle(sql);
 
