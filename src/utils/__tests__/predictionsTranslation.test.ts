@@ -80,6 +80,13 @@ describe("predictionsTranslation utility", () => {
     );
   });
 
+  it.each([
+    ["Daily goal reached (1 meal)", "Objectif du jour atteint (1 repas)"],
+    ["Daily goal reached (2 meals)", "Objectif du jour atteint (2 repas)"],
+  ])("translates %j (no gram goal) into French", (enReason, frReason) => {
+    expect(translatePredictionReason(enReason, "fr")).toBe(frReason);
+  });
+
   it("passes an unknown reason through unchanged", () => {
     expect(translatePredictionReason("Some future reason (~42m)", "fr")).toBe("Some future reason (~42m)");
   });
@@ -124,6 +131,8 @@ describe("predictionsTranslation utility", () => {
       [smallMeals, BALMA, "2026-08-07T15:00:00+02:00"],
       // Daily gram goal reached
       [lunchDay, BALMA, "2026-08-07T19:30:00+02:00"],
+      // No gram goal: reached once the meals are logged
+      [lunchDay, { ...BALMA, dailyFoodGramGoal: 0 }, "2026-08-07T19:30:00+02:00"],
     ];
 
     const reasons = new Set<string>();
@@ -136,6 +145,7 @@ describe("predictionsTranslation utility", () => {
     const templates = new Set([...reasons].map((reason) => reason.replace(/\d+/g, "#")));
     expect([...templates].sort()).toEqual([
       "Breakfast (~#:#, Meal # of #)",
+      "Daily goal reached (# meals)",
       "Daily goal reached (#g)",
       "Digestive alert: frequent checks recommended",
       "Digestive recovery: pause after hard stool",

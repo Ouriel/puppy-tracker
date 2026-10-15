@@ -142,6 +142,35 @@ describe('QuickLogModal grams and weight boxes', () => {
   });
 });
 
+describe('QuickLogModal meal of a dog with no gram goal', () => {
+  it('the grams box may stay empty: Save logs the meal without grams', async () => {
+    const { onSave, onClose } = await renderModal({ initialType: 'food', dailyFoodGramGoal: 0 });
+    expect(field('quicklog-quantity-grams').value).toBe('');
+
+    await submit();
+    expect(onSave).toHaveBeenCalledTimes(1);
+    expect(onSave.mock.calls[0][0].type).toBe('food');
+    expect(onSave.mock.calls[0][0].quantityGrams).toBeUndefined();
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('typed 0 g still blocks Save', async () => {
+    const { onSave } = await renderModal({ initialType: 'food', dailyFoodGramGoal: 0 });
+    await setValue('quicklog-quantity-grams', '0');
+
+    await submit();
+    expect(onSave).not.toHaveBeenCalled();
+    expect(field('quicklog-quantity-grams-error').textContent).toBe('Enter the grams eaten');
+  });
+
+  it('a dog with a gram goal: an empty box blocks Save', async () => {
+    const { onSave } = await renderModal({ initialType: 'food', dailyFoodGramGoal: 200 });
+
+    await submit();
+    expect(onSave).not.toHaveBeenCalled();
+  });
+});
+
 describe('QuickLogModal labels and notes', () => {
   it('a new log shows "Logged by" the signed-in user, read-only', async () => {
     await renderModal({ initialType: 'pee', currentUser: 'Alex' });

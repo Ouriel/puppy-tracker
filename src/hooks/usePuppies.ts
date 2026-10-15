@@ -31,8 +31,9 @@ export function usePuppies(initialPuppies?: PuppyProfile[]) {
     });
   }, []);
 
+  // Both resolve to whether the server saved the dog: the form stays open with what was typed when it did not.
   const addPuppy = useCallback(
-    async (newPup: PuppyProfile) => {
+    async (newPup: PuppyProfile): Promise<boolean> => {
       const result = await createDog(newPup);
       if (result.ok) {
         const saved = result.data;
@@ -44,27 +45,28 @@ export function usePuppies(initialPuppies?: PuppyProfile[]) {
         setActivePuppyIdState(saved.id);
         saveActivePuppyId(saved.id);
         toast.success(t.toasts.dogRegistered.replace('{name}', saved.name));
-        return saved;
+        return true;
       } else {
         toast.danger(result.error || t.toasts.errorGeneric);
-        return null;
+        return false;
       }
     },
     [t.toasts.dogRegistered, t.toasts.errorGeneric]
   );
 
   const updatePuppy = useCallback(
-    async (updatedPup: PuppyProfile) => {
+    async (updatedPup: PuppyProfile): Promise<boolean> => {
       const previousPuppies = puppies;
       setPuppies((previous) => previous.map((puppy) => (puppy.id === updatedPup.id ? updatedPup : puppy)));
       const result = await updateDog(updatedPup);
       if (result.ok) {
         setPuppies((previous) => previous.map((puppy) => (puppy.id === updatedPup.id ? result.data : puppy)));
         toast.success(t.toasts.dogUpdated);
-      } else {
-        setPuppies(previousPuppies);
-        toast.danger(result.error || t.toasts.errorGeneric);
+        return true;
       }
+      setPuppies(previousPuppies);
+      toast.danger(result.error || t.toasts.errorGeneric);
+      return false;
     },
     [puppies, setPuppies, t.toasts.dogUpdated, t.toasts.errorGeneric]
   );

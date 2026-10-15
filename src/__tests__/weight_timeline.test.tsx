@@ -46,6 +46,8 @@ let root: Root | null = null;
 let requests: Array<{ url: string; method: string; body?: any }> = [];
 /** The status POST /api/health-records answers (201: saved). */
 let healthRecordPostStatus = 201;
+/** The vaccinations GET /api/health-records answers. */
+let vaccinationRecords: HealthRecord[] = [vaccination];
 const prodShapedDashboard = () => ({ puppies: [puppy], caretakers: [], activities: [], healthRecords: legacyDewormings, weightActivities: [...homeWeighIns, ...migratedWeighIns] });
 /** What GET /api/dashboard answers. */
 let answerDashboard = () => respond(prodShapedDashboard());
@@ -61,7 +63,7 @@ function stubApi() {
     // The recent window holds no weigh-in: the last one is 3 weeks old
     if (path === '/api/dashboard') return answerDashboard();
     if (path === '/api/health-records') {
-      if (method === 'GET') return respond([...legacyDewormings, vaccination]);
+      if (method === 'GET') return respond([...legacyDewormings, ...vaccinationRecords]);
       if (method === 'POST' && healthRecordPostStatus !== 201) return respond({ error: 'Internal server error' }, healthRecordPostStatus);
       return method === 'PUT' ? respond(body) : respond({ householdId: 'hh-1', ...body, id: `hr-new-${requests.length}` }, 201);
     }
@@ -132,6 +134,7 @@ beforeAll(() => {
 beforeEach(() => {
   requests = [];
   healthRecordPostStatus = 201;
+  vaccinationRecords = [vaccination];
   answerDashboard = () => respond(prodShapedDashboard());
   localStorage.clear();
   clearAuthToken();
@@ -296,6 +299,24 @@ describe('Weight timeline (Phase 5c, prod-shaped)', () => {
     const put = requests.find((request) => request.method === 'PUT' && request.url === '/api/health-records')!;
     expect(put.body.boosterDate).toBeNull();
   });
+
+  // Owner decision 2026-10-15: a dog with no gram goal may log a meal without grams (stored as null, never 0)
+  it('a dog with no gram goal: a weigh-in edited into a meal saves with the grams box left empty', async () => {
+    const noGoalPuppy: PuppyProfile = { ...puppy, dailyFoodGramGoal: 0 };
+    setStoredPuppies([noGoalPuppy]);
+    answerDashboard = () => respond({ ...prodShapedDashboard(), puppies: [noGoalPuppy] });
+    await openPassport();
+
+    await click(weightRows()[0].querySelector<HTMLButtonElement>('button[aria-label="Edit weight entry"]')!);
+    await settleUntil(() => document.getElementById('quicklog-form') !== null);
+    await click([...document.querySelectorAll<HTMLButtonElement>('[role="radio"]')].find((button) => button.textContent === en.potty.food)!);
+    expect((document.getElementById('quicklog-quantity-grams') as HTMLInputElement).value).toBe('');
+    await click(document.querySelector<HTMLButtonElement>('button[form="quicklog-form"]')!);
+
+    const put = requests.find((request) => request.method === 'PUT' && request.url.startsWith('/api/activities'))!;
+    expect(put.body).toMatchObject({ type: 'food' });
+    expect(put.body).not.toHaveProperty('quantityGrams');
+  });
 });
 
 describe.each([
@@ -343,7 +364,7 @@ describe.each([
     expect(document.getElementById(`${weightBoxId}-error`)!.textContent).toBe(en.potty.weightInvalid);
   });
 
-  it('a weight with a date after today blocks the save: the server refuses a weigh-in in the future', async () => {
+  it('a date after today with a weight typed blocks the save, and the weight stays (pre-fill review item 38)', async () => {
     const box = await openAddForm();
     await setValue(box.form!.querySelector<HTMLInputElement>('input[type="date"]')!, formatLocalDate(new Date(Date.now() + 2 * 24 * 60 * 60 * 1000)));
     await setValue(box, '10,4');
@@ -352,7 +373,7 @@ describe.each([
 
     expect(savedRequests()).toEqual([]);
     expect(weightBox()!.value).toBe('10,4');
-    expect(document.getElementById(`${weightBoxId}-error`)!.textContent).toBe(en.potty.dateTimeInFuture);
+    expect(box.form!.textContent).toContain(en.health.dateInFuture);
   });
 
   it('after a save, the form opens again with an empty box', async () => {
@@ -377,5 +398,281 @@ describe.each([
     expect(posts('/api/activities')).toEqual([]);
     expect(weightBox()!.value).toBe('10,4');
     expect(weightRows()).toHaveLength(11);
+  });
+});
+
+describe('Carnet add and edit forms (pre-fill review items 11, 12, 23, 35-38)', () => {
+  const chppiL4 = 'CHPPi / DAPPi + L4 (Eurican / Nobivac / Versican / Canigen)';
+  const dateInputs = (container: ParentNode) => [...container.querySelectorAll<HTMLInputElement>('input[type="date"]')];
+  /** The vaccine the closed Select shows (its placeholder when the value is not one of its options). */
+  const shownVaccine = (form: HTMLFormElement) => form.querySelector('[data-slot="select-value"]')!.textContent;
+
+  async function openVaccineAddForm() {
+    await openPassport();
+    await click(buttonWithText(en.health.addVaccine));
+    return document.getElementById('vaccine-weight-kg')!.closest('form')!;
+  }
+
+  /** Picks an option through the Select's native twin, which picks it in the Select. */
+  async function pickOption(container: ParentNode, optionValue: string) {
+    const select = container.querySelector('select')!;
+    await act(async () => {
+      select.value = optionValue;
+      select.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+  }
+
+  it('item 11: a puppy shot entered months later gets +1 month, from her age on the injection day', async () => {
+    vaccinationRecords = [{ ...vaccination, id: 'hr-chppi', name: chppiL4, date: '2026-04-26', boosterDate: '2026-05-26' }];
+    const form = await openVaccineAddForm();
+    const [administered, booster] = dateInputs(form);
+
+    await setValue(administered, '2026-04-26'); // Rex is 8 weeks old that day
+    expect(booster.value).toBe('2026-05-26');
+
+    await setValue(administered, '2026-06-21'); // 16 weeks: the 1st birthday
+    expect(booster.value).toBe('2027-03-01');
+  });
+
+  it('item 12: a Drontal dose at 8 weeks, entered later, gets +14 days from her age on the dose day', async () => {
+    await openPassport();
+    await click(buttonWithText(en.health.addDeworming));
+    const form = document.getElementById('deworming-weight-kg')!.closest('form')!;
+    // The Select's native twin: picking an option there picks it in the Select
+    const product = form.querySelector('select')!;
+    await act(async () => {
+      product.value = 'Drontal Chiot (Sirop / Comprimés)';
+      product.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    const [given, next] = dateInputs(form);
+
+    await setValue(given, '2026-04-26'); // Rex is 8 weeks old that day
+    expect(form.querySelector('[data-slot="select-value"]')!.textContent).toContain('Drontal Chiot');
+    expect(next.value).toBe('2026-05-10');
+  });
+
+  it('item 23: the vaccine box shows the last vaccine given, and that is what is saved', async () => {
+    const form = await openVaccineAddForm();
+
+    expect(shownVaccine(form)).toBe(vaccination.name);
+    await click(form.querySelector<HTMLButtonElement>('button[type="submit"]')!);
+
+    expect(posts('/api/health-records')[0].body.name).toBe(vaccination.name);
+  });
+
+  it('item 23: when the last vaccine is no longer in the list, CHPPi + L4 from the list is shown and saved', async () => {
+    vaccinationRecords = [{ ...vaccination, id: 'hr-old', name: 'CHPPi + L4 (old spelling)', date: '2026-07-01' }];
+    const form = await openVaccineAddForm();
+
+    expect(shownVaccine(form)).toBe(chppiL4);
+    await click(form.querySelector<HTMLButtonElement>('button[type="submit"]')!);
+
+    expect(posts('/api/health-records')[0].body.name).toBe(chppiL4);
+  });
+
+  it('item 35: the clinic box starts with the clinic of the last vaccination, and stays editable', async () => {
+    vaccinationRecords = [
+      { ...vaccination, id: 'hr-2', date: '2026-08-01', vetClinic: null },
+      { ...vaccination, id: 'hr-1', date: '2026-07-01', vetClinic: 'Clinique du Parc' },
+      { ...vaccination, id: 'hr-0', date: '2026-06-01', vetClinic: 'Old Clinic' },
+    ];
+    const form = await openVaccineAddForm();
+    const clinic = form.querySelector<HTMLInputElement>(`input[placeholder="${en.health.vetClinicPlaceholder}"]`)!;
+
+    expect(clinic.value).toBe('Clinique du Parc');
+    await setValue(clinic, 'Clinique des Lilas');
+    await click(form.querySelector<HTMLButtonElement>('button[type="submit"]')!);
+
+    expect(posts('/api/health-records')[0].body.vetClinic).toBe('Clinique des Lilas');
+  });
+
+  it('item 37: opening an edit offers nothing: the stored next date (often the vet\'s) stays, with no hint', async () => {
+    // Both differ from the rule: Rage 1 Jul 2026 -> 1 Jul 2027, Credelio 21 Sep -> 21 Oct
+    vaccinationRecords = [{ ...vaccination, boosterDate: '2027-06-25' }];
+    await openPassport();
+    await click(document.querySelector<HTMLButtonElement>(`[aria-label="${en.health.editVaccineEntry}"]`)!);
+    await click(document.querySelector<HTMLButtonElement>(`[aria-label="${en.health.editDewormingEntry}"]`)!);
+
+    expect(dateInputs(document).map((input) => input.value)).toEqual(['2026-07-01', '2027-06-25', '2026-09-21', '2026-09-21']);
+    expect(document.body.textContent).not.toContain('Suggested');
+  });
+
+  it('item 37: editing the date keeps the stored next date and offers the suggestion, applied in one tap', async () => {
+    await openPassport();
+    await click(document.querySelector<HTMLButtonElement>(`[aria-label="${en.health.editVaccineEntry}"]`)!);
+    const editCard = buttonWithText(en.potty.saveChanges).closest('.space-y-3')!;
+    const [injected, booster] = dateInputs(editCard);
+
+    await setValue(injected, '2026-07-10');
+    expect(booster.value).toBe('2027-07-01');
+    await click(buttonWithText('Suggested: 2027-07-10'));
+    expect(booster.value).toBe('2027-07-10');
+    expect(editCard.textContent).not.toContain('Suggested');
+    await click(buttonWithText(en.potty.saveChanges));
+
+    const put = requests.find((request) => request.method === 'PUT' && request.url === '/api/health-records')!;
+    expect(put.body).toMatchObject({ date: '2026-07-10', boosterDate: '2027-07-10' });
+  });
+
+  it('item 37: changing only the vaccine keeps the stored next date and offers the new vaccine\'s, applied in one tap', async () => {
+    await openPassport();
+    await click(document.querySelector<HTMLButtonElement>(`[aria-label="${en.health.editVaccineEntry}"]`)!);
+    const editCard = buttonWithText(en.potty.saveChanges).closest('.space-y-3')!;
+    const booster = dateInputs(editCard)[1];
+
+    await pickOption(editCard, chppiL4); // Rage -> CHPPi + L4, same day: Rex is 17 weeks old, so the 1st birthday
+    expect(booster.value).toBe('2027-07-01');
+    expect(editCard.textContent).toContain('Suggested: 2027-03-01');
+    await click(buttonWithText('Suggested: 2027-03-01'));
+    expect(booster.value).toBe('2027-03-01');
+    await click(buttonWithText(en.potty.saveChanges));
+
+    const put = requests.find((request) => request.method === 'PUT' && request.url === '/api/health-records')!;
+    expect(put.body).toMatchObject({ name: chppiL4, date: '2026-07-01', boosterDate: '2027-03-01' });
+  });
+
+  it('item 37: changing only the product keeps the stored next date and offers the new product\'s, applied in one tap', async () => {
+    await openPassport();
+    // Newest first: Credelio Plus on 2026-09-21
+    await click(document.querySelector<HTMLButtonElement>(`[aria-label="${en.health.editDewormingEntry}"]`)!);
+    const editCard = buttonWithText(en.potty.saveChanges).closest('.space-y-3')!;
+    const next = dateInputs(editCard)[1];
+
+    await pickOption(editCard, 'Drontal Chiot (Sirop / Comprimés)'); // Rex is over 6 months old that day: every 3 months
+    expect(next.value).toBe('2026-09-21');
+    expect(editCard.textContent).toContain('Suggested: 2026-12-21');
+    await click(buttonWithText('Suggested: 2026-12-21'));
+    expect(next.value).toBe('2026-12-21');
+    await click(buttonWithText(en.potty.saveChanges));
+
+    const put = requests.find((request) => request.method === 'PUT' && request.url === '/api/health-records')!;
+    expect(put.body).toMatchObject({ productName: 'Drontal Chiot (Sirop / Comprimés)', date: '2026-09-21', boosterDate: '2026-12-21' });
+  });
+
+  it('the dashboard summary, for a last record with no next date, counts from her age on the dose day', async () => {
+    const backLogged = { householdId: 'hh-1', puppyId: puppy.id, boosterDate: null };
+    answerDashboard = () => respond({
+      ...prodShapedDashboard(),
+      healthRecords: [
+        { ...backLogged, id: 'hr-chppi', type: 'vaccination', name: chppiL4, date: '2026-04-26' }, // Rex is 8 weeks old: +1 month
+        { ...backLogged, id: 'hr-drontal', type: 'deworming', name: 'Drontal Chiot (Sirop / Comprimés)', date: '2026-05-03' }, // 9 weeks: +14 days
+      ],
+    });
+
+    await renderAppAt('/');
+    await settleUntil(() => document.body.textContent!.includes(en.health.summaryTitle));
+
+    expect(document.body.textContent).toContain(`${en.health.nextDue} 2026-05-26`);
+    expect(document.body.textContent).toContain(`${en.health.nextDue} 2026-05-17`);
+  });
+
+  it('item 11: a CHPPi edit moved to 16 weeks suggests the 1st birthday, from her age on the injection day', async () => {
+    vaccinationRecords = [{ ...vaccination, id: 'hr-chppi', name: chppiL4, date: '2026-06-14', boosterDate: '2026-07-14' }];
+    await openPassport();
+    await click(document.querySelector<HTMLButtonElement>(`[aria-label="${en.health.editVaccineEntry}"]`)!);
+    const editCard = buttonWithText(en.potty.saveChanges).closest('.space-y-3')!;
+
+    await setValue(dateInputs(editCard)[0], '2026-06-21'); // Rex is 16 weeks old that day
+    expect(editCard.textContent).toContain('Suggested: 2027-03-01');
+  });
+
+  it('item 12: a Drontal edit moved to 11 weeks suggests +14 days, from her age on the dose day, applied in one tap', async () => {
+    await openPassport();
+    // Newest first: the last one is the Drontal dose
+    await click([...document.querySelectorAll<HTMLButtonElement>(`[aria-label="${en.health.editDewormingEntry}"]`)].at(-1)!);
+    const editCard = buttonWithText(en.potty.saveChanges).closest('.space-y-3')!;
+    const [given, next] = dateInputs(editCard);
+    expect(given.value).toBe('2026-05-18');
+
+    await setValue(given, '2026-05-17'); // Rex is 11 weeks old that day
+    await click(buttonWithText('Suggested: 2026-05-31'));
+
+    expect(next.value).toBe('2026-05-31');
+    expect(editCard.textContent).not.toContain('Suggested');
+  });
+
+  describe.each([
+    { form: 'vaccine', addButton: en.health.addVaccine, weightBoxId: 'vaccine-weight-kg', editLabel: en.health.editVaccineEntry },
+    { form: 'deworming', addButton: en.health.addDeworming, weightBoxId: 'deworming-weight-kg', editLabel: en.health.editDewormingEntry },
+  ])('the $form forms: date rules (items 37, 38)', ({ addButton, weightBoxId, editLabel }) => {
+    const puts = () => requests.filter((request) => request.method === 'PUT');
+
+    async function openEditCard() {
+      await openPassport();
+      await click(document.querySelector<HTMLButtonElement>(`[aria-label="${editLabel}"]`)!);
+      return buttonWithText(en.potty.saveChanges).closest('.space-y-3')!;
+    }
+
+    it('item 37: an emptied date says "Date required" and saves nothing', async () => {
+      const editCard = await openEditCard();
+
+      await setValue(dateInputs(editCard)[0], '');
+      await click(buttonWithText(en.potty.saveChanges));
+
+      expect(editCard.textContent).toContain(en.health.dateRequired);
+      expect(puts()).toEqual([]);
+    });
+
+    it('item 38: an edit to a date after today is refused', async () => {
+      const editCard = await openEditCard();
+
+      await setValue(dateInputs(editCard)[0], formatLocalDate(new Date(Date.now() + 2 * 24 * 60 * 60 * 1000)));
+      await click(buttonWithText(en.potty.saveChanges));
+
+      expect(editCard.textContent).toContain(en.health.dateInFuture);
+      expect(puts()).toEqual([]);
+    });
+
+    it('item 38: an edit with a next date before the date is refused', async () => {
+      const editCard = await openEditCard();
+      const [date, next] = dateInputs(editCard);
+
+      await setValue(date, '2026-07-01');
+      await setValue(next, '2026-06-30');
+      await click(buttonWithText(en.potty.saveChanges));
+
+      expect(editCard.textContent).toContain(en.health.boosterBeforeDate);
+      expect(puts()).toEqual([]);
+    });
+
+    it('item 38: the add form refuses a next date before the date, with no weight typed', async () => {
+      await openPassport();
+      await click(buttonWithText(addButton));
+      const form = document.getElementById(weightBoxId)!.closest('form')!;
+      const [date, next] = dateInputs(form);
+
+      await setValue(date, '2026-07-01');
+      await setValue(next, '2026-06-30');
+      // The browser's own check (min) blocks the submit; past it (not every browser enforces it), the form's guard does
+      expect(next.validity.rangeUnderflow).toBe(true);
+      form.noValidate = true;
+      await click(form.querySelector<HTMLButtonElement>('button[type="submit"]')!);
+
+      expect(form.textContent).toContain(en.health.boosterBeforeDate);
+      expect(posts('/api/health-records')).toEqual([]);
+    });
+
+    it('item 38: the add form refuses a date after today, with no weight typed', async () => {
+      await openPassport();
+      await click(buttonWithText(addButton));
+      const form = document.getElementById(weightBoxId)!.closest('form')!;
+      const date = dateInputs(form)[0];
+
+      await setValue(date, formatLocalDate(new Date(Date.now() + 2 * 24 * 60 * 60 * 1000)));
+      // The browser's own check (max) blocks the submit; past it, the form's guard does
+      expect(date.validity.rangeOverflow).toBe(true);
+      form.noValidate = true;
+      await click(form.querySelector<HTMLButtonElement>('button[type="submit"]')!);
+
+      expect(form.textContent).toContain(en.health.dateInFuture);
+      expect(posts('/api/health-records')).toEqual([]);
+    });
+  });
+
+  it('item 36: a vaccination with no clinic shows "-", not a made-up clinic name', async () => {
+    vaccinationRecords = [{ ...vaccination, vetClinic: null }];
+    await openPassport();
+
+    expect(document.body.textContent).toContain(`${en.health.clinic}: -`);
   });
 });

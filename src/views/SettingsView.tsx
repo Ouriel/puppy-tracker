@@ -13,8 +13,8 @@ interface SettingsViewProps {
   puppies: PuppyProfile[];
   activePuppyId: string;
   onSelectPuppy: (id: string) => void;
-  onAddPuppy: (puppy: PuppyProfile) => void;
-  onUpdatePuppy: (puppy: PuppyProfile) => void;
+  onAddPuppy: (puppy: PuppyProfile) => Promise<boolean>;
+  onUpdatePuppy: (puppy: PuppyProfile) => Promise<boolean>;
   onDeletePuppy: (id: string) => void;
   caretakers: Caretaker[];
   onAddCaretaker: (caretaker: Caretaker) => void;

@@ -2,9 +2,8 @@ import React, { useState } from 'react';
 import type { PuppyProfile, HealthRecord, Activity } from '../../types';
 import { Syringe, ShieldCheck, Plus, Trash2, Pencil, Check } from 'lucide-react';
 import { Card, Button, Input, Select, ListBox, ListBoxItem, Chip, toast } from '@heroui/react';
-import { calculateNextVaccineBooster, getHealthProtocols, getHealthRecordStatus } from '../../utils/health';
+import { calculateNextVaccineBooster, getHealthProtocols, getHealthRecordDateError, getHealthRecordStatus } from '../../utils/health';
 import { StatusBadge } from '../../components/common/StatusBadge';
-import { getPuppyAge } from '../../utils/predictions';
 import { formatLocalDate } from '../../utils/date';
 import { createHealthRecord, updateHealthRecord, deleteHealthRecord } from '../../services/api';
 import { ConfirmationModal } from '../../components/common/ConfirmationModal';
@@ -32,10 +31,11 @@ export const VaccineSection: React.FC<VaccineSectionProps> = ({
   t,
 }) => {
   const [isAddingVaccine, setIsAddingVaccine] = useState(false);
-  const [vaccineType, setVaccineType] = useState<string>('CHPPi + L4');
+  // null: the user has not picked one yet, the form shows the default
+  const [selectedVaccineName, setSelectedVaccineName] = useState<string | null>(null);
   const [administeredDate, setAdministeredDate] = useState(() => formatLocalDate());
   const [customNextDueDate, setCustomNextDueDate] = useState<string | null>(null);
-  const [vetClinic, setVetClinic] = useState('');
+  const [customVetClinic, setCustomVetClinic] = useState<string | null>(null);
   const [batchNumber, setBatchNumber] = useState('');
   const [weightText, setWeightText] = useState('');
   const [weightError, setWeightError] = useState<'weightInvalid' | 'dateTimeInFuture' | undefined>();
@@ -49,13 +49,27 @@ export const VaccineSection: React.FC<VaccineSectionProps> = ({
   const [editVaccineVetClinic, setEditVaccineVetClinic] = useState('');
   const [editVaccineBatchNumber, setEditVaccineBatchNumber] = useState('');
 
-  const autoNextVaccineDate = React.useMemo(() => {
-    if (!administeredDate) return '';
-    const ageMonths = activePuppy.birthDate ? getPuppyAge(activePuppy.birthDate).months : 6;
-    return calculateNextVaccineBooster(administeredDate, vaccineType, ageMonths);
-  }, [administeredDate, vaccineType, activePuppy.birthDate]);
+  // vaccinations is sorted newest first. Default vaccine: the last one given if it is still an option, else CHPPi + L4
+  const vaccineOptions = getHealthProtocols().vaccines;
+  const lastVaccineName = vaccinations[0]?.name;
+  const defaultVaccineName = vaccineOptions.some((vaccineOption) => vaccineOption.name === lastVaccineName)
+    ? lastVaccineName
+    : vaccineOptions.find((vaccineOption) => vaccineOption.id === 'chppi_l4')!.name;
+  const vaccineType = selectedVaccineName ?? defaultVaccineName;
+  const vetClinic = customVetClinic ?? (vaccinations.find((vaccine) => vaccine.vetClinic?.trim())?.vetClinic || '');
+
+  // From her age on the injection day, not today's: shots are often entered weeks later
+  const autoNextVaccineDate = administeredDate ? calculateNextVaccineBooster(administeredDate, vaccineType, activePuppy.birthDate) : '';
 
   const nextDueDate = customNextDueDate !== null ? customNextDueDate : autoNextVaccineDate;
+  const today = formatLocalDate();
+  const addDateError = getHealthRecordDateError(administeredDate, nextDueDate, today);
+  const editDateError = getHealthRecordDateError(editVaccineDate, editVaccineBoosterDate, today);
+  // The edit form keeps the stored next date (often set by the vet): only a changed date or vaccine offers this one
+  const editedVaccine = vaccinations.find((vaccine) => vaccine.id === editingVaccineId);
+  const suggestedEditBoosterDate = editedVaccine && editVaccineDate && (editVaccineDate !== editedVaccine.date || editVaccineName !== editedVaccine.name)
+    ? calculateNextVaccineBooster(editVaccineDate, editVaccineName, activePuppy.birthDate)
+    : '';
 
   const sortByDateDesc = (arr: HealthRecord[]): HealthRecord[] => {
     return [...arr].sort((recordA, recordB) => new Date(recordB.date).getTime() - new Date(recordA.date).getTime());
@@ -67,7 +81,7 @@ export const VaccineSection: React.FC<VaccineSectionProps> = ({
 
   const handleAddVaccineSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (!administeredDate || !nextDueDate) return;
+    if (addDateError || !nextDueDate) return;
     // Optional: empty saves no weight; typed, it is checked before anything is saved
     const weighIn = buildVetWeighIn({ puppyId: activePuppy.id, date: administeredDate, weightText, productName: vaccineType, loggedBy: currentUser });
     if (weighIn.error) {
@@ -91,8 +105,9 @@ export const VaccineSection: React.FC<VaccineSectionProps> = ({
       if (weighIn.activity) onAddActivity(weighIn.activity);
       setVaccinations((previous) => sortByDateDesc([result.data, ...previous]));
       setIsAddingVaccine(false);
+      setSelectedVaccineName(null);
       setCustomNextDueDate(null);
-      setVetClinic('');
+      setCustomVetClinic(null);
       setBatchNumber('');
       setWeightText('');
     } else {
@@ -110,7 +125,7 @@ export const VaccineSection: React.FC<VaccineSectionProps> = ({
   };
 
   const handleUpdateVaccineSubmit = async (id: string) => {
-    if (!editVaccineDate) return;
+    if (editDateError) return;
     const result = await updateHealthRecord({
       id,
       puppyId: activePuppy.id,
@@ -172,7 +187,7 @@ export const VaccineSection: React.FC<VaccineSectionProps> = ({
                     <Select
                       value={vaccineType}
                       onChange={(val) => {
-                        setVaccineType(val as string);
+                        setSelectedVaccineName(val as string);
                         setCustomNextDueDate(null);
                       }}
                     >
@@ -182,7 +197,7 @@ export const VaccineSection: React.FC<VaccineSectionProps> = ({
                       </Select.Trigger>
                       <Select.Popover className="bg-slate-900 border border-slate-800 text-slate-100 max-w-xl w-full">
                         <ListBox>
-                          {getHealthProtocols().vaccines.map((vaccineOption) => (
+                          {vaccineOptions.map((vaccineOption) => (
                             <ListBoxItem key={vaccineOption.id} id={vaccineOption.name} textValue={vaccineOption.fullName} className="truncate whitespace-nowrap overflow-hidden">
                               <span className="truncate block text-xs">{vaccineOption.fullName}</span>
                             </ListBoxItem>
@@ -198,12 +213,14 @@ export const VaccineSection: React.FC<VaccineSectionProps> = ({
                       type="date"
                       className="bg-slate-900 border-slate-700/80 text-slate-100"
                       value={administeredDate}
+                      max={today}
                       onChange={(event) => {
                         setAdministeredDate(event.target.value);
                         setCustomNextDueDate(null);
                       }}
                       required
                     />
+                    {addDateError && addDateError !== 'boosterBeforeDate' && <p role="alert" className="mt-1.5 text-xs font-semibold text-rose-400">{t.health[addDateError]}</p>}
                   </div>
 
                   <div className="sm:col-span-1 min-w-0">
@@ -212,9 +229,11 @@ export const VaccineSection: React.FC<VaccineSectionProps> = ({
                       type="date"
                       className="bg-slate-900 border-slate-700/80 text-slate-100"
                       value={nextDueDate}
+                      min={administeredDate}
                       onChange={(event) => setCustomNextDueDate(event.target.value)}
                       required
                     />
+                    {addDateError === 'boosterBeforeDate' && <p role="alert" className="mt-1.5 text-xs font-semibold text-rose-400">{t.health.boosterBeforeDate}</p>}
                   </div>
                 </div>
 
@@ -226,7 +245,7 @@ export const VaccineSection: React.FC<VaccineSectionProps> = ({
                       placeholder={t.health.vetClinicPlaceholder}
                       className="bg-slate-900 border-slate-700/80 text-slate-100"
                       value={vetClinic}
-                      onChange={(event) => setVetClinic(event.target.value)}
+                      onChange={(event) => setCustomVetClinic(event.target.value)}
                     />
                   </div>
 
@@ -309,8 +328,10 @@ export const VaccineSection: React.FC<VaccineSectionProps> = ({
                           type="date"
                           className="bg-slate-900 border-slate-700/80 text-slate-100"
                           value={editVaccineDate}
+                          max={today}
                           onChange={(event) => setEditVaccineDate(event.target.value)}
                         />
+                        {editDateError && editDateError !== 'boosterBeforeDate' && <p role="alert" className="mt-1.5 text-xs font-semibold text-rose-400">{t.health[editDateError]}</p>}
                       </div>
                       <div className="sm:col-span-1 min-w-0">
                         <label className="block text-[10px] text-slate-400 font-semibold mb-1">{t.health.boosterDue}</label>
@@ -318,8 +339,19 @@ export const VaccineSection: React.FC<VaccineSectionProps> = ({
                           type="date"
                           className="bg-slate-900 border-slate-700/80 text-slate-100"
                           value={editVaccineBoosterDate}
+                          min={editVaccineDate}
                           onChange={(event) => setEditVaccineBoosterDate(event.target.value)}
                         />
+                        {editDateError === 'boosterBeforeDate' && <p role="alert" className="mt-1.5 text-xs font-semibold text-rose-400">{t.health.boosterBeforeDate}</p>}
+                        {suggestedEditBoosterDate && suggestedEditBoosterDate !== editVaccineBoosterDate && (
+                          <button
+                            type="button"
+                            onClick={() => setEditVaccineBoosterDate(suggestedEditBoosterDate)}
+                            className="mt-1.5 text-[11px] font-semibold text-teal-300 hover:text-teal-200 underline underline-offset-2"
+                          >
+                            {t.health.suggestedDate.replace('{date}', suggestedEditBoosterDate)}
+                          </button>
+                        )}
                       </div>
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -387,7 +419,7 @@ export const VaccineSection: React.FC<VaccineSectionProps> = ({
                     <div className="text-[11px] text-slate-400 flex flex-col sm:flex-row sm:items-center sm:gap-1.5 gap-0.5">
                       <span>{t.health.injectedOn} {vaccine.date}</span>
                       <span className="hidden sm:inline">&bull;</span>
-                      <span className="truncate text-slate-400/90">{t.health.clinic}: {vaccine.vetClinic || t.health.veterinary}</span>
+                      <span className="truncate text-slate-400/90">{t.health.clinic}: {vaccine.vetClinic || '-'}</span>
                     </div>
                   </div>
                 </div>

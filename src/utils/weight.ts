@@ -16,8 +16,8 @@ export type UnifiedWeightEntry = Activity & { weightKg: number };
  */
 export function getExpectedAdultWeight(
   breed: string,
-  gender?: 'male' | 'female',
-  customExpectedWeight?: number
+  gender?: 'male' | 'female' | null,
+  customExpectedWeight?: number | null
 ): number {
   // Priority 1: User-provided custom expected weight (mixed breeds)
   if (customExpectedWeight && customExpectedWeight >= 1.0) {
@@ -172,8 +172,8 @@ export function calculateProjectedAdultWeightRange(
   weightLogs: Array<Activity | UnifiedWeightEntry | { timestamp: string; weightKg: number }>,
   ageWeeksOrBirthDate?: number | string,
   fallbackProfileWeight?: number,
-  gender?: 'male' | 'female',
-  customExpectedWeight?: number
+  gender?: 'male' | 'female' | null,
+  customExpectedWeight?: number | null
 ): WeightProjectionResult {
   const breedBaselineKg = getExpectedAdultWeight(breed, gender, customExpectedWeight);
   const initialCategory = getWalthamCategory(breedBaselineKg);

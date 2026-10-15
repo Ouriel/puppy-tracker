@@ -34,8 +34,8 @@ export interface PuppyProfile {
   birthDate: string; // YYYY-MM-DD
   weightKg?: number;
   avatarUrl?: string;
-  gender?: 'male' | 'female';
-  expectedAdultWeightKg?: number;
+  gender?: 'male' | 'female' | null; // null: not set (the API returns null; an edit sends null to clear it)
+  expectedAdultWeightKg?: number | null;
   targetMealsPerDay: number;
   dailyFoodGramGoal: number;
   notes?: string;

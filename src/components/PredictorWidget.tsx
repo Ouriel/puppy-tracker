@@ -69,7 +69,7 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = React.memo(({
     };
   }, [activities, now]);
 
-  const dailyGoal = profile.dailyFoodGramGoal || 200;
+  const dailyGoal = profile.dailyFoodGramGoal; // 0: no gram goal, the card counts meals only
   const targetMeals = profile.targetMealsPerDay || 3;
 
   const getUrgencyBadge = (urgency: 'safe' | 'soon' | 'overdue') => {
@@ -313,7 +313,11 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = React.memo(({
             <div className="bg-slate-950/60 p-2.5 rounded-xl border border-slate-800/80 text-[11px] space-y-1 text-slate-400">
               <div className="flex justify-between font-medium">
                 <span>{t.dashboard.rationIntakeToday}</span>
-                <span className="font-bold text-purple-300">{todayFoodLoggedGrams}g / {dailyGoal}g ({todayMealsCount}/{targetMeals})</span>
+                <span className="font-bold text-purple-300">
+                  {dailyGoal > 0
+                    ? `${todayFoodLoggedGrams}g / ${dailyGoal}g (${todayMealsCount}/${targetMeals})`
+                    : `${todayMealsCount}/${targetMeals} ${t.puppies.meals}`}
+                </span>
               </div>
               <div className="flex justify-between font-medium">
                 <span>{t.dashboard.lastMeal}</span>

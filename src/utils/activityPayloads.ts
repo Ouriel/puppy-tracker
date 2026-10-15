@@ -40,6 +40,8 @@ export interface QuickLogForm {
   quantityGrams: string;
   weightKg: string;
   medicationName: string;
+  // The dog's: 0 (no gram goal) lets a meal be saved with the grams box empty
+  dailyFoodGramGoal?: number;
 }
 
 export interface QuickLogFormError {
@@ -63,7 +65,8 @@ export function isValidWeightKg(kg: number): boolean {
 
 /** The first field that blocks the save, or null when the form can be saved. `now`: when Save is pressed. */
 export function validateQuickLogForm(form: QuickLogForm, now: Date = new Date()): QuickLogFormError | null {
-  if (form.type === 'food') {
+  const isGramsBoxEmptyAllowed = form.dailyFoodGramGoal === 0 && !form.quantityGrams.trim();
+  if (form.type === 'food' && !isGramsBoxEmptyAllowed) {
     const grams = parseDecimalInput(form.quantityGrams);
     if (!Number.isFinite(grams) || grams <= 0) return { field: 'quantityGrams', messageKey: 'gramsRequired' };
   }
@@ -101,9 +104,12 @@ export function buildQuickLogActivity(form: QuickLogForm): Omit<Activity, 'id'> 
       activity.stoolConsistency = form.stoolConsistency;
     }
   } else if (form.type === 'food') {
+    // An empty box (no gram goal) sends no grams: the server stores null
     const grams = parseDecimalInput(form.quantityGrams);
-    activity.quantityGrams = grams;
-    activity.quantityCups = gramsToCups(grams);
+    if (Number.isFinite(grams)) {
+      activity.quantityGrams = grams;
+      activity.quantityCups = gramsToCups(grams);
+    }
   } else if (form.type === 'weight') {
     activity.weightKg = parseDecimalInput(form.weightKg);
   } else if (form.type === 'medication') {

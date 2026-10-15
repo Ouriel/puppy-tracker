@@ -451,6 +451,34 @@ describe('App log state', () => {
     expect(isTimelineEmpty()).toBe(false);
   });
 
+  // Owner decision 2026-10-15: a dog with no gram goal may log a meal without grams (stored as null, never 0)
+  it('a dog with no gram goal: "Feed Meal Now" saves a meal with the grams box left empty', async () => {
+    const noGoalPuppy: PuppyProfile = { ...puppy, dailyFoodGramGoal: 0 };
+    setAuthToken('app-session');
+    setStoredAuthUser(owner);
+    setStoredPuppies([noGoalPuppy]);
+    setActivePuppyId(noGoalPuppy.id);
+    const posted: Array<Record<string, unknown>> = [];
+    stubApi({
+      '/api/dashboard': () => respond({ ...dashboardPayload([]), puppies: [noGoalPuppy] }),
+      '/api/activities': (_url, init) => {
+        posted.push(JSON.parse(String(init!.body)));
+        return respond(posted.at(-1), 201);
+      },
+    });
+    await renderApp();
+
+    await act(async () => [...document.querySelectorAll('button')].find((button) => button.textContent === en.dashboard.feedMealNow)!.click());
+    await settleUntil(() => document.getElementById('quicklog-quantity-grams') !== null);
+    expect((document.getElementById('quicklog-quantity-grams') as HTMLInputElement).value).toBe('');
+    await act(async () => document.querySelector<HTMLButtonElement>('button[form="quicklog-form"]')!.click());
+    await settle();
+
+    expect(posted).toHaveLength(1);
+    expect(posted[0]).toMatchObject({ type: 'food', puppyId: noGoalPuppy.id });
+    expect(posted[0]).not.toHaveProperty('quantityGrams');
+  });
+
   it('14: a meal dated later today counts neither in today\'s grams nor in today\'s meals', async () => {
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(new Date('2026-10-14T08:00:00.000Z'));
