@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, lazy, Suspense } from 'react';
-import type { Activity, UserAccount, ActivityType, PottyLocation, FamilyRole, HealthRecord } from './types';
+import type { Activity, UserAccount, ActivityType, PottyLocation, FamilyRole, HealthRecord, SignInOutcome } from './types';
 import { getAuthToken, setAuthToken, getStoredAuthUser, setStoredAuthUser } from './utils/auth';
 import { isSuperAdminEmail } from './utils/auth';
 import {
@@ -312,8 +312,8 @@ function App() {
 
   const handleOpenHealthPassport = useCallback(() => handleNavigate('carnetdesante'), [handleNavigate]);
 
-  const handleUnlockWithSSO = async (email: string, name: string, token: string) => {
-    setIsLoading(true);
+  // The lock screen shows its own busy state during the exchange, so a refused sign-in keeps its message there
+  const handleUnlockWithSSO = async (email: string, name: string, token: string): Promise<SignInOutcome> => {
     const sessionRes = await exchangeSessionToken(token);
     if (sessionRes.ok && sessionRes.data?.user && sessionRes.data.sessionToken) {
       setAuthToken(sessionRes.data.sessionToken);
@@ -323,6 +323,7 @@ function App() {
         name: sessionRes.data.user.name,
         role: (['Husband', 'Wife', 'Partner', 'Child', 'Dog Walker', 'Sitter', 'Relative', 'Member', 'SuperAdmin'].includes(sessionRes.data.user.role) ? sessionRes.data.user.role : 'Member') as FamilyRole,
       };
+      setIsLoading(true);
       setUser(userAccount);
       setStoredAuthUser(userAccount);
 
@@ -331,7 +332,7 @@ function App() {
       }
 
       setIsLoading(false);
-      return { success: true };
+      return 'signedIn';
     }
 
     // Fallback for Super Admin on initial cold setup
@@ -345,12 +346,11 @@ function App() {
       setAuthToken(token);
       setUser(superUser);
       setStoredAuthUser(superUser);
-      setIsLoading(false);
-      return { success: true };
+      return 'signedIn';
     }
 
-    setIsLoading(false);
-    return { success: false, message: 'Account pending activation by Super Admin.' };
+    // Only a 403 means the account waits for approval; no network, a 5xx or a refused token is a failed sign-in
+    return !sessionRes.ok && sessionRes.status === 403 ? 'pending' : 'failed';
   };
 
   if (isLoading || (currentView === 'dashboard' && user && activityState.isLoadingActivities && puppyState.puppies.length > 0)) {
