@@ -590,6 +590,17 @@ describe('API Security & Session Token Validation Test Suite', () => {
       expect((await send('Member', 'PUT', { id: 'ct-free', name: 'Guest', email: 'user@example.com' })).statusCode).toBe(409);
     });
 
+    // The app shows its own translated message for each, not the English error
+    it('names each refusal with a code: a taken name, a taken or foreign email, an admin-only change', async () => {
+      dbMock.rowsByTable.caretakers = [ownerBadge, freeBadge, myBadge];
+
+      expect((await send('Member', 'PUT', { id: 'ct-free', name: 'OWNER' })).body).toMatchObject({ code: 'memberNameTaken' });
+      expect((await send('Admin', 'POST', { name: 'Jane', email: 'OWNER@example.com' })).body).toMatchObject({ code: 'memberEmailTaken' });
+      expect((await send('Member', 'POST', { name: 'Someone', email: 'other@example.com' })).body).toMatchObject({ code: 'memberEmailTaken' });
+      expect((await send('Member', 'PUT', { id: 'ct-owner', name: 'Owner (old)' })).body).toMatchObject({ code: 'memberAdminOnly' });
+      expect((await send('Member', 'PUT', { id: 'ct-me', name: 'Me', email: '' })).body).toMatchObject({ code: 'memberAdminOnly' });
+    });
+
     it("lets an admin link a new badge to someone else's email (invite)", async () => {
       dbMock.rowsByTable.caretakers = [ownerBadge];
 
@@ -697,6 +708,113 @@ describe('API Security & Session Token Validation Test Suite', () => {
         if (savedPostgresUrl === undefined) delete process.env.POSTGRES_URL;
         else process.env.POSTGRES_URL = savedPostgresUrl;
       }
+    });
+  });
+
+  // Improvement backlog 6: SESSION_SECRET signs new tokens, and a token signed with the old key
+  // (derived from POSTGRES_URL) still works until its renewal, so nobody is signed out.
+  describe('session key: SESSION_SECRET, with the POSTGRES_URL-derived key still accepted', () => {
+    const sessionSecret = 'test-secret-key-1234567890-very-secure';
+    const deriveLegacyKey = (postgresUrl: string) => createHmac('sha256', 'puppace-salt-2026').update(postgresUrl).digest('hex');
+    const legacyKey = deriveLegacyKey('postgres://example.invalid/db');
+    const memberClaims = { email: 'user@example.com', name: 'Matthieu', householdId: 'hh-family-123', role: 'Husband' };
+    const signatureWith = (key: string, signedPart: string) => createHmac('sha256', key).update(signedPart).digest('base64url');
+    // Built by hand, independently of signAppSessionToken
+    const tokenSignedWith = (key: string) => {
+      const issuedAt = Math.floor(Date.now() / 1000);
+      const header = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url');
+      const payload = Buffer.from(JSON.stringify({ ...memberClaims, exp: issuedAt + 86400, iat: issuedAt })).toString('base64url');
+      return `${header}.${payload}.${signatureWith(key, `${header}.${payload}`)}`;
+    };
+    const isSignedWith = (token: string, key: string) => {
+      const [header, payload, signature] = token.split('.');
+      return signature === signatureWith(key, `${header}.${payload}`);
+    };
+    // Produced by today's code (no SESSION_SECRET, POSTGRES_URL above, issued 2026-10-15 08:00 UTC, 90 days)
+    const pinnedLegacyToken =
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6InVzZXJAZXhhbXBsZS5jb20iLCJuYW1lIjoiTWF0dGhpZXUiLCJob3VzZWhvbGRJZCI6ImhoLWZhbWlseS0xMjMiLCJyb2xlIjoiSHVzYmFuZCIsImV4cCI6MTc5OTgyNzIwMCwiaWF0IjoxNzkyMDUxMjAwfQ.wrLMJ3Lx_mrXGAaJw5dgFDzTWczl29GwnBTzFGRV7Gk';
+    let fetchSpy: ReturnType<typeof vi.spyOn>;
+
+    beforeEach(() => {
+      vi.stubEnv('POSTGRES_URL', 'postgres://example.invalid/db');
+      vi.stubEnv('AUTH_SECRET', undefined);
+      // Hermetic: a refused token falls back to Google's tokeninfo endpoint, which refuses it too
+      fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('{}', { status: 400 }));
+    });
+
+    afterEach(() => {
+      fetchSpy.mockRestore();
+      vi.unstubAllEnvs();
+    });
+
+    it('without SESSION_SECRET, signs and verifies with the derived key exactly as before', () => {
+      vi.stubEnv('SESSION_SECRET', undefined);
+      const dateSpy = vi.spyOn(Date, 'now').mockReturnValue(Date.UTC(2026, 9, 15, 8));
+      try {
+        const token = signAppSessionToken(memberClaims, 90);
+
+        expect(token).toBe(pinnedLegacyToken);
+        expect(verifyAppSessionToken(pinnedLegacyToken)).toEqual(memberClaims);
+      } finally {
+        dateSpy.mockRestore();
+      }
+    });
+
+    it('with SESSION_SECRET, accepts a token signed with the derived key, and its renewal is signed with SESSION_SECRET only', async () => {
+      const legacyToken = tokenSignedWith(legacyKey);
+
+      expect(await verifyAuth(bearerRequest(legacyToken))).toEqual(memberClaims);
+
+      const response = createMockResponse();
+      await sessionHandler(bearerRequest(legacyToken, 'POST'), response);
+
+      expect(response.statusCode).toBe(200);
+      expect(isSignedWith(response.body.sessionToken, sessionSecret)).toBe(true);
+      expect(isSignedWith(response.body.sessionToken, legacyKey)).toBe(false);
+      expect(verifyAppSessionToken(response.body.sessionToken)).toEqual(memberClaims);
+      expect(fetchSpy).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ['with SESSION_SECRET', sessionSecret],
+      ['without SESSION_SECRET', undefined],
+    ])('refuses a token signed with an unrelated key (401) %s', async (_case, secret) => {
+      vi.stubEnv('SESSION_SECRET', secret);
+      const token = tokenSignedWith('an-unrelated-key');
+      const response = createMockResponse();
+
+      await sessionHandler(bearerRequest(token, 'POST'), response);
+
+      expect(verifyAppSessionToken(token)).toBeNull();
+      expect(response.statusCode).toBe(401);
+    });
+
+    it('in a preview (SESSION_SECRET, no POSTGRES_URL, PREVIEW_POSTGRES_URL): new tokens work, derived-key tokens are refused', async () => {
+      vi.stubEnv('POSTGRES_URL', undefined);
+      vi.stubEnv('VERCEL_ENV', 'preview');
+      vi.stubEnv('PREVIEW_POSTGRES_URL', 'postgres://preview.example.invalid/db');
+      const newToken = signAppSessionToken(memberClaims, 90);
+      const legacyToken = tokenSignedWith(legacyKey);
+      const response = createMockResponse();
+
+      await sessionHandler(bearerRequest(legacyToken, 'POST'), response);
+
+      expect(await verifyAuth(bearerRequest(newToken))).toEqual(memberClaims);
+      expect(verifyAppSessionToken(legacyToken)).toBeNull();
+      // The preview database URL is never a session key
+      expect(verifyAppSessionToken(tokenSignedWith(deriveLegacyKey('postgres://preview.example.invalid/db')))).toBeNull();
+      // Without POSTGRES_URL there is no derived key, not one derived from an empty string
+      expect(verifyAppSessionToken(tokenSignedWith(deriveLegacyKey('')))).toBeNull();
+      expect(response.statusCode).toBe(401);
+    });
+
+    it('with neither a secret nor POSTGRES_URL, refuses to sign and accepts no token', () => {
+      vi.stubEnv('SESSION_SECRET', undefined);
+      vi.stubEnv('POSTGRES_URL', undefined);
+
+      expect(() => signAppSessionToken(memberClaims, 90)).toThrow(/SESSION_SECRET or AUTH_SECRET/);
+      expect(verifyAppSessionToken(tokenSignedWith(''))).toBeNull();
+      expect(verifyAppSessionToken(tokenSignedWith(deriveLegacyKey('')))).toBeNull();
     });
   });
 });

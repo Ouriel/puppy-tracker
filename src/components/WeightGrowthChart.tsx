@@ -21,7 +21,7 @@ interface WeightGrowthChartProps {
   profile: PuppyProfile;
   onOpenQuickLogModal: (type: 'weight') => void;
   onDeleteActivity?: (id: string) => void;
-  onUpdateActivity?: (updated: Partial<Activity> & { id: string }) => void;
+  onUpdateActivity?: (updated: Partial<Activity> & { id: string }) => Promise<boolean>;
 }
 
 export const WeightGrowthChart: React.FC<WeightGrowthChartProps> = ({
@@ -103,7 +103,7 @@ export const WeightGrowthChart: React.FC<WeightGrowthChartProps> = ({
               <span className="text-[11px] text-slate-400 uppercase font-bold tracking-wider">{t.weightChart.currentAssumed}</span>
               {effectiveWeight.dailyGainGrams ? (
                 <span className="text-[10px] text-emerald-400 font-bold bg-emerald-950/60 border border-emerald-800/50 px-1.5 py-0.5 rounded">
-                  +{effectiveWeight.dailyGainGrams}g/j
+                  {t.health.dailyGain.replace('{grams}', String(effectiveWeight.dailyGainGrams))}
                 </span>
               ) : null}
             </div>
@@ -178,7 +178,7 @@ export const WeightGrowthChart: React.FC<WeightGrowthChartProps> = ({
                         </span>
                         {logAgeWeeks && (
                           <span className="text-[10px] text-pink-300 bg-pink-950/60 border border-pink-800/60 px-1.5 py-0.5 rounded-md font-semibold">
-                            {logAgeWeeks}w {t.weightChart.old}
+                            {t.weightChart.weeksOld.replace('{weeks}', String(logAgeWeeks))}
                           </span>
                         )}
                         {isVetRecord && (
@@ -230,10 +230,7 @@ export const WeightGrowthChart: React.FC<WeightGrowthChartProps> = ({
               dailyFoodGramGoal={profile.dailyFoodGramGoal}
               currentUser={editingWeight.loggedBy}
               onClose={() => setEditingWeight(null)}
-              onSave={(activityData) => {
-                onUpdateActivity({ id: editingWeight.id, ...activityData });
-                setEditingWeight(null);
-              }}
+              onSave={(activityData) => onUpdateActivity({ id: editingWeight.id, ...activityData })}
             />
           </Suspense>
         )}

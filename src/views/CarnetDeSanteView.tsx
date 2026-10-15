@@ -16,18 +16,30 @@ interface CarnetDeSanteViewProps {
   activePuppy: PuppyProfile | null;
   activities?: Activity[];
   weightActivities: Activity[]; // every weigh-in of the dog, whatever its date
+  healthRecords: HealthRecord[]; // every dog's, from /api/dashboard: the dashboard card reads the same list
+  setHealthRecords: React.Dispatch<React.SetStateAction<HealthRecord[]>>;
+  isDashboardDown: boolean;
   currentUser: string;
   onAddActivity: (activity: Omit<Activity, 'id'>) => void;
-  onUpdateActivity: (updated: Partial<Activity> & { id: string }) => void;
+  onUpdateActivity: (updated: Partial<Activity> & { id: string }) => Promise<boolean>;
   onOpenQuickLogModal?: (type: ActivityType) => void;
   onBackToDashboard?: () => void;
   onDeleteActivity?: (id: string) => void;
 }
 
+const sortByDateDesc = (records: HealthRecord[]): HealthRecord[] => {
+  return [...records].sort(
+    (recordA, recordB) => new Date(recordB.date).getTime() - new Date(recordA.date).getTime()
+  );
+};
+
 export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({
   activePuppy,
   activities = [],
   weightActivities,
+  healthRecords,
+  setHealthRecords,
+  isDashboardDown,
   currentUser,
   onAddActivity,
   onUpdateActivity,
@@ -37,20 +49,18 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({
 }) => {
   const { t, lang } = useI18n();
 
-  const [vaccinations, setVaccinations] = useState<HealthRecord[]>([]);
-  const [dewormingLogs, setDewormingLogs] = useState<HealthRecord[]>([]);
   const [isExportMenuOpen, setIsExportMenuOpen] = useState<boolean>(false);
 
   const exportMenuRef = useRef<HTMLDivElement>(null);
 
-  const sortByDateDesc = <T extends { date: string }>(records: T[]): T[] => {
-    return [...records].sort(
-      (recordA, recordB) => new Date(recordB.date).getTime() - new Date(recordA.date).getTime()
-    );
-  };
-
-
   const lastWeighIn = useMemo(() => getUnifiedWeightEntries(weightActivities).at(-1), [weightActivities]);
+
+  const puppyRecords = useMemo(
+    () => sortByDateDesc(healthRecords.filter((record) => record.puppyId === activePuppy?.id)),
+    [healthRecords, activePuppy?.id]
+  );
+  const vaccinations = useMemo(() => puppyRecords.filter((record) => record.type === 'vaccination'), [puppyRecords]);
+  const dewormingLogs = useMemo(() => puppyRecords.filter((record) => record.type === 'deworming'), [puppyRecords]);
 
   const handleExportPdf = useCallback(() => {
     setIsExportMenuOpen(false);
@@ -64,21 +74,20 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({
     exportHealthPassportToCSV(activePuppy, vaccinations, dewormingLogs, weightActivities, lang as 'en' | 'fr');
   }, [activePuppy, vaccinations, dewormingLogs, weightActivities, lang]);
 
+  // Fallback only: the records come with /api/dashboard
   useEffect(() => {
+    const puppyId = activePuppy?.id;
+    if (!isDashboardDown || !puppyId) return;
     let isMounted = true;
-    if (activePuppy?.id) {
-      void fetchHealthRecords(activePuppy.id).then((response) => {
-        if (isMounted && response.ok) {
-          const allRecords = response.data;
-          setVaccinations(sortByDateDesc(allRecords.filter((r) => r.type === 'vaccination')));
-          setDewormingLogs(sortByDateDesc(allRecords.filter((r) => r.type === 'deworming')));
-        }
-      });
-    }
+    void fetchHealthRecords(puppyId).then((response) => {
+      if (isMounted && response.ok) {
+        setHealthRecords((previous) => [...previous.filter((record) => record.puppyId !== puppyId), ...response.data]);
+      }
+    });
     return () => {
       isMounted = false;
     };
-  }, [activePuppy?.id]);
+  }, [isDashboardDown, activePuppy?.id, setHealthRecords]);
 
   // Close Export dropdown on outside click or Escape key
   useEffect(() => {
@@ -230,7 +239,7 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({
       <VaccineSection
         activePuppy={activePuppy}
         vaccinations={vaccinations}
-        setVaccinations={setVaccinations}
+        setHealthRecords={setHealthRecords}
         lastWeighIn={lastWeighIn}
         currentUser={currentUser}
         onAddActivity={onAddActivity}
@@ -241,7 +250,7 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({
       <DewormingSection
         activePuppy={activePuppy}
         dewormingLogs={dewormingLogs}
-        setDewormingLogs={setDewormingLogs}
+        setHealthRecords={setHealthRecords}
         lastWeighIn={lastWeighIn}
         currentUser={currentUser}
         onAddActivity={onAddActivity}

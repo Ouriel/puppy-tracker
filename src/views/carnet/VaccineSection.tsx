@@ -4,7 +4,8 @@ import { Syringe, ShieldCheck, Plus, Trash2, Pencil, Check } from 'lucide-react'
 import { Card, Button, Input, Select, ListBox, ListBoxItem, Chip, toast } from '@heroui/react';
 import { calculateNextVaccineBooster, getHealthProtocols, getHealthRecordDateError, getHealthRecordStatus } from '../../utils/health';
 import { StatusBadge } from '../../components/common/StatusBadge';
-import { formatLocalDate } from '../../utils/date';
+import { formatLocalDate, formatShortDate } from '../../utils/date';
+import { useI18n } from '../../i18n';
 import { createHealthRecord, updateHealthRecord, deleteHealthRecord } from '../../services/api';
 import { ConfirmationModal } from '../../components/common/ConfirmationModal';
 import type { UnifiedWeightEntry } from '../../utils/weight';
@@ -14,7 +15,7 @@ import { WeightField } from './WeightField';
 interface VaccineSectionProps {
   activePuppy: PuppyProfile;
   vaccinations: HealthRecord[];
-  setVaccinations: React.Dispatch<React.SetStateAction<HealthRecord[]>>;
+  setHealthRecords: React.Dispatch<React.SetStateAction<HealthRecord[]>>; // every record, not only vaccinations
   lastWeighIn?: UnifiedWeightEntry;
   currentUser: string;
   onAddActivity: (activity: Omit<Activity, 'id'>) => void;
@@ -24,7 +25,7 @@ interface VaccineSectionProps {
 export const VaccineSection: React.FC<VaccineSectionProps> = ({
   activePuppy,
   vaccinations,
-  setVaccinations,
+  setHealthRecords,
   lastWeighIn,
   currentUser,
   onAddActivity,
@@ -49,6 +50,8 @@ export const VaccineSection: React.FC<VaccineSectionProps> = ({
   const [editVaccineVetClinic, setEditVaccineVetClinic] = useState('');
   const [editVaccineBatchNumber, setEditVaccineBatchNumber] = useState('');
 
+  const { lang } = useI18n();
+
   // vaccinations is sorted newest first. Default vaccine: the last one given if it is still an option, else CHPPi + L4
   const vaccineOptions = getHealthProtocols().vaccines;
   const lastVaccineName = vaccinations[0]?.name;
@@ -70,14 +73,6 @@ export const VaccineSection: React.FC<VaccineSectionProps> = ({
   const suggestedEditBoosterDate = editedVaccine && editVaccineDate && (editVaccineDate !== editedVaccine.date || editVaccineName !== editedVaccine.name)
     ? calculateNextVaccineBooster(editVaccineDate, editVaccineName, activePuppy.birthDate)
     : '';
-
-  const sortByDateDesc = (arr: HealthRecord[]): HealthRecord[] => {
-    return [...arr].sort((recordA, recordB) => new Date(recordB.date).getTime() - new Date(recordA.date).getTime());
-  };
-
-  const getVaccineStatus = (vaccine: HealthRecord, allVaccines: HealthRecord[]) => {
-    return getHealthRecordStatus(vaccine, allVaccines, `✅ ${t.health.statusUpToDate}`, `✅ ${t.health.statusFulfilled}`);
-  };
 
   const handleAddVaccineSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -103,7 +98,8 @@ export const VaccineSection: React.FC<VaccineSectionProps> = ({
     if (result.ok) {
       // A vaccination never stores a weight: the weigh-in is a weight event of its own
       if (weighIn.activity) onAddActivity(weighIn.activity);
-      setVaccinations((previous) => sortByDateDesc([result.data, ...previous]));
+      // A refresh answered meanwhile may hold it already
+      setHealthRecords((previous) => [result.data, ...previous.filter((record) => record.id !== result.data.id)]);
       setIsAddingVaccine(false);
       setSelectedVaccineName(null);
       setCustomNextDueDate(null);
@@ -111,7 +107,7 @@ export const VaccineSection: React.FC<VaccineSectionProps> = ({
       setBatchNumber('');
       setWeightText('');
     } else {
-      toast.danger(result.error || t.toasts.errorGeneric);
+      toast.danger(t.toasts[result.errorKey]);
     }
   };
 
@@ -139,22 +135,20 @@ export const VaccineSection: React.FC<VaccineSectionProps> = ({
     });
 
     if (result.ok) {
-      setVaccinations((previous) =>
-        sortByDateDesc(previous.map((vaccine) => (vaccine.id === id ? { ...vaccine, ...result.data } : vaccine)))
-      );
+      setHealthRecords((previous) => previous.map((record) => (record.id === id ? { ...record, ...result.data } : record)));
       setEditingVaccineId(null);
       toast.success(t.toasts.vaccineUpdated);
     } else {
-      toast.danger(result.error || t.toasts.errorGeneric);
+      toast.danger(t.toasts[result.errorKey]);
     }
   };
 
   const handleDeleteVaccine = async (id: string) => {
     const result = await deleteHealthRecord(id);
     if (result.ok) {
-      setVaccinations((previous) => previous.filter((vaccine) => vaccine.id !== id));
+      setHealthRecords((previous) => previous.filter((record) => record.id !== id));
     } else {
-      toast.danger(result.error || t.toasts.errorGeneric);
+      toast.danger(t.toasts[result.errorKey]);
     }
   };
 
@@ -396,7 +390,7 @@ export const VaccineSection: React.FC<VaccineSectionProps> = ({
               );
             }
 
-            const status = getVaccineStatus(vaccine, vaccinations);
+            const status = getHealthRecordStatus(vaccine, vaccinations);
 
             return (
               <div
@@ -417,7 +411,7 @@ export const VaccineSection: React.FC<VaccineSectionProps> = ({
                       )}
                     </div>
                     <div className="text-[11px] text-slate-400 flex flex-col sm:flex-row sm:items-center sm:gap-1.5 gap-0.5">
-                      <span>{t.health.injectedOn} {vaccine.date}</span>
+                      <span>{t.health.injectedOn} {formatShortDate(vaccine.date, lang)}</span>
                       <span className="hidden sm:inline">&bull;</span>
                       <span className="truncate text-slate-400/90">{t.health.clinic}: {vaccine.vetClinic || '-'}</span>
                     </div>
@@ -426,8 +420,8 @@ export const VaccineSection: React.FC<VaccineSectionProps> = ({
 
                 <div className="flex items-center justify-between sm:justify-end gap-3 pt-2 sm:pt-0 border-t border-slate-800/60 sm:border-t-0 shrink-0">
                   <div className="text-left sm:text-right">
-                    <div className="text-xs font-bold text-amber-300">{t.health.booster}: {vaccine.boosterDate}</div>
-                    <StatusBadge status={status.urgency} label={status.label} />
+                    <div className="text-xs font-bold text-amber-300">{t.health.booster}: {vaccine.boosterDate ? formatShortDate(vaccine.boosterDate, lang) : '—'}</div>
+                    {vaccine.boosterDate && <StatusBadge status={status} />}
                   </div>
                   <div className="flex items-center gap-1.5 shrink-0">
                     <button

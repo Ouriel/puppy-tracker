@@ -47,11 +47,11 @@ export function usePuppies(initialPuppies?: PuppyProfile[]) {
         toast.success(t.toasts.dogRegistered.replace('{name}', saved.name));
         return true;
       } else {
-        toast.danger(result.error || t.toasts.errorGeneric);
+        toast.danger(t.toasts[result.errorKey]);
         return false;
       }
     },
-    [t.toasts.dogRegistered, t.toasts.errorGeneric]
+    [t.toasts]
   );
 
   const updatePuppy = useCallback(
@@ -66,10 +66,10 @@ export function usePuppies(initialPuppies?: PuppyProfile[]) {
       }
       // Only this dog goes back: a later change the server saved stays
       setPuppies((previous) => previous.map((puppy) => (puppy.id === updatedPup.id ? target ?? puppy : puppy)));
-      toast.danger(result.error || t.toasts.errorGeneric);
+      toast.danger(t.toasts[result.errorKey]);
       return false;
     },
-    [puppies, setPuppies, t.toasts.dogUpdated, t.toasts.errorGeneric]
+    [puppies, setPuppies, t.toasts]
   );
 
   const deletePuppy = useCallback(
@@ -90,10 +90,10 @@ export function usePuppies(initialPuppies?: PuppyProfile[]) {
       } else {
         // Back in its place, unless a reload already brought it back
         if (removed) setPuppies((previous) => (previous.some((puppy) => puppy.id === id) ? previous : previous.toSpliced(index, 0, removed)));
-        toast.danger(result.error || t.toasts.errorGeneric);
+        toast.danger(t.toasts[result.errorKey]);
       }
     },
-    [activePuppyId, puppies, setPuppies, t.toasts.dogDeleted, t.toasts.errorGeneric]
+    [activePuppyId, puppies, setPuppies, t.toasts]
   );
 
   return {

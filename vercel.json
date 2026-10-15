@@ -1,5 +1,8 @@
 {
   "installCommand": "npm ci",
+  "git": {
+    "deploymentEnabled": { "dependabot/**": false }
+  },
   "headers": [
     {
       "source": "/assets/(.*)",
