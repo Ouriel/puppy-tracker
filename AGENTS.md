@@ -29,6 +29,7 @@ PupPace — Smart Household Puppy Activity Tracker & Potty Predictor. React 19 +
 - **Uniform Quoting & Escaping**: Pass both headers and row cells through `escapeCsvField`. Always `.trim()` values before quoting.
 - **Separate Date & Time Columns**: Never export combined locale timestamp strings (e.g. `"8/19/2026, 8:45:00 AM"`). Split into distinct ISO `Date` (`YYYY-MM-DD`) and 24h `Time` (`HH:mm`) columns to enable spreadsheet filtering, sorting, and charts.
 - **Dedicated Columns for Mixed Records**: When exporting heterogeneous records into a single CSV (e.g. Health Passport vaccines, dewormings, weights), never overload columns (avoid `Clinic / Logged By`). Provide dedicated, unambiguous columns (`Veterinary Clinic`, `Logged By`).
+- **Activity Export = The Feed's Window**: CSV and print cover the days the feed shows (7 by default, more after "load more"); the print states "Du … au …" / "From … to …" and no daily goal (past goals are not stored).
 - **Client-Side Print Reports**: Use lightweight, responsive HTML templates with `@page { size: A4; margin: 15mm; }` via `window.open()` + `window.print()` instead of heavy client PDF libraries.
 - **DOM Test Environment**: Tag DOM-dependent Vitest files with `// @vitest-environment jsdom`. Verify BOM presence via raw bytes `new Uint8Array(await blob.arrayBuffer())` (`0xEF, 0xBB, 0xBF`), as WHATWG `blob.text()` strips the BOM.
 
@@ -41,7 +42,10 @@ PupPace — Smart Household Puppy Activity Tracker & Potty Predictor. React 19 +
 
 - Veterinary protocols and product schedules are data-driven from `src/data/healthProtocols.json`.
 - All-in-one monthly chewable tablets (Credelio Plus, Nexgard Spectra, Simparica Trio) auto-calculate +1 month due dates.
-- Bravecto auto-calculates +3 months (12 weeks). Milbemax/Drontal auto-calculates monthly (<6m) or quarterly (>=6m).
+- Bravecto auto-calculates +3 months (12 weeks). Age-based wormers (Milbemax/Drontal) use the dog's age **on the dose day**: every 2 weeks under 12 weeks, monthly until 6 months, then quarterly.
+- Vaccine boosters use the dog's age **on the injection day** (`calculateNextVaccineBooster(date, name, birthDate)`): a CHPPi-family dose before 16 weeks +1 month, the dose at 16 weeks or later the 1st birthday, then CHPPi + L4 yearly and CHPPi sans L4 / Vanguard CPV every 3 years from 16 months. Other vaccines: `defaultBoosterMonths`.
+- Months are added on calendar (UTC) dates, capped at the month end (31 Jan + 1 month = 28 Feb), so the clock change never shifts a date.
+- Dates: not after today, next date not before it (`getHealthRecordDateError`; the API allows tomorrow UTC and checks in the handler, since PUT parses `.partial()`). Edit forms keep the stored next date; once the date or product changes, they offer "Suggested: <date>" (one tap applies it).
 - Older historical vaccine or deworming entries that have a later entry of the same vaccine, or of a vaccine that covers it, display **`✅ Renouvelé / Effectué`** (Fulfilled) instead of overdue alerts. "Same vaccine" = the record `name` resolved to its `healthProtocols.json` vaccine (`type` only says vaccination/deworming); coverage is `VACCINE_COVERS` in `src/utils/health.ts` (CHPPi + L4 covers CHPPi sans L4, L4 and Vanguard CPV; CHPPi sans L4 covers Vanguard CPV); `VACCINE_RENEWED_BY` adds the part that sets a combo's booster date (an L4-only booster renews CHPPi + L4, the usual adult schedule); any later deworming renews a deworming. A same-day entry of another vaccine (e.g. Rage with CHPPi) never renews it.
 
 ### Types & Validation

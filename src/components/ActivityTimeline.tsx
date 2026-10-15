@@ -235,19 +235,20 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
     }
   }, [isAllExpanded, allDayKeys]);
 
+  // The export is what the feed shows (owner decision 2026-10-14): its days, and the report prints them
   const handleExportCsv = useCallback(() => {
     setIsExportMenuOpen(false);
     if (!activePuppy) return;
-    const activitiesToExport = sortedCoreActivities.length > 0 ? sortedCoreActivities : activities;
-    exportActivitiesToCSV(activitiesToExport, activePuppy, lang as 'en' | 'fr', caretakers);
-  }, [activePuppy, sortedCoreActivities, activities, lang, caretakers]);
+    exportActivitiesToCSV(visibleActivities, activePuppy, lang as 'en' | 'fr', caretakers);
+  }, [activePuppy, visibleActivities, lang, caretakers]);
 
   const handleExportPdf = useCallback(() => {
     setIsExportMenuOpen(false);
     if (!activePuppy) return;
-    const activitiesToExport = sortedCoreActivities.length > 0 ? sortedCoreActivities : activities;
-    printActivitiesReport(activitiesToExport, activePuppy, lang as 'en' | 'fr', t, caretakers);
-  }, [activePuppy, sortedCoreActivities, activities, lang, t, caretakers]);
+    // All time: from the oldest day shown
+    const period = { from: cutoffDateKey ?? dayGroups[dayGroups.length - 1]?.dateKey ?? todayDateKey, to: todayDateKey };
+    printActivitiesReport(visibleActivities, activePuppy, lang as 'en' | 'fr', t, caretakers, period);
+  }, [activePuppy, visibleActivities, cutoffDateKey, dayGroups, todayDateKey, lang, t, caretakers]);
 
   // Close Export dropdown on outside click or Escape key
   useEffect(() => {
@@ -276,7 +277,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
     };
   }, [isExportMenuOpen]);
 
-  const hasLogsToExport = (sortedCoreActivities.length > 0 || activities.length > 0) && !!activePuppy;
+  const hasLogsToExport = visibleActivities.length > 0 && !!activePuppy;
 
   return (
     <Card className="shadow-xl bg-slate-900/90 border-slate-800">

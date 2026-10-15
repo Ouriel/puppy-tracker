@@ -2,11 +2,10 @@ import React, { useState } from 'react';
 import type { PuppyProfile, HealthRecord, Activity } from '../../types';
 import { Pill, Plus, Trash2, Pencil, Check } from 'lucide-react';
 import { Card, Button, Input, Select, ListBox, ListBoxItem, toast } from '@heroui/react';
-import { calculateNextAntiparasiticDate, getHealthProtocols, getHealthRecordStatus } from '../../utils/health';
+import { calculateNextAntiparasiticDate, getHealthProtocols, getHealthRecordDateError, getHealthRecordStatus } from '../../utils/health';
 import { StatusBadge } from '../../components/common/StatusBadge';
 import type { UnifiedWeightEntry } from '../../utils/weight';
 import { buildVetWeighIn } from '../../utils/activityPayloads';
-import { getPuppyAge } from '../../utils/predictions';
 import { formatLocalDate } from '../../utils/date';
 import { createHealthRecord, updateHealthRecord, deleteHealthRecord } from '../../services/api';
 import { ConfirmationModal } from '../../components/common/ConfirmationModal';
@@ -45,13 +44,22 @@ export const DewormingSection: React.FC<DewormingSectionProps> = ({
   const [editDewormingDate, setEditDewormingDate] = useState('');
   const [editDewormingBoosterDate, setEditDewormingBoosterDate] = useState('');
 
+  // From her age on the dose day, not today's: doses are often entered weeks later
   const autoNextDewormDate = React.useMemo(() => {
     if (!dewormAdminDate) return '';
-    const ageMonths = activePuppy.birthDate ? getPuppyAge(activePuppy.birthDate).months : 3;
-    return calculateNextAntiparasiticDate(dewormAdminDate, productName, ageMonths);
+    return calculateNextAntiparasiticDate(dewormAdminDate, productName, activePuppy.birthDate);
   }, [dewormAdminDate, productName, activePuppy.birthDate]);
 
   const dewormNextDate = customDewormNextDate !== null ? customDewormNextDate : autoNextDewormDate;
+  const today = formatLocalDate();
+  const addDateError = getHealthRecordDateError(dewormAdminDate, dewormNextDate, today);
+  const editDateError = getHealthRecordDateError(editDewormingDate, editDewormingBoosterDate, today);
+  // The edit form keeps the stored next date: only a changed date or product offers this one
+  const editedDeworming = dewormingLogs.find((deworming) => deworming.id === editingDewormingId);
+  const suggestedEditNextDate = editedDeworming && editDewormingDate
+    && (editDewormingDate !== editedDeworming.date || editDewormingName !== (editedDeworming.productName || editedDeworming.name))
+    ? calculateNextAntiparasiticDate(editDewormingDate, editDewormingName, activePuppy.birthDate)
+    : '';
 
   const sortByDateDesc = (arr: HealthRecord[]): HealthRecord[] => {
     return [...arr].sort((recordA, recordB) => new Date(recordB.date).getTime() - new Date(recordA.date).getTime());
@@ -63,7 +71,7 @@ export const DewormingSection: React.FC<DewormingSectionProps> = ({
 
   const handleAddDewormingSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (!dewormAdminDate || !dewormNextDate) return;
+    if (addDateError || !dewormNextDate) return;
 
     const name = productName.trim() || 'Credelio Plus';
     // Optional: empty saves no weight; typed, it is checked before anything is saved
@@ -103,7 +111,7 @@ export const DewormingSection: React.FC<DewormingSectionProps> = ({
   };
 
   const handleUpdateDewormingSubmit = async (id: string) => {
-    if (!editDewormingDate) return;
+    if (editDateError) return;
     const result = await updateHealthRecord({
       id,
       puppyId: activePuppy.id,
@@ -190,12 +198,14 @@ export const DewormingSection: React.FC<DewormingSectionProps> = ({
                       type="date"
                       className="bg-slate-900 border-slate-700/80 text-slate-100"
                       value={dewormAdminDate}
+                      max={today}
                       onChange={(event) => {
                         setDewormAdminDate(event.target.value);
                         setCustomDewormNextDate(null);
                       }}
                       required
                     />
+                    {addDateError && addDateError !== 'boosterBeforeDate' && <p role="alert" className="mt-1.5 text-xs font-semibold text-rose-400">{t.health[addDateError]}</p>}
                   </div>
 
                   <div className="sm:col-span-1 min-w-0">
@@ -204,9 +214,11 @@ export const DewormingSection: React.FC<DewormingSectionProps> = ({
                       type="date"
                       className="bg-slate-900 border-slate-700/80 text-slate-100"
                       value={dewormNextDate}
+                      min={dewormAdminDate}
                       onChange={(event) => setCustomDewormNextDate(event.target.value)}
                       required
                     />
+                    {addDateError === 'boosterBeforeDate' && <p role="alert" className="mt-1.5 text-xs font-semibold text-rose-400">{t.health.boosterBeforeDate}</p>}
                   </div>
                 </div>
 
@@ -279,8 +291,10 @@ export const DewormingSection: React.FC<DewormingSectionProps> = ({
                           type="date"
                           className="bg-slate-900 border-slate-700/80 text-slate-100"
                           value={editDewormingDate}
+                          max={today}
                           onChange={(event) => setEditDewormingDate(event.target.value)}
                         />
+                        {editDateError && editDateError !== 'boosterBeforeDate' && <p role="alert" className="mt-1.5 text-xs font-semibold text-rose-400">{t.health[editDateError]}</p>}
                       </div>
                       <div>
                         <label className="block text-[10px] text-slate-400 font-semibold mb-1">{t.health.boosterDue}</label>
@@ -288,8 +302,19 @@ export const DewormingSection: React.FC<DewormingSectionProps> = ({
                           type="date"
                           className="bg-slate-900 border-slate-700/80 text-slate-100"
                           value={editDewormingBoosterDate}
+                          min={editDewormingDate}
                           onChange={(event) => setEditDewormingBoosterDate(event.target.value)}
                         />
+                        {editDateError === 'boosterBeforeDate' && <p role="alert" className="mt-1.5 text-xs font-semibold text-rose-400">{t.health.boosterBeforeDate}</p>}
+                        {suggestedEditNextDate && suggestedEditNextDate !== editDewormingBoosterDate && (
+                          <button
+                            type="button"
+                            onClick={() => setEditDewormingBoosterDate(suggestedEditNextDate)}
+                            className="mt-1.5 text-[11px] font-semibold text-amber-300 hover:text-amber-200 underline underline-offset-2"
+                          >
+                            {t.health.suggestedDate.replace('{date}', suggestedEditNextDate)}
+                          </button>
+                        )}
                       </div>
                     </div>
                     <div className="flex justify-end gap-2 pt-1">
