@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import type { Table } from 'drizzle-orm';
 import { signAppSessionToken } from '../../../api/_auth.js';
 import activitiesHandler from '../../../api/activities.js';
-import { getCurrentCaretakerName, findLinkedCaretaker } from '../caretakers';
+import { getCurrentCaretakerName, findLinkedCaretaker, BADGE_COLORS } from '../caretakers';
 
 // The real household's shape since 'Members data done 2026-10-15' (read-only SELECT): 3 badges, each linked by
 // email to one account, no exact-name matches. Emails and account names here are placeholders.
@@ -17,8 +17,12 @@ const PRODUCTION_ACCOUNTS = [
   { email: 'DASHA@example.com', name: 'dasha.handle', badge: 'Dasha' },
 ];
 
+const DARIA_ACCOUNT = { id: 'usr-2', email: 'daria@example.com', name: 'daria.risko', householdId: 'hh-1', role: 'Member', status: 'ACTIVE' };
+
 const dbMock = vi.hoisted(() => ({
-  selectCount: 0,
+  // The users row verifyAuth reads, and the household's badges (shared by concurrent requests)
+  account: null as Record<string, unknown> | null,
+  caretakers: [] as Array<Record<string, unknown>>,
   insertedValues: [] as Array<Record<string, unknown>>,
   updatedValues: [] as Array<Record<string, unknown>>,
 }));
@@ -37,22 +41,32 @@ vi.mock('drizzle-orm/neon-http', async () => {
     };
     return query;
   };
+  // As in production, the primary key is the only unique index on caretakers.
+  const insertBadge = (values: Record<string, unknown>, ignoreConflict: boolean) => {
+    if (dbMock.caretakers.some((badge) => badge.id === values.id)) {
+      return ignoreConflict ? Promise.resolve([]) : Promise.reject(new Error('duplicate key value violates unique constraint "caretakers_pkey"'));
+    }
+    dbMock.caretakers.push(values);
+    return Promise.resolve([values]);
+  };
   return {
     drizzle: vi.fn(() => ({
       select: vi.fn(() => ({
         from: vi.fn((table: Table) => {
-          dbMock.selectCount += 1;
-          // The first select of a request is verifyAuth's users lookup.
-          if (dbMock.selectCount === 1) {
-            return resolved([{ id: 'usr-2', email: 'daria@example.com', name: 'daria.risko', householdId: 'hh-1', role: 'Member', status: 'ACTIVE' }]);
-          }
           const tableName = getTableName(table);
-          if (tableName === 'caretakers') return resolved(PRODUCTION_CARETAKERS);
+          if (tableName === 'users') return resolved([dbMock.account]);
+          if (tableName === 'caretakers') return resolved([...dbMock.caretakers]);
           return resolved(tableName === 'puppies' ? [{ id: 'pup-1', householdId: 'hh-1' }] : []);
         }),
       })),
-      insert: vi.fn(() => ({
+      insert: vi.fn((table: Table) => ({
         values: (values: Record<string, unknown>) => {
+          if (getTableName(table) === 'caretakers') {
+            return {
+              returning: () => insertBadge(values, false),
+              onConflictDoNothing: () => ({ returning: () => insertBadge(values, true) }),
+            };
+          }
           dbMock.insertedValues.push(values);
           return { returning: () => Promise.resolve([values]) };
         },
@@ -85,10 +99,21 @@ function createMockResponse() {
   return response;
 }
 
-function requestAsDaria(method: string, body: unknown) {
-  const token = signAppSessionToken({ email: 'daria@example.com', name: 'daria.risko', householdId: 'hh-1', role: 'Member' }, 30);
+function requestAs(account: { email: string; name: string }, method: string, body: unknown) {
+  const token = signAppSessionToken({ email: account.email, name: account.name, householdId: 'hh-1', role: 'Member' }, 30);
   return { method, headers: { authorization: `Bearer ${token}` }, query: {}, body } as any;
 }
+
+const requestAsDaria = (method: string, body: unknown) => requestAs(DARIA_ACCOUNT, method, body);
+
+// The production badges with their household, colours and ids
+const HOUSEHOLD_BADGES = PRODUCTION_CARETAKERS.map((badge, index) => ({
+  ...badge,
+  id: `c-${index}`,
+  householdId: 'hh-1',
+  role: 'Member',
+  color: BADGE_COLORS[index],
+}));
 
 describe('getCurrentCaretakerName (what the log modal shows as "logged by")', () => {
   it('gives each production account its own badge, for logged-by and for the active chip', () => {
@@ -128,7 +153,8 @@ describe('/api/activities binds loggedBy to the signed-in user', () => {
 
   beforeEach(() => {
     process.env.SESSION_SECRET = 'test-secret-key-1234567890-very-secure';
-    dbMock.selectCount = 0;
+    dbMock.account = DARIA_ACCOUNT;
+    dbMock.caretakers = HOUSEHOLD_BADGES.map((badge) => ({ ...badge }));
     dbMock.insertedValues = [];
     dbMock.updatedValues = [];
   });
@@ -160,5 +186,86 @@ describe('/api/activities binds loggedBy to the signed-in user', () => {
     await activitiesHandler(requestAsDaria('PUT', { id: 'act-1', notes: 'edited', loggedBy: 'Matthieu Jacquet' }), response);
     expect(response.statusCode).toBe(200);
     expect(dbMock.updatedValues[0]).not.toHaveProperty('loggedBy');
+  });
+});
+
+describe('an account with no linked badge gets one on its first log (owner decision 2026-10-15)', () => {
+  const originalSecret = process.env.SESSION_SECRET;
+  // A Google name that matches no badge, and an email in mixed case
+  const newcomer = { id: 'usr-4', email: 'New.Person@Example.com', name: 'New Person Fullname', householdId: 'hh-1', role: 'Member', status: 'ACTIVE' };
+  const pee = (id: string) => ({ id, puppyId: 'pup-1', type: 'pee', timestamp: '2026-10-15T08:00:00.000Z', pottyLocation: 'outside' });
+  const newcomerBadges = () => dbMock.caretakers.filter((badge) => badge.email === 'new.person@example.com');
+
+  beforeEach(() => {
+    process.env.SESSION_SECRET = 'test-secret-key-1234567890-very-secure';
+    dbMock.account = newcomer;
+    // A badge without an email already uses the name 'New'
+    dbMock.caretakers = [...HOUSEHOLD_BADGES.map((badge) => ({ ...badge })), { id: 'c-guest', householdId: 'hh-1', name: 'New', role: 'Member', color: '#0EA5E9', email: null }];
+    dbMock.insertedValues = [];
+    dbMock.updatedValues = [];
+  });
+
+  afterEach(() => {
+    process.env.SESSION_SECRET = originalSecret;
+  });
+
+  it('creates it in the household, linked to the lower-cased email, named and coloured like an invite badge, and logs under that name', async () => {
+    const response = createMockResponse();
+    await activitiesHandler(requestAs(newcomer, 'POST', pee('act-a')), response);
+
+    expect(response.statusCode).toBe(201);
+    expect(newcomerBadges()).toEqual([
+      expect.objectContaining({ householdId: 'hh-1', name: 'New.person', role: 'Member', color: BADGE_COLORS[3], email: 'new.person@example.com' }),
+    ]);
+    expect(dbMock.insertedValues[0].loggedBy).toBe('New.person');
+    expect(response.body).toMatchObject({ id: 'act-a', loggedBy: 'New.person' });
+  });
+
+  it('two first logs at once create one badge, and both logs carry its name', async () => {
+    const responses = [createMockResponse(), createMockResponse()];
+    await Promise.all([
+      activitiesHandler(requestAs(newcomer, 'POST', pee('act-a')), responses[0]),
+      activitiesHandler(requestAs(newcomer, 'POST', pee('act-b')), responses[1]),
+    ]);
+
+    expect(responses.map((response) => response.statusCode)).toEqual([201, 201]);
+    expect(newcomerBadges()).toHaveLength(1);
+    expect(dbMock.insertedValues.map((activity) => activity.loggedBy)).toEqual(['New.person', 'New.person']);
+  });
+
+  it('the next log uses that badge and creates none', async () => {
+    await activitiesHandler(requestAs(newcomer, 'POST', pee('act-a')), createMockResponse());
+    const response = createMockResponse();
+    await activitiesHandler(requestAs(newcomer, 'POST', pee('act-b')), response);
+
+    expect(response.body.loggedBy).toBe('New.person');
+    expect(newcomerBadges()).toHaveLength(1);
+  });
+
+  // A member may untick 'This is me' on their own badge: the id derived for their email then belongs to a badge linked to nobody
+  it('after its badge is unlinked, the next log makes a new linked badge and never logs under another member', async () => {
+    const dariaNew = { ...newcomer, id: 'usr-5', email: 'daria.new@example.com', name: 'Daria' };
+    dbMock.account = dariaNew;
+    await activitiesHandler(requestAs(dariaNew, 'POST', pee('act-a')), createMockResponse());
+    for (const badge of dbMock.caretakers) if (badge.email === 'daria.new@example.com') badge.email = null;
+
+    const response = createMockResponse();
+    await activitiesHandler(requestAs(dariaNew, 'POST', pee('act-b')), response);
+
+    expect(response.statusCode).toBe(201);
+    expect(response.body.loggedBy).toBe('Daria.new 2');
+    expect(dbMock.caretakers.filter((badge) => badge.email === 'daria.new@example.com')).toEqual([
+      expect.objectContaining({ householdId: 'hh-1', name: 'Daria.new 2' }),
+    ]);
+  });
+
+  it('an account that already has a linked badge creates none', async () => {
+    dbMock.account = DARIA_ACCOUNT;
+    const badgesBefore = dbMock.caretakers.length;
+    const response = createMockResponse();
+    await activitiesHandler(requestAsDaria('POST', pee('act-a')), response);
+
+    expect(response.body.loggedBy).toBe('Daria');
+    expect(dbMock.caretakers).toHaveLength(badgesBefore);
   });
 });

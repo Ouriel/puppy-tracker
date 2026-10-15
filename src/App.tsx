@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, lazy, Suspense } from 'react';
-import type { UserAccount, ActivityType, PottyLocation, FamilyRole, HealthRecord } from './types';
+import type { Activity, UserAccount, ActivityType, PottyLocation, FamilyRole, HealthRecord } from './types';
 import { getAuthToken, setAuthToken, getStoredAuthUser, setStoredAuthUser } from './utils/auth';
 import { isSuperAdminEmail } from './utils/auth';
 import {
@@ -281,6 +281,15 @@ function App() {
     );
   }, [puppyState.activePuppy, todayFoodLoggedGrams, todayMealsCount]);
 
+  // Owner decision 2026-10-15: the server gives an account without a linked badge one on its first log, and stores
+  // the log under it. A saved name that no badge here carries means the badges here are stale: reload them.
+  const logActivity = useCallback(async (activity: Omit<Activity, 'id'>) => {
+    const saved = await addActivity(activity);
+    if (!saved || caretakerState.caretakers.some((item) => item.name === saved.loggedBy)) return;
+    const householdRes = await fetchHousehold();
+    if (householdRes.ok && Array.isArray(householdRes.data?.caretakers)) setCaretakers(householdRes.data.caretakers);
+  }, [addActivity, caretakerState.caretakers, setCaretakers]);
+
   const handleQuickAction = useCallback((type: ActivityType, pottyLocation?: PottyLocation) => {
     if (!puppyState.activePuppy) return;
     const actionTime = new Date();
@@ -293,8 +302,8 @@ function App() {
       actionTime,
     });
 
-    addActivity(newAct);
-  }, [puppyState.activePuppy, caretakerState.currentUser, addActivity]);
+    void logActivity(newAct);
+  }, [puppyState.activePuppy, caretakerState.currentUser, logActivity]);
 
   const handleOpenQuickLogModal = useCallback((type?: ActivityType) => {
     setQuickLogType(type || 'pee');
@@ -423,7 +432,7 @@ function App() {
               activities={activePuppyActivities}
               weightActivities={activePuppyWeights}
               currentUser={caretakerState.currentUser}
-              onAddActivity={activityState.addActivity}
+              onAddActivity={logActivity}
               onUpdateActivity={activityState.updateActivity}
               onOpenQuickLogModal={handleOpenQuickLogModal}
               onBackToDashboard={() => handleNavigate('dashboard')}
@@ -522,9 +531,7 @@ function App() {
             isOpen={true}
             onClose={() => setIsQuickLogOpen(false)}
             initialType={quickLogType}
-            onSave={(activity) => {
-              return activityState.addActivity(activity);
-            }}
+            onSave={logActivity}
             currentUser={caretakerState.currentUser}
             defaultMealPortionGrams={nextMealPortionGrams}
             dailyFoodGramGoal={puppyState.activePuppy?.dailyFoodGramGoal}

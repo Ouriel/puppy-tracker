@@ -37,6 +37,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail, caretake
   const [userToDelete, setUserToDelete] = useState<RegisteredUserItem | null>(null);
   const [userToJoin, setUserToJoin] = useState<{ email: string; householdId: string } | null>(null);
   const [inviteToMove, setInviteToMove] = useState<{ email: string; householdId?: string } | null>(null);
+  const [accountToMove, setAccountToMove] = useState<{ email: string; householdId: string } | null>(null);
 
   const currentHouseholdId = users.find((registeredUser) => registeredUser.email.toLowerCase() === currentUserEmail.toLowerCase())?.householdId;
   // A sign-up lives in its own house-… household, which has no households row: list it so it can be kept.
@@ -103,10 +104,13 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail, caretake
     }
   };
 
+  // Asked first (accountToMove). Into the admin's own household, the same linked badge as an approval (28).
   const handleMoveHousehold = async (email: string, newHouseholdId: string) => {
     try {
       const res = await updateUser({ email, householdId: newHouseholdId });
       if (res.ok) {
+        const badge = newHouseholdId === currentHouseholdId ? buildInviteBadge(email, caretakers) : null;
+        if (badge) onAddCaretaker(badge);
         setUsers((previous) =>
           previous.map((registeredUser) =>
             registeredUser.email === email
@@ -272,6 +276,16 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail, caretake
         confirmLabel={t.household.addToFamily}
         onConfirm={() => inviteToMove && void inviteMember(inviteToMove.email, inviteToMove.householdId, true)}
         onClose={() => setInviteToMove(null)}
+      />
+
+      <ConfirmationModal
+        isOpen={!!accountToMove}
+        title={t.admin.move}
+        message={t.admin.moveHousehold.replace('{email}', accountToMove?.email ?? '').replace('{household}', householdName(accountToMove?.householdId ?? ''))}
+        confirmLabel={t.admin.move}
+        cancelLabel={t.potty.cancel}
+        onConfirm={() => accountToMove && void handleMoveHousehold(accountToMove.email, accountToMove.householdId)}
+        onClose={() => setAccountToMove(null)}
       />
 
       {/* Delete User Confirmation Modal */}
@@ -472,7 +486,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail, caretake
                           <Home className="w-3.5 h-3.5 text-indigo-400" />
                           <select
                             value={userItem.householdId ?? ''}
-                            onChange={(event) => handleMoveHousehold(userItem.email, event.target.value)}
+                            onChange={(event) => setAccountToMove({ email: userItem.email, householdId: event.target.value })}
                             aria-label={t.admin.householdFor.replace('{name}', userItem.name)}
                             className="bg-slate-900 border border-slate-700 text-slate-200 text-xs rounded-lg px-2.5 py-1 focus:outline-none focus:border-indigo-500"
                           >

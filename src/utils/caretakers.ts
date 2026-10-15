@@ -88,7 +88,7 @@ export function badgeNameFromEmail(email: string): string {
  * The badge an invite creates, linked to the invited email; null when a badge already carries that email.
  * loggedBy is stored as a name, so the name is one no other badge uses: 'Jane', else 'Jane.doe', else 'Jane.doe 2'.
  */
-export function buildInviteBadge(email: string, caretakers: Caretaker[]): Caretaker | null {
+export function buildInviteBadge(email: string, caretakers: Array<{ name: string; email?: string | null; color: string }>): Caretaker | null {
   const invitedEmail = email.trim().toLowerCase();
   if (caretakers.some((item) => item.email?.toLowerCase() === invitedEmail)) return null;
   const usedNames = new Set(caretakers.map((item) => item.name.trim().toLowerCase()));

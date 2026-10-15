@@ -368,6 +368,8 @@ export const fr: TranslationKeys = {
     deleteUserBtn: 'Supprimer l\'utilisateur',
     ownHousehold: 'Son propre foyer',
     joinHousehold: 'Ajouter {email} à {household} ?',
+    move: 'Déplacer',
+    moveHousehold: 'Déplacer {email} vers {household} ?',
   },
   auth: {
     subtitle: 'Application Familiale de Suivi d\'Activité & Propreté du Chiot',

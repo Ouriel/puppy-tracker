@@ -180,3 +180,34 @@ describe('POST /api/users: pre-approving someone who already has an account (20)
     expect(dbMock.insertedValues).toEqual([]);
   });
 });
+
+describe("PUT /api/users: the Admin panel's 'Active accounts' household select", () => {
+  const originalSecret = process.env.SESSION_SECRET;
+  const put = (request: { method: string }) => ({ ...request, method: 'PUT' });
+
+  beforeEach(() => {
+    process.env.SESSION_SECRET = 'test-secret-key-1234567890-very-secure';
+    dbMock.users = [adminRow, { ...activeElsewhere }];
+    dbMock.updatedValues = [];
+  });
+
+  afterEach(() => {
+    process.env.SESSION_SECRET = originalSecret;
+  });
+
+  it('refuses (403) a move by an admin who is not the super admin, and changes nothing', async () => {
+    const response = createMockResponse();
+    await usersHandler(put(asAdmin({ email: activeElsewhere.email, householdId: adminRow.householdId })) as any, response);
+
+    expect(response.statusCode).toBe(403);
+    expect(dbMock.updatedValues).toEqual([]);
+  });
+
+  it('lets the owner move the account', async () => {
+    const response = createMockResponse();
+    await usersHandler(put(asOwner({ email: activeElsewhere.email, householdId: 'hh-owner' })) as any, response);
+
+    expect(response.statusCode).toBe(200);
+    expect(dbMock.updatedValues).toEqual([{ householdId: 'hh-owner' }]);
+  });
+});

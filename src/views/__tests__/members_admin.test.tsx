@@ -244,14 +244,16 @@ describe('Members tab identity (22)', () => {
 describe('Admin panel (27, 28)', () => {
   const pendingStranger = { id: 'usr-jane', email: 'jane.doe@example.com', name: 'Jane Doe', householdId: 'house-stranger', role: 'Member', status: 'PENDING_APPROVAL' };
   const ownerRow = { id: 'usr-owner', email: SUPER_ADMIN_EMAIL, name: 'Owner Fullname', householdId: 'FAMILY-COCKER-2026', role: 'SuperAdmin', status: 'ACTIVE' };
+  const activeElsewhere = { id: 'usr-bob', email: 'bob.smith@example.com', name: 'Bob Smith', householdId: 'hh-other', role: 'Member', status: 'ACTIVE' };
 
   async function renderAdmin() {
-    apiMock.fetchUsers.mockResolvedValue({ ok: true, data: [ownerRow, pendingStranger] });
+    apiMock.fetchUsers.mockResolvedValue({ ok: true, data: [ownerRow, pendingStranger, activeElsewhere] });
     apiMock.fetchAllHouseholds.mockResolvedValue({
       ok: true,
       data: [
         { id: 'FAMILY-COCKER-2026', name: 'Family Pack (Main)' },
         { id: 'hh-other', name: 'Other Family' },
+        { id: 'hh-third', name: 'Third Family' },
       ],
     });
     const onAddCaretaker = vi.fn();
@@ -353,5 +355,57 @@ describe('Admin panel (27, 28)', () => {
     await preApprove('jane.doe@example.com');
 
     expect(document.body.textContent).toContain('Add jane.doe@example.com to Other Family?');
+  });
+
+  describe("'Active accounts' household select", () => {
+    const moveSelect = () => document.querySelector<HTMLSelectElement>('select[aria-label="Household for Bob Smith"]')!;
+
+    it("asks before moving; confirming a move into the owner's household moves it and creates the same linked badge as an approval", async () => {
+      const { onAddCaretaker } = await renderAdmin();
+      await setValue(moveSelect(), 'FAMILY-COCKER-2026');
+
+      expect(apiMock.updateUser).not.toHaveBeenCalled();
+      expect(document.body.textContent).toContain('Move bob.smith@example.com to Family Pack (Main)?');
+
+      await click(buttons('Move').at(-1)!);
+      expect(apiMock.updateUser).toHaveBeenCalledWith({ email: 'bob.smith@example.com', householdId: 'FAMILY-COCKER-2026' });
+      expect(onAddCaretaker).toHaveBeenCalledWith(
+        expect.objectContaining({ name: 'Bob', email: 'bob.smith@example.com', color: FIRST_FREE_COLOR, role: 'Member' })
+      );
+      expect(moveSelect().value).toBe('FAMILY-COCKER-2026');
+    });
+
+    it('Cancel moves nobody, adds no badge and leaves the select on the current household', async () => {
+      const { onAddCaretaker } = await renderAdmin();
+      await setValue(moveSelect(), 'FAMILY-COCKER-2026');
+      await click(buttons('Cancel').at(-1)!);
+
+      expect(apiMock.updateUser).not.toHaveBeenCalled();
+      expect(onAddCaretaker).not.toHaveBeenCalled();
+      expect(moveSelect().value).toBe('hh-other');
+    });
+
+    it('a confirmed move into another household creates no badge', async () => {
+      const { onAddCaretaker } = await renderAdmin();
+      await setValue(moveSelect(), 'hh-third');
+      expect(document.body.textContent).toContain('Move bob.smith@example.com to Third Family?');
+
+      await click(buttons('Move').at(-1)!);
+      expect(apiMock.updateUser).toHaveBeenCalledWith({ email: 'bob.smith@example.com', householdId: 'hh-third' });
+      expect(onAddCaretaker).not.toHaveBeenCalled();
+    });
+
+    it('reads the move question in French', async () => {
+      localStorage.setItem('puppace_lang_v1', 'fr');
+      try {
+        await renderAdmin();
+        await setValue(document.querySelector<HTMLSelectElement>('select[aria-label="Foyer pour Bob Smith"]')!, 'FAMILY-COCKER-2026');
+
+        expect(document.body.textContent).toContain('Déplacer bob.smith@example.com vers Family Pack (Main) ?');
+        expect(buttons('Déplacer')).toHaveLength(1);
+      } finally {
+        localStorage.removeItem('puppace_lang_v1');
+      }
+    });
   });
 });

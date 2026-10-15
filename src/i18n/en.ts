@@ -366,6 +366,8 @@ export const en = {
     deleteUserBtn: 'Delete User',
     ownHousehold: 'Own household',
     joinHousehold: 'Add {email} to {household}?',
+    move: 'Move',
+    moveHousehold: 'Move {email} to {household}?',
   },
   auth: {
     subtitle: 'Smart Family Puppy Activity Tracker & Potty Predictor',

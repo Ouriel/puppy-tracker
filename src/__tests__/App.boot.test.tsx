@@ -490,4 +490,85 @@ describe('App log state', () => {
 
     expect(document.body.textContent).toContain('0g / 200g (0/3)');
   });
+
+  // Owner decision 2026-10-15: the server gives an account without a linked badge one on its first log
+  describe('an account with no linked badge', () => {
+    const ownBadge = { id: 'c-auto', name: 'Owner', role: 'Member', color: '#EC4899', email: 'owner@example.com' };
+    const loggedByLine = () => document.getElementById('quicklog-logged-by')?.textContent;
+
+    async function openLogForm() {
+      await act(async () => document.querySelector<HTMLElement>(`[aria-label="${en.nav.logEvent}"]`)!.click());
+      await settleUntil(() => loggedByLine() !== undefined);
+    }
+
+    async function logPeeThenOpenForm() {
+      await renderApp();
+      const peeButton = [...document.querySelectorAll('button')].find((button) => button.textContent === en.potty.peedOutside)!;
+      await act(async () => peeButton.click());
+      await settle();
+      await openLogForm();
+    }
+
+    it('after its first log reloads the badges, so the log form reads "Logged by" its new badge', async () => {
+      signedInWithCachedDogOnly();
+      setStoredAuthUser({ ...owner, name: 'Owner Fullname' });
+      stubApi({
+        '/api/dashboard': () => respond(dashboardPayload([])),
+        '/api/activities': (_url, init) => respond({ ...JSON.parse(String(init!.body)), loggedBy: 'Owner' }, 201),
+        '/api/households': () => respond({ household: { id: 'hh-1', name: 'Family Pack' }, caretakers: [ownBadge] }),
+      });
+
+      await logPeeThenOpenForm();
+
+      expect(requestedUrls).toContain('/api/households');
+      expect(loggedByLine()).toBe(en.potty.loggedBy.replace('{name}', 'Owner'));
+    });
+
+    it('a first log saved from the log form also reloads the badges', async () => {
+      signedInWithCachedDogOnly();
+      setStoredAuthUser({ ...owner, name: 'Owner Fullname' });
+      stubApi({
+        '/api/dashboard': () => respond(dashboardPayload([])),
+        '/api/activities': (_url, init) => respond({ ...JSON.parse(String(init!.body)), loggedBy: 'Owner' }, 201),
+        '/api/households': () => respond({ household: { id: 'hh-1', name: 'Family Pack' }, caretakers: [ownBadge] }),
+      });
+      await renderApp();
+      await openLogForm();
+      expect(loggedByLine()).toBe(en.potty.loggedBy.replace('{name}', 'Owner Fullname'));
+
+      await act(async () => document.querySelector<HTMLButtonElement>('button[type="submit"][form="quicklog-form"]')!.click());
+      await settleUntil(() => loggedByLine() === undefined && requestedUrls.includes('/api/households'));
+      await openLogForm();
+
+      expect(requestedUrls).toContain('/api/households');
+      expect(loggedByLine()).toBe(en.potty.loggedBy.replace('{name}', 'Owner'));
+    });
+
+    it('reloads the badges even when the new badge has the account name', async () => {
+      signedInWithCachedDogOnly();
+      stubApi({
+        '/api/dashboard': () => respond(dashboardPayload([])),
+        '/api/activities': (_url, init) => respond({ ...JSON.parse(String(init!.body)), loggedBy: 'Owner' }, 201),
+        '/api/households': () => respond({ household: { id: 'hh-1', name: 'Family Pack' }, caretakers: [ownBadge] }),
+      });
+
+      await logPeeThenOpenForm();
+
+      expect(requestedUrls).toContain('/api/households');
+    });
+
+    it('an account with a linked badge reloads nothing after a log', async () => {
+      signedInWithCachedDogOnly();
+      setStoredAuthUser({ ...owner, name: 'Owner Fullname' });
+      stubApi({
+        '/api/dashboard': () => respond({ ...dashboardPayload([]), caretakers: [ownBadge] }),
+        '/api/activities': (_url, init) => respond(JSON.parse(String(init!.body)), 201),
+      });
+
+      await logPeeThenOpenForm();
+
+      expect(requestedUrls).not.toContain('/api/households');
+      expect(loggedByLine()).toBe(en.potty.loggedBy.replace('{name}', 'Owner'));
+    });
+  });
 });
