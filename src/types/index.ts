@@ -154,6 +154,7 @@ export interface HealthRecord {
 
 export interface DashboardPayload {
   puppies: PuppyProfile[];
+  deletedPuppies?: PuppyProfile[]; // the owner only: dogs deleted, which they can restore
   caretakers: Caretaker[];
   activities: Activity[];
   healthRecords?: HealthRecord[];

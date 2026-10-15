@@ -2,7 +2,7 @@ import { useState, useCallback, useTransition } from 'react';
 import { toast } from '@heroui/react';
 import type { PuppyProfile } from '../types';
 import { getActivePuppyId, setActivePuppyId as saveActivePuppyId, getStoredPuppies, setStoredPuppies } from '../utils/storage';
-import { createDog, updateDog, deleteDog } from '../services/api';
+import { createDog, updateDog, deleteDog, restoreDog } from '../services/api';
 import { useI18n } from '../i18n';
 
 export function usePuppies(initialPuppies?: PuppyProfile[]) {
@@ -13,6 +13,8 @@ export function usePuppies(initialPuppies?: PuppyProfile[]) {
     return getStoredPuppies();
   });
   const [activePuppyId, setActivePuppyIdState] = useState<string>(getActivePuppyId());
+  // The owner's deleted dogs (the server hides them from everyone), listed in Settings to restore one
+  const [deletedPuppies, setDeletedPuppies] = useState<PuppyProfile[]>([]);
 
   const setPuppies = useCallback((updaterOrValue: PuppyProfile[] | ((previous: PuppyProfile[]) => PuppyProfile[])) => {
     setPuppiesState((previous) => {
@@ -86,6 +88,7 @@ export function usePuppies(initialPuppies?: PuppyProfile[]) {
             saveActivePuppyId(remaining[0].id);
           }
         }
+        if (removed) setDeletedPuppies((previous) => [...previous.filter((puppy) => puppy.id !== id), removed]);
         toast(t.toasts.dogDeleted);
       } else {
         // Back in its place, unless a reload already brought it back
@@ -96,9 +99,27 @@ export function usePuppies(initialPuppies?: PuppyProfile[]) {
     [activePuppyId, puppies, setPuppies, t.toasts]
   );
 
+  // Not optimistic: the dog comes back once the server restored it
+  const restorePuppy = useCallback(
+    async (id: string) => {
+      const result = await restoreDog(id);
+      if (!result.ok) {
+        toast.danger(t.toasts[result.errorKey]);
+        return;
+      }
+      const restored = result.data;
+      setDeletedPuppies((previous) => previous.filter((puppy) => puppy.id !== id));
+      setPuppies((previous) => [...previous.filter((puppy) => puppy.id !== id), restored]);
+      toast.success(t.toasts.dogRestored.replace('{name}', restored.name));
+    },
+    [setPuppies, t.toasts]
+  );
+
   return {
     puppies,
     setPuppies,
+    deletedPuppies,
+    setDeletedPuppies,
     activePuppyId,
     setActivePuppyIdState,
     activePuppy,
@@ -106,5 +127,6 @@ export function usePuppies(initialPuppies?: PuppyProfile[]) {
     addPuppy,
     updatePuppy,
     deletePuppy,
+    restorePuppy,
   };
 }

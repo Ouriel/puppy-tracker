@@ -16,6 +16,8 @@ interface SettingsViewProps {
   onAddPuppy: (puppy: PuppyProfile) => Promise<boolean>;
   onUpdatePuppy: (puppy: PuppyProfile) => Promise<boolean>;
   onDeletePuppy: (id: string) => void;
+  deletedPuppies: PuppyProfile[];
+  onRestorePuppy: (id: string) => void;
   caretakers: Caretaker[];
   onAddCaretaker: (caretaker: Caretaker) => void;
   onUpdateCaretaker: (id: string, updatedFields: Partial<Caretaker>) => void;
@@ -31,6 +33,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   onAddPuppy,
   onUpdatePuppy,
   onDeletePuppy,
+  deletedPuppies,
+  onRestorePuppy,
   caretakers,
   onAddCaretaker,
   onUpdateCaretaker,
@@ -128,6 +132,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             onAddPuppy={onAddPuppy}
             onUpdatePuppy={onUpdatePuppy}
             onDeletePuppy={onDeletePuppy}
+            deletedPuppies={deletedPuppies}
+            onRestorePuppy={onRestorePuppy}
           />
         )}
 

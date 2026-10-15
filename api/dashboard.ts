@@ -4,7 +4,7 @@ import { drizzle } from 'drizzle-orm/neon-http';
 import { eq, and, desc, gte } from 'drizzle-orm';
 import { activitiesTable, caretakersTable, puppiesTable, healthRecordsTable } from '../src/db/schema.js';
 import { DashboardQuerySchema } from '../src/utils/schemas.js';
-import { verifyAuth, sendAuthError, setCorsHeaders } from './_auth.js';
+import { verifyAuth, sendAuthError, setCorsHeaders, canDeleteHouseholdData } from './_auth.js';
 import { getDatabaseUrl } from './_db.js';
 
 // Module-level connection pooling to stay warm across invocations
@@ -54,7 +54,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     // Execute all 5 dashboard queries concurrently in a single HTTP batch pipe to Neon
-    const [puppies, caretakers, rawActivities, healthRecords, rawWeightActivities] = await db.batch([
+    const [householdPuppies, caretakers, rawActivities, healthRecords, rawWeightActivities] = await db.batch([
       db.select().from(puppiesTable).where(eq(puppiesTable.householdId, householdId)),
       db.select().from(caretakersTable).where(eq(caretakersTable.householdId, householdId)),
       db
@@ -76,6 +76,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         .orderBy(desc(activitiesTable.timestamp), desc(activitiesTable.createdAt)),
     ]);
 
+    // A deleted dog (deleted_at set) is hidden; only the owner gets the deleted ones, to restore them
+    const puppies = householdPuppies.filter((puppy) => !puppy.deletedAt);
+    const deletedPuppies = canDeleteHouseholdData(auth) ? householdPuppies.filter((puppy) => puppy.deletedAt) : [];
+
     const formatActivity = (activity: typeof rawActivities[number]) => ({
       ...activity,
       timestamp: activity.timestamp instanceof Date ? activity.timestamp.toISOString() : new Date(activity.timestamp).toISOString(),
@@ -83,6 +87,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     return res.status(200).json({
       puppies,
+      deletedPuppies,
       caretakers,
       activities: rawActivities.map(formatActivity),
       healthRecords,

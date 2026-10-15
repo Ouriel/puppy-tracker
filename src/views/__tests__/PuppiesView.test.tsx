@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi, beforeAll, afterEach, type Mock } from 'vitest';
+import { describe, it, expect, vi, beforeAll, beforeEach, afterEach, type Mock } from 'vitest';
 import { act, type ComponentProps } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { PuppiesView } from '../PuppiesView';
@@ -68,6 +68,8 @@ async function renderView({
         onAddPuppy={onAddPuppy}
         onUpdatePuppy={onUpdatePuppy}
         onDeletePuppy={vi.fn()}
+        deletedPuppies={[]}
+        onRestorePuppy={vi.fn()}
         {...props}
       />
     );
@@ -380,5 +382,38 @@ describe('PuppiesView dog card meals (English plurals)', () => {
     expect(document.body.textContent).toContain('200g (1 meal)');
     expect(document.body.textContent).not.toContain('1 meals');
     expect(document.body.textContent).toContain('200g (3 meals)');
+  });
+});
+
+// Backlog item 20: a deleted dog is only hidden, and the owner restores it from this tab
+describe('PuppiesView deleted dogs, in French', () => {
+  beforeEach(() => localStorage.setItem('puppace_lang_v1', 'fr'));
+  afterEach(() => localStorage.clear());
+
+  const buttonLabelled = (label: string) => document.querySelector(`button[aria-label="${label}"]`);
+
+  it('lists each deleted dog with a Restore button that restores that dog', async () => {
+    const onRestorePuppy = vi.fn();
+    await renderView({ deletedPuppies: [{ ...REX, id: 'dog-2', name: 'Mia' }], onRestorePuppy });
+
+    expect(document.body.textContent).toContain('Chiens supprimés');
+    expect(buttonLabelled('Restaurer Mia')!.textContent).toBe('Restaurer');
+    await click(buttonLabelled('Restaurer Mia')!);
+    expect(onRestorePuppy).toHaveBeenCalledWith('dog-2');
+  });
+
+  it('shows no deleted dogs section when none is deleted', async () => {
+    await renderView();
+
+    expect(document.body.textContent).not.toContain('Chiens supprimés');
+  });
+
+  it('the delete dialog says the owner can restore the dog, no longer that it cannot be undone', async () => {
+    await renderView();
+    await click(buttonLabelled('Supprimer le chien')!);
+
+    const dialog = document.querySelector('[role="dialog"]')!;
+    expect(dialog.textContent).toContain('le propriétaire peut le restaurer');
+    expect(dialog.textContent).not.toContain('irréversible');
   });
 });
