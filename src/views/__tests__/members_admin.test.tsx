@@ -213,6 +213,13 @@ describe('Members tab identity (22)', () => {
     expect(onUpdateCaretaker).toHaveBeenCalledWith('c-owner', expect.objectContaining({ email: '' }));
   });
 
+  it('offers no "This is me" to a member on their own linked badge: only the owner unlinks', async () => {
+    await renderMembers(member, [{ id: 'c-member', name: 'Member', role: 'Member', color: '#10B981', email: 'member@example.com' }]);
+    await click(pencils()[0]);
+
+    expect(document.querySelector('input[type="checkbox"]')).toBeNull();
+  });
+
   it('offers no "This is me" on an unlinked badge while another badge carries my email', async () => {
     const caretakers: Caretaker[] = [{ id: 'c-guest', name: 'Guest', role: 'Member', color: '#F59E0B' }, ...badges];
     await renderMembers(owner, caretakers);

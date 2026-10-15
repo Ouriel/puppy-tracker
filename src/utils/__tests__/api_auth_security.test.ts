@@ -470,11 +470,14 @@ describe('API Security & Session Token Validation Test Suite', () => {
       expect(response.body).toMatchObject({ email: 'user@example.com' });
     });
 
-    it("lets a member unlink their own badge, never someone else's", async () => {
+    // Else the member's next log creates a second badge and leaves this one linked to nobody (decision 2026-10-15).
+    it('refuses (403) a member unlinking any badge, their own included; an admin may', async () => {
       dbMock.rowsByTable.caretakers = [ownerBadge, myBadge];
 
       expect((await send('Member', 'PUT', { id: 'ct-owner', name: 'Owner', email: '' })).statusCode).toBe(403);
-      const response = await send('Member', 'PUT', { id: 'ct-me', name: 'Me', email: '' });
+      expect((await send('Member', 'PUT', { id: 'ct-me', name: 'Me', email: '' })).statusCode).toBe(403);
+      expect(dbMock.update).not.toHaveBeenCalled();
+      const response = await send('Admin', 'PUT', { id: 'ct-me', name: 'Me', email: '' });
       expect(response.statusCode).toBe(200);
       expect(response.body).toMatchObject({ email: null });
     });

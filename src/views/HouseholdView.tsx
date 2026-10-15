@@ -253,8 +253,11 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
 
               if (isEditingThis) {
                 const isLinkedToMe = caretaker.email?.toLowerCase() === myEmail;
-                // 'This is me' only on my own badge, or on an unlinked one while no badge carries my email.
-                const canClaim = caretaker.email ? isLinkedToMe : !caretakers.some((item) => item.email?.toLowerCase() === myEmail);
+                // 'This is me' on an unlinked badge while no badge carries my email; unticking it on my own badge
+                // (unlinking) is for the owner only, as the server refuses it to members.
+                const canClaim = caretaker.email
+                  ? isLinkedToMe && isSuperAdminEmail(user.email)
+                  : !caretakers.some((item) => item.email?.toLowerCase() === myEmail);
                 return (
                   <div
                     key={caretaker.id}

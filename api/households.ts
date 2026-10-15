@@ -37,6 +37,10 @@ function badgeWriteRefusal(
     return { status: 409, error: 'Another member already has this name.' };
   }
   if (change.email === undefined || change.email === currentEmail) return null;
+  // Unlinking is for the owner or an admin: a member's next log would create a second badge and orphan this one.
+  if (!isAdmin && currentEmail && !change.email) {
+    return { status: 403, error: 'Only an admin can unlink a member from a login.' };
+  }
   const touchesOnlyOwnLink = [currentEmail, change.email].every((email) => email === null || email === ownEmail);
   if (!isAdmin && !touchesOnlyOwnLink) {
     return { status: 403, error: "Only an admin can link a member to someone else's login." };
