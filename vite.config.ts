@@ -9,7 +9,8 @@ export default defineConfig({
     react(),
     tailwindcss(),
     VitePWA({
-      registerType: 'autoUpdate',
+      // No skipWaiting: src/registerServiceWorker.ts activates a new version when the app is in the background
+      registerType: 'prompt',
       injectRegister: 'auto',
       includeAssets: ['favicon.svg', 'favicon.ico', 'puppace_logo.webp'],
       manifest: false, // uses existing public/manifest.json
