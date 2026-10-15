@@ -11,10 +11,12 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       injectRegister: 'auto',
-      includeAssets: ['favicon.svg', 'favicon.ico', 'puppace_logo.webp', 'cocker_spaniel_mascot.webp'],
+      includeAssets: ['favicon.svg', 'favicon.ico', 'puppace_logo.webp'],
       manifest: false, // uses existing public/manifest.json
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,webp}'],
+        // Workbox's default, plus public files nothing references
+        globIgnores: ['**/node_modules/**/*', 'cocker_spaniel_mascot.webp', 'icons.svg'],
         navigateFallback: '/index.html',
         navigateFallbackDenylist: [/^\/api/],
         runtimeCaching: [
@@ -67,5 +69,7 @@ export default defineConfig({
   test: {
     // Claude Code session worktrees (.claude/worktrees) are full repo copies: never run their tests too
     exclude: [...configDefaults.exclude, '.claude/**'],
+    // The tests expect Paris time, whatever the machine's timezone (npx vitest, an IDE runner)
+    env: { TZ: 'Europe/Paris' },
   },
 })

@@ -102,20 +102,6 @@ export function getRecommendedMealsPerDay(birthDateIso: string, targetDate: Date
 }
 
 /**
- * Calculates veterinary recommended daily food gram intake based on NRC/AAFCO RER / MER equations.
- * @internal Utility calculation for estimations & tests; production uses user-configured `PuppyProfile.dailyFoodGramGoal`.
- */
-export function calculateVetFoodGramGoal(weightKg: number, ageMonths: number): number {
-  if (!weightKg || weightKg <= 0) return 240;
-  if (!ageMonths || isNaN(ageMonths) || ageMonths < 0) ageMonths = 6;
-  const rer = 70 * Math.pow(weightKg, 0.75);
-  const merMultiplier = ageMonths < 4 ? 3.0 : ageMonths <= 12 ? 2.0 : 1.6;
-  const dailyKcal = rer * merMultiplier;
-  const kcalPerGram = 3.8; // Standard AAFCO growth kibble density (~380 kcal/cup)
-  return Math.round(dailyKcal / kcalPerGram);
-}
-
-/**
  * Calculates remaining portion grams for the next meal given daily goal and meals logged today.
  * Undefined for a dog with no gram goal (0): its meals are only counted.
  */

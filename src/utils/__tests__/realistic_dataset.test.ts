@@ -4,7 +4,6 @@ import {
   detectSleepSchedule,
   detectMealSchedule,
   getPuppyAge,
-  calculateVetFoodGramGoal,
 } from '../predictions';
 import { getHealthRecordStatus } from '../health';
 import type { Activity, PuppyProfile, HealthRecord } from '../../types';
@@ -215,12 +214,9 @@ describe('Comprehensive 30-Day Realistic Dataset Test Suite', () => {
     expect(fourMealsPred.portionGrams).toBe(60);
   });
 
-  it('calculates puppy age and veterinary food goal', () => {
+  it('calculates puppy age', () => {
     const ageInfo = getPuppyAge(puppyProfile.birthDate, '2026-08-09');
     expect(ageInfo).toMatchObject({ weeks: 19, months: 4.4 });
-
-    const foodGoal = calculateVetFoodGramGoal(puppyProfile.weightKg!, ageInfo.months);
-    expect(foodGoal).toBe(179);
   });
 
   it('evaluates health records booster status for vaccinations and deworming', () => {
