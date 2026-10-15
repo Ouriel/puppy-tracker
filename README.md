@@ -148,7 +148,7 @@ Open it from the health summary, or at `/health-passport`.
 
 - **Install**: open the site in the phone's browser and use "Add to Home Screen". It opens full screen like an app.
 - **Offline**: the app still opens and shows the last data it loaded (dogs, badges, recent logs); vaccines, dewormings and older weigh-ins need a connection. Logging needs a connection: there is no offline queue, so a log made offline is dropped with an error message.
-- **Updates**: after a new version is published, the next time the app is opened it downloads it in the background and reloads itself once.
+- **Updates**: after a new version is published, the next time the app is opened it downloads it in the background. It never reloads while you are using it: it switches to the new version (one reload) once you leave the app, so the next time you look, it is up to date.
 - **Languages**: English and French. A new phone gets French when it is set to French; the EN/FR button in the top bar switches, and the choice is remembered. The cards' explanations are translated too.
 
 ---
