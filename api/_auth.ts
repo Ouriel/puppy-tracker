@@ -167,7 +167,7 @@ export async function verifyAuth(req: VercelRequest): Promise<AuthContext> {
     }
     return {
       email: appSession.email,
-      name: appSession.name,
+      name: user.name || appSession.name,
       householdId: user.householdId,
       role: user.role === 'SuperAdmin' ? 'Member' : user.role,
     };

@@ -387,6 +387,9 @@ export const en = {
     requireActivationNote: 'Accounts require activation by Super Admin Matthieu',
     pendingActivation: 'Account pending activation by Super Admin Matthieu.',
     ssoFailed: 'Failed to process Google SSO authentication.',
+    signingIn: 'Signing in…',
+    googleScriptFailed: 'Google sign-in could not load.',
+    retry: 'Retry',
   },
   privacy: {
     title: 'Privacy Policy',

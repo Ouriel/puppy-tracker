@@ -54,6 +54,9 @@ export interface UserAccount {
   status?: 'ACTIVE' | 'PENDING_APPROVAL';
 }
 
+/** How a Google sign-in ended: 'pending' only for a 403 (account waiting for approval). */
+export type SignInOutcome = 'signedIn' | 'pending' | 'failed';
+
 export interface Caretaker {
   id: string;
   name: string;

@@ -6,7 +6,13 @@ import { signAppSessionToken, verifyAppSessionToken, verifyAuth } from '../../..
 import activitiesHandler from '../../../api/activities.js';
 import dogsHandler from '../../../api/dogs.js';
 import householdsHandler from '../../../api/households.js';
+import sessionHandler from '../../../api/auth/session.js';
 import { SUPER_ADMIN_EMAIL } from '../auth.js';
+
+// The handlers read the database URL at import, as in production (api/auth/session.ts skipped its lookup without one)
+vi.hoisted(() => {
+  process.env.POSTGRES_URL ??= 'postgres://example.invalid/db';
+});
 
 // Hermetic DB: rows are served per table (no puppy matches the ownership lookup by default),
 // and every WHERE clause and insert is recorded.
@@ -14,6 +20,9 @@ const dbMock = vi.hoisted(() => ({
   whereByTable: new Map<string, SQL>(),
   rowsByTable: {} as Record<string, unknown[]>,
   usersLookupError: null as Error | null,
+  // Every select in the order sent, with how many selects had answered when it was sent
+  selects: [] as Array<{ table: string; answeredBefore: number }>,
+  answered: 0,
   insert: vi.fn(),
   update: vi.fn(),
   delete: vi.fn(),
@@ -32,8 +41,12 @@ vi.mock('drizzle-orm/neon-http', async () => {
           where: vi.fn((condition: SQL) => {
             const tableName = getTableName(table);
             dbMock.whereByTable.set(tableName, condition);
-            if (tableName === 'users' && dbMock.usersLookupError) return Promise.reject(dbMock.usersLookupError);
-            return Promise.resolve(dbMock.rowsByTable[tableName] ?? []);
+            dbMock.selects.push({ table: tableName, answeredBefore: dbMock.answered });
+            const answer = tableName === 'users' && dbMock.usersLookupError
+              ? Promise.reject(dbMock.usersLookupError)
+              : Promise.resolve(dbMock.rowsByTable[tableName] ?? []);
+            answer.then(() => { dbMock.answered += 1; }, () => {});
+            return answer;
           }),
         })),
       })),
@@ -83,6 +96,8 @@ describe('API Security & Session Token Validation Test Suite', () => {
     process.env.SESSION_SECRET = 'test-secret-key-1234567890-very-secure';
     dbMock.whereByTable.clear();
     dbMock.usersLookupError = null;
+    dbMock.selects = [];
+    dbMock.answered = 0;
     dbMock.rowsByTable = { users: [activeUserRow] };
     dbMock.insert.mockReset();
     dbMock.insert.mockImplementation(() => ({
@@ -320,6 +335,91 @@ describe('API Security & Session Token Validation Test Suite', () => {
       );
 
       await expect(verifyAuth(bearerRequest(token))).rejects.toMatchObject({ status: 401 });
+    });
+  });
+
+  // Improvement backlog 32: one Neon round trip less at each app start and each log
+  describe('database round trips', () => {
+    const memberToken = () =>
+      signAppSessionToken({ email: 'user@example.com', name: 'Matthieu', householdId: 'hh-family-123', role: 'Husband' }, 30);
+    const usersLookups = () => dbMock.selects.filter((select) => select.table === 'users').length;
+
+    it('verifyAuth takes the name from the users row, not from the token', async () => {
+      dbMock.rowsByTable.users = [{ ...activeUserRow, name: 'Matthieu J.' }];
+
+      expect((await verifyAuth(bearerRequest(memberToken()))).name).toBe('Matthieu J.');
+    });
+
+    it('POST /api/auth/session refreshes the name, household and role from a single users lookup', async () => {
+      dbMock.rowsByTable.users = [{ ...activeUserRow, name: 'Matthieu J.', householdId: 'hh-moved', role: 'Sitter' }];
+      const response = createMockResponse();
+
+      await sessionHandler(bearerRequest(memberToken(), 'POST'), response);
+
+      const refreshed = { email: 'user@example.com', name: 'Matthieu J.', householdId: 'hh-moved', role: 'Sitter' };
+      expect(response.statusCode).toBe(200);
+      expect(response.body.user).toEqual(refreshed);
+      expect(verifyAppSessionToken(response.body.sessionToken)).toEqual(refreshed);
+      expect(usersLookups()).toBe(1);
+    });
+
+    it("POST /api/auth/session still refreshes the owner's household and name (verifyAuth skips the owner's users row)", async () => {
+      dbMock.rowsByTable.users = [{ ...activeUserRow, email: SUPER_ADMIN_EMAIL, name: 'Owner Renamed', householdId: 'hh-owner-moved', role: 'SuperAdmin' }];
+      const ownerToken = signAppSessionToken({ email: SUPER_ADMIN_EMAIL, name: 'Owner', householdId: 'FAMILY-COCKER-2026', role: 'SuperAdmin' }, 30);
+      const response = createMockResponse();
+
+      await sessionHandler(bearerRequest(ownerToken, 'POST'), response);
+
+      expect(response.body.user).toEqual({ email: SUPER_ADMIN_EMAIL, name: 'Owner Renamed', householdId: 'hh-owner-moved', role: 'SuperAdmin' });
+      expect(usersLookups()).toBe(1);
+    });
+
+    it('POST /api/activities sends the existing-id lookup together with the dog and badge lookups', async () => {
+      dbMock.rowsByTable.puppies = [{ id: 'pup-1', householdId: 'hh-family-123' }];
+      dbMock.rowsByTable.caretakers = [{ id: 'c-1', householdId: 'hh-family-123', name: 'Matthieu', role: 'Member', color: '#EC4899', email: 'user@example.com' }];
+      const response = createMockResponse();
+
+      await activitiesHandler(bearerRequest(memberToken(), 'POST', { id: 'act-1', puppyId: 'pup-1', type: 'pee' }), response);
+
+      expect(response.statusCode).toBe(201);
+      // All three go out once verifyAuth's users lookup answered, before any of them answers
+      const answeredBeforeSent = Object.fromEntries(dbMock.selects.map((select) => [select.table, select.answeredBefore]));
+      expect(answeredBeforeSent).toEqual({ users: 0, puppies: 1, caretakers: 1, activities: 1 });
+    });
+
+    describe('POST /api/activities with an id already stored (a log sent again)', () => {
+      const stored = { id: 'act-1', householdId: 'hh-family-123', puppyId: 'pup-1', type: 'pee', loggedBy: 'Matthieu' };
+      const sendAgain = async () => {
+        const response = createMockResponse();
+        await activitiesHandler(bearerRequest(memberToken(), 'POST', { id: 'act-1', puppyId: 'pup-1', type: 'pee' }), response);
+        return response;
+      };
+
+      beforeEach(() => {
+        dbMock.rowsByTable.activities = [stored];
+        dbMock.rowsByTable.puppies = [{ id: 'pup-1', householdId: 'hh-family-123' }];
+      });
+
+      it('returns the stored log with 200 and saves nothing, looking only in the caller household', async () => {
+        const response = await sendAgain();
+
+        expect(response.statusCode).toBe(200);
+        expect(response.body).toEqual(stored);
+        expect(dbMock.insert).not.toHaveBeenCalled();
+        // Another household's log id must never return that household's log
+        const lookup = new PgDialect().sqlToQuery(dbMock.whereByTable.get('activities')!);
+        expect(lookup.sql).toBe('("activities"."id" = $1 and "activities"."household_id" = $2)');
+        expect(lookup.params).toEqual(['act-1', 'hh-family-123']);
+      });
+
+      it('still answers 403 first for a dog outside the household', async () => {
+        dbMock.rowsByTable.puppies = [];
+
+        const response = await sendAgain();
+
+        expect(response.statusCode).toBe(403);
+        expect(response.body).toEqual({ error: 'Puppy not found in your household' });
+      });
     });
   });
 

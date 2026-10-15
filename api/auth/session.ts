@@ -17,25 +17,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method === 'OPTIONS') return res.status(200).end();
 
   try {
+    // The household, role and name come from the users row, which verifyAuth reads on every request
     const auth = await verifyAuth(req);
 
-    // Sync latest user details (householdId, role, status) directly from database
-    if (connectionString) {
+    // Except the owner's (never locked out by its row): read here so the new token carries its household and name
+    if (connectionString && isSuperAdminEmail(auth.email)) {
       const [dbUser] = await db
         .select()
         .from(usersTable)
         .where(eq(usersTable.email, auth.email.toLowerCase()));
 
-      if (dbUser) {
-        if (dbUser.status !== 'ACTIVE' && !isSuperAdminEmail(auth.email)) {
-          return res.status(403).json({ error: 'Account pending activation by Super Admin.' });
-        }
-        auth.householdId = dbUser.householdId;
-        auth.name = dbUser.name || auth.name;
-        auth.role = isSuperAdminEmail(auth.email) ? 'SuperAdmin' : dbUser.role;
-      } else {
-        return res.status(401).json({ error: 'User account not found' });
-      }
+      if (!dbUser) return res.status(401).json({ error: 'User account not found' });
+      auth.householdId = dbUser.householdId;
+      auth.name = dbUser.name || auth.name;
+      auth.role = 'SuperAdmin';
     }
 
     const sessionToken = signAppSessionToken(auth, 90); // freshly signed with updated householdId

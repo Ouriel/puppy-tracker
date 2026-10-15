@@ -11,8 +11,8 @@ const rex: PuppyProfile = { id: 'pup-1', name: 'Rex', breed: 'Beagle', birthDate
 let root: Root | null = null;
 let hook: ReturnType<typeof usePuppies>;
 
-function HookProbe({ onRender }: { onRender: (state: ReturnType<typeof usePuppies>) => void }) {
-  onRender(usePuppies([rex]));
+function HookProbe({ onRender, puppies = [rex] }: { onRender: (state: ReturnType<typeof usePuppies>) => void; puppies?: PuppyProfile[] }) {
+  onRender(usePuppies(puppies));
   return null;
 }
 
@@ -77,5 +77,55 @@ describe('usePuppies: add and update say whether the server saved the dog', () =
 
     expect(await call(() => hook.addPuppy({ ...rex, id: 'pup-2', name: 'Max' }))).toBe(true);
     expect(hook.puppies.map((puppy) => puppy.id)).toEqual(['pup-1', 'pup-2']);
+  });
+});
+
+// Improvement backlog 17: a refused change undoes only its own dog, never a later change the server saved.
+describe('usePuppies: a refused change rolls back only its own dog', () => {
+  const max: PuppyProfile = { ...rex, id: 'pup-2', name: 'Max' };
+  const luna: PuppyProfile = { ...rex, id: 'pup-3', name: 'Luna' };
+
+  it.each([
+    ['an edit', () => hook.updatePuppy({ ...rex, name: 'Rexy' })],
+    // The first dog: a refused deletion puts it back in its place, not at the end
+    ['a deletion', () => hook.deletePuppy('pup-1')],
+  ])('%s refused after a later edit was saved', async (_label, firstChange) => {
+    // Each request waits until the test answers it, so answers can come back in any order
+    const pendingAnswers: Array<(response: Response) => void> = [];
+    vi.stubGlobal('fetch', vi.fn(() => new Promise<Response>((resolve) => pendingAnswers.push(resolve))));
+    await act(async () => root!.render(<HookProbe key="three-dogs" puppies={[rex, max, luna]} onRender={(state) => { hook = state; }} />));
+
+    let first: Promise<unknown> = Promise.resolve();
+    let second: Promise<unknown> = Promise.resolve();
+    await act(async () => { first = firstChange(); });
+    await act(async () => { second = hook.updatePuppy({ ...max, name: 'Maxi' }); });
+
+    await act(async () => {
+      pendingAnswers[1](new Response(JSON.stringify({ ...max, name: 'Maxi' }), { status: 200 }));
+      await second;
+    });
+    await act(async () => {
+      pendingAnswers[0](new Response(JSON.stringify({ error: 'Only the owner can delete dogs' }), { status: 403 }));
+      await first;
+    });
+
+    expect(hook.puppies).toEqual([rex, { ...max, name: 'Maxi' }, luna]);
+  });
+
+  it('a refused deletion adds no second copy when a reload already brought the dog back', async () => {
+    const pendingAnswers: Array<(response: Response) => void> = [];
+    vi.stubGlobal('fetch', vi.fn(() => new Promise<Response>((resolve) => pendingAnswers.push(resolve))));
+    await act(async () => root!.render(<HookProbe key="three-dogs" puppies={[rex, max, luna]} onRender={(state) => { hook = state; }} />));
+
+    let deletion: Promise<unknown> = Promise.resolve();
+    await act(async () => { deletion = hook.deletePuppy('pup-1'); });
+    await act(async () => hook.setPuppies([rex, max, luna]));
+
+    await act(async () => {
+      pendingAnswers[0](new Response(JSON.stringify({ error: 'Only the owner can delete dogs' }), { status: 403 }));
+      await deletion;
+    });
+
+    expect(hook.puppies).toEqual([rex, max, luna]);
   });
 });

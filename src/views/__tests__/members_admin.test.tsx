@@ -4,6 +4,7 @@ import { act, type ReactElement } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import type { Caretaker, UserAccount } from '../../types';
 import { SUPER_ADMIN_EMAIL } from '../../utils/auth';
+import { CaretakerInputSchema } from '../../utils/schemas';
 import { HouseholdView } from '../HouseholdView';
 import { AdminView } from '../AdminView';
 
@@ -244,6 +245,23 @@ describe('Members tab identity (22)', () => {
       expect(buttons('Ajouter')).toHaveLength(1);
     } finally {
       localStorage.removeItem('puppace_lang_v1');
+    }
+  });
+});
+
+// Improvement backlog 18: the boxes stop where the server's limit stops, so a typed name is never refused on save
+describe('Members tab name limits', () => {
+  it('the new badge and badge rename boxes stop at the length the server accepts', async () => {
+    await renderMembers(owner);
+    await click(buttons('Add Member')[0]);
+    await click(document.querySelector<HTMLButtonElement>('[aria-label="Edit Member Name & Color"]')!);
+
+    const nameBoxes = [...document.querySelectorAll<HTMLInputElement>('input[type="text"]')];
+    expect(nameBoxes).toHaveLength(2);
+    for (const box of nameBoxes) {
+      expect(box.maxLength).toBeGreaterThan(0);
+      expect(CaretakerInputSchema.safeParse({ name: 'a'.repeat(box.maxLength) }).success).toBe(true);
+      expect(CaretakerInputSchema.safeParse({ name: 'a'.repeat(box.maxLength + 1) }).success).toBe(false);
     }
   });
 });
