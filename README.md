@@ -171,6 +171,7 @@ Browser (React SPA, PWA)  ──/api/*──▶  Vercel functions (api/*.ts)  �
 - **BFF**: `GET /api/dashboard?puppyId=&days=` returns, in one Neon batch: the household's dogs and badges, the dog's logs of the last `days` (default 14, max 90, at most 300 rows), the household's health records, and **every** weight event of the dog (weigh-ins are weeks apart). The app calls it at boot and on every return to the foreground. Switching dogs loads that dog's logs from `/api/activities`; the passport and the health summary share its health records (the passport calls `/api/health-records?puppyId=` only while `/api/dashboard` fails).
 - Other endpoints: `api/activities.ts`, `api/dogs.ts`, `api/health-records.ts`, `api/households.ts` (badges), `api/users.ts` (accounts), `api/auth/session.ts`.
 - `vercel.json`: `npm ci` install, SPA rewrite (except `/api/` and files), `/privacy` and `/terms` static pages, long cache on `/assets/`.
+  Security headers on every route: `nosniff`, `strict-origin-when-cross-origin`, `X-Frame-Options: DENY`, and a Content-Security-Policy sent as `Content-Security-Policy-Report-Only` until checked on production (violations show in the browser console; scripts only from the app and Google sign-in, no inline script).
 - Vercel Web Analytics and Speed Insights are on; the URLs they send are reduced to the route.
 
 ## Auth and permissions
