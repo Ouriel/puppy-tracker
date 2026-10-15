@@ -1,322 +1,273 @@
 <div align="center">
-  <img src="public/puppace_logo.png" alt="Puppace Mascot Logo" width="110" />
+  <img src="public/puppace_logo.webp" alt="PupPace logo" width="110" />
 
-  # 🐾 Puppace
-  
-  **Intelligent Canine Care Companion, Potty Predictor & Digital Health Passport**
+  # PupPace
 
-  <p align="center">
-    <a href="https://puppace.vercel.app"><strong>Explore the Live Demo »</strong></a>
-  </p>
+  **A family app to track a puppy's pees, poops, meals, weight and health passport, and guess what comes next.**
 
-  [![Live App](https://img.shields.io/badge/Live_Demo-puppace.vercel.app-000000?style=for-the-badge&logo=vercel&logoColor=white)](https://puppace.vercel.app)
-  <br />
-  [![React 19](https://img.shields.io/badge/React-19.x-61dafb?logo=react&logoColor=black)](https://react.dev/)
-  [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178c6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
-  [![Vite](https://img.shields.io/badge/Vite-8.x-646cff?logo=vite&logoColor=white)](https://vitejs.dev/)
-  [![Tailwind CSS](https://img.shields.io/badge/Tailwind-4.x-38bdf8?logo=tailwindcss&logoColor=white)](https://tailwindcss.com/)
-  [![Neon PostgreSQL](https://img.shields.io/badge/Neon-Serverless_PostgreSQL-00e599?logo=postgresql&logoColor=white)](https://neon.tech/)
-  [![Vitest](https://img.shields.io/badge/Tests-178_Passing-green?logo=vitest&logoColor=white)](https://vitest.dev/)
-  [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+  [puppace.vercel.app](https://puppace.vercel.app) · installable web app · English and French
 </div>
 
-<br />
-
-**Puppace** is a modern, high-performance web application designed to eliminate the guesswork of raising a puppy. By combining **canine behavioral science**, **gastrointestinal physiology**, and **veterinary nutritional models**, Puppace learns your puppy’s biological rhythms in real-time — predicting when they need to pee, poop, and eat, while maintaining a medical-grade Digital Health Passport (*Carnet de Santé*).
+React 19 · Vite 8 · HeroUI v3 · Tailwind 4 · Vercel serverless functions · Neon Postgres (Drizzle) · Google sign-in · Vitest
 
 ---
 
-## 📑 Table of Contents
+**Part 1, for the family:** [What it does](#what-it-does) · [Signing in](#signing-in-and-families) · [Dashboard](#dashboard) · [Logging](#logging-an-event) · [History](#history) · [Health passport](#health-passport) · [Settings](#settings) · [Phone, offline, updates](#phone-install-offline-and-updates)
 
-- [What is Puppace?](#-what-is-puppace)
-- [What Does It Do? (Core Features)](#-what-does-it-do)
-  - [1. Real-Time Predictive Potty & Meal Engine](#1-real-time-predictive-potty--meal-engine)
-  - [2. Digital Health Passport (*Carnet de Santé*)](#2-digital-health-passport-carnet-de-santé)
-  - [3. Weight Trajectory & Veterinary Calorie Allocator](#3-weight-trajectory--veterinary-calorie-allocator)
-  - [4. Multi-Tenant Household & SSO Caretaker Attribution](#4-multi-tenant-household--sso-caretaker-attribution)
-- [How It Works (Under the Hood)](#-how-it-works-under-the-hood)
-  - [The Potty & Sleep Biological Pipeline](#the-potty--sleep-biological-pipeline)
-  - [The Age-Graduated Gastrocolic Maturation Model](#the-age-graduated-gastrocolic-maturation-model)
-  - [Prediction Engine State Machine](#prediction-engine-state-machine)
-  - [Nutritional Mathematics (RER & MER)](#nutritional-mathematics-rer--mer)
-- [Project Architecture](#-project-architecture)
-- [Getting Started](#-getting-started)
-  - [Prerequisites](#prerequisites)
-  - [Quick Installation](#quick-installation)
-  - [Environment Variables](#environment-variables)
-  - [Running the App](#running-the-app)
-- [Testing & Quality Assurance](#-testing--quality-assurance)
-- [Performance & Edge Architecture](#-performance--edge-architecture)
-- [License](#-license)
+**Part 2, for developers:** [Architecture](#architecture) · [Auth](#auth-and-permissions) · [Data model](#data-model) · [Caching](#caching-and-freshness) · [Local setup](#local-setup) · [Scripts](#scripts) · [Testing](#testing) · [CI/CD](#cicd) · [Known limitations](#known-limitations)
 
 ---
 
-## 🐶 What is Puppace?
+# Part 1: using the app
 
-Most pet apps are static loggers — passive digital notebooks where you type what happened in the past. **Puppace is an active predictive companion**.
+## What it does
 
-Puppies do not operate on fixed clock schedules; their physiological needs change dynamically with:
-- **Age-related sphincter myelination** (transitioning from involuntary infant reflexes to conscious cortical control between 16–20 weeks).
-- **Natural digestive transit rhythms** and meal spacing.
-- **Household sleep cycles** and seasonal daylight shifts.
+- **Log** pees, poops, meals, weigh-ins and medication in one tap or one short form. Every log shows who made it.
+- **Predict** the next pee, poop and meal from the dog's own history, with a countdown and a colour: calm, soon (amber), overdue (red).
+- **Keep a health passport**: vaccines and dewormings with suggested booster dates, one weight timeline with an adult-weight estimate, and exports for the vet.
+- **Share** it: everyone in the family signs in with Google and sees the same dogs and logs.
 
-Puppace continuously fits mathematical models to your household's time-series activity logs to compute accurate, confidence-interval-bounded countdowns for **Next Pee**, **Next Poop**, and **Next Meal**.
+## Signing in and families
 
----
+- Sign in with Google. The first sign-in of a new person creates an account **waiting for approval**, in a new household of its own; the app shows "pending activation" until the owner approves it.
+- The owner can also **invite** someone by email in advance (Settings > Household Members). An invited person lands directly in the owner's family.
+- Several families can use the same app: each household sees only its own dogs, logs and members. Only the owner moves an account from one household to another, and always after a confirmation.
+- A session lasts 90 days and is renewed each time the app is opened. A removed or revoked account is sent back to the sign-in screen on its next request.
 
-## ✨ What Does It Do?
+## Dashboard
 
-### 1. Real-Time Predictive Potty & Meal Engine
-- **Decoupled Hero Countdown**: Separate cards for Pee, Poop, and Food with dynamic urgency states (`safe`, `soon`, `overdue`).
-- **Sleep-Aware Boundaries**: Suppresses daytime alarms during learned night sleep hours while preserving midnight relief alerts for very young pups (< 2.5 months).
-- **Semi-IQR Confidence Bands**: Displays dynamic tolerance intervals (e.g. `±15m`) derived from the semi-interquartile range of your puppy's actual logs.
+Three cards, one per need, for the selected dog (pick the dog in the top bar).
 
-### 2. Digital Health Passport (*Carnet de Santé*)
-- **Official Veterinary French & International Protocols**: Built-in schedules for core puppy vaccines (DHPPi, L4, Rabies) and anti-parasitics (monthly all-in-one chewables like Credelio Plus / NexGard Spectra, quarterly adult dewormers).
-- **One-Click PDF Export**: Generates a clean, bilingual French/English health summary formatted for veterinary visits or border crossings.
+| | Pee | Poop | Meal |
+|---|---|---|---|
+| Shows | countdown, clock time, ± margin, today's count, time since the last one, the reason | same | grams eaten / goal and meals (n of target), time since the last meal, the reason |
+| One-tap buttons | Peed Outside · Accident | Pooped Outside · Accident | Feed Meal Now (*suggested g*): opens the form on Meal |
+| Soon (amber) | 20 min before | 30 min before | 15 min before breakfast, 30 min before other meals |
 
-### 3. Weight Trajectory & Veterinary Calorie Allocator
-- **Waltham Growth Projections**: Compares your puppy's weigh-in history against breed-specific standard growth curves to forecast adult weight.
-- **Dynamic Calorie (RER/MER) Allocation**: Computes Resting Energy Requirements ($70 \times \text{weight}^{0.75}$) and maintenance multipliers based on age and target meals per day.
+A one-tap log is timed at the tap and stored under your name. A second log of the same type for the same dog within 5 seconds (a double tap, or Save pressed twice) is ignored ("Already logged").
 
-### 4. Multi-Tenant Household & SSO Caretaker Attribution
-- **Google SSO Caretaker Sync**: Seamless family sharing where each event (walks, feedings, health treatments) is automatically attributed to the active family member.
+### How the guesses work
 
----
+Everything is learned from the dog's own logs; recent days count more than old ones.
 
-## 🧠 How It Works (Under the Hood)
+- **Pee**: the usual daytime gap between two pees (gaps of 45 min to 8 h on the same day), read at the 70th percentile so short "just in case" walks don't shorten it. Kept between 30 min and 6 h. Before there is enough history: 1 hour per month of age, from 1 h to 4 h.
+- **Poop**: the median gap between poops (1.5 h to 24 h), kept between 3 h and 24 h; 6 h before there is history. The first poop of the day is expected a learned delay after the first morning pee.
+- **After a meal**: puppies under 3.5 months always get a post-meal potty reminder. From 3.5 months they get it only if their logs show they usually go soon after eating (at least 40 % of meals, 50 % from 5 months); with fewer than 3 meals logged, the reminder stays on until 5 months. The card then also shows a "Baseline" line: the time without the meal. A dog that peed (or pooped) in the 30 min before eating gets no pee (or poop) reminder.
+- **Stool**: diarrhoea or soft stool (or a note saying liquid/diarrhoea) switches the poop card to hourly checks for 12 h, night included. A hard stool pauses the poop card (badge calm) for 8 h or more.
+- **Meals**: meals per day and the daily gram goal come from the dog's profile. Breakfast is the learned breakfast time (07:30 until 3 meals are logged), but not earlier than 15 min after the first morning pee. The next meals are spread over the hours left before bedtime, at least 2.5 h apart.
+- **Goal reached**: at 90 % of the gram goal (or, for a dog without a gram goal, once all meals are logged), the card says "Daily goal reached" and points to tomorrow's breakfast. If all meals are logged but grams are short, a "Remaining portion" reminder appears; it never turns red.
+- **Suggested grams**: what is left of today's goal divided by the meals left. Once the goal is reached, the button shows no grams.
+- A log dated more than one minute in the future is ignored by the guesses and by today's meal total (today's pee and poop counts still include it).
 
-### The Potty & Sleep Biological Pipeline
+### Night mode and the 04:00 day
 
-```mermaid
-flowchart TD
-    A[Household Activity Logs] --> B[detectSleepSchedule Engine]
-    B -->|Timezone-Aware Decimal Hours| C[Wakeup & Bedtime Anchor]
-    A --> D[Exponential Time-Decay Filter]
-    D -->|10-Day Half-Life Weighting| E[70th Percentile Retention Estimator]
-    C --> F[predictNextPee Pipeline]
-    E --> F
-    F --> G[Dynamic Target Time ± Semi-IQR]
-```
+- Bedtime and wake-up time are learned from the last 14 days (the last log of the evening, the first log after 05:00). Until there are 5 logs: 22:00 and 07:00.
+- Between bedtime and wake-up the cards point to the **morning outing** and never turn red (the pee card turns amber in the last 20 min), except for a pre-bed outing still on the card (below) or the hourly stool checks (above). A puppy under 2.5 months also gets one mid-night pee break, 4 h after its last pee.
+- Logging something after 04:00 (or after wake-up time minus 3 h, whichever is later) ends night mode early.
+- A pee due before bedtime + half the usual gap stays on the card as tonight's pre-bed outing until that time; a poop until bedtime + 1 h. Later than that, the card moves to the morning. A missed meal stays on the card until bedtime + 1 h.
+- **A day runs from 04:00 to 04:00**, everywhere in the app: a pee at 01:30 counts for the evening before, in the cards, the totals and the history.
 
-1. **Sleep Schedule Detection (`detectSleepSchedule`)**:
-   Analyzes nighttime gaps in activity logs using floating-point decimal hours (`getLocalDecimalHour`) to determine exact household bedtime and wakeup times without hardcoded assumptions.
-2. **Exponential Recency Weighting (10-Day Half-Life)**:
-   Weights recent days with a 10-day half-life ($w_i = e^{-\Delta t / 10\text{d}}$), allowing the model to steadily track puppy growth while remaining resilient against temporary 3–4 day vacation disruptions.
-3. **Capacity-Aware Retention Estimator (70th Percentile)**:
-   For Pee, the engine uses the **70th percentile** of daytime intervals rather than a simple median. Potty data is right-censored: short intervals reflect human walking opportunities (e.g. taking the dog out to a café), whereas the 70th percentile captures true biological holding capacity. For Poop, the 50th percentile (median) tracks continuous 24/7 GI transit.
-4. **Night Boundary Filtering**:
-   Filters out night sleep intervals so daytime pee intervals reflect real awake bladder retention rather than 8-hour overnight holds.
+### Health summary
 
-### The Age-Graduated Gastrocolic Maturation Model
+Below the cards: last weigh-in, estimated current weight and adult weight range; the learned daily routine (bedtime, wake-up, meal times and portions); last vaccine and last deworming with their next date. "View full health passport" opens the passport.
 
-In young puppies, stomach distension immediately stimulates the colon (the **gastrocolic reflex**) because the pudendal nerve is not yet fully myelinated. Between **16 and 20 weeks (4 to 5 months)**, puppies develop **cortical inhibition** (voluntary sphincter control), naturally decoupling elimination from eating.
+The cards refresh every minute, and the data reloads each time you come back to the app.
 
-```mermaid
-flowchart TD
-    A[Meal Logged] --> B{Puppy Age}
-    B -->|< 14 Weeks| C[Active Gastrocolic Window 15-30m]
-    B -->|14 - 20 Weeks| D{Empirical Post-Meal Ratio >= 40%?}
-    D -->|Yes| C
-    D -->|No / Insufficient Data| E[Maintain Learned Daytime Interval]
-    B -->|> 20 Weeks| F{Statistically Proven Habit >= 50%?}
-    F -->|Yes| G[Custom Learned Delay]
-    F -->|No| E
-```
+## Logging an event
 
-- **$< 14\text{ Weeks}$**: Active guidance enabled by default (15–30m post-meal potty alert).
-- **$14\text{ to }20\text{ Weeks}$**: Transition phase — requires empirical data confirmation ($\ge 40\%$ of meals followed by potty $\le 45\text{m}$) before overriding the waking baseline.
-- **$> 20\text{ Weeks}$ (Adolescent / Adult)**: Assumes voluntary cortical control; maintains standard daytime intervals (~4h 26m) unless statistically proven with $\ge 50\%$ post-meal correlation.
-- **Stool Quality Feedback**:
-  - `diarrhea` / `liquid` $\rightarrow$ Triggers rapid 60m GI Upset check interval.
-  - `hard` / `constipated` $\rightarrow$ Adds a 20% refractory extension to the learned median.
+The **+** button (top bar) opens the form on Pee; the meal, weigh and medication buttons open it on their type. The form keeps what you typed until you save or cancel.
 
-### Prediction Engine State Machine
+| Field | Rule |
+|---|---|
+| Type | Pee, Poop, Meal, Weight, Medication |
+| Place (pee, poop) | Outside (default) or Accident indoors |
+| Consistency (poop) | Hard, Normal (default), Diarrhoea |
+| Grams (meal) | Required and above 0: a 0 g meal is refused. Exception: a dog with **no gram goal** may save a meal with the box empty (no grams stored). Starts with the suggested grams, empty once today's goal is reached. |
+| Weight | Required, 0.3 to 100 kg. The box starts empty, with "Last weigh-in: X kg on date" under it, and a warning when the value is more than double or less than half of it (a misplaced comma). |
+| Medication | Name required |
+| Decimals | Comma or dot (`10,4` or `10.4`) |
+| Date and time | Required, now by default. Past dates are fine (weights are often entered late); more than 5 minutes in the future is refused. |
+| Notes | Optional; emptying a note in an edit deletes it |
+| Logged by | Read-only line: you for a new log, the original author for an edit. The server sets it from your login; nobody can log under someone else's name. |
 
-The engine operates as **three independent, decoupled prediction pipelines** that share a common learned sleep schedule and empirical morning-sequence offsets. Each pipeline resolves to exactly one discrete mode per evaluation.
+The form checks everything before it closes. Once saved, the log appears at once; if the server still refuses it (or the phone is offline), it is undone with a red message.
 
-```mermaid
-stateDiagram-v2
-    direction TB
+Your logs are stored under your **badge** (Settings > Household Members) linked to your login. If you have none yet, your first log creates one for you.
 
-    state "Pee Pipeline" as PEE {
-        [*] --> NightSleep_P: isNightTimeMode
-        NightSleep_P --> MidNightBreak: age < 2.5mo
-        NightSleep_P --> MorningWakeup_P: else
-        [*] --> NewDayNoLogs_P: todayPees = 0
-        NewDayNoLogs_P --> MorningWakeup_P
-        [*] --> PostMealCheck_P: food after lastPee
-        PostMealCheck_P --> PreMealVoid_P: peed within 30m before food
-        PreMealVoid_P --> DaytimeBaseline_P
-        PostMealCheck_P --> PostMealOverride_P: within delay window
-        PostMealCheck_P --> DaytimeBaseline_P: expired
-        [*] --> DaytimeBaseline_P: default
-        DaytimeBaseline_P --> PreBedWalk: evening approach
-        DaytimeBaseline_P --> MorningWakeup_P: lands in night
-    }
+## History
 
-    state "Poop Pipeline" as POOP {
-        [*] --> DiarrheaAlert: diarrhea < 12h
-        [*] --> ConstipationPause: hard stool < 16h
-        [*] --> NightSleep_Po: isNightTimeMode
-        NightSleep_Po --> MorningPoop: wakeup + offset
-        [*] --> NewDayNoPoop: todayPoops = 0
-        NewDayNoPoop --> PostMealOverride_Po: has meals today
-        NewDayNoPoop --> MorningPoop: no meals
-        [*] --> PostMealOverride_Po: food after lastPoop
-        [*] --> DaytimeBaseline_Po: default
-        DaytimeBaseline_Po --> MorningPoop: lands in night
-    }
+- The feed shows the last **7 days**, one collapsed card per day (04:00 to 04:00) with the meals, pees, poops and accidents of that day. "Expand all" opens them.
+- "Load more" goes to 14, 30, 90, 180 days, then everything.
+- Today's meal total is compared to today's goal. Past days show plain totals ("240 g · 3 meals"), since past goals are not stored.
+- Each log can be edited (same rules as the form) or deleted. The badge colour shows who logged it.
+- **Export**: CSV or a printable report of exactly the days shown. The report prints its period ("From … to …"). The CSV has separate date and time columns and opens with accents intact in Excel and Numbers. Its date is the app's 04:00 day, so a log at 01:30 carries the previous day's date.
 
-    state "Food Pipeline" as FOOD {
-        [*] --> NightSleep_F: isNightTimeMode
-        NightSleep_F --> NextBreakfast
-        [*] --> GoalReached: grams >= 90% goal
-        GoalReached --> NextBreakfast
-        [*] --> BreakfastDue: no meals today
-        [*] --> SpacedSchedule: meals logged today
-        SpacedSchedule --> PreBedMeal: evening + goal not met
-    }
-```
+## Health passport
 
-**Mode Resolution Priority** (evaluated top-to-bottom, first match wins):
+Open it from the health summary, or at `/health-passport`.
 
-| Pipeline | Priority | Modes |
-|----------|----------|-------|
-| **Pee** | 1→3 | `night_sleep` → `post_meal_override` → `daytime_baseline` |
-| **Poop** | 1→5 | GI overrides (diarrhea/constipation) → `night_sleep` → new-day morning → `post_meal_override` → `daytime_baseline` |
-| **Food** | 1→4 | `night_sleep` → `goal_reached` → breakfast due → `daytime_schedule` (spaced) |
+**Weight timeline.** Every weigh-in is its own entry, home or vet, nothing merged; each one can be edited or deleted. "Log Weight" opens the log form on Weight. Weigh-ins entered with a vaccine or deworming carry a vet badge. The chart compares them with a growth curve for the breed and size, and estimates the adult weight: the breed's standard weight (by sex), or the weight you typed for Other / Mixed / Unknown breeds, blended with the dog's own weigh-ins (the more weigh-ins, the more they count).
 
-**Key Transition Rules:**
-- **Night → Day**: `isNightTimeMode` returns `false` as soon as any activity is logged after bedtime in the early-morning wakeup window (`max(4:00 AM, wakeupHour − 3h)` to bedtime), instantly exiting night sleep.
-- **Symmetric Pre-Bed Potty Awareness (`isPreBedPottyDone`)**: When an expected potty lands in nighttime sleep hours, the engine checks if the puppy already emptied their bladder/bowels in the pre-bed window ($\ge \text{bedtime} - 2\text{h}$). If yes, it smoothly rolls over to morning wakeup; if no (last potty was afternoon/early evening), it preserves tonight's pre-bed outing.
-- **Dynamic Daytime Meal Spacing & Overflow Handling**: The food pipeline divides the remaining waking hours until bedtime (`wakingHoursLeft / (remainingMeals + 1)`). If snacks or split meals cause `todayMeals.length >= targetMeals` before the 90% daily gram goal is met, it gracefully formats the schedule as `Remaining portion (spaced ~X.Xh)` rather than an invalid meal count ratio.
-- **GI Health Overrides**: Diarrhea (hourly check-in for 12h) and constipation (refractory pause) take absolute priority — they override even night sleep mode.
-- **Pre-Meal Void Detection**: If the puppy emptied bladder/bowels ≤ 30 minutes before eating, the post-meal override is skipped (fresh bladder doesn't need immediate re-emptying).
+**Vaccines.** The add form starts on the last vaccine given (or CHPPi + L4), today's date and the last clinic used, and suggests the next booster from the dog's **age on the injection day** (French practice):
 
-### Nutritional Mathematics (RER & MER)
+| Vaccine | Suggested next date |
+|---|---|
+| CHPPi family, dose before 16 weeks | +1 month |
+| CHPPi family, dose from 16 weeks to before 6 months | the dog's 1st birthday |
+| CHPPi + L4, dose at 6 months or later | +1 year |
+| CHPPi without L4, or parvo only, at 6 months or later | +1 year; +3 years from 16 months of age |
+| Rabies, L4, kennel cough, piroplasmosis, leishmaniasis | +1 year |
 
-```typescript
-// Standard Veterinary Resting Energy Requirement
-const rer = 70 * Math.pow(effectiveWeightKg, 0.75);
+**Dewormings.** Credelio Plus is pre-selected. Monthly products (Credelio Plus, Nexgard Spectra, Simparica Trio, Advocate, Stronghold) suggest +1 month; Bravecto +3 months. Age-based wormers (Milbemax, Drontal, Panacur...) use the age **on the dose day**: every 2 weeks under 12 weeks, monthly until 6 months, then every 3 months.
 
-// Age-scaled maintenance multiplier
-const growthMultiplier = ageMonths < 4 ? 3.0 : ageMonths < 12 ? 2.0 : 1.6;
-const dailyKcalGoal = rer * growthMultiplier;
+**Rules for both:**
+- Each entry can be edited or deleted.
+- Dates: not after today; the next date not before the given date. Months land on the same day, capped at the end of the month (31 Jan + 1 month = 28 Feb).
+- An optional weight box saves a separate weigh-in (12:00 Paris time on that date, or now if noon is still ahead).
+- Editing keeps the stored next date (often set by the vet). If you change the date or the product, the form offers "Suggested: date", one tap to apply.
+- Status: up to date; due soon (14 days); overdue; or **Completed** ("Effectué") once a later dose of the same vaccine, or of a vaccine that contains it, is logged (an L4 booster also completes CHPPi + L4). A different vaccine given the same day never completes it. Any later deworming completes a deworming.
 
-// Converted to grams based on food caloric density (default ~360 kcal / 100g)
-const dailyGramsGoal = Math.round((dailyKcalGoal / kcalPer100g) * 100);
-```
+**Medication.** The medication logs, with add and delete buttons.
+
+**Export.** A printable passport (vaccines, dewormings, weigh-ins; print it to PDF) or the same as CSV, in the app's language. Medication logs are not exported.
+
+## Settings
+
+**Dog Profiles.** Name, breed (English and French names; "Other" with a custom name), sex, birth date (required, not in the future), daily gram goal (10 to 2000 g, or tick "No gram goal" to count meals only), meals per day (1 to 6; for a new dog, set from its age: 4 under 3 months, 3 under 6 months, then 2), notes. The expected adult weight box appears only for Other, Mixed and Unknown breeds. Any family member can add or edit a dog; only the owner can delete one.
+
+**Household Members.** Each person has a badge (name and colour) that colours their logs. Anyone in the family can add a badge.
+- Names and linked emails are unique within a family.
+- Your badge is the one carrying your email; failing that, a badge without an email whose name is exactly your Google account name. It shows the "Active" chip and has no delete button.
+- **This is me**: tick it on a badge without an email to link it to your login (when no badge carries your email yet).
+- Only the owner (or an admin) renames a badge linked to someone else, or unlinks a badge. Only the owner deletes badges.
+- **Invite** (owner): pre-approve an email. It joins your family with a badge already linked to it. If that person already has an account in another family, the app asks before moving them.
+
+**Super-Admin Panel** (owner only): every account, pending ones first. Approve (the person stays in their own household unless you pick another, which asks first), move to another household, revoke (back to pending), delete, or pre-approve an email into a chosen household.
+
+## Phone install, offline and updates
+
+- **Install**: open the site in the phone's browser and use "Add to Home Screen". It opens full screen like an app.
+- **Offline**: the app still opens and shows the last data it loaded (dogs, badges, recent logs); vaccines, dewormings and older weigh-ins need a connection. Logging needs a connection: there is no offline queue, so a log made offline is dropped with an error message.
+- **Updates**: after a new version is published, the next time the app is opened it downloads it in the background and reloads itself once.
+- **Languages**: English and French. A new phone gets French when it is set to French; the EN/FR button in the top bar switches, and the choice is remembered. The cards' explanations are translated too.
 
 ---
 
-## 📁 Project Architecture
+# Part 2: developers
+
+Read [`AGENTS.md`](AGENTS.md) for the coding rules (types, Zod, React style, data-model and export rules).
+
+## Architecture
 
 ```
-puppy-tracker/
-├── api/                   # Serverless backend endpoints (Vercel Functions)
-│   ├── auth/              # Google SSO verification & token exchange
-│   ├── dogs/              # Multi-tenant puppy profile management
-│   ├── activities/        # Time-series activity stream (pee, poop, food, weight)
-│   └── health/            # Medical records (vaccinations, deworming)
-├── src/
-│   ├── components/        # UI components (PredictorWidget, Timeline, HealthSummary)
-│   │   └── common/        # Shared primitives (StatusBadge, ConfirmationModal)
-│   ├── hooks/             # Domain state hooks (usePuppies, useCaretakers, useActivities)
-│   ├── views/             # Lazy-loaded major routes (Dashboard, CarnetDeSante, Settings)
-│   ├── utils/             # Core mathematical & biological logic
-│   │   ├── predictions.ts # Decoupled prediction pipelines & Semi-IQR engine
-│   │   ├── weight.ts      # Growth curves, adult weight projection & RER/MER goals
-│   │   ├── health.ts      # Vaccination & deworming protocol evaluators
-│   │   ├── date.ts        # Timezone-aware date arithmetic & decimal hour calculations
-│   │   └── export.ts      # Digital passport PDF generator
-│   ├── services/          # Client-side API synchronization layer
-│   ├── db/                # Drizzle ORM schema & Neon PostgreSQL connection
-│   ├── i18n/              # English & French internationalization dictionaries
-│   └── types/             # TypeScript domain interfaces
-├── scripts/
-│   └── inspect_db.ts      # Zero-leak Neon database diagnostic & prediction inspector
-└── vercel.json            # Edge caching & immutable asset headers
+Browser (React SPA, PWA)  ──/api/*──▶  Vercel functions (api/*.ts)  ──HTTP──▶  Neon Postgres (Drizzle, neon-http)
+ src/App.tsx, views, hooks              every handler: verifyAuth, then
+ src/utils/predictions.ts (engine)      queries scoped to auth.householdId
 ```
 
----
+- **SPA**: three routes, `/`, `/health-passport`, `/settings` (history API). Passport, settings, sign-in and the log form are lazy chunks; the log form chunk is prefetched 2 s after the dashboard is ready.
+- **Predictions run in the browser** (`src/utils/predictions.ts`), from the logs loaded on the device. The server only stores and returns rows.
+- **BFF**: `GET /api/dashboard?puppyId=&days=` returns, in one Neon batch: the household's dogs and badges, the dog's logs of the last `days` (default 14, max 90, at most 300 rows), the household's health records, and **every** weight event of the dog (weigh-ins are weeks apart). The app calls it at boot and on every return to the foreground. Switching dogs loads that dog's logs from `/api/activities`; the passport loads its vaccines and dewormings from `/api/health-records?puppyId=`.
+- Other endpoints: `api/activities.ts`, `api/dogs.ts`, `api/health-records.ts`, `api/households.ts` (badges), `api/users.ts` (accounts), `api/auth/session.ts`.
+- `vercel.json`: `npm ci` install, SPA rewrite (except `/api/` and files), `/privacy` and `/terms` static pages, long cache on `/assets/`.
+- Vercel Web Analytics and Speed Insights are on; the URLs they send are reduced to the route.
 
-## ⚡ Getting Started
+## Auth and permissions
 
-### Prerequisites
-- **Node.js**: $\ge 20.x$
-- **npm**: $\ge 10.x$
-- **Database**: Neon Serverless PostgreSQL instance (or any standard PostgreSQL database)
+1. The sign-in screen loads Google Identity Services and gets a Google ID token.
+2. `POST /api/auth/session` verifies it with Google's tokeninfo endpoint (audience = our client id, verified email), creates the `users` row on first sign-in (owner: active, in the main household; anyone else: `PENDING_APPROVAL` in a new household), and returns an **app session token** (HMAC-SHA256 JWT, 90 days). A pending account gets 403 and no token.
+3. The client sends it as `Authorization: Bearer`. On every request, `verifyAuth` (`api/_auth.ts`) checks the signature and expiry, then **re-reads the user row** (except for the owner): a missing or non-active account gets 401, a database error stays a 500. Household and role come from the row, not the token (the owner's household comes from the token).
+4. The client renews the token 3 s after each app start. A 401 (or 401/403 on renewal) clears it and shows the sign-in screen; a 5xx keeps the session.
+5. Every endpoint also accepts a Google ID token directly (same check as step 2). The app relies on it in one case: when the session exchange fails for the owner, it keeps the Google ID token as the session, which Google expires after about an hour.
 
-### Quick Installation
+- **Owner** = the SuperAdmin, recognised by email only, never by a role claim. Only the owner deletes dogs and badges, sees the Super-Admin Panel, and moves accounts between households.
+- Every other active account (role `Member`) logs, edits and deletes logs and health records, and adds or edits dogs and badges in its household, within the badge rules of `api/households.ts`.
+- `loggedBy` is never taken from the request: `POST /api/activities` resolves it from the account's linked badge (`findLinkedCaretaker`), creating the badge on the first log; `PUT` never changes it.
+
+## Data model
+
+`src/db/schema.ts`; every table but `households` carries `household_id`; there are **no foreign keys**.
+
+| Table | Holds |
+|---|---|
+| `users` | Google accounts: email (unique), name, role, status (`ACTIVE` / `PENDING_APPROVAL`), household |
+| `households` | optional display names for household ids |
+| `puppies` | dog profile: breed, birth date, sex, daily gram goal (0 = no gram goal), meals per day, expected adult weight (custom breeds) |
+| `caretakers` | badges: name, colour, optional linked email |
+| `activities` | one row per log: `type` (pee, poop, food, weight, medication; the API also accepts `walk`, which the app never sends), timestamp (timestamptz), `logged_by` (badge name), potty place, stool, grams, weight, medication name, notes |
+| `health_records` | vaccinations and dewormings: name/product, date, next date, clinic, batch. `weight_at_time` is a legacy column the app no longer reads: weigh-ins are `activities` rows of type `weight`. |
+
+APIs return timestamps as ISO strings. Inputs are validated with Zod (`src/utils/schemas.ts`). Schema changes go in `src/db/schema.ts` with a migration in `drizzle/`, and must carry existing production data over.
+
+## Caching and freshness
+
+| Layer | Rule |
+|---|---|
+| API responses | `Cache-Control: no-store` on every response (`setCorsHeaders`) |
+| Service worker | precaches the app shell; `/api/*` is network-only |
+| Client GET cache | 60 s in memory; cleared on every write and on each return to the app |
+| In-flight dedupe | identical GETs started less than 2 s apart share one request, so the visibility/focus/pageshow burst of one return makes one `/api/dashboard` call |
+| localStorage | dogs, badges, active dog, the active dog's recent logs (≤ 300), session and language: paints the first frame before the network answers |
+| Writes | logs, badges and dog edits are optimistic, rolled back with a toast on failure. A dashboard answer that may predate a pending write only adds rows. |
+
+## Local setup
+
+Requirements: Node 24 (as CI), npm.
 
 ```bash
-# 1. Clone the repository
-git clone https://github.com/Ouriel/puppy-tracker.git
-cd puppy-tracker
-
-# 2. Install dependencies
-npm install
-```
-
-### Environment Variables
-
-Create a `.env.local` file in the project root:
-
-```env
-# Neon Serverless PostgreSQL Connection String
-DATABASE_URL="postgresql://user:password@ep-xyz.eu-central-1.aws.neon.tech/neondb?sslmode=require"
-
-# JWT / Session Signing Secret
-SESSION_SECRET="your-super-secure-session-secret"
-
-# Optional: Google OAuth Client ID for SSO
-VITE_GOOGLE_CLIENT_ID="your-google-client-id.apps.googleusercontent.com"
-```
-
-### Running the App
-
-```bash
-# Start local development server (with /api proxy)
-npm run dev
-
-# Build optimized production bundle
-npm run build
-
-# Preview production build locally
-npm run preview
-```
-
----
-
-## 🧪 Testing & Quality Assurance
-
-Puppace maintains an extensive automated test suite covering all mathematical algorithms, edge cases, timezone handling, and veterinary growth logic:
-
-```bash
-# Run Vitest test suite
+npm ci
+cp .env.example .env.local   # then fill in the values below
 npm test
-
-# Run Oxlint / Code Quality Checks
-npm run lint
-
-# Run Live Database & Predictor Diagnostics
-npm run db:inspect
 ```
 
----
+| Variable | Used by | Purpose |
+|---|---|---|
+| `POSTGRES_URL` or `DATABASE_URL` | API, drizzle-kit, `db:inspect` (`DATABASE_URL`) | Postgres connection |
+| `PREVIEW_POSTGRES_URL` | API, only when `VERCEL_ENV=preview` | the preview database |
+| `SESSION_SECRET` or `AUTH_SECRET` | API | session signing key (without it, derived from `POSTGRES_URL`) |
+| `VITE_GOOGLE_CLIENT_ID` (or `GOOGLE_CLIENT_ID` on the server) | sign-in screen, API | Google OAuth client id |
+| `SUPER_ADMIN_EMAIL` | API | the owner's email. The browser cannot read it and always uses the default in `src/utils/auth.ts`: set it only to that same value, or the API and the app disagree on who the owner is. |
 
-## ⚡ Performance & Edge Architecture
+`npm run dev` serves the front end with Vite and proxies `/api` to `http://localhost:3000`, where the functions must run (for example with the Vercel CLI, `vercel dev`). **Never point a local run at the production database**: create a Neon branch and use its URL, and check the database URL the functions actually get (a `vercel dev` run can also pull the project's Development variables). Google sign-in only works on origins registered in the OAuth client.
 
-- **Sub-100ms TTFB**: Served via Vercel Edge Network with Brotli compression.
-- **Route & Modal Code-Splitting**: Critical initial entry bundle is under **36 kB (gzipped)**. Secondary views (`CarnetDeSanteView`, `SettingsView`, `AuthLockScreen`) load asynchronously via `React.lazy` and `<Suspense>`.
-- **Immutable Static Caching**: 1-year cache headers (`Cache-Control: public, max-age=31536000, immutable`) for all fingerprinted assets.
-- **Non-Blocking Asset Loading**: Asynchronous web font preloading and on-demand SSO script injection for zero initial render blocking.
+## Scripts
 
----
+| Command | What it does |
+|---|---|
+| `npm run dev` | Vite dev server (API proxied to port 3000) |
+| `npm run build` | `tsc -b` type check, then `vite build` (with the service worker) |
+| `npm test` | Vitest, with `TZ=Europe/Paris` pinned: the engine's expectations are in Paris time |
+| `npm run lint` | oxlint |
+| `npm run preview` | serve the built app |
+| `npm run db:inspect` | read-only report on the database in `DATABASE_URL`: table counts, dogs, a live prediction diagnostic, recent logs |
+| `npm run db:generate` / `db:migrate` / `db:push` | drizzle-kit. Do not run `db:push` or `db:migrate` against production. |
 
-## 📄 License
+## Testing
 
-Distributed under the **MIT License**. See [`LICENSE`](./LICENSE) for more details.
+- **Golden snapshot** (`src/utils/__tests__/predictions_golden.test.ts`): replays fixed scenarios on a grid of Paris times and snapshots everything `calculatePredictions` returns. Any engine change shows up as a diff: review and explain every moved line, then update with `TZ=Europe/Paris npx vitest run src/utils/__tests__/predictions_golden.test.ts -u`. A pure refactor leaves it unchanged.
+- **Pure functions**: predictions, dates, health rules, weight, exports, schemas, form validation; date-dependent tests freeze the clock (`vi.setSystemTime`).
+- **API handlers**: run against a mocked Neon/Drizzle, no network.
+- **Components and hooks**: rendered in jsdom (`// @vitest-environment jsdom`) with `react-dom`, no Testing Library.
+- Rule: every test exercises real code; no assertion against a local copy of production logic.
 
-Crafted with ❤️ for puppies and their humans.
+## CI/CD
+
+- **CI** (`.github/workflows/ci.yml`): on pushes to `main` and `feature/**`, pull requests to `main`, every Monday 06:00 UTC, and on demand. Node 24: `npm ci`, lint, build, test. The job id `ci` is the required check on `main`. When it fails on a Dependabot PR, a comment pings the owner.
+- **Dependabot** (`.github/dependabot.yml`): weekly (Monday) for npm and GitHub Actions. HeroUI and its React Aria peers always move in one PR; other minor and patch updates are grouped; `@types/node` majors are ignored (it follows the Node 24 runtime).
+- **Auto-merge** (`.github/workflows/dependabot-automerge.yml`): turns on GitHub's native auto-merge (squash), so a Dependabot PR merges only once `ci` is green. The repository variable `AUTOMERGE_MANUAL` lists package patterns that are never auto-merged (a group stays manual if one package matches); when it is set, every other update auto-merges, majors included; when it is unset, only minor and patch do.
+- **Vercel** builds every branch: `main` goes to production, other branches get a preview deployment.
+- **Preview database**: a preview deployment reads `PREVIEW_POSTGRES_URL` (a Neon `preview` branch copied from production), so tests on a preview can save without touching production data.
+- **Demo seed** (`scripts/preview-seed.sql`): demo families, members, dogs, 30 days of logs and health passports, relative to the run time, plus a demo dog and an account waiting for approval in the owner's household. Run it in the Neon SQL editor on the `preview` branch (or `psql "$PREVIEW_POSTGRES_URL" -f scripts/preview-seed.sql`) at the start of a test session. It refuses to write on any other branch, and it can be re-run: it first deletes its own `seed-` rows. After a "reset from parent" of the preview branch, run it again.
+
+## Known limitations
+
+- **No offline logging**: logs need a connection; a failed save is dropped with an error.
+- **Predictions use the logs loaded on the device**: the last 14 days at start, although the engine looks back up to 30 days. Pressing "Load more" in the history therefore feeds more days to the guesses and can shift them slightly.
+- **The day boundary is fixed at 04:00** (not learned), and on clock-change days it moves by an hour. A dog with an unusual night (e.g. awake at night) gets odd "morning" guesses.
+- **Past goals are not stored**: past days in the history show totals only.
+- **Medication list in the passport** shows the medication logs loaded in the history (14 days unless "Load more").
+- **Deleting a dog** removes its profile only: its logs and health records stay in the database (no foreign keys or cascade).
+- **Delete buttons for dogs and badges show for every member**; the server refuses the delete to anyone but the owner, and the item comes back with an error.
+- **CSV exports are comma-separated**: Excel set to French may put every column in column A.
+- **`drizzle/` lags `src/db/schema.ts`**: the index `idx_health_records_household_date` is in the schema and in production but in no migration, so the next `db:generate` emits it.
+- **One owner per installation**: only the owner's account approves sign-ups, deletes dogs and badges, and moves accounts. The API knows an `Admin` role, but the app never assigns it (only the demo seed does).
