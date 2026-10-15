@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback, useMemo, lazy, Suspense } from 'react';
-import type { Activity, UserAccount, ActivityType, PottyLocation, FamilyRole, HealthRecord } from './types';
+import { useState, useEffect, useCallback, useMemo, useRef, lazy, Suspense, type SetStateAction } from 'react';
+import type { Activity, UserAccount, ActivityType, PottyLocation, FamilyRole, HealthRecord, SignInOutcome } from './types';
 import { getAuthToken, setAuthToken, getStoredAuthUser, setStoredAuthUser } from './utils/auth';
 import { isSuperAdminEmail } from './utils/auth';
 import {
@@ -44,6 +44,8 @@ function App() {
   const caretakerState = useCaretakers(user);
   const activityState = useActivities(puppyState.activePuppy, { skipInitialFetch: true });
   const [healthRecords, setHealthRecords] = useState<HealthRecord[]>([]);
+  // While /api/dashboard fails, the health passport loads the dog's records itself
+  const [isDashboardDown, setIsDashboardDown] = useState<boolean>(false);
   const [now, setNow] = useState<Date>(() => new Date());
   // The dashboard could not be reached: when the data shown was loaded (ms); null otherwise
   const [offlineDataTime, setOfflineDataTime] = useState<number | null>(null);
@@ -70,6 +72,23 @@ function App() {
   const { activePuppyId, setPuppies, selectPuppy } = puppyState;
   const { setCaretakers } = caretakerState;
   const { setActivitiesForPuppy, getMutationVersion, addActivity, retryActivity } = activityState;
+
+  // Counts the health passport's changes: a dashboard answer read before one may miss it
+  const healthRecordsVersionRef = useRef(0);
+  // Records the passport deleted: a dashboard answer read before the delete must not bring them back
+  const deletedHealthRecordIdsRef = useRef(new Set<string>());
+
+  const updateHealthRecords = useCallback((update: SetStateAction<HealthRecord[]>) => {
+    healthRecordsVersionRef.current += 1;
+    setHealthRecords((previous) => {
+      const next = typeof update === 'function' ? update(previous) : update;
+      const nextIds = new Set(next.map((record) => record.id));
+      previous.forEach((record) => {
+        if (!nextIds.has(record.id)) deletedHealthRecordIdsRef.current.add(record.id);
+      });
+      return next;
+    });
+  }, []);
 
   const handleNavigate = useCallback((view: 'dashboard' | 'carnetdesante' | 'settings') => {
     setCurrentView(view);
@@ -101,8 +120,10 @@ function App() {
   const loadDashboard = useCallback(async (puppyId: string = activePuppyId): Promise<boolean> => {
     // Read first: a log added, edited or deleted before the answer arrives may be missing from it
     const mutationVersion = getMutationVersion();
+    const healthRecordsVersion = healthRecordsVersionRef.current;
     const dashboardRes = await fetchDashboard(puppyId || undefined, 14);
     setOfflineDataTime(!dashboardRes.ok && dashboardRes.errorKey === 'offline' ? getStoredRecentActivitiesTime(puppyId) : null);
+    setIsDashboardDown(!dashboardRes.ok);
     if (!dashboardRes.ok) return false;
     const { puppies, caretakers, activities, healthRecords: records, weightActivities } = dashboardRes.data;
     if (puppies && puppies.length > 0) {
@@ -115,9 +136,14 @@ function App() {
     if (Array.isArray(caretakers)) {
       setCaretakers(caretakers);
     }
-    // An empty list too: the last record may have been deleted
+    // An empty list too: the last record may have been deleted. One read before a passport change only adds the records missing here.
     if (records) {
-      setHealthRecords(records);
+      const isStale = healthRecordsVersion !== healthRecordsVersionRef.current;
+      setHealthRecords((previous) => {
+        if (!isStale) return records;
+        const keptIds = new Set(previous.map((record) => record.id));
+        return [...previous, ...records.filter((record) => !keptIds.has(record.id) && !deletedHealthRecordIdsRef.current.has(record.id))];
+      });
     }
     return true;
   }, [activePuppyId, getMutationVersion, setPuppies, selectPuppy, setCaretakers, setActivitiesForPuppy]);
@@ -328,8 +354,8 @@ function App() {
 
   const handleOpenHealthPassport = useCallback(() => handleNavigate('carnetdesante'), [handleNavigate]);
 
-  const handleUnlockWithSSO = async (email: string, name: string, token: string) => {
-    setIsLoading(true);
+  // The lock screen shows its own busy state during the exchange, so a refused sign-in keeps its message there
+  const handleUnlockWithSSO = async (email: string, name: string, token: string): Promise<SignInOutcome> => {
     const sessionRes = await exchangeSessionToken(token);
     if (sessionRes.ok && sessionRes.data?.user && sessionRes.data.sessionToken) {
       setAuthToken(sessionRes.data.sessionToken);
@@ -339,6 +365,7 @@ function App() {
         name: sessionRes.data.user.name,
         role: (['Husband', 'Wife', 'Partner', 'Child', 'Dog Walker', 'Sitter', 'Relative', 'Member', 'SuperAdmin'].includes(sessionRes.data.user.role) ? sessionRes.data.user.role : 'Member') as FamilyRole,
       };
+      setIsLoading(true);
       setUser(userAccount);
       setStoredAuthUser(userAccount);
 
@@ -347,7 +374,7 @@ function App() {
       }
 
       setIsLoading(false);
-      return { success: true };
+      return 'signedIn';
     }
 
     // Fallback for Super Admin on initial cold setup
@@ -361,12 +388,11 @@ function App() {
       setAuthToken(token);
       setUser(superUser);
       setStoredAuthUser(superUser);
-      setIsLoading(false);
-      return { success: true };
+      return 'signedIn';
     }
 
-    setIsLoading(false);
-    return { success: false, message: 'Account pending activation by Super Admin.' };
+    // Only a 403 means the account waits for approval; no network, a 5xx or a refused token is a failed sign-in
+    return !sessionRes.ok && sessionRes.status === 403 ? 'pending' : 'failed';
   };
 
   if (isLoading || (currentView === 'dashboard' && user && activityState.isLoadingActivities && puppyState.puppies.length > 0)) {
@@ -447,6 +473,9 @@ function App() {
               activePuppy={puppyState.activePuppy}
               activities={activePuppyActivities}
               weightActivities={activePuppyWeights}
+              healthRecords={healthRecords}
+              setHealthRecords={updateHealthRecords}
+              isDashboardDown={isDashboardDown}
               currentUser={caretakerState.currentUser}
               onAddActivity={logActivity}
               onUpdateActivity={activityState.updateActivity}

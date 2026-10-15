@@ -56,7 +56,7 @@ export function usePuppies(initialPuppies?: PuppyProfile[]) {
 
   const updatePuppy = useCallback(
     async (updatedPup: PuppyProfile): Promise<boolean> => {
-      const previousPuppies = puppies;
+      const target = puppies.find((puppy) => puppy.id === updatedPup.id);
       setPuppies((previous) => previous.map((puppy) => (puppy.id === updatedPup.id ? updatedPup : puppy)));
       const result = await updateDog(updatedPup);
       if (result.ok) {
@@ -64,7 +64,8 @@ export function usePuppies(initialPuppies?: PuppyProfile[]) {
         toast.success(t.toasts.dogUpdated);
         return true;
       }
-      setPuppies(previousPuppies);
+      // Only this dog goes back: a later change the server saved stays
+      setPuppies((previous) => previous.map((puppy) => (puppy.id === updatedPup.id ? target ?? puppy : puppy)));
       toast.danger(t.toasts[result.errorKey]);
       return false;
     },
@@ -73,7 +74,8 @@ export function usePuppies(initialPuppies?: PuppyProfile[]) {
 
   const deletePuppy = useCallback(
     async (id: string) => {
-      const previousPuppies = puppies;
+      const index = puppies.findIndex((puppy) => puppy.id === id);
+      const removed = puppies[index];
       setPuppies((previous) => previous.filter((puppy) => puppy.id !== id));
       const result = await deleteDog(id);
       if (result.ok) {
@@ -86,7 +88,8 @@ export function usePuppies(initialPuppies?: PuppyProfile[]) {
         }
         toast(t.toasts.dogDeleted);
       } else {
-        setPuppies(previousPuppies);
+        // Back in its place, unless a reload already brought it back
+        if (removed) setPuppies((previous) => (previous.some((puppy) => puppy.id === id) ? previous : previous.toSpliced(index, 0, removed)));
         toast.danger(t.toasts[result.errorKey]);
       }
     },

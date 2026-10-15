@@ -156,6 +156,19 @@ describe('PuppiesView edit form', () => {
     await act(async () => finishSave(true));
     expect(field('dog-name')).toBeNull();
   });
+
+  // Improvement backlog 18: the boxes stop where the server's limits stop, so nothing typed is refused on save
+  it('the name, breed and notes boxes stop at the lengths the server accepts', async () => {
+    await renderView({ puppies: [{ ...REX, breed: 'Other' }] });
+    await click(editButton());
+
+    for (const [id, key] of [['dog-name', 'name'], ['dog-custom-breed', 'breed'], ['dog-notes', 'notes']] as const) {
+      const limit = field(id).maxLength;
+      expect(limit, id).toBeGreaterThan(0);
+      expect(DogInputSchema.partial().safeParse({ [key]: 'a'.repeat(limit) }).success, id).toBe(true);
+      expect(DogInputSchema.partial().safeParse({ [key]: 'a'.repeat(limit + 1) }).success, id).toBe(false);
+    }
+  });
 });
 
 const buttonByText = (text: string) =>

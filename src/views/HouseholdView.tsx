@@ -215,6 +215,7 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
                   <Input
                     type="text"
                     placeholder={t.household.namePlaceholder}
+                    maxLength={80}
                     value={name}
                     onChange={(event) => setName(event.target.value)}
                     required
@@ -272,6 +273,7 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
                       />
                       <Input
                         type="text"
+                        maxLength={80}
                         value={editName}
                         onChange={(event) => setEditName(event.target.value)}
                         placeholder={t.household.memberName}

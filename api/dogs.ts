@@ -69,7 +69,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             dailyFoodGramGoal: body.dailyFoodGramGoal ?? existing.dailyFoodGramGoal,
             targetMealsPerDay: body.targetMealsPerDay ?? existing.targetMealsPerDay,
             notes: body.notes ?? existing.notes,
-            avatarUrl: body.avatarUrl ?? existing.avatarUrl,
             gender: body.gender ?? existing.gender,
             expectedAdultWeightKg: body.expectedAdultWeightKg ?? existing.expectedAdultWeightKg,
             updatedAt: new Date(),
@@ -91,7 +90,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           dailyFoodGramGoal: body.dailyFoodGramGoal ?? 200,
           targetMealsPerDay: body.targetMealsPerDay ?? 3,
           notes: body.notes || '',
-          avatarUrl: body.avatarUrl || '',
           gender: body.gender || null,
           expectedAdultWeightKg: body.expectedAdultWeightKg || null,
         })

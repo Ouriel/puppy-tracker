@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { calculateNextVaccineBooster, calculateNextDewormingDate, calculateNextAntiparasiticDate, getHealthRecordDateError, getHealthRecordStatus, isVetVisitWeight } from '../health';
+import { calculateNextVaccineBooster, calculateNextAntiparasiticDate, getHealthRecordDateError, getHealthRecordStatus, isVetVisitWeight } from '../health';
 import type { Activity, HealthRecord } from '../../types';
 
 describe('Health Passport — French Veterinary Protocol & Dataset Test Suite', () => {
@@ -154,17 +154,17 @@ describe('Health Passport — French Veterinary Protocol & Dataset Test Suite', 
   });
 
   it('calculates biweekly vermifuge for a young puppy according to ESCCAP France', () => {
-    const nextDeworming = calculateNextDewormingDate('2026-04-25', '2026-03-25');
+    const nextDeworming = calculateNextAntiparasiticDate('2026-04-25', 'Milbemax', '2026-03-25');
     expect(nextDeworming).toBe('2026-05-09');
   });
 
   it('calculates monthly vermifuge between 12 weeks and 6 months according to ESCCAP France', () => {
-    const nextDeworming = calculateNextDewormingDate('2026-05-23', '2026-02-23');
+    const nextDeworming = calculateNextAntiparasiticDate('2026-05-23', 'Milbemax', '2026-02-23');
     expect(nextDeworming).toBe('2026-06-23');
   });
 
   it('calculates quarterly vermifuge over 6 months according to ESCCAP France', () => {
-    const nextDeworming = calculateNextDewormingDate('2026-09-23', '2026-01-23');
+    const nextDeworming = calculateNextAntiparasiticDate('2026-09-23', 'Milbemax', '2026-01-23');
     expect(nextDeworming).toBe('2026-12-23');
   });
 
@@ -181,7 +181,7 @@ describe('Health Passport — French Veterinary Protocol & Dataset Test Suite', 
     vi.setSystemTime(new Date('2027-08-01T10:00:00.000Z'));
     try {
       const urgencyById = Object.fromEntries(
-        vaccines.map((record) => [record.id, getHealthRecordStatus(record, vaccines).urgency])
+        vaccines.map((record) => [record.id, getHealthRecordStatus(record, vaccines)])
       );
       expect(urgencyById).toEqual({
         'v1-8w': 'fulfilled',
@@ -199,7 +199,7 @@ describe('Health Passport — French Veterinary Protocol & Dataset Test Suite', 
     const record = (id: string, name: string, date: string, boosterDate: string): HealthRecord => (
       { id, householdId: 'hh-001', puppyId: 'pup-balma', type: 'vaccination', name, date, boosterDate }
     );
-    const statusOf = (target: HealthRecord, records: HealthRecord[]) => getHealthRecordStatus(target, records).urgency;
+    const statusOf = (target: HealthRecord, records: HealthRecord[]) => getHealthRecordStatus(target, records);
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(new Date('2027-08-01T10:00:00.000Z'));
     try {
@@ -222,8 +222,8 @@ describe('Health Passport — French Veterinary Protocol & Dataset Test Suite', 
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(new Date('2028-06-01T10:00:00.000Z'));
     try {
-      expect(getHealthRecordStatus(combo, [combo, leptoOnly]).urgency).toBe('fulfilled');
-      expect(getHealthRecordStatus(leptoOnly, [combo, leptoOnly]).urgency).toBe('upToDate');
+      expect(getHealthRecordStatus(combo, [combo, leptoOnly])).toBe('fulfilled');
+      expect(getHealthRecordStatus(leptoOnly, [combo, leptoOnly])).toBe('upToDate');
     } finally {
       vi.useRealTimers();
     }
@@ -235,8 +235,8 @@ describe('Health Passport — French Veterinary Protocol & Dataset Test Suite', 
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(new Date('2027-08-01T10:00:00.000Z'));
     try {
-      expect(getHealthRecordStatus(first, [first, duplicate]).urgency).toBe('overdue');
-      expect(getHealthRecordStatus(duplicate, [first, duplicate]).urgency).toBe('overdue');
+      expect(getHealthRecordStatus(first, [first, duplicate])).toBe('overdue');
+      expect(getHealthRecordStatus(duplicate, [first, duplicate])).toBe('overdue');
     } finally {
       vi.useRealTimers();
     }
@@ -252,7 +252,7 @@ describe('Health Passport — French Veterinary Protocol & Dataset Test Suite', 
     vi.setSystemTime(new Date('2026-10-14T10:00:00.000Z'));
     try {
       const urgencyById = Object.fromEntries(
-        vaccines.map((record) => [record.id, getHealthRecordStatus(record, vaccines).urgency])
+        vaccines.map((record) => [record.id, getHealthRecordStatus(record, vaccines)])
       );
       expect(urgencyById).toEqual({ 'sans-l4': 'fulfilled', 'l4-1': 'fulfilled', 'l4-2': 'upToDate' });
     } finally {
@@ -267,7 +267,7 @@ describe('Health Passport — French Veterinary Protocol & Dataset Test Suite', 
     vi.setSystemTime(new Date('2026-09-01T10:00:00.000Z'));
     try {
       const urgencyById = Object.fromEntries(
-        dewormingLogs.map((record) => [record.id, getHealthRecordStatus(record, dewormingLogs).urgency])
+        dewormingLogs.map((record) => [record.id, getHealthRecordStatus(record, dewormingLogs)])
       );
       expect(urgencyById).toEqual({
         'd1-4w': 'fulfilled',
@@ -284,21 +284,36 @@ describe('Health Passport — French Veterinary Protocol & Dataset Test Suite', 
   it('flags the latest record as due soon up to 14 days before its booster date, up to date after that', () => {
     const urgencyForBooster = (boosterDate: string) => {
       const record = { type: 'vaccination' as const, name: 'Rage', date: '2026-08-01', boosterDate };
-      return getHealthRecordStatus(record, [record]).urgency;
+      return getHealthRecordStatus(record, [record]);
     };
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(new Date('2026-09-01T10:00:00.000Z'));
     try {
-      expect(urgencyForBooster('2026-09-11')).toBe('soon'); // 9 days
-      expect(urgencyForBooster('2026-09-16')).toBe('soon'); // 14 days
-      expect(urgencyForBooster('2026-09-17')).toBe('upToDate'); // 15 days
+      expect(urgencyForBooster('2026-09-11')).toBe('soon'); // 10 days
+      expect(urgencyForBooster('2026-09-15')).toBe('soon'); // 14 days
+      expect(urgencyForBooster('2026-09-16')).toBe('upToDate'); // 15 days
     } finally {
       vi.useRealTimers();
     }
   });
 
-  // Rest of R11, deferred in Phase 3a
-  it.todo('due dates across a DST change: local setMonth can move a midnight-UTC record date one day early');
+  it('compares calendar dates (Paris): a dose due today is "soon" until midnight, overdue from the next day', () => {
+    const urgencyForBooster = (boosterDate: string) => {
+      const record = { type: 'deworming' as const, name: 'Credelio Plus', date: '2026-09-15', boosterDate };
+      return getHealthRecordStatus(record, [record]);
+    };
+    vi.useFakeTimers({ toFake: ['Date'] });
+    try {
+      vi.setSystemTime(new Date('2026-10-15T01:30:00+02:00'));
+      expect(urgencyForBooster('2026-10-15')).toBe('soon');
+      vi.setSystemTime(new Date('2026-10-15T23:30:00+02:00'));
+      expect(urgencyForBooster('2026-10-15')).toBe('soon');
+      vi.setSystemTime(new Date('2026-10-16T00:30:00+02:00'));
+      expect(urgencyForBooster('2026-10-15')).toBe('overdue');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });
 
 describe('isVetVisitWeight (the stethoscope on a weigh-in, Phase 5c step 7)', () => {

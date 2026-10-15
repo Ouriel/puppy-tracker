@@ -106,11 +106,8 @@ export function getHealthRecordDateError(date: string, boosterDate: string, toda
   return null;
 }
 
-export interface HealthStatusResult {
-  urgency: 'overdue' | 'soon' | 'upToDate' | 'fulfilled';
-  label: string;
-  color: 'danger' | 'warning' | 'success' | 'default';
-}
+/** Translated by StatusBadge. */
+export type HealthUrgency = 'overdue' | 'soon' | 'upToDate' | 'fulfilled';
 
 type HealthStatusRecord = Pick<HealthRecord, 'type' | 'name' | 'date' | 'boosterDate'>;
 
@@ -146,15 +143,8 @@ const VACCINE_RENEWED_BY: Record<string, string[]> = {
  * Fulfilled only when a later record of the same vaccine, or of one that covers it, exists: a same-day or later
  * record of another vaccine (e.g. Rage given with CHPPi) does not renew it.
  */
-export function getHealthRecordStatus(
-  record: HealthStatusRecord,
-  allRecords: HealthStatusRecord[],
-  upToDateLabel: string = 'Up to Date',
-  fulfilledLabel: string = 'Fulfilled'
-): HealthStatusResult {
-  if (!record.boosterDate) {
-    return { urgency: 'upToDate', label: upToDateLabel, color: 'success' };
-  }
+export function getHealthRecordStatus(record: HealthStatusRecord, allRecords: HealthStatusRecord[]): HealthUrgency {
+  if (!record.boosterDate) return 'upToDate';
 
   const renewalKey = getRenewalKey(record);
   const isRenewed = allRecords.some((other) => {
@@ -167,25 +157,15 @@ export function getHealthRecordStatus(
     );
   });
 
-  if (isRenewed) {
-    return { urgency: 'fulfilled', label: fulfilledLabel, color: 'default' };
-  }
+  if (isRenewed) return 'fulfilled';
 
-  const due = new Date(record.boosterDate);
-  const now = new Date();
-  const daysUntilDue = Math.floor((due.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+  // Calendar dates on this device: a dose due today is due all day, not overdue from midnight UTC
+  const today = formatLocalDate();
+  const daysUntilDue = (Date.parse(record.boosterDate.slice(0, 10)) - Date.parse(today)) / (1000 * 60 * 60 * 24);
 
-  if (daysUntilDue < 0) {
-    return { urgency: 'overdue', label: 'Overdue', color: 'danger' };
-  } else if (daysUntilDue <= 14) {
-    return { urgency: 'soon', label: 'Due Soon', color: 'warning' };
-  }
-  return { urgency: 'upToDate', label: upToDateLabel, color: 'success' };
-}
-
-/** Next age-based deworming (Milbemax), from the dog's age on the dose day: see calculateNextAntiparasiticDate. */
-export function calculateNextDewormingDate(lastDate: string, birthDate?: string): string {
-  return calculateNextAntiparasiticDate(lastDate, 'milbemax', birthDate);
+  if (daysUntilDue < 0) return 'overdue';
+  if (daysUntilDue <= 14) return 'soon';
+  return 'upToDate';
 }
 
 /**

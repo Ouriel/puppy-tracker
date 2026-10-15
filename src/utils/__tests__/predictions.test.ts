@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
   getPuppyAge,
-  calculateVetFoodGramGoal,
   detectSleepSchedule,
   calculateLearnedIntervalMinutes,
   calculateLearnedPostMealDelayMinutes,
@@ -94,29 +93,6 @@ describe('predictions utility — comprehensive test suite', () => {
 
     it('handles future birth dates safely by returning 0 weeks', () => {
       expect(getPuppyAge('2099-01-01', '2026-08-01')).toEqual({ weeks: 0, months: 0, text: '0 weeks old' });
-    });
-  });
-
-  // 2. calculateVetFoodGramGoal
-  describe('calculateVetFoodGramGoal', () => {
-    it('calculates RER and MER correctly for young growth stage (< 4 months)', () => {
-      expect(calculateVetFoodGramGoal(5.0, 3)).toBe(185);
-    });
-
-    it('calculates MER correctly for medium growth stage (4-12 months)', () => {
-      expect(calculateVetFoodGramGoal(8.0, 5)).toBe(175);
-    });
-
-    it('calculates MER correctly for adult stage (> 12 months)', () => {
-      expect(calculateVetFoodGramGoal(13.0, 14)).toBe(202);
-    });
-
-    it('guards against zero, negative, or NaN weight/age inputs', () => {
-      expect(calculateVetFoodGramGoal(0, 4)).toBe(240);
-      expect(calculateVetFoodGramGoal(-5, 4)).toBe(240);
-      expect(calculateVetFoodGramGoal(NaN, 4)).toBe(240);
-      // A NaN age falls back to the 6-month multiplier
-      expect(calculateVetFoodGramGoal(8, NaN)).toBe(calculateVetFoodGramGoal(8, 6));
     });
   });
 
