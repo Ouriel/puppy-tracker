@@ -93,7 +93,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         .where(eq(caretakersTable.householdId, householdId));
 
       return res.status(200).json({
-        household: household || { id: householdId, familyPackId: (auth as any).familyPackId, name: 'Family Pack' },
+        household: household || { id: householdId, name: 'Family Pack' },
         caretakers,
       });
     }

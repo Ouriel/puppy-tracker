@@ -25,40 +25,42 @@ export function useCaretakers(
 
   const addCaretaker = useCallback(
     async (caretaker: Caretaker) => {
-      const previousCaretakers = caretakers;
       setCaretakers((previous) => [...previous, caretaker]);
       const result = await createCaretaker(caretaker);
       if (result.ok) {
         toast.success(t.toasts.memberAdded);
       } else {
-        setCaretakers(previousCaretakers);
+        setCaretakers((previous) => previous.filter((item) => item.id !== caretaker.id));
         toast.danger(result.error || t.toasts.errorGeneric);
       }
     },
-    [caretakers, setCaretakers, t.toasts.memberAdded, t.toasts.errorGeneric]
+    [setCaretakers, t.toasts.memberAdded, t.toasts.errorGeneric]
   );
 
   const updateCaretaker = useCallback(async (id: string, updatedFields: Partial<Caretaker>) => {
-    const previousCaretakers = caretakers;
+    const target = caretakers.find((caretaker) => caretaker.id === id);
     setCaretakers((previous) => previous.map((caretaker) => (caretaker.id === id ? { ...caretaker, ...updatedFields } : caretaker)));
     const result = await apiUpdateCaretaker({ id, ...updatedFields });
     if (result.ok) {
       setCaretakers((previous) => previous.map((caretaker) => (caretaker.id === id ? result.data : caretaker)));
     } else {
-      setCaretakers(previousCaretakers);
+      // Only this badge goes back: a later change the server saved stays
+      setCaretakers((previous) => previous.map((caretaker) => (caretaker.id === id ? target ?? caretaker : caretaker)));
       toast.danger(result.error || t.toasts.errorGeneric);
     }
   }, [caretakers, setCaretakers, t.toasts.errorGeneric]);
 
   const deleteCaretaker = useCallback(
     async (id: string) => {
-      const previousCaretakers = caretakers;
+      const index = caretakers.findIndex((caretaker) => caretaker.id === id);
+      const removed = caretakers[index];
       setCaretakers((previous) => previous.filter((caretaker) => caretaker.id !== id));
       const result = await apiDeleteCaretaker(id);
       if (result.ok) {
         toast(t.toasts.memberRemoved);
       } else {
-        setCaretakers(previousCaretakers);
+        // Back in its place, unless a reload already brought it back
+        if (removed) setCaretakers((previous) => (previous.some((caretaker) => caretaker.id === id) ? previous : previous.toSpliced(index, 0, removed)));
         toast.danger(result.error || t.toasts.errorGeneric);
       }
     },

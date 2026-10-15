@@ -8,7 +8,11 @@ import {
   DeleteSchema,
   DashboardQuerySchema,
 } from '../schemas';
+import type { ZodType } from 'zod';
 import { buildQuickActionActivity, buildQuickLogActivity, validateQuickLogForm } from '../activityPayloads';
+import { buildDogPayload, dogFormFromProfile, NEW_DOG_FORM } from '../dogForm';
+import { buildInviteBadge } from '../caretakers';
+import { getHealthProtocols } from '../health';
 
 describe('Zod Schemas Validation', () => {
   it('should validate activity input mutation schema with string numbers', () => {
@@ -299,6 +303,141 @@ describe('Zod Schemas Validation', () => {
       };
       const parsed = ActivityInputSchema.partial().safeParse(resent);
       expect(parsed.success, JSON.stringify(parsed.error?.issues)).toBe(true);
+    });
+  });
+
+  // Improvement backlog 18: one active account or a buggy client must not store megabytes, NaN or a server error.
+  describe('size, number and date limits', () => {
+    const activity = { puppyId: 'pup-1', type: 'food' as const };
+    const dog = { name: 'Rex', breed: 'Beagle', birthDate: '2026-05-01' };
+    const record = { puppyId: 'pup-1', type: 'vaccination', name: 'Rage', date: '2026-08-01' };
+    const user = { email: 'someone@example.com' };
+    const accepts = (schema: ZodType, input: object) => schema.safeParse(input).success;
+
+    it('notes and other free text: at most 2000 characters', () => {
+      const cases: Array<[ZodType, object, string]> = [
+        [ActivityInputSchema, activity, 'notes'],
+        [DogInputSchema, dog, 'notes'],
+        [DogInputSchema, dog, 'careInstructions'],
+        [HealthRecordInputSchema, record, 'notes'],
+      ];
+      for (const [schema, base, field] of cases) {
+        expect(accepts(schema, { ...base, [field]: 'a'.repeat(2000) }), field).toBe(true);
+        expect(accepts(schema, { ...base, [field]: 'a'.repeat(2001) }), field).toBe(false);
+      }
+    });
+
+    it('names and other short texts: at most 80 characters', () => {
+      const cases: Array<[ZodType, object, string]> = [
+        [ActivityInputSchema, activity, 'foodType'],
+        [ActivityInputSchema, activity, 'stoolConsistency'],
+        [ActivityInputSchema, activity, 'medicationName'],
+        [DogInputSchema, dog, 'name'],
+        ...['type', 'name', 'batchNumber', 'vetClinic', 'productName'].map((field): [ZodType, object, string] => [HealthRecordInputSchema, record, field]),
+        ...['name', 'role', 'color'].map((field): [ZodType, object, string] => [CaretakerInputSchema, { name: 'Daria' }, field]),
+        [UserInputSchema, user, 'name'],
+        [UserInputSchema, user, 'role'],
+      ];
+      for (const [schema, base, field] of cases) {
+        expect(accepts(schema, { ...base, [field]: 'a'.repeat(80) }), field).toBe(true);
+        expect(accepts(schema, { ...base, [field]: 'a'.repeat(81) }), field).toBe(false);
+      }
+    });
+
+    it('a client-supplied id (it becomes a primary key): at most 64 characters, the app ids fit', () => {
+      const cases: Array<[ZodType, object, string]> = [
+        [ActivityInputSchema, { ...activity, id: `act-${crypto.randomUUID()}` }, 'id'],
+        [DogInputSchema, { ...dog, id: `pup-${Date.now()}` }, 'id'],
+        [HealthRecordInputSchema, { ...record, id: `hr-${Date.now()}` }, 'id'],
+        [CaretakerInputSchema, { name: 'Daria', id: `c-${Date.now()}` }, 'id'],
+        [UserInputSchema, { ...user, householdId: `house-${Date.now()}-${crypto.randomUUID().slice(0, 8)}` }, 'householdId'],
+      ];
+      for (const [schema, base, field] of cases) {
+        expect(accepts(schema, base), field).toBe(true);
+        expect(accepts(schema, { ...base, [field]: 'a'.repeat(64) }), field).toBe(true);
+        expect(accepts(schema, { ...base, [field]: 'a'.repeat(65) }), field).toBe(false);
+      }
+    });
+
+    it('an email: at most 254 characters, 64 before the @ (RFC 5321; an account or invite badge name can default to that part)', () => {
+      const address = (localLength: number, length: number) => `${'a'.repeat(localLength)}@${'b'.repeat(length - localLength - 5)}.com`;
+      const cases: Array<[ZodType, object]> = [
+        [CaretakerInputSchema, { name: 'Daria' }],
+        [UserInputSchema, {}],
+      ];
+      for (const [schema, base] of cases) {
+        expect(accepts(schema, { ...base, email: address(64, 254) })).toBe(true);
+        expect(accepts(schema, { ...base, email: address(64, 255) })).toBe(false);
+        expect(accepts(schema, { ...base, email: address(65, 80) })).toBe(false);
+      }
+    });
+
+    it('a dog picture is not an input: a stored dog re-sent on edit still saves and its picture is never rewritten', () => {
+      for (const avatarUrl of ['/dog_photo.jpg', '', null, 'javascript:alert(1)']) {
+        const parsed = DogInputSchema.partial().safeParse({ id: 'dog-1', ...dog, avatarUrl });
+        expect(parsed.success, String(avatarUrl)).toBe(true);
+        expect(parsed.data, String(avatarUrl)).not.toHaveProperty('avatarUrl');
+      }
+    });
+
+    it('cups: a number of 0 or more (a numeric string is read), never text', () => {
+      expect(ActivityInputSchema.parse({ ...activity, quantityCups: '0.18' }).quantityCups).toBe(0.18);
+      // gramsToCups rounds a meal under 0.55 g to 0 cups, and the form accepts it
+      for (const quantityCups of [0.09, 0, null]) expect(accepts(ActivityInputSchema, { ...activity, quantityCups }), String(quantityCups)).toBe(true);
+      for (const quantityCups of ['abc', -0.5, '1e999']) expect(accepts(ActivityInputSchema, { ...activity, quantityCups }), String(quantityCups)).toBe(false);
+    });
+
+    it('walk duration: a whole number of minutes from 1 to 1440, or null', () => {
+      const walk = { ...activity, type: 'walk' as const };
+      expect(ActivityInputSchema.parse({ ...walk, durationMinutes: '45' }).durationMinutes).toBe(45);
+      for (const durationMinutes of [1, 1440, null]) expect(accepts(ActivityInputSchema, { ...walk, durationMinutes }), String(durationMinutes)).toBe(true);
+      for (const durationMinutes of [0, 1441, 12.5, '', 'abc']) expect(accepts(ActivityInputSchema, { ...walk, durationMinutes }), String(durationMinutes)).toBe(false);
+    });
+
+    it('a dog weight and a health record weight are numbers (a numeric string is read), never text', () => {
+      expect(DogInputSchema.parse({ ...dog, weightKg: '7.8' }).weightKg).toBe(7.8);
+      for (const weightKg of ['abc', 0, -3, null]) expect(accepts(DogInputSchema, { ...dog, weightKg }), String(weightKg)).toBe(false);
+      expect(HealthRecordInputSchema.parse({ ...record, weightAtTime: '7.8' }).weightAtTime).toBe(7.8);
+      expect(HealthRecordInputSchema.parse({ ...record, weightAtTime: null }).weightAtTime).toBeNull();
+      expect(accepts(HealthRecordInputSchema, { ...record, weightAtTime: 'abc' })).toBe(false);
+    });
+
+    it('a health record date and next date are real calendar days (YYYY-MM-DD)', () => {
+      for (const date of ['2026-02-30', '2026-13-01', 'yesterday', '2026-08-01T00:00:00.000Z']) {
+        expect(accepts(HealthRecordInputSchema, { ...record, date }), date).toBe(false);
+        expect(accepts(HealthRecordInputSchema, { ...record, boosterDate: date }), date).toBe(false);
+        expect(accepts(HealthRecordInputSchema.partial(), { id: 'hr-1', boosterDate: date }), date).toBe(false);
+      }
+      expect(accepts(HealthRecordInputSchema, { ...record, boosterDate: '2027-08-01' })).toBe(true);
+      expect(accepts(HealthRecordInputSchema, { ...record, boosterDate: null })).toBe(true);
+    });
+
+    it("the app's own dog, health record, badge and invite payloads still pass", () => {
+      const storedDog = {
+        id: 'dog-1', householdId: 'hh-1', name: 'Rex', breed: 'Beagle', birthDate: '2026-05-01', weightKg: 4.5,
+        dailyFoodGramGoal: 200, targetMealsPerDay: 3, avatarUrl: '/dog_photo.jpg', notes: '', gender: null,
+        expectedAdultWeightKg: null, createdAt: '2026-05-02T08:00:00.000Z', updatedAt: '2026-05-02T08:00:00.000Z',
+      };
+      // PuppiesView: an edit sends the stored dog with the form's fields, a new dog its own id
+      const editForm = { ...dogFormFromProfile(storedDog), notes: 'Loves carrots' };
+      expect(accepts(DogInputSchema.partial(), { ...storedDog, ...buildDogPayload(editForm, storedDog) })).toBe(true);
+      const newDogForm = { ...NEW_DOG_FORM, name: 'Max', breed: 'Beagle', birthDate: '2026-05-01', dailyFoodGramGoal: '200', targetMealsPerDay: '3' };
+      expect(accepts(DogInputSchema, { id: `pup-${Date.now()}`, ...buildDogPayload(newDogForm) })).toBe(true);
+
+      // VaccineSection and DewormingSection, with every protocol name
+      const { vaccines, antiparasitics } = getHealthProtocols();
+      for (const { name } of vaccines) {
+        expect(accepts(HealthRecordInputSchema, { puppyId: 'pup-1', type: 'vaccination', name, date: '2026-08-01', boosterDate: '2027-08-01', vetClinic: 'Clinique du Parc', batchNumber: 'A123-45' }), name).toBe(true);
+        expect(accepts(HealthRecordInputSchema.partial(), { id: 'hr-1', puppyId: 'pup-1', type: 'vaccination', name, date: '2026-08-01', boosterDate: null, vetClinic: null, batchNumber: null }), name).toBe(true);
+      }
+      for (const { name } of antiparasitics) {
+        expect(accepts(HealthRecordInputSchema, { puppyId: 'pup-1', type: 'deworming', name, productName: name, date: '2026-08-01', boosterDate: '2026-09-01' }), name).toBe(true);
+      }
+
+      // HouseholdView's new badge, an invite badge (the longest email local part is 64 characters)
+      expect(accepts(CaretakerInputSchema, { id: `c-${Date.now()}`, name: 'Daria', role: 'Member', color: 'bg-amber-500' })).toBe(true);
+      const inviteBadge = buildInviteBadge(`${'a'.repeat(64)}@example.com`, [{ name: 'A', color: '#EC4899' }])!;
+      expect(accepts(CaretakerInputSchema, inviteBadge)).toBe(true);
     });
   });
 });

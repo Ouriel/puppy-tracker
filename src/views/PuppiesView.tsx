@@ -171,6 +171,7 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
           type="text"
           placeholder={t.puppies.namePlaceholder}
           className="bg-slate-950 border-slate-800 text-slate-100"
+          maxLength={80}
           value={formData.name}
           onChange={(event) => setFormData((previous) => ({ ...previous, name: event.target.value }))}
           required
@@ -210,6 +211,7 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
             id="dog-custom-breed"
             type="text"
             placeholder={t.puppies.specifyCustomBreed}
+            maxLength={80}
             value={formData.customBreed}
             onChange={(event) => setFormData((previous) => ({ ...previous, customBreed: event.target.value }))}
             className="mt-2 bg-slate-950 border-slate-800 text-slate-100"
@@ -295,6 +297,7 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
           type="text"
           placeholder={t.puppies.notesPlaceholder}
           className="bg-slate-950 border-slate-800 text-slate-100"
+          maxLength={2000}
           value={formData.notes}
           onChange={(event) => setFormData((previous) => ({ ...previous, notes: event.target.value }))}
         />

@@ -109,24 +109,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(400).json({ error: 'medicationName is required' });
       }
 
-      // Verify puppy belongs to this household; caretakers resolve who is logging (never the body's loggedBy)
-      const [[puppy], caretakers] = await Promise.all([
+      const id = body.id || `act-${randomUUID()}`;
+
+      // Verify puppy belongs to this household; caretakers resolve who is logging (never the body's loggedBy);
+      // a log sent again (same id) returns the stored one
+      const [[puppy], caretakers, [existing]] = await Promise.all([
         db
           .select()
           .from(puppiesTable)
           .where(and(eq(puppiesTable.id, body.puppyId), eq(puppiesTable.householdId, householdId))),
         db.select().from(caretakersTable).where(eq(caretakersTable.householdId, householdId)),
+        db
+          .select()
+          .from(activitiesTable)
+          .where(and(eq(activitiesTable.id, id), eq(activitiesTable.householdId, householdId))),
       ]);
       if (!puppy) {
         return res.status(403).json({ error: 'Puppy not found in your household' });
       }
-
-      const id = body.id || `act-${randomUUID()}`;
-
-      const [existing] = await db
-        .select()
-        .from(activitiesTable)
-        .where(and(eq(activitiesTable.id, id), eq(activitiesTable.householdId, householdId)));
 
       if (existing) {
         return res.status(200).json(existing);
