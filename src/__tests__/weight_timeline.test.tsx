@@ -346,7 +346,7 @@ describe.each([
     expect(document.getElementById(`${weightBoxId}-error`)!.textContent).toBe(en.potty.weightInvalid);
   });
 
-  it('a date after today blocks the save, weight or not (pre-fill review item 38)', async () => {
+  it('a date after today with a weight typed blocks the save, and the weight stays (pre-fill review item 38)', async () => {
     const box = await openAddForm();
     await setValue(box.form!.querySelector<HTMLInputElement>('input[type="date"]')!, formatLocalDate(new Date(Date.now() + 2 * 24 * 60 * 60 * 1000)));
     await setValue(box, '10,4');
@@ -393,6 +393,15 @@ describe('Carnet add and edit forms (pre-fill review items 11, 12, 23, 35-38)', 
     await openPassport();
     await click(buttonWithText(en.health.addVaccine));
     return document.getElementById('vaccine-weight-kg')!.closest('form')!;
+  }
+
+  /** Picks an option through the Select's native twin, which picks it in the Select. */
+  async function pickOption(container: ParentNode, optionValue: string) {
+    const select = container.querySelector('select')!;
+    await act(async () => {
+      select.value = optionValue;
+      select.dispatchEvent(new Event('change', { bubbles: true }));
+    });
   }
 
   it('item 11: a puppy shot entered months later gets +1 month, from her age on the injection day', async () => {
@@ -487,6 +496,58 @@ describe('Carnet add and edit forms (pre-fill review items 11, 12, 23, 35-38)', 
     expect(put.body).toMatchObject({ date: '2026-07-10', boosterDate: '2027-07-10' });
   });
 
+  it('item 37: changing only the vaccine keeps the stored next date and offers the new vaccine\'s, applied in one tap', async () => {
+    await openPassport();
+    await click(document.querySelector<HTMLButtonElement>(`[aria-label="${en.health.editVaccineEntry}"]`)!);
+    const editCard = buttonWithText(en.potty.saveChanges).closest('.space-y-3')!;
+    const booster = dateInputs(editCard)[1];
+
+    await pickOption(editCard, chppiL4); // Rage -> CHPPi + L4, same day: Rex is 17 weeks old, so the 1st birthday
+    expect(booster.value).toBe('2027-07-01');
+    expect(editCard.textContent).toContain('Suggested: 2027-03-01');
+    await click(buttonWithText('Suggested: 2027-03-01'));
+    expect(booster.value).toBe('2027-03-01');
+    await click(buttonWithText(en.potty.saveChanges));
+
+    const put = requests.find((request) => request.method === 'PUT' && request.url === '/api/health-records')!;
+    expect(put.body).toMatchObject({ name: chppiL4, date: '2026-07-01', boosterDate: '2027-03-01' });
+  });
+
+  it('item 37: changing only the product keeps the stored next date and offers the new product\'s, applied in one tap', async () => {
+    await openPassport();
+    // Newest first: Credelio Plus on 2026-09-21
+    await click(document.querySelector<HTMLButtonElement>(`[aria-label="${en.health.editDewormingEntry}"]`)!);
+    const editCard = buttonWithText(en.potty.saveChanges).closest('.space-y-3')!;
+    const next = dateInputs(editCard)[1];
+
+    await pickOption(editCard, 'Drontal Chiot (Sirop / Comprimés)'); // Rex is over 6 months old that day: every 3 months
+    expect(next.value).toBe('2026-09-21');
+    expect(editCard.textContent).toContain('Suggested: 2026-12-21');
+    await click(buttonWithText('Suggested: 2026-12-21'));
+    expect(next.value).toBe('2026-12-21');
+    await click(buttonWithText(en.potty.saveChanges));
+
+    const put = requests.find((request) => request.method === 'PUT' && request.url === '/api/health-records')!;
+    expect(put.body).toMatchObject({ productName: 'Drontal Chiot (Sirop / Comprimés)', date: '2026-09-21', boosterDate: '2026-12-21' });
+  });
+
+  it('the dashboard summary, for a last record with no next date, counts from her age on the dose day', async () => {
+    const backLogged = { householdId: 'hh-1', puppyId: puppy.id, boosterDate: null };
+    answerDashboard = () => respond({
+      ...prodShapedDashboard(),
+      healthRecords: [
+        { ...backLogged, id: 'hr-chppi', type: 'vaccination', name: chppiL4, date: '2026-04-26' }, // Rex is 8 weeks old: +1 month
+        { ...backLogged, id: 'hr-drontal', type: 'deworming', name: 'Drontal Chiot (Sirop / Comprimés)', date: '2026-05-03' }, // 9 weeks: +14 days
+      ],
+    });
+
+    await renderAppAt('/');
+    await settleUntil(() => document.body.textContent!.includes(en.health.summaryTitle));
+
+    expect(document.body.textContent).toContain(`${en.health.nextDue} 2026-05-26`);
+    expect(document.body.textContent).toContain(`${en.health.nextDue} 2026-05-17`);
+  });
+
   it('item 11: a CHPPi edit moved to 16 weeks suggests the 1st birthday, from her age on the injection day', async () => {
     vaccinationRecords = [{ ...vaccination, id: 'hr-chppi', name: chppiL4, date: '2026-06-14', boosterDate: '2026-07-14' }];
     await openPassport();
@@ -570,6 +631,22 @@ describe('Carnet add and edit forms (pre-fill review items 11, 12, 23, 35-38)', 
       await click(form.querySelector<HTMLButtonElement>('button[type="submit"]')!);
 
       expect(form.textContent).toContain(en.health.boosterBeforeDate);
+      expect(posts('/api/health-records')).toEqual([]);
+    });
+
+    it('item 38: the add form refuses a date after today, with no weight typed', async () => {
+      await openPassport();
+      await click(buttonWithText(addButton));
+      const form = document.getElementById(weightBoxId)!.closest('form')!;
+      const date = dateInputs(form)[0];
+
+      await setValue(date, formatLocalDate(new Date(Date.now() + 2 * 24 * 60 * 60 * 1000)));
+      // The browser's own check (max) blocks the submit; past it, the form's guard does
+      expect(date.validity.rangeOverflow).toBe(true);
+      form.noValidate = true;
+      await click(form.querySelector<HTMLButtonElement>('button[type="submit"]')!);
+
+      expect(form.textContent).toContain(en.health.dateInFuture);
       expect(posts('/api/health-records')).toEqual([]);
     });
   });
