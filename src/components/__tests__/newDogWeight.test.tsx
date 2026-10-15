@@ -32,13 +32,17 @@ async function render(element: ReactElement) {
   return container;
 }
 
-// A new dog gets a made-up 4.5 kg profile weight. A female Chihuahua's breed baseline is 2.5 kg.
+// A dog created before backlog item 19 stores a made-up 4.5 kg profile weight, a newer one none (null).
+// A female Chihuahua's breed baseline is 2.5 kg.
 const newChihuahua = { ...BALMA, breed: 'Chihuahua', birthDate: '2026-06-18', weightKg: 4.5 };
+const newChihuahuaWithoutWeight = { ...newChihuahua, weightKg: null };
 
 describe('a new dog before its first weigh-in: breed baseline, never the made-up profile weight', () => {
   it.each([
     ['health summary', () => <DogHealthSummary profile={newChihuahua} activities={[]} weightActivities={[]} onOpenHealthPassport={vi.fn()} />],
     ['weight chart', () => <WeightGrowthChart profile={newChihuahua} activities={[]} onOpenQuickLogModal={vi.fn()} />],
+    ['health summary, no profile weight', () => <DogHealthSummary profile={newChihuahuaWithoutWeight} activities={[]} weightActivities={[]} onOpenHealthPassport={vi.fn()} />],
+    ['weight chart, no profile weight', () => <WeightGrowthChart profile={newChihuahuaWithoutWeight} activities={[]} onOpenQuickLogModal={vi.fn()} />],
   ])('%s: adult range and current weight from the breed, no logged weight', async (_name, element) => {
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(new Date('2026-09-10T12:00:00+02:00')); // 12 weeks old

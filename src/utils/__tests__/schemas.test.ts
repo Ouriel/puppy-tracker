@@ -394,12 +394,20 @@ describe('Zod Schemas Validation', () => {
       for (const durationMinutes of [0, 1441, 12.5, '', 'abc']) expect(accepts(ActivityInputSchema, { ...walk, durationMinutes }), String(durationMinutes)).toBe(false);
     });
 
-    it('a dog weight and a health record weight are numbers (a numeric string is read), never text', () => {
-      expect(DogInputSchema.parse({ ...dog, weightKg: '7.8' }).weightKg).toBe(7.8);
-      for (const weightKg of ['abc', 0, -3, null]) expect(accepts(DogInputSchema, { ...dog, weightKg }), String(weightKg)).toBe(false);
-      expect(HealthRecordInputSchema.parse({ ...record, weightAtTime: '7.8' }).weightAtTime).toBe(7.8);
-      expect(HealthRecordInputSchema.parse({ ...record, weightAtTime: null }).weightAtTime).toBeNull();
-      expect(accepts(HealthRecordInputSchema, { ...record, weightAtTime: 'abc' })).toBe(false);
+    // Backlog item 19: no screen sets a dog's weight (weigh-ins are weight events), and nothing makes one up
+    it('a dog weight (legacy weightKg) is accepted and dropped, whatever its value', () => {
+      for (const weightKg of ['7.8', 4.5, null, 'abc']) {
+        expect(DogInputSchema.parse({ ...dog, weightKg }), String(weightKg)).not.toHaveProperty('weightKg');
+        expect(DogInputSchema.partial().parse({ id: 'dog-1', weightKg }), String(weightKg)).not.toHaveProperty('weightKg');
+      }
+    });
+
+    // Backlog item 19: a weigh-in is a weight event; an older app still sending a record weight must not get a 400
+    it('a health record weight (legacy weightAtTime) is accepted and dropped, whatever its value', () => {
+      for (const weightAtTime of ['7.8', 7.8, null, 'abc']) {
+        expect(HealthRecordInputSchema.parse({ ...record, weightAtTime }), String(weightAtTime)).not.toHaveProperty('weightAtTime');
+        expect(HealthRecordInputSchema.partial().parse({ id: 'hr-1', weightAtTime }), String(weightAtTime)).not.toHaveProperty('weightAtTime');
+      }
     });
 
     it('a health record date and next date are real calendar days (YYYY-MM-DD)', () => {
@@ -423,6 +431,11 @@ describe('Zod Schemas Validation', () => {
       expect(accepts(DogInputSchema.partial(), { ...storedDog, ...buildDogPayload(editForm, storedDog) })).toBe(true);
       const newDogForm = { ...NEW_DOG_FORM, name: 'Max', breed: 'Beagle', birthDate: '2026-05-01', dailyFoodGramGoal: '200', targetMealsPerDay: '3' };
       expect(accepts(DogInputSchema, { id: `pup-${Date.now()}`, ...buildDogPayload(newDogForm) })).toBe(true);
+      expect(buildDogPayload(newDogForm)).not.toHaveProperty('weightKg');
+      // A dog created since backlog item 19 stores no weight: its edit sends weightKg: null back
+      const dogWithoutWeight = { ...storedDog, weightKg: null };
+      const editWithoutWeight = { ...dogWithoutWeight, ...buildDogPayload(dogFormFromProfile(dogWithoutWeight), dogWithoutWeight) };
+      expect(accepts(DogInputSchema.partial(), editWithoutWeight)).toBe(true);
 
       // VaccineSection and DewormingSection, with every protocol name
       const { vaccines, antiparasitics } = getHealthProtocols();

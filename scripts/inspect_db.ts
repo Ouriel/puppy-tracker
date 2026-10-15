@@ -85,7 +85,7 @@ async function runInspection() {
   const rawPuppies = await sql`SELECT * FROM puppies WHERE deleted_at IS NULL;`;
   console.log(`\n🐕 Puppies (${rawPuppies.length}):`);
   rawPuppies.forEach((p) => {
-    console.log(`   • ID: ${p.id} | Name: ${p.name} | Breed: ${p.breed} | Weight: ${p.weight_kg}kg | Goal: ${p.daily_food_gram_goal}g (${p.target_meals_per_day} meals/day)`);
+    console.log(`   • ID: ${p.id} | Name: ${p.name} | Breed: ${p.breed} | Weight: ${p.weight_kg == null ? 'none' : `${p.weight_kg}kg`} | Goal: ${p.daily_food_gram_goal}g (${p.target_meals_per_day} meals/day)`);
   });
 
   // 3. Activity Type Breakdown & Timestamp Range
@@ -110,7 +110,6 @@ async function runInspection() {
       name: puppy.name,
       breed: puppy.breed,
       birthDate: puppy.birth_date,
-      weightKg: Number(puppy.weight_kg),
       dailyFoodGramGoal: puppy.daily_food_gram_goal,
       targetMealsPerDay: puppy.target_meals_per_day,
     };

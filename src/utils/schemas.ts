@@ -51,7 +51,8 @@ export const DogInputSchema = z.object({
   breed: z.string().trim().min(1, 'Breed is required').max(80),
   // Required on POST (PUT uses .partial()). A real day, at most one day ahead of UTC: it is already tomorrow east of it.
   birthDate: z.iso.date().refine((value) => Date.parse(value) <= Date.now() + 24 * 60 * 60 * 1000, 'birthDate is in the future'),
-  weightKg: z.coerce.number().positive().optional(),
+  // No weightKg: a dog's weight is its weight events, no screen sets one. Zod drops it, so an edit sending the stored
+  // dog back (weightKg: null for a new dog) or an older app sending one is saved, and the stored value never changes.
   // 0: no gram goal, the dog's meals are only counted
   dailyFoodGramGoal: z
     .number()
@@ -78,7 +79,7 @@ export const HealthRecordInputSchema = z.object({
   batchNumber: shortText.nullable().optional(),
   vetClinic: shortText.nullable().optional(),
   productName: shortText.nullable().optional(),
-  weightAtTime: z.coerce.number().nullable().optional(),
+  // No weightAtTime: a weigh-in is a weight event. Zod drops it, so an older app still sending one saves the record.
   notes: longText.nullable().optional(),
 });
 

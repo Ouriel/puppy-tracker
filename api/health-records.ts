@@ -93,7 +93,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           batchNumber: body.batchNumber || null,
           vetClinic: body.vetClinic || null,
           productName: body.productName || null,
-          weightAtTime: body.weightAtTime ? Number(body.weightAtTime) : null,
           notes: body.notes || null,
         })
         .returning();
@@ -122,7 +121,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           batchNumber: clearable(body.batchNumber),
           vetClinic: clearable(body.vetClinic),
           productName: clearable(body.productName),
-          weightAtTime: body.weightAtTime === undefined ? undefined : body.weightAtTime ? Number(body.weightAtTime) : null,
           notes: clearable(body.notes),
         })
         .where(and(eq(healthRecordsTable.id, body.id), eq(healthRecordsTable.householdId, householdId)))

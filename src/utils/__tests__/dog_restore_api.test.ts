@@ -234,3 +234,35 @@ describe('restorable dog delete (backlog item 20)', () => {
     expect(store.rows.puppies.filter((puppy) => puppy.id === 'dog-1')).toHaveLength(1);
   });
 });
+
+// Backlog item 19: weigh-ins are weight events; the legacy profile weight is never made up, and no screen sets it
+describe("a dog's legacy profile weight (puppies.weight_kg)", () => {
+  it('a new dog stores no weight: none made up, and one sent by an older app is dropped', async () => {
+    const created = await call(dogsHandler, memberToken(), 'POST', { body: { id: 'dog-new', name: 'Max', breed: 'Beagle', birthDate: '2026-09-01' } });
+    const fromOlderApp = await call(dogsHandler, memberToken(), 'POST', {
+      body: { id: 'dog-older-app', name: 'Lou', breed: 'Beagle', birthDate: '2026-09-01', weightKg: 4.5 },
+    });
+
+    expect([created.statusCode, fromOlderApp.statusCode]).toEqual([201, 201]);
+    expect(dog('dog-new').weightKg ?? null).toBeNull();
+    expect(dog('dog-older-app').weightKg ?? null).toBeNull();
+  });
+
+  it('a dog without a weight is edited: the form sends the stored dog back, weightKg: null included', async () => {
+    dog('dog-1').weightKg = null;
+
+    const response = await call(dogsHandler, memberToken(), 'PUT', { body: { ...dog('dog-1'), name: 'Rexy' } });
+
+    expect(response.statusCode).toBe(200);
+    expect(dog('dog-1')).toMatchObject({ name: 'Rexy', weightKg: null });
+  });
+
+  it('an older dog keeps its stored weight, whatever an edit or an upsert sends', async () => {
+    dog('dog-2').weightKg = 6.2;
+
+    await call(dogsHandler, memberToken(), 'PUT', { body: { id: 'dog-2', weightKg: 4.5 } });
+    await call(dogsHandler, memberToken(), 'POST', { body: { id: 'dog-2', name: 'Mia', breed: 'Poodle', birthDate: '2026-04-01', weightKg: 4.5 } });
+
+    expect(dog('dog-2').weightKg).toBe(6.2);
+  });
+});

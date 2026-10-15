@@ -32,7 +32,7 @@ export interface PuppyProfile {
   name: string;
   breed: string;
   birthDate: string; // YYYY-MM-DD
-  weightKg?: number;
+  weightKg?: number | null; // legacy: no screen or estimate uses it (a dog's weight is its weight events); null for a new dog
   avatarUrl?: string;
   gender?: 'male' | 'female' | null; // null: not set (the API returns null; an edit sends null to clear it)
   expectedAdultWeightKg?: number | null;
