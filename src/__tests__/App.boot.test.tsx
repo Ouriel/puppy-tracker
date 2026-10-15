@@ -6,7 +6,7 @@ import { toast } from '@heroui/react';
 import App from '../App';
 import { en } from '../i18n/en';
 import { setAuthToken, clearAuthToken, setStoredAuthUser } from '../utils/auth';
-import { setStoredPuppies, setActivePuppyId, getActivePuppyId } from '../utils/storage';
+import { setStoredPuppies, setActivePuppyId, getActivePuppyId, getStoredPuppies } from '../utils/storage';
 import { clearApiCache } from '../services/api';
 import type { Activity, HealthRecord, PuppyProfile, UserAccount } from '../types';
 
@@ -932,5 +932,59 @@ describe('a screen left open, like a tablet in the kitchen', () => {
     await waitMinutes(45);
 
     expect(dashboardRequests()).toEqual([dashboardUrl, dashboardUrl, dashboardUrl]);
+  });
+});
+
+// Backlog item 20: /api/dashboard sends the owner's deleted dogs; Settings lists them and Restore brings one back
+describe('restorable dog delete', () => {
+  it("lists the dashboard's deleted dogs in Settings, and Restore puts the dog back in Dog Profiles", async () => {
+    signedInWithCachedDogOnly();
+    const mia: PuppyProfile = { ...puppy, id: 'pup-2', name: 'Mia' };
+    stubApi({
+      '/api/dashboard': () => respond({ ...dashboardPayload(), deletedPuppies: [mia] }),
+      '/api/dogs': (_url, init) => (init?.method === 'PUT' ? respond({ ...mia, deletedAt: null }) : respond({ error: 'Not found' }, 404)),
+    });
+    window.history.pushState({}, '', '/settings');
+    const restoreButton = () => document.querySelector<HTMLElement>('button[aria-label="Restore Mia"]');
+
+    await renderApp();
+    await settleUntil(() => restoreButton() !== null);
+    expect(document.body.textContent).toContain(`${en.settings.dogProfiles} (1)`);
+
+    await act(async () => restoreButton()!.click());
+    await settle();
+
+    expect(requestedUrls).toContain('/api/dogs?id=pup-2&restore=true');
+    expect(restoreButton()).toBeNull();
+    expect(document.body.textContent).toContain(`${en.settings.dogProfiles} (2)`);
+  });
+
+  it('the owner restores the only dog when every dog is deleted (the dashboard has no dog left)', async () => {
+    setAuthToken('app-session');
+    setStoredAuthUser(owner);
+    stubApi({
+      '/api/dashboard': () => respond({ ...dashboardPayload([]), puppies: [], deletedPuppies: [puppy] }),
+      '/api/dogs': (_url, init) => (init?.method === 'PUT' ? respond({ ...puppy, deletedAt: null }) : respond({ error: 'Not found' }, 404)),
+    });
+    window.history.pushState({}, '', '/settings');
+    const restoreButton = () => document.querySelector<HTMLElement>('button[aria-label="Restore Rex"]');
+
+    await renderApp();
+    await settleUntil(() => restoreButton() !== null);
+    await act(async () => restoreButton()!.click());
+    await settle();
+
+    expect(requestedUrls).toContain('/api/dogs?id=pup-1&restore=true');
+    expect(document.body.textContent).toContain(`${en.settings.dogProfiles} (1)`);
+  });
+
+  it("a member's phone drops a cached dog once the dashboard has none left (the owner deleted the last one)", async () => {
+    signedInWithCachedDogOnly();
+    stubApi({ '/api/dashboard': () => respond({ ...dashboardPayload([]), puppies: [], deletedPuppies: [] }) });
+
+    await renderApp();
+
+    expect(getStoredPuppies()).toEqual([]);
+    expect(document.body.textContent).toContain(en.dashboard.welcomeTitle);
   });
 });

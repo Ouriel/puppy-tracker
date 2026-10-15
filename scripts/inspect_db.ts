@@ -81,8 +81,8 @@ async function runInspection() {
     }
   }
 
-  // 2. Puppies Profile Summary
-  const rawPuppies = await sql`SELECT * FROM puppies;`;
+  // 2. Puppies Profile Summary (a deleted dog, deleted_at set, is skipped as in the app)
+  const rawPuppies = await sql`SELECT * FROM puppies WHERE deleted_at IS NULL;`;
   console.log(`\n🐕 Puppies (${rawPuppies.length}):`);
   rawPuppies.forEach((p) => {
     console.log(`   • ID: ${p.id} | Name: ${p.name} | Breed: ${p.breed} | Weight: ${p.weight_kg}kg | Goal: ${p.daily_food_gram_goal}g (${p.target_meals_per_day} meals/day)`);

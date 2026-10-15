@@ -228,6 +228,7 @@ describe('Dashboard API Serverless Handler Unit Tests', () => {
     expect(res.headers['cache-control']).toBe('no-store');
     expect(res.body).toEqual({
       puppies: mockPuppies,
+      deletedPuppies: [],
       caretakers: mockCaretakers,
       activities: [{ ...mockActivities[0], timestamp: '2026-08-30T10:00:00.000Z' }],
       healthRecords: mockHealthRecords,

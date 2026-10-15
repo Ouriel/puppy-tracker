@@ -196,12 +196,12 @@ Browser (React SPA, PWA)  ──/api/*──▶  Vercel functions (api/*.ts)  �
 |---|---|
 | `users` | Google accounts: email (unique), name, role, status (`ACTIVE` / `PENDING_APPROVAL`), household |
 | `households` | optional display names for household ids |
-| `puppies` | dog profile: breed, birth date, sex, daily gram goal (0 = no gram goal), meals per day, expected adult weight (custom breeds) |
+| `puppies` | dog profile: breed, birth date, sex, daily gram goal (0 = no gram goal), meals per day, expected adult weight (custom breeds); `deleted_at` is set on a deleted dog, which every read skips |
 | `caretakers` | badges: name, colour, optional linked email |
 | `activities` | one row per log: `type` (pee, poop, food, weight, medication; the API also accepts `walk`, which the app never sends), timestamp (timestamptz), `logged_by` (badge name), potty place, stool, grams, weight, medication name, notes |
 | `health_records` | vaccinations and dewormings: name/product, date, next date, clinic, batch. `weight_at_time` is a legacy column the app no longer reads: weigh-ins are `activities` rows of type `weight`. |
 
-APIs return timestamps as ISO strings. Inputs are validated with Zod (`src/utils/schemas.ts`). Schema changes go in `src/db/schema.ts` with a migration in `drizzle/`, and must carry existing production data over.
+APIs return timestamps as ISO strings. Inputs are validated with Zod (`src/utils/schemas.ts`). Schema changes go in `src/db/schema.ts` with a hand-written SQL file in `migrations/`, run by hand on the preview branch then on production (`migrations/README.md`), and must carry existing production data over.
 
 ## Caching and freshness
 
@@ -226,7 +226,7 @@ npm test
 
 | Variable | Used by | Purpose |
 |---|---|---|
-| `POSTGRES_URL` or `DATABASE_URL` | API, drizzle-kit, `db:inspect` (`DATABASE_URL`) | Postgres connection |
+| `POSTGRES_URL` or `DATABASE_URL` | API, `db:inspect` (`DATABASE_URL`) | Postgres connection |
 | `PREVIEW_POSTGRES_URL` | API, only when `VERCEL_ENV=preview` | the preview database |
 | `SESSION_SECRET` or `AUTH_SECRET` | API | session signing key: a random value (e.g. `openssl rand -base64 32`), Sensitive, Production only (Preview and Development, if set, get other values). Without it, the key is derived from `POSTGRES_URL`. With it, a token signed with the derived key still works, and its renewal at the next app start is signed with `SESSION_SECRET`. That fallback goes 90 days after the secret went live (2027-01-20 if live by 2026-10-21); until then keep the production `POSTGRES_URL` value byte-identical (no password rotation, no variable re-created with another value), or devices not opened since are signed out. Never remove or change the secret, and never roll production back to a deployment built without it: every session renewed since would be refused. Keep a copy: Vercel cannot show a Sensitive value again. |
 | `VITE_GOOGLE_CLIENT_ID` (or `GOOGLE_CLIENT_ID` on the server) | sign-in screen, API | Google OAuth client id |
@@ -244,7 +244,6 @@ npm test
 | `npm run lint` | oxlint |
 | `npm run preview` | serve the built app |
 | `npm run db:inspect` | read-only report on the database in `DATABASE_URL`: table counts, dogs, a live prediction diagnostic, recent logs |
-| `npm run db:generate` / `db:migrate` / `db:push` | drizzle-kit. Do not run `db:push` or `db:migrate` against production. |
 
 ## Testing
 
@@ -270,8 +269,7 @@ npm test
 - **The day boundary is fixed at 04:00** (not learned), and on clock-change days it moves by an hour. A dog with an unusual night (e.g. awake at night) gets odd "morning" guesses.
 - **Past goals are not stored**: past days in the history show totals only.
 - **Medication list in the passport** shows the medication logs loaded in the history (14 days unless "Load more").
-- **Deleting a dog** removes its profile only: its logs and health records stay in the database (no foreign keys or cascade).
+- **Deleting a dog hides it**, for everyone: its profile, logs and health records stay in the database, and nothing deletes them for good. The owner sees it under **Deleted dogs** (Settings > Dog Profiles) and **Restore** brings it back with everything. A deleted dog takes no new log or health record.
 - **Delete buttons for dogs and badges show for every member**; the server refuses the delete to anyone but the owner, and the item comes back with an error.
 - **CSV exports are comma-separated**: Excel set to French may put every column in column A.
-- **`drizzle/` lags `src/db/schema.ts`**: the index `idx_health_records_household_date` is in the schema and in production but in no migration, so the next `db:generate` emits it.
 - **One owner per installation**: only the owner's account approves sign-ups, deletes dogs and badges, and moves accounts (a family's Admin only takes in a sign-up waiting alone in a household with no dog).

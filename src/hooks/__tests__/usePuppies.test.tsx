@@ -129,3 +129,34 @@ describe('usePuppies: a refused change rolls back only its own dog', () => {
     expect(hook.puppies).toEqual([rex, max, luna]);
   });
 });
+
+// Backlog item 20: the server only hides a deleted dog; the owner sees it under "Deleted dogs" and restores it
+describe('usePuppies: restorable delete', () => {
+  const max: PuppyProfile = { ...rex, id: 'pup-2', name: 'Max' };
+  const ids = (puppies: PuppyProfile[]) => puppies.map((puppy) => puppy.id);
+
+  it('a deleted dog moves to deletedPuppies, and a restore puts it back in the list', async () => {
+    answerWith(200, { success: true, deletedId: 'pup-1' });
+    await act(async () => hook.deletePuppy('pup-1'));
+
+    expect(hook.puppies).toEqual([]);
+    expect(ids(hook.deletedPuppies)).toEqual(['pup-1']);
+
+    answerWith(200, { ...rex, deletedAt: null });
+    await act(async () => hook.restorePuppy('pup-1'));
+
+    expect(ids(hook.puppies)).toEqual(['pup-1']);
+    expect(hook.deletedPuppies).toEqual([]);
+  });
+
+  it('a refused restore leaves the dog in deletedPuppies and the list as it was', async () => {
+    await act(async () => root!.render(<HookProbe key="max-only" puppies={[max]} onRender={(state) => { hook = state; }} />));
+    await act(async () => hook.setDeletedPuppies([rex]));
+    answerWith(403, { error: 'Only the owner can restore dogs' });
+
+    await act(async () => hook.restorePuppy('pup-1'));
+
+    expect(ids(hook.puppies)).toEqual(['pup-2']);
+    expect(ids(hook.deletedPuppies)).toEqual(['pup-1']);
+  });
+});

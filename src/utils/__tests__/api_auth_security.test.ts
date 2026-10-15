@@ -505,7 +505,9 @@ describe('API Security & Session Token Validation Test Suite', () => {
 
       expect(dogResponse.statusCode).toBe(200);
       expect(caretakerResponse.statusCode).toBe(200);
-      expect(dbMock.delete).toHaveBeenCalledTimes(2);
+      // A dog is only marked deleted (restorable, backlog item 20); a badge is removed
+      expect(dbMock.update).toHaveBeenCalledTimes(1);
+      expect(dbMock.delete).toHaveBeenCalledTimes(1);
     });
   });
 

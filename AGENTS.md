@@ -21,6 +21,8 @@ PupPace — Smart Household Puppy Activity Tracker & Potty Predictor. React 19 +
 
 - Every API function connects through `getDatabaseUrl()` (`api/_db.ts`): a Vercel **preview** deployment uses the Neon `preview` branch (`PREVIEW_POSTGRES_URL`, set for the Preview environment only); production and development never read it. Sessions are signed with `SESSION_SECRET` (or `AUTH_SECRET`), else with a key hashed from `POSTGRES_URL`; with a secret set, a token signed with that hashed key is still accepted and renewed with the secret (`verifyAppSessionToken`; remove the fallback 90 days after the secret went live in production, 2027-01-20 if live by 2026-10-21, and keep the production `POSTGRES_URL` value byte-identical until then). Neither key reads `PREVIEW_POSTGRES_URL`, so sessions do not depend on it.
 - Database timestamp columns use `timestamp('col', { withTimezone: true, mode: 'date' })` in `src/db/schema.ts`.
+- Schema changes are hand-written SQL run by hand: a numbered file in `migrations/` (`NNNN_short_name.sql`, idempotent where possible, rollback and "Applied to preview / production" lines in its header; procedure in `migrations/README.md`), plus `src/db/schema.ts` in the same pull request. No drizzle-kit, nothing applies them automatically. Code that needs a new column merges only once its file is applied to production. `0000_baseline.sql` documents the schema as of 2026-10-15 and is never run on an existing database; `src/db/__tests__/migrations.test.ts` checks the files build every column and index of `schema.ts`.
+- A dog with `puppies.deleted_at` set is deleted (owner only, `DELETE /api/dogs`): every read and edit of `puppies` skips it (`api/dogs.ts`, whose `PUT` and `POST` upsert answer 404 for it, `api/dashboard.ts`, the dog check of `POST /api/activities` and `POST /api/health-records`, which answer 404), its logs and health records stay, and only the owner gets it (`deletedPuppies` in `/api/dashboard`) and restores it (`PUT /api/dogs?id=…&restore=true`). A new query on `puppies` must skip it too.
 - Server API handlers (`api/activities.ts`) format Date objects into standard **ISO 8601 strings** (`.toISOString()`) before returning `res.json()`.
 - NEVER return raw PostgreSQL space-separated driver strings (`'2026-07-28 05:52:00+00'`) to client components; V8 engines reject raw PostgreSQL strings as `Invalid Date`.
 
@@ -151,7 +153,7 @@ PupPace — Smart Household Puppy Activity Tracker & Potty Predictor. React 19 +
 
 - Don't return raw space-separated PostgreSQL strings (`'2026-07-28 05:52:00+00'`) over API responses — serialize to ISO 8601 strings (`.toISOString()`)
 - Don't add useEffect to react to state changes — put logic in the event handler that causes the change
-- Don't execute inline DDL (`CREATE TABLE IF NOT EXISTS`) inside serverless handlers — schema migrations belong in `src/db/schema.ts` and `drizzle/`
+- Don't execute inline DDL (`CREATE TABLE IF NOT EXISTS`) inside serverless handlers — schema changes belong in `src/db/schema.ts` and a numbered SQL file in `migrations/`
 - Don't stack sequential `await` calls in data loaders — use `Promise.all` for parallel fetching
 - Don't spawn background `fetch()` revalidations on every cache hit — use clean TTL and in-flight promise deduplication
 - Don't fetch monolithic 365-day datasets on boot when the initial view only needs 7–30 days — filter via SQL `days` parameter

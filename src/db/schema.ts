@@ -22,6 +22,8 @@ export const puppiesTable = pgTable('puppies', {
   expectedAdultWeightKg: doublePrecision('expected_adult_weight_kg'),
   createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true, mode: 'date' }).defaultNow(),
+  // Set when the owner deletes the dog: every read skips it, its logs and records stay, and the owner can restore it
+  deletedAt: timestamp('deleted_at', { withTimezone: true, mode: 'date' }),
 }, (table) => [
   index('idx_puppies_household').on(table.householdId),
 ]);

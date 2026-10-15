@@ -150,6 +150,11 @@ export async function deleteDog(id: string): Promise<ApiResult<{ success: boolea
   });
 }
 
+/** Owner only: brings back a deleted dog, with its logs and health records. */
+export async function restoreDog(id: string): Promise<ApiResult<PuppyProfile>> {
+  return request<PuppyProfile>(`/api/dogs?id=${encodeURIComponent(id)}&restore=true`, { method: 'PUT' });
+}
+
 // ── Activities API ──
 
 export async function fetchActivities(

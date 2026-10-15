@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import type { PuppyProfile } from '../types';
-import { Dog, Plus, Trash2, Pencil, Utensils, Calendar } from 'lucide-react';
+import { Dog, Plus, Trash2, Pencil, Utensils, Calendar, RotateCcw } from 'lucide-react';
 import { useI18n } from '../i18n';
 import { formatBreedName, DOG_BREEDS } from '../data/breedsCatalog';
 import { BREEDS_WITH_TYPED_ADULT_WEIGHT, NEW_DOG_FORM, buildDogPayload, dogFormFromProfile, validateDogForm, type DogForm, type DogFormError } from '../utils/dogForm';
@@ -19,6 +19,8 @@ interface PuppiesViewProps {
   onAddPuppy: (puppy: PuppyProfile) => Promise<boolean>;
   onUpdatePuppy: (puppy: PuppyProfile) => Promise<boolean>;
   onDeletePuppy: (id: string) => void;
+  deletedPuppies: PuppyProfile[]; // only the owner gets any from the server
+  onRestorePuppy: (id: string) => void;
 }
 
 const DogGenderAndWeightFields: React.FC<{
@@ -93,6 +95,8 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
   onAddPuppy,
   onUpdatePuppy,
   onDeletePuppy,
+  deletedPuppies,
+  onRestorePuppy,
 }) => {
   const { t, lang } = useI18n();
   const [isAdding, setIsAdding] = useState(false);
@@ -533,6 +537,38 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
             );
           })}
         </div>
+      )}
+
+      {/* Deleted dogs: hidden for everyone, with their logs and records kept; the owner restores one here */}
+      {deletedPuppies.length > 0 && (
+        <Card className="bg-slate-900 border-slate-800 text-slate-100">
+          <Card.Content className="p-3.5 sm:p-5 space-y-3">
+            <h3 className="text-sm font-bold text-slate-300 flex items-center gap-2">
+              <Trash2 className="w-4 h-4 text-slate-500" />
+              {t.puppies.deletedDogs}
+            </h3>
+            <ul className="space-y-2">
+              {deletedPuppies.map((puppy) => (
+                <li key={puppy.id} className="flex items-center justify-between gap-3 p-2.5 rounded-xl border border-slate-800 bg-slate-950/60">
+                  <div className="min-w-0">
+                    <p className="text-sm font-bold text-slate-200 truncate">{puppy.name}</p>
+                    <p className="text-xs text-slate-500 truncate">{formatBreedName(puppy.breed, lang)}</p>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    aria-label={`${t.puppies.restoreDog} ${puppy.name}`}
+                    onPress={() => onRestorePuppy(puppy.id)}
+                    className="font-bold text-xs shrink-0"
+                  >
+                    <RotateCcw className="w-4 h-4 mr-1 inline" />
+                    {t.puppies.restoreDog}
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          </Card.Content>
+        </Card>
       )}
 
       <ConfirmationModal

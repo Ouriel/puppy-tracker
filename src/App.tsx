@@ -74,7 +74,7 @@ function App() {
   const [isQuickLogOpen, setIsQuickLogOpen] = useState<boolean>(false);
   const [quickLogType, setQuickLogType] = useState<ActivityType>('pee');
 
-  const { activePuppyId, setPuppies, selectPuppy } = puppyState;
+  const { activePuppyId, setPuppies, setDeletedPuppies, selectPuppy } = puppyState;
   const { setCaretakers } = caretakerState;
   const { setActivitiesForPuppy, getMutationVersion, addActivity, retryActivity } = activityState;
 
@@ -137,13 +137,18 @@ function App() {
     setOfflineDataTime(!dashboardRes.ok && dashboardRes.errorKey === 'offline' ? getStoredRecentActivitiesTime(puppyId) : null);
     setIsDashboardDown(!dashboardRes.ok);
     if (!dashboardRes.ok) return false;
-    const { puppies, caretakers, activities, healthRecords: records, weightActivities } = dashboardRes.data;
+    const { puppies, deletedPuppies, caretakers, activities, healthRecords: records, weightActivities } = dashboardRes.data;
+    // The owner's deleted dogs (none for anyone else), even when every dog is deleted
+    setDeletedPuppies(deletedPuppies ?? []);
     if (puppies && puppies.length > 0) {
       // The stored dog is gone, so these are its logs (none): load the first dog's instead
       if (puppyId && !puppies.some((puppy) => puppy.id === puppyId)) return loadDashboard(puppies[0].id);
       setPuppies(puppies);
       selectPuppy(puppyId || puppies[0].id);
       setActivitiesForPuppy(activities, puppyId || puppies[0].id, mutationVersion, weightActivities);
+    } else if (puppies) {
+      // No dog left (the owner deleted the last one): drop the cached ones too
+      setPuppies([]);
     }
     if (Array.isArray(caretakers)) {
       setCaretakers(caretakers);
@@ -158,7 +163,7 @@ function App() {
       });
     }
     return true;
-  }, [activePuppyId, getMutationVersion, setPuppies, selectPuppy, setCaretakers, setActivitiesForPuppy]);
+  }, [activePuppyId, getMutationVersion, setPuppies, setDeletedPuppies, selectPuppy, setCaretakers, setActivitiesForPuppy]);
 
   // Dogs and household when the dashboard request failed. Not after a 401: it removed the token, so they could only get 401 too.
   const loadDogsAndHouseholdIfSignedIn = useCallback(async () => {
@@ -518,6 +523,8 @@ function App() {
               onAddPuppy={puppyState.addPuppy}
               onUpdatePuppy={puppyState.updatePuppy}
               onDeletePuppy={puppyState.deletePuppy}
+              deletedPuppies={puppyState.deletedPuppies}
+              onRestorePuppy={puppyState.restorePuppy}
               caretakers={caretakerState.caretakers}
               onAddCaretaker={caretakerState.addCaretaker}
               onUpdateCaretaker={caretakerState.updateCaretaker}
