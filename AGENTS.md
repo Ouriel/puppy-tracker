@@ -19,7 +19,7 @@ PupPace — Smart Household Puppy Activity Tracker & Potty Predictor. React 19 +
 
 ### Database & Drizzle ORM Timestamp Alignment
 
-- Every API function connects through `getDatabaseUrl()` (`api/_db.ts`): a Vercel **preview** deployment uses the Neon `preview` branch (`PREVIEW_POSTGRES_URL`, set for the Preview environment only); production and development never read it. `getSessionSecret` keeps hashing `POSTGRES_URL`, so sessions do not depend on it.
+- Every API function connects through `getDatabaseUrl()` (`api/_db.ts`): a Vercel **preview** deployment uses the Neon `preview` branch (`PREVIEW_POSTGRES_URL`, set for the Preview environment only); production and development never read it. Sessions are signed with `SESSION_SECRET` (or `AUTH_SECRET`), else with a key hashed from `POSTGRES_URL`; with a secret set, a token signed with that hashed key is still accepted and renewed with the secret (`verifyAppSessionToken`; remove the fallback 90 days after the secret went live in production, 2027-01-20 if live by 2026-10-21, and keep the production `POSTGRES_URL` value byte-identical until then). Neither key reads `PREVIEW_POSTGRES_URL`, so sessions do not depend on it.
 - Database timestamp columns use `timestamp('col', { withTimezone: true, mode: 'date' })` in `src/db/schema.ts`.
 - Server API handlers (`api/activities.ts`) format Date objects into standard **ISO 8601 strings** (`.toISOString()`) before returning `res.json()`.
 - NEVER return raw PostgreSQL space-separated driver strings (`'2026-07-28 05:52:00+00'`) to client components; V8 engines reject raw PostgreSQL strings as `Invalid Date`.
