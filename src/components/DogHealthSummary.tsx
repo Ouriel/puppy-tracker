@@ -13,6 +13,7 @@ import { getPuppyAge } from '../utils/predictions';
 import { getHealthRecordStatus } from '../utils/health';
 import { formatShortDate } from '../utils/date';
 import { StatusBadge } from './common/StatusBadge';
+import { AddToCalendarButton } from './common/AddToCalendarButton';
 
 interface DogHealthSummaryProps {
   profile: PuppyProfile;
@@ -316,7 +317,12 @@ export const DogHealthSummary: React.FC<DogHealthSummaryProps> = React.memo(({
                 </div>
               </div>
             </div>
-            {nextVaccine?.record.boosterDate && <StatusBadge status={nextVaccine.urgency} className="self-start sm:self-auto shrink-0" />}
+            {nextVaccine?.record.boosterDate && (
+              <div className="flex items-center gap-1.5 self-start sm:self-auto shrink-0">
+                <StatusBadge status={nextVaccine.urgency} />
+                <AddToCalendarButton record={nextVaccine.record} status={nextVaccine.urgency} dogName={profile.name} />
+              </div>
+            )}
           </div>
 
           {/* Last Deworming */}
@@ -338,7 +344,12 @@ export const DogHealthSummary: React.FC<DogHealthSummaryProps> = React.memo(({
                 </div>
               </div>
             </div>
-            {nextDeworming?.record.boosterDate && <StatusBadge status={nextDeworming.urgency} className="self-start sm:self-auto shrink-0" />}
+            {nextDeworming?.record.boosterDate && (
+              <div className="flex items-center gap-1.5 self-start sm:self-auto shrink-0">
+                <StatusBadge status={nextDeworming.urgency} />
+                <AddToCalendarButton record={nextDeworming.record} status={nextDeworming.urgency} dogName={profile.name} />
+              </div>
+            )}
           </div>
         </div>
 
