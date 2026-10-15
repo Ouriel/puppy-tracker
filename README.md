@@ -225,7 +225,7 @@ npm test
 |---|---|---|
 | `POSTGRES_URL` or `DATABASE_URL` | API, drizzle-kit, `db:inspect` (`DATABASE_URL`) | Postgres connection |
 | `PREVIEW_POSTGRES_URL` | API, only when `VERCEL_ENV=preview` | the preview database |
-| `SESSION_SECRET` or `AUTH_SECRET` | API | session signing key (without it, derived from `POSTGRES_URL`) |
+| `SESSION_SECRET` or `AUTH_SECRET` | API | session signing key: a random value (e.g. `openssl rand -base64 32`), Sensitive, Production only (Preview and Development, if set, get other values). Without it, the key is derived from `POSTGRES_URL`. With it, a token signed with the derived key still works, and its renewal at the next app start is signed with `SESSION_SECRET`. That fallback goes 90 days after the secret went live (2027-01-20 if live by 2026-10-21); until then keep the production `POSTGRES_URL` value byte-identical (no password rotation, no variable re-created with another value), or devices not opened since are signed out. Never remove or change the secret, and never roll production back to a deployment built without it: every session renewed since would be refused. Keep a copy: Vercel cannot show a Sensitive value again. |
 | `VITE_GOOGLE_CLIENT_ID` (or `GOOGLE_CLIENT_ID` on the server) | sign-in screen, API | Google OAuth client id |
 | `SUPER_ADMIN_EMAIL` | API | the owner's email. The browser cannot read it and always uses the default in `src/utils/auth.ts`: set it only to that same value, or the API and the app disagree on who the owner is. |
 
