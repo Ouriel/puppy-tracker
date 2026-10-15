@@ -29,9 +29,9 @@ React 19 · Vite 8 · HeroUI v3 · Tailwind 4 · Vercel serverless functions · 
 
 ## Signing in and families
 
-- Sign in with Google. The first sign-in of a new person creates an account **waiting for approval**, in a new household of its own; the app shows "pending activation" until the owner approves it.
-- The owner can also **invite** someone by email in advance (Settings > Household Members). An invited person lands directly in the owner's family.
-- Several families can use the same app: each household sees only its own dogs, logs and members. Only the owner moves an account from one household to another, and always after a confirmation.
+- Sign in with Google. The first sign-in of a new person creates an account **waiting for approval**, in a new household of its own; the app shows "pending activation" until the owner approves it. Approved there, alone, that person becomes the family's **Admin**: the first member of a new family invites the rest of it.
+- The owner, or a family's Admin, can also **invite** someone by email in advance (Settings > Household Members). An invited person lands directly in the inviter's family, as a member. Someone who signed in before being invited and still waits alone, in a household with no dog, joins it too.
+- Several families can use the same app: each household sees only its own dogs, logs and members. Apart from that case, only the owner moves an account from one household to another, and always after a confirmation.
 - A session lasts 90 days and is renewed each time the app is opened. A removed or revoked account is sent back to the sign-in screen on its next request.
 
 ## Dashboard
@@ -141,9 +141,9 @@ Open it from the health summary, or at `/health-passport`.
 - Your badge is the one carrying your email; failing that, a badge without an email whose name is exactly your Google account name. It shows the "Active" chip and has no delete button.
 - **This is me**: tick it on a badge without an email to link it to your login (when no badge carries your email yet).
 - Only the owner (or an admin) renames a badge linked to someone else, or unlinks a badge. Only the owner deletes badges.
-- **Invite** (owner): pre-approve an email. It joins your family with a badge already linked to it. If that person already has an account in another family, the app asks before moving them.
+- **Invite** (owner or Admin): pre-approve an email. It joins your family with a badge already linked to it. If that person already has an account in another family, the app asks the owner before moving them, and tells an Admin to ask the owner (unless that account is a sign-up still waiting alone in a household with no dog: it simply joins).
 
-**Super-Admin Panel** (owner only): every account, pending ones first. Approve (the person stays in their own household unless you pick another, which asks first), move to another household, revoke (back to pending), delete, or pre-approve an email into a chosen household.
+**Super-Admin Panel** (owner only): every account, pending ones first. Approve (the person stays in their own household unless you pick another, which asks first; approved alone in their own household, they become its Admin), move to another household, revoke (back to pending), delete, or pre-approve an email into a chosen household.
 
 ## Phone install, offline and updates
 
@@ -181,7 +181,8 @@ Browser (React SPA, PWA)  ──/api/*──▶  Vercel functions (api/*.ts)  �
 4. The client renews the token 3 s after each app start. A 401 (or 401/403 on renewal) clears it and shows the sign-in screen; a 5xx keeps the session.
 5. Every endpoint also accepts a Google ID token directly (same check as step 2). The app relies on it in one case: when the session exchange fails for the owner, it keeps the Google ID token as the session, which Google expires after about an hour.
 
-- **Owner** = the SuperAdmin, recognised by email only, never by a role claim. Only the owner deletes dogs and badges, sees the Super-Admin Panel, and moves accounts between households.
+- **Owner** = the SuperAdmin, recognised by email only, never by a role claim. Only the owner deletes dogs and badges, sees the Super-Admin Panel, and moves accounts between households (an Admin only takes in a sign-up waiting alone in a household with no dog, below).
+- **Admin**: the first member of a new family, set when the owner approves that sign-up alone in its own household (`PUT /api/users`); an Admin approved or moved into another household becomes a `Member` there. An Admin also invites into its own household (`POST /api/users`): a newcomer is always a `Member` (someone already in the family keeps their role), never another household or role (403). An account living elsewhere gets 409, except a sign-up still `PENDING_APPROVAL` alone in a household with no dog, which is moved in and activated. The API also lets an Admin change the role or status of, or remove, accounts of its household; the app has no screen for that.
 - Every other active account (role `Member`) logs, edits and deletes logs and health records, and adds or edits dogs and badges in its household, within the badge rules of `api/households.ts`.
 - `loggedBy` is never taken from the request: `POST /api/activities` resolves it from the account's linked badge (`findLinkedCaretaker`), creating the badge on the first log; `PUT` never changes it.
 
@@ -271,4 +272,4 @@ npm test
 - **Delete buttons for dogs and badges show for every member**; the server refuses the delete to anyone but the owner, and the item comes back with an error.
 - **CSV exports are comma-separated**: Excel set to French may put every column in column A.
 - **`drizzle/` lags `src/db/schema.ts`**: the index `idx_health_records_household_date` is in the schema and in production but in no migration, so the next `db:generate` emits it.
-- **One owner per installation**: only the owner's account approves sign-ups, deletes dogs and badges, and moves accounts. The API knows an `Admin` role, but the app never assigns it (only the demo seed does).
+- **One owner per installation**: only the owner's account approves sign-ups, deletes dogs and badges, and moves accounts (a family's Admin only takes in a sign-up waiting alone in a household with no dog).

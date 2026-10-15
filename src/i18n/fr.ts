@@ -273,6 +273,7 @@ export const fr: TranslationKeys = {
     namePlaceholder: 'ex: Alex',
     editMemberName: 'Modifier Nom & Couleur',
     alreadyHasAccount: 'Cette personne a déjà un compte. L\'ajouter à ta famille ?',
+    askOwnerToAdd: 'Cette personne a déjà un compte. Demande à Matthieu de l\'ajouter.',
     addToFamily: 'Ajouter',
     thisIsMe: 'C\'est moi',
   },

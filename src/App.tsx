@@ -31,6 +31,9 @@ import { getUnifiedWeightEntries } from './utils/weight';
 
 import { getStoredRecentActivities, getStoredRecentActivitiesTime } from './utils/storage';
 
+// One list for the sign-in and the deferred session exchange, so a returning Admin keeps the role the sign-in test pins.
+const FAMILY_ROLES: readonly string[] = ['Husband', 'Wife', 'Partner', 'Child', 'Dog Walker', 'Sitter', 'Relative', 'Member', 'Admin', 'SuperAdmin'];
+
 function App() {
   const { t } = useI18n();
 
@@ -217,7 +220,7 @@ function App() {
                   id: sessionResult.data.user.id || 'u-1',
                   email: sessionResult.data.user.email,
                   name: sessionResult.data.user.name,
-                  role: (['Husband', 'Wife', 'Partner', 'Child', 'Dog Walker', 'Sitter', 'Relative', 'Member', 'SuperAdmin'].includes(sessionResult.data.user.role) ? sessionResult.data.user.role : 'Member') as FamilyRole,
+                  role: (FAMILY_ROLES.includes(sessionResult.data.user.role) ? sessionResult.data.user.role : 'Member') as FamilyRole,
                 };
                 setUser(userAccount);
                 setStoredAuthUser(userAccount);
@@ -363,7 +366,7 @@ function App() {
         id: sessionRes.data.user.id || `u-${Date.now()}`,
         email: sessionRes.data.user.email,
         name: sessionRes.data.user.name,
-        role: (['Husband', 'Wife', 'Partner', 'Child', 'Dog Walker', 'Sitter', 'Relative', 'Member', 'SuperAdmin'].includes(sessionRes.data.user.role) ? sessionRes.data.user.role : 'Member') as FamilyRole,
+        role: (FAMILY_ROLES.includes(sessionRes.data.user.role) ? sessionRes.data.user.role : 'Member') as FamilyRole,
       };
       setIsLoading(true);
       setUser(userAccount);
