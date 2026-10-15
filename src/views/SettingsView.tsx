@@ -17,7 +17,6 @@ interface SettingsViewProps {
   onUpdatePuppy: (puppy: PuppyProfile) => void;
   onDeletePuppy: (id: string) => void;
   caretakers: Caretaker[];
-  currentUser: string;
   onAddCaretaker: (caretaker: Caretaker) => void;
   onUpdateCaretaker: (id: string, updatedFields: Partial<Caretaker>) => void;
   onDeleteCaretaker: (id: string) => void;
@@ -33,7 +32,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   onUpdatePuppy,
   onDeletePuppy,
   caretakers,
-  currentUser,
   onAddCaretaker,
   onUpdateCaretaker,
   onDeleteCaretaker,
@@ -136,7 +134,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         {selectedTab === 'household' && (
           <HouseholdView
             caretakers={caretakers}
-            currentUser={currentUser}
+            user={user}
             onAddCaretaker={onAddCaretaker}
             onUpdateCaretaker={onUpdateCaretaker}
             onDeleteCaretaker={onDeleteCaretaker}
@@ -144,7 +142,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         )}
 
         {selectedTab === 'admin' && isSuperAdmin && (
-          <AdminView currentUserEmail={user.email} />
+          <AdminView currentUserEmail={user.email} caretakers={caretakers} onAddCaretaker={onAddCaretaker} />
         )}
       </div>
     </div>

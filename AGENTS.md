@@ -34,7 +34,8 @@ PupPace — Smart Household Puppy Activity Tracker & Potty Predictor. React 19 +
 
 ### User Identity & Security
 
-- `loggedBy` is the signed-in user, resolved by `getCurrentCaretakerName` (`src/utils/caretakers.ts`): the caretaker matching the user's email or exact name, else the account name. The client (`useCaretakers.currentUser`) and `POST /api/activities` both use it; the server ignores the body's `loggedBy`, and `PUT` never changes it.
+- `loggedBy` is the signed-in user, resolved by `getCurrentCaretakerName` (`src/utils/caretakers.ts`): the badge carrying the user's email (`findLinkedCaretaker`), else a badge without an email whose name is exactly the account name, else the account name. The client (`useCaretakers.currentUser`) and `POST /api/activities` both use it; the server ignores the body's `loggedBy`, and `PUT` never changes it.
+- The Members tab's active chip and delete guard use the same rule. A badge email is an identity: names and emails are unique per household, and only an admin links a badge to someone else's email (`api/households.ts`). Invites create the badge with the invited email; only the owner moves an account between households, after a confirmation (`api/users.ts`, 409 then `confirmMove`).
 - QuickLogModal shows `loggedBy` as a read-only line, "Logged by <name>" ("Enregistré par <name>"): the signed-in user for a new log, the original author in an edit. There is no input for it, so users cannot log events under another family member's name.
 
 ### Health Passport & Protocols

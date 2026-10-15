@@ -2,13 +2,19 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import type { Table } from 'drizzle-orm';
 import { signAppSessionToken } from '../../../api/_auth.js';
 import activitiesHandler from '../../../api/activities.js';
-import { getCurrentCaretakerName } from '../caretakers';
+import { getCurrentCaretakerName, findLinkedCaretaker } from '../caretakers';
 
-// Real household caretakers (read-only SELECT, 2026-10-14). Only Daria's row carries her email.
+// The real household's shape since 'Members data done 2026-10-15' (read-only SELECT): 3 badges, each linked by
+// email to one account, no exact-name matches. Emails and account names here are placeholders.
 const PRODUCTION_CARETAKERS = [
-  { name: 'Matthieu', email: null },
+  { name: 'Matthieu', email: 'owner@example.com' },
   { name: 'Daria', email: 'daria@example.com' },
-  { name: 'Dasha', email: null },
+  { name: 'Dasha', email: 'dasha@example.com' },
+];
+const PRODUCTION_ACCOUNTS = [
+  { email: 'owner@example.com', name: 'Owner Fullname', badge: 'Matthieu' },
+  { email: 'daria@example.com', name: 'daria.risko', badge: 'Daria' },
+  { email: 'DASHA@example.com', name: 'dasha.handle', badge: 'Dasha' },
 ];
 
 const dbMock = vi.hoisted(() => ({
@@ -85,14 +91,30 @@ function requestAsDaria(method: string, body: unknown) {
 }
 
 describe('getCurrentCaretakerName (what the log modal shows as "logged by")', () => {
-  it('gives each production user the name their recent logs carry', () => {
-    expect(getCurrentCaretakerName({ email: 'owner@example.com', name: 'Matthieu Jacquet' }, PRODUCTION_CARETAKERS)).toBe('Matthieu Jacquet');
-    expect(getCurrentCaretakerName({ email: 'daria@example.com', name: 'daria.risko' }, PRODUCTION_CARETAKERS)).toBe('Daria');
-    expect(getCurrentCaretakerName({ email: 'other@example.com', name: 'guest.member' }, PRODUCTION_CARETAKERS)).toBe('guest.member');
+  it('gives each production account its own badge, for logged-by and for the active chip', () => {
+    for (const account of PRODUCTION_ACCOUNTS) {
+      expect(getCurrentCaretakerName(account, PRODUCTION_CARETAKERS)).toBe(account.badge);
+      expect(findLinkedCaretaker(account, PRODUCTION_CARETAKERS)?.name).toBe(account.badge);
+    }
   });
 
-  it('matches a caretaker by exact name, ignoring case', () => {
-    expect(getCurrentCaretakerName({ email: 'x@example.com', name: 'dasha' }, PRODUCTION_CARETAKERS)).toBe('Dasha');
+  it('never gives a linked badge to a user whose email no badge carries, even with a matching name', () => {
+    for (const name of ['guest.member', 'dasha', 'Matthieu']) {
+      expect(findLinkedCaretaker({ email: 'other@example.com', name }, PRODUCTION_CARETAKERS)).toBeUndefined();
+      expect(getCurrentCaretakerName({ email: 'other@example.com', name }, PRODUCTION_CARETAKERS)).toBe(name);
+    }
+  });
+
+  it('matches a badge without an email by exact name, ignoring case', () => {
+    expect(getCurrentCaretakerName({ email: 'x@example.com', name: 'guest' }, [{ name: 'Guest', email: null }])).toBe('Guest');
+  });
+
+  it('prefers the badge linked by email over an earlier badge with the same name', () => {
+    const caretakers = [
+      { name: 'Dasha', email: null },
+      { name: 'Dasha K', email: 'dasha@example.com' },
+    ];
+    expect(getCurrentCaretakerName({ email: 'dasha@example.com', name: 'Dasha' }, caretakers)).toBe('Dasha K');
   });
 
   it('falls back to the email prefix, then Unknown', () => {

@@ -1,14 +1,16 @@
 import React, { useState } from 'react';
-import type { Caretaker } from '../types';
+import type { Caretaker, UserAccount } from '../types';
 import { Home, Users, UserPlus, Trash2, Mail, Send, CheckCircle2, UserCheck, Copy, Pencil, X, Check } from 'lucide-react';
 import { createUser } from '../services/api';
-import { resolveCaretakerName } from '../utils/caretakers';
+import { buildInviteBadge, findLinkedCaretaker, firstFreeBadgeColor } from '../utils/caretakers';
+import { isSuperAdminEmail } from '../utils/auth';
 import { useI18n } from '../i18n';
 import { Card, Button, Input, Chip, toast } from '@heroui/react';
+import { ConfirmDialog } from '../components/ConfirmDialog';
 
 interface HouseholdViewProps {
   caretakers: Caretaker[];
-  currentUser: string;
+  user: UserAccount;
   onAddCaretaker: (caretaker: Caretaker) => void;
   onUpdateCaretaker: (id: string, updatedFields: Partial<Caretaker>) => void;
   onDeleteCaretaker: (id: string) => void;
@@ -16,7 +18,7 @@ interface HouseholdViewProps {
 
 export const HouseholdView: React.FC<HouseholdViewProps> = ({
   caretakers,
-  currentUser,
+  user,
   onAddCaretaker,
   onUpdateCaretaker,
   onDeleteCaretaker,
@@ -26,6 +28,7 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
   const [isInvitingEmail, setIsInvitingEmail] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteSuccess, setInviteSuccess] = useState('');
+  const [emailToMove, setEmailToMove] = useState<string | null>(null);
 
   const [name, setName] = useState('');
   const [color, setColor] = useState('#EC4899');
@@ -33,33 +36,35 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
   const [editColor, setEditColor] = useState('#EC4899');
+  const [editIsMe, setEditIsMe] = useState(false);
 
-  const handlePreApproveMember = async (event: React.FormEvent) => {
-    event.preventDefault();
-    if (!inviteEmail.trim()) return;
+  const myEmail = user.email.toLowerCase();
+  // The same rule as logged-by: the chip and the delete guard follow the email link, never a name guess.
+  const linkedCaretaker = findLinkedCaretaker(user, caretakers);
+  // Only the owner pre-approves: the server refuses members and keeps moves between households for the owner.
+  const canPreApprove = isSuperAdminEmail(user.email);
 
-    const email = inviteEmail.trim().toLowerCase();
-    const result = await createUser({
-      email,
-      name: email.split('@')[0],
-      role: 'Member',
-      status: 'ACTIVE',
-    });
+  // Into the inviter's own household (the server's default): the account keeps its Google name, and the badge
+  // carries the invited email.
+  const inviteMember = async (email: string, confirmMove = false) => {
+    const result = await createUser({ email, role: 'Member', status: 'ACTIVE', ...(confirmMove ? { confirmMove } : {}) });
 
     if (result.ok) {
       setInviteSuccess(`${email} authorized!`);
       setInviteEmail('');
-      if (!caretakers.some((item) => item.name.toLowerCase() === email.split('@')[0])) {
-        onAddCaretaker({
-          id: `c-${Date.now()}`,
-          name: email.split('@')[0],
-          role: 'Member',
-          color: '#8B5CF6',
-        });
-      }
+      const badge = buildInviteBadge(email, caretakers);
+      if (badge) onAddCaretaker(badge);
+    } else if (result.status === 409) {
+      setEmailToMove(email);
     } else {
       toast.danger(result.error || t.toasts.errorGeneric);
     }
+  };
+
+  const handlePreApproveMember = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!inviteEmail.trim()) return;
+    await inviteMember(inviteEmail.trim().toLowerCase());
   };
 
   const handleAddSubmit = (event: React.FormEvent) => {
@@ -98,17 +103,27 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
           </div>
 
           {/* Pre-Approve Action Button */}
-          <Button
-            variant="primary"
-            size="sm"
-            onPress={() => setIsInvitingEmail(!isInvitingEmail)}
-            className="bg-indigo-600 hover:bg-indigo-500 font-bold text-xs shadow-sm"
-          >
-            <Mail className="w-4 h-4 mr-1.5 inline" />
-            {t.household.preApproveBtn}
-          </Button>
+          {canPreApprove && (
+            <Button
+              variant="primary"
+              size="sm"
+              onPress={() => setIsInvitingEmail(!isInvitingEmail)}
+              className="bg-indigo-600 hover:bg-indigo-500 font-bold text-xs shadow-sm"
+            >
+              <Mail className="w-4 h-4 mr-1.5 inline" />
+              {t.household.preApproveBtn}
+            </Button>
+          )}
         </Card.Content>
       </Card>
+
+      <ConfirmDialog
+        isOpen={!!emailToMove}
+        message={t.household.alreadyHasAccount}
+        confirmLabel={t.household.addToFamily}
+        onConfirm={() => emailToMove && void inviteMember(emailToMove, true)}
+        onClose={() => setEmailToMove(null)}
+      />
 
       {/* Email Registration Box */}
       {isInvitingEmail && (
@@ -177,7 +192,11 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
             <Button
               size="sm"
               variant="outline"
-              onPress={() => setIsAdding(!isAdding)}
+              onPress={() => {
+                // Every new badge starts on the first colour no other badge uses (42); the picker can change it.
+                if (!isAdding) setColor(firstFreeBadgeColor(caretakers));
+                setIsAdding(!isAdding);
+              }}
               className="text-xs border-slate-800"
             >
               <UserPlus className="w-3.5 h-3.5 mr-1 inline" />
@@ -227,10 +246,13 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
           {/* Member List */}
           <div className="space-y-2">
             {caretakers.map((caretaker) => {
-              const isSelected = currentUser === caretaker.name;
+              const isSelected = linkedCaretaker?.id === caretaker.id;
               const isEditingThis = editingId === caretaker.id;
 
               if (isEditingThis) {
+                const isLinkedToMe = caretaker.email?.toLowerCase() === myEmail;
+                // 'This is me' only on my own badge, or on an unlinked one while no badge carries my email.
+                const canClaim = caretaker.email ? isLinkedToMe : !caretakers.some((item) => item.email?.toLowerCase() === myEmail);
                 return (
                   <div
                     key={caretaker.id}
@@ -250,6 +272,17 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
                         placeholder={t.household.memberName}
                         autoFocus
                       />
+                      {canClaim && (
+                        <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-300 shrink-0 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={editIsMe}
+                            onChange={(event) => setEditIsMe(event.target.checked)}
+                            className="w-4 h-4 accent-indigo-500"
+                          />
+                          {t.household.thisIsMe}
+                        </label>
+                      )}
                     </div>
 
                     <div className="flex items-center gap-2">
@@ -262,6 +295,8 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
                             name: editName.trim(),
                             color: editColor,
                             role: caretaker.role,
+                            // Links the badge to my login by email, or '' to unlink it.
+                            ...(editIsMe !== isLinkedToMe ? { email: editIsMe ? myEmail : '' } : {}),
                           });
                           setEditingId(null);
                         }}
@@ -305,6 +340,7 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
                         setEditingId(caretaker.id);
                         setEditName(caretaker.name);
                         setEditColor(caretaker.color);
+                        setEditIsMe(caretaker.email?.toLowerCase() === myEmail);
                       }}
                       aria-label={t.household.editMemberName}
                       className="p-2 min-h-[38px] min-w-[38px] flex items-center justify-center text-slate-400 hover:text-indigo-300 hover:bg-slate-800 rounded-xl border border-slate-800 bg-slate-950 transition-colors"
@@ -319,7 +355,7 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
                       </Chip>
                     )}
 
-                    {caretaker.name !== resolveCaretakerName(currentUser, caretakers) && (
+                    {!isSelected && (
                       <button
                         type="button"
                         onClick={() => onDeleteCaretaker(caretaker.id)}

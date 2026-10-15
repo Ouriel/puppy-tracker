@@ -7,16 +7,20 @@ import {
   deleteUser,
   fetchAllHouseholds,
 } from '../services/api';
-import type { RegisteredUserItem } from '../types';
+import type { Caretaker, RegisteredUserItem } from '../types';
 import { useI18n } from '../i18n';
 import { Button, Input, Card, Chip, Modal } from '@heroui/react';
 import { SUPER_ADMIN_EMAIL, isSuperAdminEmail } from '../utils/auth';
+import { buildInviteBadge } from '../utils/caretakers';
+import { ConfirmDialog } from '../components/ConfirmDialog';
 
 interface AdminViewProps {
   currentUserEmail: string;
+  caretakers: Caretaker[];
+  onAddCaretaker: (caretaker: Caretaker) => void;
 }
 
-export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail }) => {
+export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail, caretakers, onAddCaretaker }) => {
   const { t } = useI18n();
   const isSuperAdmin = isSuperAdminEmail(currentUserEmail);
 
@@ -27,9 +31,20 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail }) => {
   const [targetHouseholds, setTargetHouseholds] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(false);
   const [newInviteEmail, setNewInviteEmail] = useState('');
-  const [newInviteHousehold, setNewInviteHousehold] = useState('FAMILY-COCKER-2026');
+  // '' = the admin's own household
+  const [newInviteHousehold, setNewInviteHousehold] = useState('');
   const [statusMessage, setStatusMessage] = useState('');
   const [userToDelete, setUserToDelete] = useState<RegisteredUserItem | null>(null);
+  const [userToJoin, setUserToJoin] = useState<{ email: string; householdId: string } | null>(null);
+  const [inviteToMove, setInviteToMove] = useState<{ email: string; householdId?: string } | null>(null);
+
+  const currentHouseholdId = users.find((registeredUser) => registeredUser.email.toLowerCase() === currentUserEmail.toLowerCase())?.householdId;
+  // A sign-up lives in its own house-… household, which has no households row: list it so it can be kept.
+  const householdOptions = (ownHouseholdId?: string) =>
+    !ownHouseholdId || households.some((household) => household.id === ownHouseholdId)
+      ? households
+      : [{ id: ownHouseholdId, name: t.admin.ownHousehold }, ...households];
+  const householdName = (householdId: string) => households.find((household) => household.id === householdId)?.name || householdId;
 
   const loadData = useCallback(async () => {
     setIsLoading(true);
@@ -56,8 +71,17 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail }) => {
     }
   }, [isSuperAdmin, loadData]);
 
-  const handleActivate = async (email: string) => {
-    const targetHouseholdId = targetHouseholds[email] || 'FAMILY-COCKER-2026';
+  /** Approval keeps the user in their own household; any other household is an explicit, confirmed choice (27). */
+  const handleActivate = (userItem: RegisteredUserItem) => {
+    const targetHouseholdId = targetHouseholds[userItem.email] ?? userItem.householdId;
+    if (targetHouseholdId && targetHouseholdId !== userItem.householdId) {
+      setUserToJoin({ email: userItem.email, householdId: targetHouseholdId });
+      return;
+    }
+    void activateUser(userItem.email, targetHouseholdId);
+  };
+
+  const activateUser = async (email: string, targetHouseholdId?: string) => {
     try {
       const res = await updateUser({ email, status: 'ACTIVE', householdId: targetHouseholdId });
       if (res.ok) {
@@ -68,9 +92,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail }) => {
               : registeredUser
           )
         );
-        setStatusMessage(
-          `Activated ${email} in household "${households.find((h) => h.id === targetHouseholdId)?.name || targetHouseholdId}"`
-        );
+        setStatusMessage(`Activated ${email} in household "${targetHouseholdId ? householdName(targetHouseholdId) : ''}"`);
         setTimeout(() => setStatusMessage(''), 3500);
       }
     } catch (err) {
@@ -140,29 +162,30 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail }) => {
     }
   };
 
-  const handlePreApproveInvite = async (event: React.FormEvent) => {
-    event.preventDefault();
-    if (!newInviteEmail.trim()) return;
-
-    const email = newInviteEmail.trim().toLowerCase();
+  // The account keeps its Google name. Into the admin's own household, the same badge as the Members tab (28).
+  const inviteMember = async (email: string, householdId?: string, confirmMove = false) => {
     try {
-      const res = await createUser({
-        email,
-        name: email.split('@')[0],
-        role: 'Member',
-        status: 'ACTIVE',
-        householdId: newInviteHousehold,
-      });
+      const res = await createUser({ email, role: 'Member', status: 'ACTIVE', householdId, ...(confirmMove ? { confirmMove } : {}) });
 
       if (res.ok) {
+        const badge = householdId === currentHouseholdId ? buildInviteBadge(email, caretakers) : null;
+        if (badge) onAddCaretaker(badge);
         await loadData();
         setNewInviteEmail('');
-        setStatusMessage(`Pre-approved ${email} in household "${newInviteHousehold}"`);
+        setStatusMessage(`Pre-approved ${email} in household "${householdId ? householdName(householdId) : ''}"`);
         setTimeout(() => setStatusMessage(''), 3500);
+      } else if (res.status === 409) {
+        setInviteToMove({ email, householdId });
       }
     } catch (err) {
       console.error('Failed to pre-approve user', err);
     }
+  };
+
+  const handlePreApproveInvite = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!newInviteEmail.trim()) return;
+    await inviteMember(newInviteEmail.trim().toLowerCase(), newInviteHousehold || currentHouseholdId);
   };
 
   const pendingUsers = (users || []).filter((registeredUser) => registeredUser.status === 'PENDING_APPROVAL');
@@ -224,6 +247,26 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail }) => {
         </div>
       )}
 
+      <ConfirmDialog
+        isOpen={!!userToJoin}
+        message={t.admin.joinHousehold.replace('{email}', userToJoin?.email ?? '').replace('{household}', householdName(userToJoin?.householdId ?? ''))}
+        confirmLabel={t.admin.approveAndAssign}
+        onConfirm={() => userToJoin && void activateUser(userToJoin.email, userToJoin.householdId)}
+        onClose={() => setUserToJoin(null)}
+      />
+
+      <ConfirmDialog
+        isOpen={!!inviteToMove}
+        message={
+          inviteToMove?.householdId === currentHouseholdId
+            ? t.household.alreadyHasAccount
+            : t.admin.joinHousehold.replace('{email}', inviteToMove?.email ?? '').replace('{household}', householdName(inviteToMove?.householdId ?? ''))
+        }
+        confirmLabel={t.household.addToFamily}
+        onConfirm={() => inviteToMove && void inviteMember(inviteToMove.email, inviteToMove.householdId, true)}
+        onClose={() => setInviteToMove(null)}
+      />
+
       {/* Delete User Confirmation Modal */}
       <Modal isOpen={!!userToDelete} onOpenChange={(isOpen) => !isOpen && setUserToDelete(null)}>
         <Modal.Backdrop>
@@ -270,7 +313,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail }) => {
           ) : (
             <div className="space-y-3">
               {pendingUsers.map((userItem) => {
-                const currentSelectedHousehold = targetHouseholds[userItem.email] || 'FAMILY-COCKER-2026';
+                const currentSelectedHousehold = targetHouseholds[userItem.email] ?? userItem.householdId ?? '';
                 return (
                   <div
                     key={userItem.id}
@@ -300,9 +343,9 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail }) => {
                           }
                           className="bg-slate-900 border border-slate-700 text-slate-200 text-xs rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-indigo-500"
                         >
-                          {households.map((h) => (
-                            <option key={h.id} value={h.id}>
-                              {h.name} ({h.id})
+                          {householdOptions(userItem.householdId).map((household) => (
+                            <option key={household.id} value={household.id}>
+                              {household.name} ({household.id})
                             </option>
                           ))}
                         </select>
@@ -311,7 +354,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail }) => {
                       <div className="flex items-center gap-2">
                         <Button
                           size="sm"
-                          onPress={() => handleActivate(userItem.email)}
+                          onPress={() => handleActivate(userItem)}
                           className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold"
                         >
                           <UserCheck className="w-3.5 h-3.5 mr-1 inline" />
@@ -356,13 +399,13 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail }) => {
 
               <div className="flex items-center gap-2">
                 <select
-                  value={newInviteHousehold}
+                  value={newInviteHousehold || currentHouseholdId || ''}
                   onChange={(event) => setNewInviteHousehold(event.target.value)}
                   className="bg-slate-950 border border-slate-800 text-slate-200 text-xs rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-500"
                 >
-                  {households.map((h) => (
-                    <option key={h.id} value={h.id}>
-                      {h.name}
+                  {householdOptions(currentHouseholdId).map((household) => (
+                    <option key={household.id} value={household.id}>
+                      {household.name}
                     </option>
                   ))}
                 </select>
@@ -421,14 +464,14 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail }) => {
                         <div className="flex items-center gap-1.5">
                           <Home className="w-3.5 h-3.5 text-indigo-400" />
                           <select
-                            value={userItem.householdId || 'FAMILY-COCKER-2026'}
+                            value={userItem.householdId ?? ''}
                             onChange={(event) => handleMoveHousehold(userItem.email, event.target.value)}
                             aria-label={t.admin.householdFor.replace('{name}', userItem.name)}
                             className="bg-slate-900 border border-slate-700 text-slate-200 text-xs rounded-lg px-2.5 py-1 focus:outline-none focus:border-indigo-500"
                           >
-                            {households.map((h) => (
-                              <option key={h.id} value={h.id}>
-                                {h.name} ({h.id})
+                            {householdOptions(userItem.householdId).map((household) => (
+                              <option key={household.id} value={household.id}>
+                                {household.name} ({household.id})
                               </option>
                             ))}
                           </select>

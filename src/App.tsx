@@ -448,7 +448,6 @@ function App() {
               onUpdatePuppy={puppyState.updatePuppy}
               onDeletePuppy={puppyState.deletePuppy}
               caretakers={caretakerState.caretakers}
-              currentUser={caretakerState.currentUser}
               onAddCaretaker={caretakerState.addCaretaker}
               onUpdateCaretaker={caretakerState.updateCaretaker}
               onDeleteCaretaker={caretakerState.deleteCaretaker}
