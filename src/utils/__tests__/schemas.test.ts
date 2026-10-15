@@ -29,7 +29,7 @@ describe('Zod Schemas Validation', () => {
 
   it('should validate dog and health record input schemas', () => {
     const inputDog = {
-      name: 'Balma',
+      name: 'Pistache',
       breed: 'English Cocker Spaniel',
       birthDate: '2026-05-01',
       weightKg: '7.8',
@@ -47,9 +47,9 @@ describe('Zod Schemas Validation', () => {
     expect(HealthRecordInputSchema.safeParse(inputHealth).success).toBe(true);
 
     const inputCaretaker = {
-      name: 'Matthieu',
+      name: 'Sam',
       role: 'Husband',
-      email: 'matthieu@example.com',
+      email: 'sam@example.com',
     };
     expect(CaretakerInputSchema.safeParse(inputCaretaker).success).toBe(true);
   });
@@ -62,9 +62,9 @@ describe('Zod Schemas Validation', () => {
   it('validates DogInputSchema accepts gender and expectedAdultWeightKg', () => {
     const validProfile = {
       id: 'pup-test-1',
-      name: 'Balma',
+      name: 'Pistache',
       breed: 'English Cocker Spaniel',
-      birthDate: '2026-03-27',
+      birthDate: '2026-04-03',
       weightKg: 7.8,
       dailyFoodGramGoal: 240,
       targetMealsPerDay: 3,
@@ -123,12 +123,12 @@ describe('Zod Schemas Validation', () => {
 
   it('should validate DashboardQuerySchema parsing and sanitization', () => {
     const parsed = DashboardQuerySchema.safeParse({
-      puppyId: 'pup-balma',
+      puppyId: 'pup-pistache',
       days: 30,
     });
     expect(parsed.success).toBe(true);
     if (parsed.success) {
-      expect(parsed.data.puppyId).toBe('pup-balma');
+      expect(parsed.data.puppyId).toBe('pup-pistache');
       expect(parsed.data.days).toBe(30);
     }
 
@@ -169,8 +169,8 @@ describe('Zod Schemas Validation', () => {
 
   it('should validate UserInputSchema', () => {
     const validUser = {
-      email: 'matthieu@example.com',
-      name: 'Matthieu',
+      email: 'sam@example.com',
+      name: 'Sam',
       role: 'SuperAdmin',
       status: 'ACTIVE' as const,
     };
@@ -239,7 +239,7 @@ describe('Zod Schemas Validation', () => {
       ['pee', 'indoor_accident'],
       ['poop', 'outside'],
     ] as const)('one-tap quick action: %s %s', (type, pottyLocation) => {
-      const payload = buildQuickActionActivity({ puppyId: 'pup-1', type, pottyLocation, loggedBy: 'Daria', actionTime });
+      const payload = buildQuickActionActivity({ puppyId: 'pup-1', type, pottyLocation, loggedBy: 'Alice', actionTime });
       const parsed = ActivityInputSchema.safeParse(toWire(payload));
       expect(parsed.success, JSON.stringify(parsed.error?.issues)).toBe(true);
     });
@@ -247,7 +247,7 @@ describe('Zod Schemas Validation', () => {
     const form = {
       puppyId: 'pup-1',
       localTimestamp: '2026-10-13T10:15',
-      loggedBy: 'Matthieu Jacquet',
+      loggedBy: 'Sam Taylor',
       notes: '  ',
       pottyLocation: 'outside' as const,
       stoolConsistency: 'normal' as const,
@@ -334,7 +334,7 @@ describe('Zod Schemas Validation', () => {
         [ActivityInputSchema, activity, 'medicationName'],
         [DogInputSchema, dog, 'name'],
         ...['type', 'name', 'batchNumber', 'vetClinic', 'productName'].map((field): [ZodType, object, string] => [HealthRecordInputSchema, record, field]),
-        ...['name', 'role', 'color'].map((field): [ZodType, object, string] => [CaretakerInputSchema, { name: 'Daria' }, field]),
+        ...['name', 'role', 'color'].map((field): [ZodType, object, string] => [CaretakerInputSchema, { name: 'Alice' }, field]),
         [UserInputSchema, user, 'name'],
         [UserInputSchema, user, 'role'],
       ];
@@ -349,7 +349,7 @@ describe('Zod Schemas Validation', () => {
         [ActivityInputSchema, { ...activity, id: `act-${crypto.randomUUID()}` }, 'id'],
         [DogInputSchema, { ...dog, id: `pup-${Date.now()}` }, 'id'],
         [HealthRecordInputSchema, { ...record, id: `hr-${Date.now()}` }, 'id'],
-        [CaretakerInputSchema, { name: 'Daria', id: `c-${Date.now()}` }, 'id'],
+        [CaretakerInputSchema, { name: 'Alice', id: `c-${Date.now()}` }, 'id'],
         [UserInputSchema, { ...user, householdId: `house-${Date.now()}-${crypto.randomUUID().slice(0, 8)}` }, 'householdId'],
       ];
       for (const [schema, base, field] of cases) {
@@ -362,7 +362,7 @@ describe('Zod Schemas Validation', () => {
     it('an email: at most 254 characters, 64 before the @ (RFC 5321; an account or invite badge name can default to that part)', () => {
       const address = (localLength: number, length: number) => `${'a'.repeat(localLength)}@${'b'.repeat(length - localLength - 5)}.com`;
       const cases: Array<[ZodType, object]> = [
-        [CaretakerInputSchema, { name: 'Daria' }],
+        [CaretakerInputSchema, { name: 'Alice' }],
         [UserInputSchema, {}],
       ];
       for (const [schema, base] of cases) {
@@ -448,7 +448,7 @@ describe('Zod Schemas Validation', () => {
       }
 
       // HouseholdView's new badge, an invite badge (the longest email local part is 64 characters)
-      expect(accepts(CaretakerInputSchema, { id: `c-${Date.now()}`, name: 'Daria', role: 'Member', color: 'bg-amber-500' })).toBe(true);
+      expect(accepts(CaretakerInputSchema, { id: `c-${Date.now()}`, name: 'Alice', role: 'Member', color: 'bg-amber-500' })).toBe(true);
       const inviteBadge = buildInviteBadge(`${'a'.repeat(64)}@example.com`, [{ name: 'A', color: '#EC4899' }])!;
       expect(accepts(CaretakerInputSchema, inviteBadge)).toBe(true);
     });

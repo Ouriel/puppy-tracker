@@ -33,12 +33,12 @@ describe('Multi-Breed Weight Trajectory & Custom Weight Dataset Tests', () => {
   });
 
   it('calibrates Category III for medium breeds (English Cocker Spaniel with gender)', () => {
-    const birthDate = '2026-03-27T00:00:00.000Z';
+    const birthDate = '2026-04-03T00:00:00.000Z';
     const logs = [
-      { timestamp: '2026-05-27T00:00:00.000Z', weightKg: 4.1 },
-      { timestamp: '2026-06-27T00:00:00.000Z', weightKg: 6.0 },
-      { timestamp: '2026-07-25T00:00:00.000Z', weightKg: 7.8 },
-      { timestamp: '2026-08-25T00:00:00.000Z', weightKg: 9.5 },
+      { timestamp: '2026-06-03T00:00:00.000Z', weightKg: 4.1 },
+      { timestamp: '2026-07-04T00:00:00.000Z', weightKg: 6.0 },
+      { timestamp: '2026-08-01T00:00:00.000Z', weightKg: 7.8 },
+      { timestamp: '2026-09-01T00:00:00.000Z', weightKg: 9.5 },
     ];
     // Female Cocker
     const femaleRes = calculateProjectedAdultWeightRange('English Cocker Spaniel', logs, birthDate, 'female');

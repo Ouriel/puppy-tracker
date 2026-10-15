@@ -5,19 +5,19 @@ import activitiesHandler from '../../../api/activities.js';
 import { getCurrentCaretakerName, findLinkedCaretaker, BADGE_COLORS } from '../caretakers';
 
 // The real household's shape since 'Members data done 2026-10-15' (read-only SELECT): 3 badges, each linked by
-// email to one account, no exact-name matches. Emails and account names here are placeholders.
+// email to one account, no exact-name matches. Badge names, emails and account names here are placeholders.
 const PRODUCTION_CARETAKERS = [
-  { name: 'Matthieu', email: 'owner@example.com' },
-  { name: 'Daria', email: 'daria@example.com' },
-  { name: 'Dasha', email: 'dasha@example.com' },
+  { name: 'Sam', email: 'owner@example.com' },
+  { name: 'Alice', email: 'alice@example.com' },
+  { name: 'Kim', email: 'kim@example.com' },
 ];
 const PRODUCTION_ACCOUNTS = [
-  { email: 'owner@example.com', name: 'Owner Fullname', badge: 'Matthieu' },
-  { email: 'daria@example.com', name: 'daria.doe', badge: 'Daria' },
-  { email: 'DASHA@example.com', name: 'dasha.handle', badge: 'Dasha' },
+  { email: 'owner@example.com', name: 'Owner Fullname', badge: 'Sam' },
+  { email: 'alice@example.com', name: 'alice.doe', badge: 'Alice' },
+  { email: 'KIM@example.com', name: 'kim.handle', badge: 'Kim' },
 ];
 
-const DARIA_ACCOUNT = { id: 'usr-2', email: 'daria@example.com', name: 'daria.doe', householdId: 'hh-1', role: 'Member', status: 'ACTIVE' };
+const ALICE_ACCOUNT = { id: 'usr-2', email: 'alice@example.com', name: 'alice.doe', householdId: 'hh-1', role: 'Member', status: 'ACTIVE' };
 
 const dbMock = vi.hoisted(() => ({
   // The users row verifyAuth reads, and the household's badges (shared by concurrent requests)
@@ -103,7 +103,7 @@ function requestAs(account: { email: string; name: string }, method: string, bod
   return { method, headers: { authorization: `Bearer ${token}` }, query: {}, body } as any;
 }
 
-const requestAsDaria = (method: string, body: unknown) => requestAs(DARIA_ACCOUNT, method, body);
+const requestAsAlice = (method: string, body: unknown) => requestAs(ALICE_ACCOUNT, method, body);
 
 // The production badges with their household, colours and ids
 const HOUSEHOLD_BADGES = PRODUCTION_CARETAKERS.map((badge, index) => ({
@@ -123,7 +123,7 @@ describe('getCurrentCaretakerName (what the log modal shows as "logged by")', ()
   });
 
   it('never gives a linked badge to a user whose email no badge carries, even with a matching name', () => {
-    for (const name of ['guest.member', 'dasha', 'Matthieu']) {
+    for (const name of ['guest.member', 'kim', 'Sam']) {
       expect(findLinkedCaretaker({ email: 'other@example.com', name }, PRODUCTION_CARETAKERS)).toBeUndefined();
       expect(getCurrentCaretakerName({ email: 'other@example.com', name }, PRODUCTION_CARETAKERS)).toBe(name);
     }
@@ -135,10 +135,10 @@ describe('getCurrentCaretakerName (what the log modal shows as "logged by")', ()
 
   it('prefers the badge linked by email over an earlier badge with the same name', () => {
     const caretakers = [
-      { name: 'Dasha', email: null },
-      { name: 'Dasha K', email: 'dasha@example.com' },
+      { name: 'Kim', email: null },
+      { name: 'Kim K', email: 'kim@example.com' },
     ];
-    expect(getCurrentCaretakerName({ email: 'dasha@example.com', name: 'Dasha' }, caretakers)).toBe('Dasha K');
+    expect(getCurrentCaretakerName({ email: 'kim@example.com', name: 'Kim' }, caretakers)).toBe('Kim K');
   });
 
   it('falls back to the email prefix, then Unknown', () => {
@@ -152,7 +152,7 @@ describe('/api/activities binds loggedBy to the signed-in user', () => {
 
   beforeEach(() => {
     process.env.SESSION_SECRET = 'test-secret-key-1234567890-very-secure';
-    dbMock.account = DARIA_ACCOUNT;
+    dbMock.account = ALICE_ACCOUNT;
     dbMock.caretakers = HOUSEHOLD_BADGES.map((badge) => ({ ...badge }));
     dbMock.insertedValues = [];
     dbMock.updatedValues = [];
@@ -165,24 +165,24 @@ describe('/api/activities binds loggedBy to the signed-in user', () => {
   it('POST stores the signed-in caretaker, whatever loggedBy the body claims', async () => {
     const response = createMockResponse();
     await activitiesHandler(
-      requestAsDaria('POST', { puppyId: 'pup-1', type: 'pee', timestamp: '2026-10-14T08:00:00.000Z', loggedBy: 'Matthieu Jacquet', pottyLocation: 'outside' }),
+      requestAsAlice('POST', { puppyId: 'pup-1', type: 'pee', timestamp: '2026-10-14T08:00:00.000Z', loggedBy: 'Sam Taylor', pottyLocation: 'outside' }),
       response
     );
     expect(response.statusCode).toBe(201);
-    expect(dbMock.insertedValues[0].loggedBy).toBe('Daria');
+    expect(dbMock.insertedValues[0].loggedBy).toBe('Alice');
   });
 
   // 32: an edit that empties the note sends null
   it('PUT with notes null deletes the note', async () => {
     const response = createMockResponse();
-    await activitiesHandler(requestAsDaria('PUT', { id: 'act-1', type: 'pee', notes: null }), response);
+    await activitiesHandler(requestAsAlice('PUT', { id: 'act-1', type: 'pee', notes: null }), response);
     expect(response.statusCode).toBe(200);
     expect(dbMock.updatedValues[0].notes).toBeNull();
   });
 
   it('PUT never changes who logged an activity', async () => {
     const response = createMockResponse();
-    await activitiesHandler(requestAsDaria('PUT', { id: 'act-1', notes: 'edited', loggedBy: 'Matthieu Jacquet' }), response);
+    await activitiesHandler(requestAsAlice('PUT', { id: 'act-1', notes: 'edited', loggedBy: 'Sam Taylor' }), response);
     expect(response.statusCode).toBe(200);
     expect(dbMock.updatedValues[0]).not.toHaveProperty('loggedBy');
   });
@@ -243,28 +243,28 @@ describe('an account with no linked badge gets one on its first log (owner decis
 
   // A member may untick 'This is me' on their own badge: the id derived for their email then belongs to a badge linked to nobody
   it('after its badge is unlinked, the next log makes a new linked badge and never logs under another member', async () => {
-    const dariaNew = { ...newcomer, id: 'usr-5', email: 'daria.new@example.com', name: 'Daria' };
-    dbMock.account = dariaNew;
-    await activitiesHandler(requestAs(dariaNew, 'POST', pee('act-a')), createMockResponse());
-    for (const badge of dbMock.caretakers) if (badge.email === 'daria.new@example.com') badge.email = null;
+    const aliceNew = { ...newcomer, id: 'usr-5', email: 'alice.new@example.com', name: 'Alice' };
+    dbMock.account = aliceNew;
+    await activitiesHandler(requestAs(aliceNew, 'POST', pee('act-a')), createMockResponse());
+    for (const badge of dbMock.caretakers) if (badge.email === 'alice.new@example.com') badge.email = null;
 
     const response = createMockResponse();
-    await activitiesHandler(requestAs(dariaNew, 'POST', pee('act-b')), response);
+    await activitiesHandler(requestAs(aliceNew, 'POST', pee('act-b')), response);
 
     expect(response.statusCode).toBe(201);
-    expect(response.body.loggedBy).toBe('Daria.new 2');
-    expect(dbMock.caretakers.filter((badge) => badge.email === 'daria.new@example.com')).toEqual([
-      expect.objectContaining({ householdId: 'hh-1', name: 'Daria.new 2' }),
+    expect(response.body.loggedBy).toBe('Alice.new 2');
+    expect(dbMock.caretakers.filter((badge) => badge.email === 'alice.new@example.com')).toEqual([
+      expect.objectContaining({ householdId: 'hh-1', name: 'Alice.new 2' }),
     ]);
   });
 
   it('an account that already has a linked badge creates none', async () => {
-    dbMock.account = DARIA_ACCOUNT;
+    dbMock.account = ALICE_ACCOUNT;
     const badgesBefore = dbMock.caretakers.length;
     const response = createMockResponse();
-    await activitiesHandler(requestAsDaria('POST', pee('act-a')), response);
+    await activitiesHandler(requestAsAlice('POST', pee('act-a')), response);
 
-    expect(response.body.loggedBy).toBe('Daria');
+    expect(response.body.loggedBy).toBe('Alice');
     expect(dbMock.caretakers).toHaveLength(badgesBefore);
   });
 });

@@ -20,17 +20,17 @@ describe('Dashboard BFF API Service Suite', () => {
       puppies: [
         {
           id: 'pup-1',
-          name: 'Balma',
+          name: 'Pistache',
           breed: 'English Cocker Spaniel',
-          birthDate: '2026-03-27T00:00:00.000Z',
+          birthDate: '2026-04-03T00:00:00.000Z',
           weightKg: 7.8,
           dailyFoodGramGoal: 240,
           targetMealsPerDay: 3,
         },
       ],
       caretakers: [
-        { id: 'ct-1', name: 'Matthieu', role: 'Husband', color: '#6366F1' },
-        { id: 'ct-2', name: 'Daria', role: 'Wife', color: '#EC4899' },
+        { id: 'ct-1', name: 'Sam', role: 'Husband', color: '#6366F1' },
+        { id: 'ct-2', name: 'Alice', role: 'Wife', color: '#EC4899' },
       ],
       activities: [
         {
@@ -38,7 +38,7 @@ describe('Dashboard BFF API Service Suite', () => {
           puppyId: 'pup-1',
           type: 'pee',
           timestamp: '2026-08-29T18:57:00.000Z',
-          loggedBy: 'Daria',
+          loggedBy: 'Alice',
         },
       ],
       healthRecords: [

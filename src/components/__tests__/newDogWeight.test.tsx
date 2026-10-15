@@ -4,7 +4,7 @@ import { act, type ReactElement } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { DogHealthSummary } from '../DogHealthSummary';
 import { WeightGrowthChart } from '../WeightGrowthChart';
-import { BALMA } from '../../utils/__tests__/fixtures';
+import { PISTACHE } from '../../utils/__tests__/fixtures';
 
 let root: Root | null = null;
 
@@ -34,7 +34,7 @@ async function render(element: ReactElement) {
 
 // A dog created before backlog item 19 stores a made-up 4.5 kg profile weight, a newer one none (null).
 // A female Chihuahua's breed baseline is 2.5 kg.
-const newChihuahua = { ...BALMA, breed: 'Chihuahua', birthDate: '2026-06-18', weightKg: 4.5 };
+const newChihuahua = { ...PISTACHE, breed: 'Chihuahua', birthDate: '2026-06-18', weightKg: 4.5 };
 const newChihuahuaWithoutWeight = { ...newChihuahua, weightKg: null };
 
 describe('a new dog before its first weigh-in: breed baseline, never the made-up profile weight', () => {

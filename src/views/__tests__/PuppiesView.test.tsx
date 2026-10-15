@@ -367,11 +367,11 @@ describe('PuppiesView add form', () => {
 
 describe('PuppiesView dog card picture', () => {
   it("a dog without a photo shows its initial, not the cocker mascot; a photo is still shown", async () => {
-    await renderView({ puppies: [REX, { ...REX, id: 'dog-2', name: 'Balma', avatarUrl: '/balma.jpg' }] });
+    await renderView({ puppies: [REX, { ...REX, id: 'dog-2', name: 'Pistache', avatarUrl: '/pistache.jpg' }] });
 
     expect(document.querySelector('img[src="/cocker_spaniel_mascot.jpg"]')).toBeNull();
     expect(document.getElementById('dog-avatar-dog-1')!.textContent).toBe('R');
-    expect(document.querySelector('img[src="/balma.jpg"]')).not.toBeNull();
+    expect(document.querySelector('img[src="/pistache.jpg"]')).not.toBeNull();
   });
 });
 

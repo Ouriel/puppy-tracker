@@ -10,7 +10,7 @@ describe('exchangeSessionToken session revocation', () => {
 
   beforeEach(() => {
     setAuthToken('stored-session-token');
-    setStoredAuthUser({ id: 'u-1', email: 'user@example.com', name: 'Matthieu', role: 'Member' });
+    setStoredAuthUser({ email: 'user@example.com', name: 'Sam', role: 'Member' });
     window.addEventListener('puppace:unauthorized', unauthorizedListener);
   });
 

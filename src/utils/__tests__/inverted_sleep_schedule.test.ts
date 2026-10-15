@@ -20,7 +20,7 @@ describe('Inverted Day-Sleep / Night-Active Dog Test Suite', () => {
 
     const lastPee = new Date('2026-08-10T04:00:00Z'); // 04:00 AM (during active night)
     const activities: Activity[] = [
-      { id: '1', puppyId: invertedProfile.id, type: 'pee', timestamp: lastPee.toISOString(), loggedBy: 'Matthieu' },
+      { id: '1', puppyId: invertedProfile.id, type: 'pee', timestamp: lastPee.toISOString(), loggedBy: 'Sam' },
     ];
 
     // 1. Test during active waking period (06:00 AM, two hours after the 04:00 AM pee)

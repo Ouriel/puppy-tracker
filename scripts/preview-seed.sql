@@ -5,11 +5,11 @@
 -- HOW    Neon SQL editor with the `preview` branch selected (paste the whole file), or
 --        psql "$PREVIEW_POSTGRES_URL" -f scripts/preview-seed.sql
 -- RERUN  Safe: it first deletes every seed row (ids 'seed-%') and what the app attached to seeded households or dogs,
---        then inserts fresh data relative to now() in Europe/Paris. Real rows (Balma, the family's accounts, badges,
+--        then inserts fresh data relative to now() in Europe/Paris. Real rows (the family's dog, accounts, badges,
 --        logs, records) are never touched. Today's slots still ahead of now() are skipped, so counts grow during the day.
 --        Logs stop at the run time: re-run the seed at the start of each test session.
--- DATA   Real household FAMILY-COCKER-2026: puppy Pistache (Golden Retriever) logged by Matthieu, Daria, Dasha,
---        and Camille, an account waiting for approval.
+-- DATA   Real household FAMILY-COCKER-2026: puppy Pistache (Golden Retriever) logged by the household's own badges
+--        (read at run time), and Camille, an account waiting for approval.
 --        'Famille Martin (demo)': Rocky (Labrador, 10 weeks, 300 g, 4 meals), Lucky (Beagle, 2 years, no gram goal);
 --        Claire (Admin), Paul, Léa (no badge: her first log creates one), badge Mamie (no login).
 --        'Famille Dupont (demo)': Caramel (Labradoodle typed under Other, 5 months, adult 25 kg, last dose missed); Julien.
@@ -22,6 +22,7 @@ DECLARE
   v_today         date := (now() AT TIME ZONE v_tz)::date;
   v_clinic        text := 'Clinique Vétérinaire des Tilleuls (demo)';
   v_pending_email text := 'camille.bernard@example.com';
+  v_family_loggers text[];  -- the real household's badge names, read at run time (no real names in this file)
   d       record;
   v_key   text;
   v_birth date;
@@ -44,6 +45,12 @@ BEGIN
   DELETE FROM users          WHERE id LIKE 'seed-%';
   DELETE FROM puppies        WHERE id LIKE 'seed-%' OR household_id LIKE 'seed-%';
   DELETE FROM households     WHERE id LIKE 'seed-%';
+
+  SELECT array_agg(name ORDER BY name) INTO v_family_loggers
+    FROM caretakers WHERE household_id = 'FAMILY-COCKER-2026' AND id NOT LIKE 'seed-%';
+  IF v_family_loggers IS NULL THEN
+    RAISE EXCEPTION 'preview-seed: FAMILY-COCKER-2026 has no badge to log Pistache''s events. Nothing written.';
+  END IF;
 
   -- 2. Demo households (the real FAMILY-COCKER-2026 has no households row and gets none)
   INSERT INTO households (id, family_pack_id, name) VALUES
@@ -71,7 +78,7 @@ BEGIN
     SELECT * FROM (VALUES
       -- loggers: badge names, repeated to weight who logs most
       ('seed-dog-pistache', 'FAMILY-COCKER-2026', 'Pistache', 'Golden Retriever',   'female', interval '17 weeks',       28.0, NULL::float8, 320, 3,
-        ARRAY['Matthieu','Matthieu','Matthieu','Matthieu','Daria','Daria','Daria','Daria','Dasha'], 'Smecta', 'Nexgard Spectra', false, false, 0),
+        v_family_loggers, 'Smecta', 'Nexgard Spectra', false, false, 0),
       ('seed-dog-rocky',    'seed-hh-martin',     'Rocky',    'Labrador Retriever', 'male',   interval '10 weeks',       33.0, NULL,        300, 4,
         ARRAY['Claire','Claire','Paul','Paul','Mamie'], 'Smecta', NULL, false, false, 2),
       ('seed-dog-lucky',    'seed-hh-martin',     'Lucky',    'Beagle',             'female', interval '2 years 1 month', 11.5, NULL,         0, 2,

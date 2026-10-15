@@ -39,10 +39,10 @@ vi.mock('drizzle-orm/neon-http', async () => {
           // The first select of a request is verifyAuth's users lookup.
           const isAuthLookup = dbMock.selectCount === 1;
           const rows = isAuthLookup
-            ? [{ id: 'usr-1', email: 'user@example.com', name: 'Matthieu', householdId: 'hh-family-123', role: 'Admin', status: 'ACTIVE' }]
+            ? [{ id: 'usr-1', email: 'user@example.com', name: 'Sam', householdId: 'hh-family-123', role: 'Admin', status: 'ACTIVE' }]
             : tableName === 'puppies' ? [{ id: 'pup-1', householdId: 'hh-family-123' }]
               // The account's own badge: a log creates no badge here (logged_by.test.ts covers that)
-              : tableName === 'caretakers' ? [{ id: 'c-1', name: 'Matthieu', role: 'Member', color: '#EC4899', email: 'user@example.com' }]
+              : tableName === 'caretakers' ? [{ id: 'c-1', name: 'Sam', role: 'Member', color: '#EC4899', email: 'user@example.com' }]
                 : [];
           const run = () => {
             const isNegative = (dbMock.limit ?? 0) < 0 || (dbMock.offset ?? 0) < 0;
@@ -88,7 +88,7 @@ function createMockResponse() {
 }
 
 function getRequest(query: Record<string, string> = {}, method = 'GET', body?: unknown) {
-  const token = signAppSessionToken({ email: 'user@example.com', name: 'Matthieu', householdId: 'hh-family-123', role: 'Admin' }, 30);
+  const token = signAppSessionToken({ email: 'user@example.com', name: 'Sam', householdId: 'hh-family-123', role: 'Admin' }, 30);
   return { method, headers: { authorization: `Bearer ${token}` }, query, body } as any;
 }
 
@@ -176,7 +176,7 @@ describe('API input, error and pagination hardening', () => {
 
   it.each(['POST', 'PUT'])('%s /api/activities with an unparseable timestamp returns 400', async (method) => {
     const response = createMockResponse();
-    const body = { id: 'act-1', puppyId: 'pup-1', type: 'pee', timestamp: 'not-a-date', loggedBy: 'Daria' };
+    const body = { id: 'act-1', puppyId: 'pup-1', type: 'pee', timestamp: 'not-a-date', loggedBy: 'Alice' };
     await activitiesHandler(getRequest({}, method, body), response);
     expect(response.statusCode).toBe(400);
     expect(response.body.error).toBe('Invalid activity payload');
@@ -205,7 +205,7 @@ describe('API input, error and pagination hardening', () => {
   describe('new ids are random UUIDs (S7)', () => {
     it('POST /api/activities without an id stores act-<uuid>', async () => {
       const response = createMockResponse();
-      const body = { puppyId: 'pup-1', type: 'pee', timestamp: '2026-10-13T08:00:00.000Z', loggedBy: 'Daria' };
+      const body = { puppyId: 'pup-1', type: 'pee', timestamp: '2026-10-13T08:00:00.000Z', loggedBy: 'Alice' };
       await activitiesHandler(getRequest({}, 'POST', body), response);
       expect(response.statusCode).toBe(201);
       expect(dbMock.insertedValues[0].id).toMatch(new RegExp(`^act-${UUID}$`));
@@ -229,7 +229,7 @@ describe('API input, error and pagination hardening', () => {
       const fetchMock = vi.fn(() => Promise.resolve(new Response('{}', { status: 201 })));
       vi.stubGlobal('fetch', fetchMock);
       try {
-        await createActivity({ puppyId: 'pup-1', type: 'pee', timestamp: '2026-10-13T08:00:00.000Z', loggedBy: 'Daria' });
+        await createActivity({ puppyId: 'pup-1', type: 'pee', timestamp: '2026-10-13T08:00:00.000Z', loggedBy: 'Alice' });
         const sent = JSON.parse((fetchMock.mock.calls[0] as unknown as [string, RequestInit])[1].body as string);
         expect(sent.id).toMatch(new RegExp(`^act-${UUID}$`));
       } finally {

@@ -1,19 +1,19 @@
 import { describe, it, expect } from 'vitest';
 import { calculatePredictions, detectSleepSchedule, detectMealSchedule } from '../predictions';
 import type { Activity } from '../../types';
-import { BALMA, act, newestFirst } from './fixtures';
+import { PISTACHE, act, newestFirst } from './fixtures';
 
 const pad = (day: number) => String(day).padStart(2, '0');
 
 describe('Dog Routine & Schedule Dataset Test Suite', () => {
   /**
-   * Generates a 14-day realistic dataset (Aug 1 to Aug 14, UTC) with consistent bedtime (22:30),
+   * Generates a 14-day realistic dataset (Aug 8 to Aug 21, UTC) with consistent bedtime (22:30),
    * morning wakeup (07:30), and 3 spaced meals (08:00, 13:00, 19:30).
    */
   function generateRoutineDataset(): Activity[] {
     const activities: Activity[] = [];
 
-    for (let day = 1; day <= 14; day++) {
+    for (let day = 8; day <= 21; day++) {
       const date = `2026-08-${pad(day)}`;
       activities.push(
         act('pee', `${date}T07:30:00.000Z`), // Morning Wakeup Pee (07:30)
@@ -45,13 +45,13 @@ describe('Dog Routine & Schedule Dataset Test Suite', () => {
   });
 
   it('passes single-source-of-truth metadata through calculatePredictions', () => {
-    // Today's (Aug 14) breakfast was 100g instead of the usual 80g
-    const todayBreakfastTimestamp = '2026-08-14T08:00:00.000Z';
+    // Today's (Aug 21) breakfast was 100g instead of the usual 80g
+    const todayBreakfastTimestamp = '2026-08-21T08:00:00.000Z';
     const datasetWithBigBreakfast = dataset.map((activity) =>
       activity.timestamp === todayBreakfastTimestamp ? { ...activity, quantityGrams: 100 } : activity
     );
-    const refTime = new Date('2026-08-14T10:00:00Z');
-    const predictions = calculatePredictions(datasetWithBigBreakfast, BALMA, refTime, 'UTC');
+    const refTime = new Date('2026-08-21T10:00:00Z');
+    const predictions = calculatePredictions(datasetWithBigBreakfast, PISTACHE, refTime, 'UTC');
 
     expect(predictions.sleepSchedule).toBeDefined();
     expect(predictions.sleepSchedule?.bedtimeStr).toBe('22:30');
@@ -69,7 +69,7 @@ describe('Dog Routine & Schedule Dataset Test Suite', () => {
   it('handles post-midnight bedtime wraps cleanly (e.g. bedtime at 00:30 AM)', () => {
     const lateBedActivities: Activity[] = [];
 
-    for (let day = 1; day <= 10; day++) {
+    for (let day = 8; day <= 17; day++) {
       lateBedActivities.push(
         act('pee', `2026-08-${pad(day)}T08:30:00.000Z`), // Morning Wakeup (08:30)
         // Late night outing at 00:30 (next calendar day technically, but logically current night)
@@ -84,7 +84,7 @@ describe('Dog Routine & Schedule Dataset Test Suite', () => {
 
   it('falls back safely to default schedules when dataset has 0 activities', () => {
     const emptyActivities: Activity[] = [];
-    const predictions = calculatePredictions(emptyActivities, BALMA, new Date('2026-08-14T10:00:00Z'), 'UTC');
+    const predictions = calculatePredictions(emptyActivities, PISTACHE, new Date('2026-08-21T10:00:00Z'), 'UTC');
 
     expect(predictions.sleepSchedule).toBeDefined();
     expect(predictions.sleepSchedule?.bedtimeStr).toBe('22:00');

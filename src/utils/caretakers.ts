@@ -1,9 +1,9 @@
 import type { Caretaker } from '../types/index.js';
 
 /**
- * Resolves a raw Google SSO full name (e.g. "Matthieu Jacquet" or "Daria Doe")
- * or email (e.g. "daria@example.com") to the clean, friendly, editable Household Caretaker name
- * (e.g. "Matthieu" or "Daria").
+ * Resolves a raw Google SSO full name (e.g. "Sam Taylor" or "Alice Doe")
+ * or email (e.g. "alice@example.com") to the clean, friendly, editable Household Caretaker name
+ * (e.g. "Sam" or "Alice").
  */
 export function resolveCaretakerName(rawNameOrEmail: string, caretakers: Caretaker[]): string {
   if (!rawNameOrEmail || !caretakers || caretakers.length === 0) {
@@ -16,7 +16,7 @@ export function resolveCaretakerName(rawNameOrEmail: string, caretakers: Caretak
   const exact = caretakers.find((c) => c.name.trim().toLowerCase() === cleanInput);
   if (exact) return exact.name;
 
-  // 2. First name match (e.g. "Matthieu Jacquet" -> "Matthieu")
+  // 2. First name match (e.g. "Sam Taylor" -> "Sam")
   const firstName = cleanInput.split(/\s+/)[0];
   const firstNameMatch = caretakers.find((c) => c.name.trim().toLowerCase() === firstName);
   if (firstNameMatch) return firstNameMatch.name;
@@ -29,12 +29,12 @@ export function resolveCaretakerName(rawNameOrEmail: string, caretakers: Caretak
   );
   if (prefixMatch) return prefixMatch.name;
 
-  // 4. Email username match (e.g. "daria@example.com" -> "Daria")
+  // 4. Email username match (e.g. "alice@example.com" -> "Alice")
   const emailUsername = cleanInput.split('@')[0].split('.')[0];
   const emailMatch = caretakers.find((c) => c.name.trim().toLowerCase() === emailUsername);
   if (emailMatch) return emailMatch.name;
 
-  // Fallback to first word of input (e.g. "Matthieu" from "Matthieu Jacquet")
+  // Fallback to first word of input (e.g. "Sam" from "Sam Taylor")
   return rawNameOrEmail.split(/\s+/)[0];
 }
 

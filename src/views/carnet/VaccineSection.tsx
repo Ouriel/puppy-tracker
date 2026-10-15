@@ -7,6 +7,7 @@ import { StatusBadge } from '../../components/common/StatusBadge';
 import { AddToCalendarButton } from '../../components/common/AddToCalendarButton';
 import { formatLocalDate, formatShortDate } from '../../utils/date';
 import { useI18n } from '../../i18n';
+import type { TranslationKeys } from '../../i18n/types';
 import { createHealthRecord, updateHealthRecord, deleteHealthRecord } from '../../services/api';
 import { ConfirmationModal } from '../../components/common/ConfirmationModal';
 import type { UnifiedWeightEntry } from '../../utils/weight';
@@ -20,7 +21,7 @@ interface VaccineSectionProps {
   lastWeighIn?: UnifiedWeightEntry;
   currentUser: string;
   onAddActivity: (activity: Omit<Activity, 'id'>) => void;
-  t: any;
+  t: TranslationKeys;
 }
 
 export const VaccineSection: React.FC<VaccineSectionProps> = ({

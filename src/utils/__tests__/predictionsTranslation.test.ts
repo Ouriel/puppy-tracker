@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { translatePredictionReason } from "../predictionsTranslation";
 import { calculatePredictions } from "../predictions";
 import type { Activity, PuppyProfile } from "../../types";
-import { act, BALMA } from "./fixtures";
+import { act, PISTACHE } from "./fixtures";
 
 describe("predictionsTranslation utility", () => {
   it("returns original reason string when lang is en", () => {
@@ -93,46 +93,46 @@ describe("predictionsTranslation utility", () => {
 
   it("has a French translation for every reason template calculatePredictions emits", () => {
     const lunchDay = [7, 12, 19].map((hour) =>
-      act("food", `2026-08-07T${String(hour).padStart(2, "0")}:00:00+02:00`, { quantityGrams: 80 })
+      act("food", `2026-08-14T${String(hour).padStart(2, "0")}:00:00+02:00`, { quantityGrams: 80 })
     );
     const smallMeals = [7, 11, 14].map((hour) =>
-      act("food", `2026-08-07T${String(hour).padStart(2, "0")}:00:00+02:00`, { quantityGrams: 40 })
+      act("food", `2026-08-14T${String(hour).padStart(2, "0")}:00:00+02:00`, { quantityGrams: 40 })
     );
-    const olderDog: PuppyProfile = { ...BALMA, birthDate: "2025-10-01" };
-    const youngPuppy: PuppyProfile = { ...BALMA, birthDate: "2026-07-01" };
+    const olderDog: PuppyProfile = { ...PISTACHE, birthDate: "2025-10-08" };
+    const youngPuppy: PuppyProfile = { ...PISTACHE, birthDate: "2026-07-08" };
     const scenarios: Array<[Activity[], PuppyProfile, string]> = [
       // No pee / no poop yet, breakfast
-      [[], BALMA, "2026-08-07T10:00:00+02:00"],
+      [[], PISTACHE, "2026-08-14T10:00:00+02:00"],
       // Learned bladder and digestive intervals, next meal of the day
       [
         [
-          act("pee", "2026-08-07T07:00:00+02:00"),
-          act("pee", "2026-08-07T10:00:00+02:00"),
-          act("poop", "2026-08-07T07:10:00+02:00"),
-          act("poop", "2026-08-07T12:00:00+02:00"),
-          act("food", "2026-08-07T07:30:00+02:00", { quantityGrams: 80 }),
+          act("pee", "2026-08-14T07:00:00+02:00"),
+          act("pee", "2026-08-14T10:00:00+02:00"),
+          act("poop", "2026-08-14T07:10:00+02:00"),
+          act("poop", "2026-08-14T12:00:00+02:00"),
+          act("food", "2026-08-14T07:30:00+02:00", { quantityGrams: 80 }),
         ],
-        BALMA,
-        "2026-08-07T12:30:00+02:00",
+        PISTACHE,
+        "2026-08-14T12:30:00+02:00",
       ],
       // Post-meal pee and poop breaks
-      [[act("pee", "2026-08-07T09:00:00+02:00"), act("poop", "2026-08-07T08:00:00+02:00"), act("food", "2026-08-07T12:00:00+02:00")], BALMA, "2026-08-07T12:10:00+02:00"],
+      [[act("pee", "2026-08-14T09:00:00+02:00"), act("poop", "2026-08-14T08:00:00+02:00"), act("food", "2026-08-14T12:00:00+02:00")], PISTACHE, "2026-08-14T12:10:00+02:00"],
       // Standard bladder and digestive intervals (no post-meal trigger from 5 months)
-      [[act("pee", "2026-08-07T10:00:00+02:00"), act("poop", "2026-08-07T08:00:00+02:00")], olderDog, "2026-08-07T11:00:00+02:00"],
+      [[act("pee", "2026-08-14T10:00:00+02:00"), act("poop", "2026-08-14T08:00:00+02:00")], olderDog, "2026-08-14T11:00:00+02:00"],
       // Night: morning outing
-      [[act("pee", "2026-08-06T22:00:00+02:00"), act("poop", "2026-08-06T19:00:00+02:00")], BALMA, "2026-08-07T02:00:00+02:00"],
+      [[act("pee", "2026-08-13T22:00:00+02:00"), act("poop", "2026-08-13T19:00:00+02:00")], PISTACHE, "2026-08-14T02:00:00+02:00"],
       // Night: young-puppy mid-night break
-      [[act("pee", "2026-08-07T23:00:00+02:00")], youngPuppy, "2026-08-08T00:30:00+02:00"],
+      [[act("pee", "2026-08-14T23:00:00+02:00")], youngPuppy, "2026-08-15T00:30:00+02:00"],
       // Digestive alert after diarrhea
-      [[act("poop", "2026-08-07T10:00:00+02:00", { stoolConsistency: "diarrhea" })], BALMA, "2026-08-07T10:30:00+02:00"],
+      [[act("poop", "2026-08-14T10:00:00+02:00", { stoolConsistency: "diarrhea" })], PISTACHE, "2026-08-14T10:30:00+02:00"],
       // Digestive recovery after a hard stool
-      [[act("poop", "2026-08-07T09:00:00+02:00", { stoolConsistency: "hard" })], BALMA, "2026-08-07T10:00:00+02:00"],
+      [[act("poop", "2026-08-14T09:00:00+02:00", { stoolConsistency: "hard" })], PISTACHE, "2026-08-14T10:00:00+02:00"],
       // 3 meals but under 90% of the gram goal: remaining portion
-      [smallMeals, BALMA, "2026-08-07T15:00:00+02:00"],
+      [smallMeals, PISTACHE, "2026-08-14T15:00:00+02:00"],
       // Daily gram goal reached
-      [lunchDay, BALMA, "2026-08-07T19:30:00+02:00"],
+      [lunchDay, PISTACHE, "2026-08-14T19:30:00+02:00"],
       // No gram goal: reached once the meals are logged
-      [lunchDay, { ...BALMA, dailyFoodGramGoal: 0 }, "2026-08-07T19:30:00+02:00"],
+      [lunchDay, { ...PISTACHE, dailyFoodGramGoal: 0 }, "2026-08-14T19:30:00+02:00"],
     ];
 
     const reasons = new Set<string>();

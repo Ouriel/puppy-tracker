@@ -60,10 +60,10 @@ describe('Storage Helpers Cache Suite', () => {
   it('should persist and retrieve puppies and caretakers from localStorage', () => {
     const mockPuppy = [
       {
-        id: 'pup-balma',
-        name: 'Balma',
+        id: 'pup-pistache',
+        name: 'Pistache',
         breed: 'English Cocker Spaniel',
-        birthDate: '2026-03-27',
+        birthDate: '2026-04-03',
         weightKg: 7.8,
         dailyFoodGramGoal: 240,
         targetMealsPerDay: 3,
@@ -73,8 +73,8 @@ describe('Storage Helpers Cache Suite', () => {
     expect(getStoredPuppies()).toEqual(mockPuppy);
 
     const mockCaretakers = [
-      { id: 'ct-1', name: 'Matthieu', role: 'Husband' as const, color: '#6366F1' },
-      { id: 'ct-2', name: 'Daria', role: 'Wife' as const, color: '#EC4899' },
+      { id: 'ct-1', name: 'Sam', role: 'Husband' as const, color: '#6366F1' },
+      { id: 'ct-2', name: 'Alice', role: 'Wife' as const, color: '#EC4899' },
     ];
     setStoredCaretakers(mockCaretakers);
     expect(getStoredCaretakers()).toEqual(mockCaretakers);
