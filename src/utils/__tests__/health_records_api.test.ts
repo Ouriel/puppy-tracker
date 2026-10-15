@@ -15,6 +15,9 @@ vi.mock('drizzle-orm/neon-http', () => ({
         where: () => Promise.resolve([{ id: 'usr-1', email: 'user@example.com', name: 'Owner', householdId: 'hh-1', role: 'Admin', status: 'ACTIVE' }]),
       })),
     })),
+    insert: vi.fn(() => ({
+      values: (values: Record<string, unknown>) => ({ returning: () => Promise.resolve([values]) }),
+    })),
     update: vi.fn(() => ({
       set: (values: Record<string, unknown>) => {
         dbMock.setValues = values;
@@ -42,13 +45,15 @@ function createMockResponse() {
   return response;
 }
 
-async function put(body: Record<string, unknown>) {
+async function send(method: 'POST' | 'PUT', body: Record<string, unknown>) {
   process.env.SESSION_SECRET = 'test-secret-key-1234567890-very-secure';
   const token = signAppSessionToken({ email: 'user@example.com', name: 'Owner', householdId: 'hh-1', role: 'Admin' }, 30);
   const response = createMockResponse();
-  await handler({ method: 'PUT', headers: { authorization: `Bearer ${token}` }, query: {}, body } as any, response);
+  await handler({ method, headers: { authorization: `Bearer ${token}` }, query: {}, body } as any, response);
   return response;
 }
+
+const put = (body: Record<string, unknown>) => send('PUT', body);
 
 /** The columns the UPDATE writes: drizzle's set() skips undefined values (mapUpdateSet in drizzle-orm/utils.js). */
 const writtenColumns = () => Object.fromEntries(Object.entries(dbMock.setValues!).filter(([, value]) => value !== undefined));
@@ -70,5 +75,34 @@ describe('PUT /api/health-records writes only the fields sent (pre-fill review i
 
     expect(dbMock.setValues).toMatchObject({ boosterDate: null, vetClinic: null, batchNumber: null });
     expect(Object.keys(writtenColumns()).sort()).toEqual(['batchNumber', 'boosterDate', 'date', 'name', 'vetClinic']);
+  });
+});
+
+describe('POST and PUT /api/health-records date rules (pre-fill review item 38)', () => {
+  /** A UTC calendar date, days from now. */
+  const utcDate = (days: number) => new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  const record = { puppyId: 'pup-1', type: 'vaccination', name: 'Rage' };
+
+  it('POST refuses a date more than one day ahead, and accepts tomorrow (a device ahead of UTC is already there)', async () => {
+    expect((await send('POST', { ...record, date: utcDate(2), boosterDate: utcDate(400) })).statusCode).toBe(400);
+    expect((await send('POST', { ...record, date: utcDate(1), boosterDate: utcDate(400) })).statusCode).toBe(201);
+  });
+
+  it('POST refuses a next date before the date', async () => {
+    const response = await send('POST', { ...record, date: '2026-07-01', boosterDate: '2026-06-30' });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.body.error).toBe('boosterDate is before date');
+  });
+
+  it('PUT refuses a future date or a next date before the date, and writes nothing', async () => {
+    expect((await put({ id: 'hr-1', date: utcDate(2) })).statusCode).toBe(400);
+    expect((await put({ id: 'hr-1', date: '2026-07-01', boosterDate: '2026-06-30' })).statusCode).toBe(400);
+    expect(dbMock.setValues).toBeNull();
+  });
+
+  it('PUT still accepts a partial edit (the schema has no object-level rule)', async () => {
+    expect((await put({ id: 'hr-1', boosterDate: '2027-07-01' })).statusCode).toBe(200);
+    expect((await put({ id: 'hr-1', date: '2026-07-01', boosterDate: null })).statusCode).toBe(200);
   });
 });

@@ -135,7 +135,7 @@ export const DogInputSchema = z.object({
   id: z.string().optional(),
   name: z.string().min(1, 'Name is required'),
   // Required on POST (PUT uses .partial()): a DOG_BREEDS entry, or the name typed under 'Other'
-  breed: z.string().trim().min(1, 'Breed is required'),
+  breed: z.string().trim().min(1, 'Breed is required').max(80),
   // Required on POST (PUT uses .partial()). A real day, at most one day ahead of UTC: it is already tomorrow east of it.
   birthDate: z.iso.date().refine((value) => Date.parse(value) <= Date.now() + 24 * 60 * 60 * 1000, 'birthDate is in the future'),
   weightKg: z.number().or(z.string()).optional(),

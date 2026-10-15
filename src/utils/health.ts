@@ -1,5 +1,7 @@
 import healthProtocols from '../data/healthProtocols.json';
 import type { Activity, HealthRecord } from '../types';
+import { getPuppyAge } from './predictions';
+import { formatLocalDate } from './date';
 
 const VET_PRODUCT_NAMES = new Set([...healthProtocols.vaccines, ...healthProtocols.antiparasitics].map((protocol) => protocol.name));
 
@@ -60,28 +62,48 @@ function findVaccineProtocol(vaccineType: string) {
   );
 }
 
+/** The same day N months later on the calendar (UTC dates, no clock change), capped at the month's last day: 31 Jan + 1 month = 28 Feb. */
+function addMonths(isoDate: string, months: number): string {
+  const [year, month, day] = isoDate.slice(0, 10).split('-').map(Number);
+  const lastDayOfTargetMonth = new Date(Date.UTC(year, month - 1 + months + 1, 0)).getUTCDate();
+  return new Date(Date.UTC(year, month - 1 + months, Math.min(day, lastDayOfTargetMonth))).toISOString().slice(0, 10);
+}
+
+function addDays(isoDate: string, days: number): string {
+  const [year, month, day] = isoDate.slice(0, 10).split('-').map(Number);
+  return new Date(Date.UTC(year, month - 1, day + days)).toISOString().slice(0, 10);
+}
+
+const PUPPY_SERIES_VACCINES = ['chppi_l4', 'chppi_sans_l4', 'vanguard_cpv'];
+
 /**
- * Calculates the next booster due date based on vaccine type dataset.
+ * Suggested booster date, from the dog's age on the injection day (owner decision 2026-10-14, French practice):
+ * - CHPPi family: a puppy dose before 16 weeks -> +1 month; a dose from 16 weeks to before 6 months (calendar) -> the
+ *   1st birthday; a dose at 6 months or later (e.g. the annual booster given early) is not a puppy dose (owner decision
+ *   2026-10-15): CHPPi + L4 yearly (L4 drives it), viral-only (CHPPi sans L4, Vanguard CPV) every 3 years from 16 months.
+ * - Other vaccines: their `defaultBoosterMonths` (12 when unknown).
+ * With no birth date, a CHPPi-family dose gets +12 months.
  */
-export function calculateNextVaccineBooster(injectionDate: string, vaccineType: string, ageMonths: number = 6): string {
-  const date = new Date(injectionDate);
+export function calculateNextVaccineBooster(injectionDate: string, vaccineType: string, birthDate?: string): string {
   const matched = findVaccineProtocol(vaccineType);
+  if (!matched || !PUPPY_SERIES_VACCINES.includes(matched.id)) return addMonths(injectionDate, matched?.defaultBoosterMonths ?? 12);
 
-  let months = matched ? matched.defaultBoosterMonths : 12;
+  const ageOnInjectionDay = birthDate ? getPuppyAge(birthDate, injectionDate) : undefined;
+  if (ageOnInjectionDay && ageOnInjectionDay.weeks < 16) return addMonths(injectionDate, 1);
+  if (birthDate && injectionDate.slice(0, 10) < addMonths(birthDate, 6)) return addMonths(birthDate, 12);
 
-  // WSAVA / French vet practice:
-  // - CHPPi+L4: Annual recall (L4 Leptospirose drives the cadence)
-  // - CHPPi sans L4 / Vanguard CPV (viral-only): Triennial (36 months) after the 1-year booster
-  if (matched && ['chppi_l4', 'chppi_sans_l4', 'vanguard_cpv'].includes(matched.id)) {
-    if ((matched.id === 'chppi_sans_l4' || matched.id === 'vanguard_cpv') && ageMonths >= 16) {
-      months = 36; // Triennial for viral-only post-first-booster (CDV/CAV/CPV immunity lasts 3+ years)
-    } else if (ageMonths >= 4) {
-      months = 12;
-    }
-  }
+  const isViralOnly = matched.id !== 'chppi_l4';
+  return addMonths(injectionDate, isViralOnly && (ageOnInjectionDay?.months ?? 0) >= 16 ? 36 : 12);
+}
 
-  date.setMonth(date.getMonth() + months);
-  return date.toISOString().slice(0, 10);
+export type HealthRecordDateError = 'dateRequired' | 'dateInFuture' | 'boosterBeforeDate';
+
+/** The first date rule a vaccine or deworming form breaks: a date, not after today, and a next date (optional) not before it. */
+export function getHealthRecordDateError(date: string, boosterDate: string, today: string = formatLocalDate()): HealthRecordDateError | null {
+  if (!date) return 'dateRequired';
+  if (date > today) return 'dateInFuture';
+  if (boosterDate && boosterDate < date) return 'boosterBeforeDate';
+  return null;
 }
 
 export interface HealthStatusResult {
@@ -161,59 +183,27 @@ export function getHealthRecordStatus(
   return { urgency: 'upToDate', label: upToDateLabel, color: 'success' };
 }
 
-/**
- * Calculates the next deworming due date following ESCCAP France protocol dataset:
- * - Under 2 months: Every 2 weeks
- * - 2 to 6 months: Monthly (Milbemax / Drontal)
- * - Over 6 months: Quarterly (seasonal)
- */
-export function calculateNextDewormingDate(lastDate: string, ageMonths: number): string {
-  return calculateNextAntiparasiticDate(lastDate, 'milbemax', ageMonths);
+/** Next age-based deworming (Milbemax), from the dog's age on the dose day: see calculateNextAntiparasiticDate. */
+export function calculateNextDewormingDate(lastDate: string, birthDate?: string): string {
+  return calculateNextAntiparasiticDate(lastDate, 'milbemax', birthDate);
 }
 
 /**
- * Calculates next antiparasitic / deworming due date following JSON protocol dataset:
- * - Credelio Plus / Nexgard Spectra / Simparica Trio: Monthly (all-in-one fleas, ticks & worms)
- * - Bravecto: Every 3 months (12 weeks)
- * - Milbemax / Drontal / Panacur:
- *   - Under 2 months: Every 2 weeks
- *   - 2 to 6 months: Monthly
- *   - Over 6 months: Quarterly (every 3 months)
+ * Suggested next antiparasitic date, from the JSON protocol dataset:
+ * - Products with an `intervalMonths` (Credelio Plus, Nexgard Spectra, Simparica Trio monthly; Bravecto every 3 months): that interval.
+ * - Age-based wormers (Milbemax / Drontal / Panacur...), from the dog's age on the dose day (ESCCAP, as the app's guide says):
+ *   every 2 weeks until 12 weeks, monthly until 6 months, then every 3 months.
+ * - Unknown product: monthly until 6 months, then every 3 months. With no birth date, the puppy interval.
  */
-export function calculateNextAntiparasiticDate(
-  lastDate: string,
-  productName: string,
-  ageMonths: number
-): string {
-  const date = new Date(lastDate);
+export function calculateNextAntiparasiticDate(lastDate: string, productName: string, birthDate?: string): string {
   const nameLower = productName.toLowerCase();
-
-  const matched = healthProtocols.antiparasitics.find((p) =>
-    nameLower.includes(p.name.toLowerCase()) || nameLower.includes(p.id)
+  const matched = healthProtocols.antiparasitics.find((protocol) =>
+    nameLower.includes(protocol.name.toLowerCase()) || nameLower.includes(protocol.id)
   );
+  if (matched?.intervalMonths) return addMonths(lastDate, matched.intervalMonths);
 
-  if (matched) {
-    if (matched.intervalMonths) {
-      date.setMonth(date.getMonth() + matched.intervalMonths);
-      return date.toISOString().slice(0, 10);
-    }
-    if (matched.frequencyType === 'esccap_age_based') {
-      if (ageMonths < 2) {
-        date.setDate(date.getDate() + 14);
-      } else if (ageMonths < 6) {
-        date.setMonth(date.getMonth() + (matched.intervalMonthsPuppy || 1));
-      } else {
-        date.setMonth(date.getMonth() + (matched.intervalMonthsAdult || 3));
-      }
-      return date.toISOString().slice(0, 10);
-    }
-  }
-
-  // Fallback if not matched
-  if (ageMonths < 6) {
-    date.setMonth(date.getMonth() + 1);
-  } else {
-    date.setMonth(date.getMonth() + 3);
-  }
-  return date.toISOString().slice(0, 10);
+  const ageOnDoseDay = birthDate ? getPuppyAge(birthDate, lastDate) : undefined;
+  if (matched?.frequencyType === 'esccap_age_based' && ageOnDoseDay && ageOnDoseDay.weeks < 12) return addDays(lastDate, 14);
+  if ((ageOnDoseDay?.months ?? 0) < 6) return addMonths(lastDate, matched?.intervalMonthsPuppy ?? 1);
+  return addMonths(lastDate, matched?.intervalMonthsAdult ?? 3);
 }

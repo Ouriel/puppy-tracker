@@ -456,6 +456,7 @@ describe('API Security & Session Token Validation Test Suite', () => {
       ['POST without a breed', 'POST', { id: 'dog-new', name: 'Rex', birthDate: '2026-05-01' }],
       ['POST with a blank breed', 'POST', { id: 'dog-new', name: 'Rex', breed: '   ', birthDate: '2026-05-01' }],
       ['PUT with a blank breed', 'PUT', { id: 'dog-1', breed: '   ' }],
+      ['POST with a breed name over 80 characters', 'POST', { id: 'dog-new', name: 'Rex', breed: 'x'.repeat(81), birthDate: '2026-05-01' }],
     ])('refuses %s (400) and writes nothing', async (_case, method, body) => {
       const response = createMockResponse();
 

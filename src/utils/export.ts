@@ -146,8 +146,10 @@ export function printActivitiesReport(
   activities: Activity[],
   profile: PuppyProfile,
   lang: 'en' | 'fr' = 'fr',
-  _t?: TranslationKeys,
-  caretakers: Caretaker[] = []
+  _t: TranslationKeys | undefined,
+  caretakers: Caretaker[],
+  /** The first and last day the feed shows (YYYY-MM-DD) */
+  period: { from: string; to: string }
 ): boolean {
   if (typeof window === 'undefined') return false;
 
@@ -162,6 +164,11 @@ export function printActivitiesReport(
     month: 'long',
     day: 'numeric',
   });
+  const formatDay = (dateKey: string) =>
+    new Date(`${dateKey}T12:00:00Z`).toLocaleDateString(locale, { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
+  const periodLabel = isFrench
+    ? `Du ${formatDay(period.from)} au ${formatDay(period.to)}`
+    : `From ${formatDay(period.from)} to ${formatDay(period.to)}`;
 
   const sortedActivities = [...activities].sort(
     (activityA, activityB) => new Date(activityB.timestamp).getTime() - new Date(activityA.timestamp).getTime()
@@ -177,13 +184,6 @@ export function printActivitiesReport(
   const poopsCount = sortedActivities.filter((activity) => activity.type === 'poop').length;
 
   const breedLabel = formatBreedName(profile?.breed || 'Puppy', lang);
-  const mealsLabel = `${profile?.targetMealsPerDay || 3} ${isFrench ? 'repas' : 'meals'}`;
-  // A goal of 0 means no gram goal: only the meal count is a goal
-  const foodGoalLabel = !profile
-    ? '-'
-    : profile.dailyFoodGramGoal
-      ? `${profile.dailyFoodGramGoal}g / ${isFrench ? 'jour' : 'day'} (${mealsLabel})`
-      : `${mealsLabel} / ${isFrench ? 'jour' : 'day'}`;
 
   const getTypeBadge = (type: string) => {
     switch (type) {
@@ -379,6 +379,7 @@ export function printActivitiesReport(
         <div class="header">
           <div class="title-area">
             <h1>🐾 ${esc(profile.name)} — ${isFrench ? "Rapport d'Activités & Propreté" : 'Activity & Potty Report'}</h1>
+            <p><strong>${esc(periodLabel)}</strong></p>
             <p>${isFrench ? 'Édité le' : 'Generated on'} ${generatedDate}</p>
           </div>
           <span class="brand-tag">PupPace &bull; Smart Activity Log</span>
@@ -388,7 +389,6 @@ export function printActivitiesReport(
           <div><strong>${isFrench ? 'Chien :' : 'Dog:'}</strong> ${esc(profile.name)}</div>
           <div><strong>${isFrench ? 'Race :' : 'Breed:'}</strong> ${esc(breedLabel)}</div>
           <div><strong>${isFrench ? 'Date de naissance :' : 'Birth Date:'}</strong> ${esc(profile.birthDate || '-')}</div>
-          <div><strong>${isFrench ? 'Objectif Repas :' : 'Food Goal:'}</strong> ${esc(foodGoalLabel)}</div>
         </div>
 
         <div class="grid-summary">
@@ -564,7 +564,7 @@ export function exportHealthPassportToCSV(
       escapeCsvField(vaccine.boosterDate || ''),
       // A weigh-in is its own weight event, listed below: a record never holds a weight
       escapeCsvField(''),
-      escapeCsvField(vaccine.vetClinic || (isFrench ? 'Clinique Vétérinaire' : 'Veterinary Clinic')),
+      escapeCsvField(vaccine.vetClinic || ''),
       escapeCsvField(vaccine.batchNumber || ''),
       escapeCsvField(''),
       escapeCsvField(vaccine.notes || ''),
@@ -815,7 +815,7 @@ export function printHealthPassportReport(
                 <td><strong>${esc(vaccine.date)}</strong></td>
                 <td>${esc(vaccine.name)}</td>
                 <td>${esc(vaccine.boosterDate || '-')}</td>
-                <td>${esc(vaccine.vetClinic || (isFrench ? 'Clinique Vétérinaire' : 'Veterinary Clinic'))}</td>
+                <td>${esc(vaccine.vetClinic || '-')}</td>
                 <td>${esc(vaccine.batchNumber || '-')}</td>
               </tr>
             `).join('')}
@@ -857,7 +857,7 @@ export function printHealthPassportReport(
             </tr>
           </thead>
           <tbody>
-            ${weightLogs.slice(0, 15).map((weightItem) => `
+            ${weightLogs.map((weightItem) => `
               <tr>
                 <td>${new Date(weightItem.timestamp).toLocaleDateString(locale)}</td>
                 <td><strong>${esc(weightItem.weightKg)} kg</strong></td>

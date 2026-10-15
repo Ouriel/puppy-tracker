@@ -69,6 +69,9 @@ describe('export utilities — CSV and PDF export test suite', () => {
     },
   ];
 
+  // The window the activity feed shows: its first and last day
+  const period = { from: '2026-08-14', to: '2026-08-20' };
+
   let createdBlob: Blob | null = null;
   let clickedDownload = false;
   let mockWindow: { document: { write: ReturnType<typeof vi.fn>; close: ReturnType<typeof vi.fn> } } | null = null;
@@ -167,12 +170,12 @@ describe('export utilities — CSV and PDF export test suite', () => {
   describe('printActivitiesReport', () => {
     it('returns false when window.open fails', () => {
       vi.spyOn(window, 'open').mockReturnValue(null);
-      const result = printActivitiesReport(mockActivities, mockProfile, 'fr', fr, mockCaretakers);
+      const result = printActivitiesReport(mockActivities, mockProfile, 'fr', fr, mockCaretakers, period);
       expect(result).toBe(false);
     });
 
     it('renders printable French activity report with summary cards and timeline table', () => {
-      const result = printActivitiesReport(mockActivities, mockProfile, 'fr', fr, mockCaretakers);
+      const result = printActivitiesReport(mockActivities, mockProfile, 'fr', fr, mockCaretakers, period);
       expect(result).toBe(true);
       expect(window.open).toHaveBeenCalledWith('', '', 'width=900,height=1000');
       expect(mockWindow?.document.write).toHaveBeenCalled();
@@ -182,12 +185,9 @@ describe('export utilities — CSV and PDF export test suite', () => {
       expect(htmlContent).toContain('Balma');
       expect(htmlContent).toContain("Rapport d'Activités & Propreté");
       expect(htmlContent).toContain('Berger Australien');
-      expect(htmlContent).toContain('240g / jour (3 repas)');
-
-      vi.mocked(mockWindow!.document.write).mockClear();
-      printActivitiesReport(mockActivities, { ...mockProfile, dailyFoodGramGoal: 0 }, 'fr', fr, mockCaretakers);
-      const noGoalContent = vi.mocked(mockWindow!.document.write).mock.calls[0][0] as string;
-      expect(noGoalContent).toContain('<strong>Objectif Repas :</strong> 3 repas / jour</div>');
+      // The period printed; no goal: today's goal is not the goal of past days (history display decision (a))
+      expect(htmlContent).toContain('Du 14 août 2026 au 20 août 2026');
+      expect(htmlContent).not.toContain('240g /');
       expect(htmlContent).toContain('window.print()');
       expect(htmlContent).toContain('<div class="card-value">5</div>'); // total logs card
       expect(htmlContent).toContain('Dehors');
@@ -197,11 +197,12 @@ describe('export utilities — CSV and PDF export test suite', () => {
     });
 
     it('renders printable English activity report when lang is en', () => {
-      const result = printActivitiesReport(mockActivities, mockProfile, 'en', en, mockCaretakers);
+      const result = printActivitiesReport(mockActivities, mockProfile, 'en', en, mockCaretakers, period);
       expect(result).toBe(true);
 
       const htmlContent = mockWindow?.document.write.mock.calls[0][0] as string;
       expect(htmlContent).toContain('Activity & Potty Report');
+      expect(htmlContent).toContain('From August 14, 2026 to August 20, 2026');
       expect(htmlContent).toContain('Total Logs');
       expect(htmlContent).toContain('Outside');
       expect(htmlContent).toContain('Indoors');
@@ -211,7 +212,7 @@ describe('export utilities — CSV and PDF export test suite', () => {
     it('the Meals card prints the grams only when some were logged, never "0g"', () => {
       const mealsCard = (activities: Activity[]) => {
         vi.mocked(mockWindow!.document.write).mockClear();
-        printActivitiesReport(activities, { ...mockProfile, dailyFoodGramGoal: 0 }, 'en', en, mockCaretakers);
+        printActivitiesReport(activities, { ...mockProfile, dailyFoodGramGoal: 0 }, 'en', en, mockCaretakers, period);
         const htmlContent = (vi.mocked(mockWindow!.document.write).mock.calls[0][0] as string).replace(/\s+/g, ' ');
         return htmlContent.match(/card-label">Meals<\/div>.*?<div class="card-sub">.*?<\/div>/)![0];
       };
@@ -387,7 +388,7 @@ describe('export utilities — CSV and PDF export test suite', () => {
     };
 
     it('escapes names, notes, caretakers and medication in the activity report', () => {
-      printActivitiesReport(hostileActivities, hostileProfile, 'en', en, hostileCaretakers);
+      printActivitiesReport(hostileActivities, hostileProfile, 'en', en, hostileCaretakers, period);
       const htmlContent = mockWindow?.document.write.mock.calls[0][0] as string;
       expectEscaped(htmlContent);
       expect(htmlContent).toContain('&quot;&lt;img src=x onerror=alert(1)&gt;&quot;');
@@ -420,6 +421,34 @@ describe('export utilities — CSV and PDF export test suite', () => {
       const htmlContent = mockWindow?.document.write.mock.calls[0][0] as string;
       expect(htmlContent.match(/7\.55 kg/g)).toHaveLength(2); // the latest-weight card and its weight history row
       expect(htmlContent).not.toContain('Poids au Traitement');
+    });
+  });
+  describe('health passport: missing clinic and every weigh-in (pre-fill review item 36, Phase 5c review)', () => {
+    const vaccineWithoutClinic = { id: 'v-x', householdId: 'hh-1', puppyId: 'pup-1', type: 'vaccination', name: 'Rage', date: '2026-07-01', boosterDate: '2027-07-01' } as HealthRecord;
+
+    it('the CSV leaves the clinic empty when none was entered, instead of a made-up "Clinique Vétérinaire"', async () => {
+      exportHealthPassportToCSV(mockProfile, [vaccineWithoutClinic], [], [], 'fr', mockCaretakers);
+      const text = await (createdBlob as Blob).text();
+      expect(text.match(/"Clinique Vétérinaire"/g)).toHaveLength(1); // the header only
+      expect(text).toContain('"Vaccination","2026-07-01","Rage","2027-07-01","","","",');
+    });
+
+    it('the printed passport shows "-" when no clinic was entered', () => {
+      printHealthPassportReport(mockProfile, [vaccineWithoutClinic], [], [], 'fr', fr);
+      const htmlContent = mockWindow?.document.write.mock.calls[0][0] as string;
+      expect(htmlContent.match(/Clinique Vétérinaire/g)).toHaveLength(1); // the column header only
+      expect(htmlContent).toMatch(/<td>2027-07-01<\/td>\s*<td>-<\/td>/);
+    });
+
+    it('the printed passport lists every weigh-in, not only the 15 latest', () => {
+      const weighIns: Activity[] = Array.from({ length: 20 }, (_, index) => ({
+        id: `act-w${index}`, puppyId: 'pup-1', type: 'weight', timestamp: new Date(Date.UTC(2026, 4, 1 + index * 7, 9)).toISOString(), weightKg: 3 + index / 2, loggedBy: 'Daria',
+      }));
+      printHealthPassportReport(mockProfile, [], [], weighIns, 'fr', fr);
+      const htmlContent = mockWindow?.document.write.mock.calls[0][0] as string;
+      const weightHistory = htmlContent.slice(htmlContent.indexOf('Historique des Pesées'));
+      expect(weightHistory.match(/<strong>[\d.]+ kg<\/strong>/g)).toHaveLength(20);
+      expect(weightHistory).toContain('<strong>3 kg</strong>'); // the oldest
     });
   });
 });
