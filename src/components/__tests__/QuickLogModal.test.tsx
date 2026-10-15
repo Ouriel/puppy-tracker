@@ -34,7 +34,8 @@ afterEach(async () => {
 });
 
 async function renderModal(props: Partial<ComponentProps<typeof QuickLogModal>>) {
-  const onSave = vi.fn();
+  // Resolves to whether the log was saved
+  const onSave = vi.fn().mockResolvedValue(true);
   const onClose = vi.fn();
   const container = document.createElement('div');
   document.body.appendChild(container);
@@ -242,5 +243,49 @@ describe('QuickLogModal weight box: last weigh-in hint and decimal check (Phase 
 
     expect(weightBoxText()).toContain('Dernière pesée : 10,05 kg le 25/09');
     expect(document.querySelector('[role="status"]')!.textContent).toBe('Vérifie la virgule : 1,005 kg ?');
+  });
+});
+
+// Backlog item 5: the form closed before the save was answered, so a failed save lost the grams, the notes and a back-dated time
+describe('QuickLogModal save that fails', () => {
+  it('stays open with what was typed and says it was not saved; a save that works then closes it', async () => {
+    const onSave = vi.fn().mockResolvedValueOnce(false).mockResolvedValueOnce(true);
+    const { onClose } = await renderModal({ initialType: 'food', defaultMealPortionGrams: 100, onSave });
+    const twoHoursAgo = getLocalDatetimeString(new Date(Date.now() - 2 * 60 * 60 * 1000));
+    await typeKeys('quicklog-quantity-grams', '85');
+    await setValue('quicklog-notes', 'half the bowl');
+    await setValue('quicklog-timestamp', twoHoursAgo);
+
+    await submit();
+    expect(onSave).toHaveBeenCalledTimes(1);
+    expect(onClose).not.toHaveBeenCalled();
+    expect(field('quicklog-quantity-grams').value).toBe('85');
+    expect(field('quicklog-notes').value).toBe('half the bowl');
+    expect(field('quicklog-timestamp').value).toBe(twoHoursAgo);
+    expect(document.querySelector('[role="alert"]')!.textContent).toBe('Not saved, try again.');
+
+    await submit();
+    expect(onSave).toHaveBeenCalledTimes(2);
+    expect(onSave.mock.calls[1][0]).toMatchObject({ type: 'food', quantityGrams: 85, notes: 'half the bowl' });
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('a second tap on Save while the first is not answered sends nothing', async () => {
+    const onSave = vi.fn(() => new Promise<boolean>(() => {}));
+    await renderModal({ initialType: 'pee', onSave });
+
+    await submit();
+    await submit();
+    expect(onSave).toHaveBeenCalledTimes(1);
+  });
+
+  it('while the save is not answered, Save reads "Saving…" and is busy, so weak signal never looks like nothing happened', async () => {
+    await renderModal({ initialType: 'pee', onSave: vi.fn(() => new Promise<boolean>(() => {})) });
+
+    await submit();
+
+    const saveButton = document.querySelector('button[type="submit"]')!;
+    expect(saveButton.textContent).toBe('Saving…');
+    expect(saveButton.getAttribute('aria-busy')).toBe('true');
   });
 });

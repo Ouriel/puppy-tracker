@@ -38,7 +38,7 @@ describe('export utilities — CSV and PDF export test suite', () => {
       timestamp: '2026-08-19T09:00:00.000Z',
       pottyLocation: 'indoor_accident',
       stoolConsistency: 'soft',
-      loggedBy: 'daria.risko@gmail.com',
+      loggedBy: 'daria@example.com',
       notes: 'Accident in "hallway", cleaned immediately',
     },
     {
@@ -138,7 +138,7 @@ describe('export utilities — CSV and PDF export test suite', () => {
         expect(text).toContain('"Daria"');
         // SSO full names and emails are resolved to the caretaker name, never exported raw
         expect(text).not.toContain('Matthieu Jacquet');
-        expect(text).not.toContain('daria.risko@gmail.com');
+        expect(text).not.toContain('daria@example.com');
         expect(text).toContain('Accident in ""hallway"", cleaned immediately');
         expect(text).toContain('"Pipi"');
         expect(text).toContain('"Caca"');

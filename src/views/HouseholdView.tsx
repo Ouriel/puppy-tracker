@@ -60,7 +60,7 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
       if (isOwner) setEmailToMove(email);
       else toast.danger(t.household.askOwnerToAdd);
     } else {
-      toast.danger(result.error || t.toasts.errorGeneric);
+      toast.danger(t.toasts[result.errorKey]);
     }
   };
 

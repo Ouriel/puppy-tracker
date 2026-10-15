@@ -255,13 +255,17 @@ export function formatRelativeTime(
 }
 
 /**
- * Formats a Date object or ISO string into localized short date format (e.g. 'Nov 12' or '12 nov.')
+ * Formats a Date object or ISO string into localized short date format (e.g. 'Nov 12' or '12 nov.'),
+ * with the year when it is not this year ('1 juil. 2027')
  */
 export function formatShortDate(date: string | Date, lang: 'en' | 'fr' = 'en'): string {
   const parsed = parseIsoDate(date);
   if (isNaN(parsed.getTime())) return '';
   const locale = lang === 'fr' ? 'fr-FR' : 'en-US';
-  return parsed.toLocaleDateString(locale, { month: 'short', day: 'numeric' });
+  // A calendar date ('2026-09-27', a health record's) is parsed as UTC midnight: shown in UTC, it is that day everywhere
+  const timeZone = typeof date === 'string' && date.length === 10 ? 'UTC' : undefined;
+  const year = timeZone ? parsed.getUTCFullYear() : parsed.getFullYear();
+  return parsed.toLocaleDateString(locale, { month: 'short', day: 'numeric', year: year === new Date().getFullYear() ? undefined : 'numeric', timeZone });
 }
 
 /**

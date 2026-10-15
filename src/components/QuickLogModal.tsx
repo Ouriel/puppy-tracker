@@ -19,7 +19,11 @@ interface QuickLogModalProps {
   // Shown as a hint under the weight box, which always starts empty
   lastWeighIn?: UnifiedWeightEntry;
   onClose: () => void;
-  onSave: (activity: Omit<Activity, 'id'>) => void;
+  /**
+   * Resolves to whether the form may close (saved), else it stays open with what was typed.
+   * `id`: one per open form, so Save again after an answer lost on the way never stores the log twice.
+   */
+  onSave: (activity: Omit<Activity, 'id'>, options: { id: string }) => Promise<boolean>;
   currentUser: string;
 }
 
@@ -67,11 +71,14 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
   );
   const [notes, setNotes] = useState<string>(activityToEdit?.notes || '');
   const [formError, setFormError] = useState<QuickLogFormError | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isSaveFailed, setIsSaveFailed] = useState(false);
+  const [clientId] = useState(() => `act-${crypto.randomUUID()}`);
 
   // New log: the signed-in user; edit: who logged it. The server sets it either way.
   const loggedBy = activityToEdit?.loggedBy || currentUser;
 
-  const handleSubmit = (event: React.FormEvent) => {
+  const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     const form = {
       puppyId: activityToEdit?.puppyId || '',
@@ -91,8 +98,12 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
     setFormError(error);
     if (error) return;
 
-    onSave(buildQuickLogActivity(form));
-    onClose();
+    setIsSaving(true);
+    setIsSaveFailed(false);
+    const isSaved = await onSave(buildQuickLogActivity(form), { id: clientId });
+    setIsSaving(false);
+    if (isSaved) onClose();
+    else setIsSaveFailed(true);
   };
 
   const errorFor = (field: QuickLogFormError['field']) =>
@@ -412,6 +423,7 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
                 <p id="quicklog-logged-by" className="text-xs text-slate-400">
                   {t.potty.loggedBy.replace('{name}', loggedBy)}
                 </p>
+                {isSaveFailed && <p role="alert" className={inputErrorClass}>{t.potty.saveFailed}</p>}
               </form>
             </div>
 
@@ -427,9 +439,11 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
               <button
                 type="submit"
                 form="quicklog-form"
-                className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-lg shadow-indigo-600/30 transition-all"
+                disabled={isSaving}
+                aria-busy={isSaving || undefined}
+                className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-lg shadow-indigo-600/30 transition-all disabled:opacity-60"
               >
-                {isEditMode ? t.potty.saveChanges : t.potty.saveLog}
+                {isSaving ? t.potty.saving : isEditMode ? t.potty.saveChanges : t.potty.saveLog}
               </button>
             </div>
           </Modal.Dialog>

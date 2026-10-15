@@ -69,7 +69,7 @@ Everything is learned from the dog's own logs; recent days count more than old o
 
 ### Health summary
 
-Below the cards: last weigh-in, estimated current weight and adult weight range; the learned daily routine (bedtime, wake-up, meal times and portions); last vaccine and last deworming with their next date. "View full health passport" opens the passport.
+Below the cards: last weigh-in, estimated current weight and adult weight range; the learned daily routine (bedtime, wake-up, meal times and portions); the vaccine due first among those no later shot renewed, and the latest deworming, each with its name, next date and status (a dash and no status when it has no next date). "View full health passport" opens the passport.
 
 The cards refresh every minute, and the data reloads each time you come back to the app.
 
@@ -90,7 +90,7 @@ The **+** button (top bar) opens the form on Pee; the meal, weigh and medication
 | Notes | Optional; emptying a note in an edit deletes it |
 | Logged by | Read-only line: you for a new log, the original author for an edit. The server sets it from your login; nobody can log under someone else's name. |
 
-The form checks everything before it closes. Once saved, the log appears at once; if the server still refuses it (or the phone is offline), it is undone with a red message.
+The form checks everything before it closes, and closes only once the log is saved. If the save fails (or the phone is offline), the form stays open with what was typed and says "Not saved, try again", with a red message saying why.
 
 Your logs are stored under your **badge** (Settings > Household Members) linked to your login. If you have none yet, your first log creates one for you.
 
@@ -100,6 +100,7 @@ Your logs are stored under your **badge** (Settings > Household Members) linked 
 - "Load more" goes to 14, 30, 90, 180 days, then everything.
 - Today's meal total is compared to today's goal. Past days show plain totals ("240 g · 3 meals"), since past goals are not stored.
 - Each log can be edited (same rules as the form) or deleted. The badge colour shows who logged it.
+- A one-tap log that could not be saved stays, marked "Not saved", with **Retry** (sends it again, never twice) and **Discard** instead of edit and delete; its day stays open.
 - **Export**: CSV or a printable report of exactly the days shown. The report prints its period ("From … to …"). The CSV has separate date and time columns and opens with accents intact in Excel and Numbers. Its date is the app's 04:00 day, so a log at 01:30 carries the previous day's date.
 
 ## Health passport
@@ -125,7 +126,7 @@ Open it from the health summary, or at `/health-passport`.
 - Dates: not after today; the next date not before the given date. Months land on the same day, capped at the end of the month (31 Jan + 1 month = 28 Feb).
 - An optional weight box saves a separate weigh-in (12:00 Paris time on that date, or now if noon is still ahead).
 - Editing keeps the stored next date (often set by the vet). If you change the date or the product, the form offers "Suggested: date", one tap to apply.
-- Status: up to date; due soon (14 days); overdue; or **Completed** ("Effectué") once a later dose of the same vaccine, or of a vaccine that contains it, is logged (an L4 booster also completes CHPPi + L4). A different vaccine given the same day never completes it. Any later deworming completes a deworming.
+- Status: up to date; due soon (14 days, the due day included); overdue (from the next day); or **Completed** ("Effectué") once a later dose of the same vaccine, or of a vaccine that contains it, is logged (an L4 booster also completes CHPPi + L4). A different vaccine given the same day never completes it. Any later deworming completes a deworming. An entry with no next date shows a dash and no status.
 
 **Medication.** The medication logs, with add and delete buttons.
 
@@ -147,8 +148,8 @@ Open it from the health summary, or at `/health-passport`.
 ## Phone install, offline and updates
 
 - **Install**: open the site in the phone's browser and use "Add to Home Screen". It opens full screen like an app.
-- **Offline**: the app still opens and shows the last data it loaded (dogs, badges, recent logs); vaccines, dewormings and older weigh-ins need a connection. Logging needs a connection: there is no offline queue, so a log made offline is dropped with an error message.
-- **Updates**: after a new version is published, the next time the app is opened it downloads it in the background and reloads itself once.
+- **Offline**: the app still opens and shows the last data it loaded (dogs, badges, recent logs), with "Offline, data from HH:mm" (the time of that load) on the dashboard; vaccines, dewormings and older weigh-ins need a connection. Logging needs a connection, and there is no offline queue: a one-tap log made offline stays in the history marked "Not saved" for Retry, and a log typed in the form stays in the form. Failed changes say so in the app's language ("No connection, nothing was saved" when offline).
+- **Updates**: after a new version is published, the next time the app is opened it downloads it in the background. It never reloads while you are using it: it switches to the new version (one reload) once you leave the app, so the next time you look, it is up to date.
 - **Languages**: English and French. A new phone gets French when it is set to French; the EN/FR button in the top bar switches, and the choice is remembered. The cards' explanations are translated too.
 
 ---
@@ -167,7 +168,7 @@ Browser (React SPA, PWA)  ──/api/*──▶  Vercel functions (api/*.ts)  �
 
 - **SPA**: three routes, `/`, `/health-passport`, `/settings` (history API). Passport, settings, sign-in and the log form are lazy chunks; the log form chunk is prefetched 2 s after the dashboard is ready.
 - **Predictions run in the browser** (`src/utils/predictions.ts`), from the logs loaded on the device. The server only stores and returns rows.
-- **BFF**: `GET /api/dashboard?puppyId=&days=` returns, in one Neon batch: the household's dogs and badges, the dog's logs of the last `days` (default 14, max 90, at most 300 rows), the household's health records, and **every** weight event of the dog (weigh-ins are weeks apart). The app calls it at boot and on every return to the foreground. Switching dogs loads that dog's logs from `/api/activities`; the passport loads its vaccines and dewormings from `/api/health-records?puppyId=`.
+- **BFF**: `GET /api/dashboard?puppyId=&days=` returns, in one Neon batch: the household's dogs and badges, the dog's logs of the last `days` (default 14, max 90, at most 300 rows), the household's health records, and **every** weight event of the dog (weigh-ins are weeks apart). The app calls it at boot and on every return to the foreground. Switching dogs loads that dog's logs from `/api/activities`; the passport and the health summary share its health records (the passport calls `/api/health-records?puppyId=` only while `/api/dashboard` fails).
 - Other endpoints: `api/activities.ts`, `api/dogs.ts`, `api/health-records.ts`, `api/households.ts` (badges), `api/users.ts` (accounts), `api/auth/session.ts`.
 - `vercel.json`: `npm ci` install, SPA rewrite (except `/api/` and files), `/privacy` and `/terms` static pages, long cache on `/assets/`.
 - Vercel Web Analytics and Speed Insights are on; the URLs they send are reduced to the route.
@@ -209,7 +210,7 @@ APIs return timestamps as ISO strings. Inputs are validated with Zod (`src/utils
 | Client GET cache | 60 s in memory; cleared on every write and on each return to the app |
 | In-flight dedupe | identical GETs started less than 2 s apart share one request, so the visibility/focus/pageshow burst of one return makes one `/api/dashboard` call |
 | localStorage | dogs, badges, active dog, the active dog's recent logs (≤ 300), session and language: paints the first frame before the network answers |
-| Writes | logs, badges and dog edits are optimistic, rolled back with a toast on failure. A dashboard answer that may predate a pending write only adds rows. |
+| Writes | logs, badges and dog edits are optimistic, rolled back with a toast on failure; a one-tap log is kept instead, marked not saved, and Retry (on the row or in its toast) resends it under its `act-<uuid>` id (POST is idempotent on it); the log form keeps one id while open, so Save again after a lost answer stores it once. Toasts come from `errorKey` (`src/services/api.ts`): no answer is `offline`, the three badge refusals of `api/households.ts` send a `code` with their own message, anything else is `errorGeneric` ("Not saved, try again." for a kept log, which is not reverted). A dashboard answer that may predate a pending write only adds rows. |
 
 ## Local setup
 
@@ -225,7 +226,7 @@ npm test
 |---|---|---|
 | `POSTGRES_URL` or `DATABASE_URL` | API, drizzle-kit, `db:inspect` (`DATABASE_URL`) | Postgres connection |
 | `PREVIEW_POSTGRES_URL` | API, only when `VERCEL_ENV=preview` | the preview database |
-| `SESSION_SECRET` or `AUTH_SECRET` | API | session signing key (without it, derived from `POSTGRES_URL`) |
+| `SESSION_SECRET` or `AUTH_SECRET` | API | session signing key: a random value (e.g. `openssl rand -base64 32`), Sensitive, Production only (Preview and Development, if set, get other values). Without it, the key is derived from `POSTGRES_URL`. With it, a token signed with the derived key still works, and its renewal at the next app start is signed with `SESSION_SECRET`. That fallback goes 90 days after the secret went live (2027-01-20 if live by 2026-10-21); until then keep the production `POSTGRES_URL` value byte-identical (no password rotation, no variable re-created with another value), or devices not opened since are signed out. Never remove or change the secret, and never roll production back to a deployment built without it: every session renewed since would be refused. Keep a copy: Vercel cannot show a Sensitive value again. |
 | `VITE_GOOGLE_CLIENT_ID` (or `GOOGLE_CLIENT_ID` on the server) | sign-in screen, API | Google OAuth client id |
 | `SUPER_ADMIN_EMAIL` | API | the owner's email. The browser cannot read it and always uses the default in `src/utils/auth.ts`: set it only to that same value, or the API and the app disagree on who the owner is. |
 
@@ -262,7 +263,7 @@ npm test
 
 ## Known limitations
 
-- **No offline logging**: logs need a connection; a failed save is dropped with an error.
+- **No offline queue**: logs need a connection. A one-tap log that fails stays marked "Not saved" until Retry or Discard, but only while the app stays open: closing it loses the log.
 - **Predictions use the logs loaded on the device**: the last 14 days at start, although the engine looks back up to 30 days. Pressing "Load more" in the history therefore feeds more days to the guesses and can shift them slightly.
 - **The day boundary is fixed at 04:00** (not learned), and on clock-change days it moves by an hour. A dog with an unusual night (e.g. awake at night) gets odd "morning" guesses.
 - **Past goals are not stored**: past days in the history show totals only.

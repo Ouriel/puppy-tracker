@@ -94,7 +94,7 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = React.memo(({
   );
 
   const formatCountdown = (dateObj: Date | null) => {
-    if (!dateObj) return 'N/A';
+    if (!dateObj) return '—';
     const diffMins = Math.round((dateObj.getTime() - now.getTime()) / 60000);
 
     if (diffMins < 0) {
