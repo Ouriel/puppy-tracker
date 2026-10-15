@@ -136,11 +136,33 @@ describe('predictions utility — comprehensive test suite', () => {
     const utcSchedule = { bedtimeHour: 22, wakeupHour: 7, bedtimeStr: '22:00', wakeupStr: '07:00' };
     const logsAt = (type: 'pee' | 'poop', isoTimes: string[]) => newestFirst(isoTimes.map((iso) => act(type, iso)));
 
-    it('caps a learned daytime pee interval at 360 min', () => {
-      // 07:30 → 14:30 → 21:30 for 3 days: six 420-min daytime gaps (the 600-min overnight gaps are dropped)
-      const pees = logsAt('pee', ['08', '09', '10'].flatMap((day) => ['07:30', '14:30', '21:30'].map((time) => `2026-08-${day}T${time}:00Z`)));
+    const peesEveryDay = (clockTimes: string[]) =>
+      logsAt('pee', ['08', '09', '10'].flatMap((day) => clockTimes.map((time) => `2026-08-${day}T${time}:00Z`)));
 
-      expect(calculateLearnedIntervalMinutes(pees, 'pee', 240, utcSchedule, 'UTC')).toMatchObject({ intervalMins: 360, sampleCount: 6, isLearned: true });
+    it('caps the learned pee interval at (age in months + 1) h: a 6.7-month dog with 375-min gaps learns 375', () => {
+      // 07:30 → 13:45 → 20:00 for 3 days: six 375-min daytime gaps; the ceiling is 7.7 h (462 min)
+      const pees = peesEveryDay(['07:30', '13:45', '20:00']);
+
+      expect(calculateLearnedIntervalMinutes(pees, 'pee', 240, utcSchedule, 'UTC', 6.7)).toMatchObject({ intervalMins: 375, sampleCount: 6, isLearned: true });
+    });
+
+    it('caps a 2-month dog with 200-min gaps at 180 min (2 + 1 h)', () => {
+      // 07:40 → 11:00 → 14:20 → 17:40 for 3 days: nine 200-min daytime gaps
+      const pees = peesEveryDay(['07:40', '11:00', '14:20', '17:40']);
+
+      expect(calculateLearnedIntervalMinutes(pees, 'pee', 120, utcSchedule, 'UTC', 2)).toMatchObject({ intervalMins: 180, sampleCount: 9, isLearned: true });
+
+      // predictNextPee caps with the dog's age on `now`: 2.0 months on 10 Aug, so the 17:40 pee is due at 20:40
+      const twoMonthOld = { ...mockProfile, birthDate: '2026-06-10' };
+      const prediction = predictNextPee(pees, twoMonthOld, new Date('2026-08-10T18:00:00Z'), { timeZone: 'UTC', sleepSchedule: utcSchedule });
+      expect(prediction.standardExpectedAt?.toISOString()).toBe('2026-08-10T20:40:00.000Z');
+    });
+
+    it('never learns a pee interval above 8 h, even for a 12-month dog (13 h by age)', () => {
+      // 07:30 → 15:30 for 3 days: three 480-min daytime gaps (the gap filter already drops gaps over 8 h)
+      const pees = peesEveryDay(['07:30', '15:30']);
+
+      expect(calculateLearnedIntervalMinutes(pees, 'pee', 240, utcSchedule, 'UTC', 12)).toMatchObject({ intervalMins: 480, sampleCount: 3, isLearned: true });
     });
 
     it('raises a learned poop interval below 180 min to 180 min', () => {
