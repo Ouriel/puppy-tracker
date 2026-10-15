@@ -21,7 +21,7 @@ During the nocturnal long gap (typically 8–10 hours), a puppy undergoes physio
 | **8w (~2.0m)** | ~360 min (6.0h) | **Yes** (1–2 outings) | Bedtime 22:00 $\to$ Break ~03:30 $\to$ Wake 07:00 |
 | **12w (~2.8m)** | ~420 min (7.0h) | **Yes** (1 outing if night > 7h) | Bedtime 22:30 $\to$ Break ~05:00 $\to$ Wake 07:30 |
 | **16w (~3.7m)** | ~480 min (8.0h) | **Borderline** (0–1 outing) | Bedtime 23:00 $\to$ Wake 07:00 (unbroken or dawn void) |
-| **20w+ (~4.6m+, e.g. Balma)** | ~540+ min (9.0h+) | **No** (unbroken night) | Bedtime 23:10 $\to$ Wake 08:30 (full overnight hold) |
+| **20w+ (~4.6m+)** | ~540+ min (9.0h+) | **No** (unbroken night) | Bedtime 23:10 $\to$ Wake 08:30 (full overnight hold) |
 
 ---
 

@@ -1,27 +1,27 @@
 import type { Activity, ActivityType, PuppyProfile } from '../../types';
 
-/** Balma as the API returns her (`birth_date` is a Postgres `date`, so a plain 'YYYY-MM-DD'). */
-export const BALMA: PuppyProfile = {
-  id: 'pup-balma',
+/** Pistache as the API returns her (`birth_date` is a Postgres `date`, so a plain 'YYYY-MM-DD'). */
+export const PISTACHE: PuppyProfile = {
+  id: 'pup-pistache',
   householdId: 'hh-1',
-  name: 'Balma',
+  name: 'Pistache',
   breed: 'English Cocker Spaniel',
-  birthDate: '2026-03-27',
+  birthDate: '2026-04-03',
   weightKg: 7.8,
   gender: 'female',
   targetMealsPerDay: 3,
   dailyFoodGramGoal: 240,
 };
 
-/** One activity log for Balma; `extra` overrides any field (id, puppyId, quantityGrams, ...). */
+/** One activity log for Pistache; `extra` overrides any field (id, puppyId, quantityGrams, ...). */
 export function act(type: ActivityType, iso: string, extra: Partial<Activity> = {}): Activity {
   return {
     id: `${type}-${iso}`,
-    householdId: BALMA.householdId,
-    puppyId: BALMA.id,
+    householdId: PISTACHE.householdId,
+    puppyId: PISTACHE.id,
     type,
     timestamp: iso,
-    loggedBy: 'Matthieu',
+    loggedBy: 'Sam',
     ...extra,
   };
 }

@@ -14,7 +14,7 @@ import type { Activity, HealthRecord, PuppyProfile, UserAccount } from '../types
 // Shaped like production after the step 5 migration, with made-up values.
 
 const puppy: PuppyProfile = { id: 'pup-1', name: 'Rex', breed: 'Beagle', birthDate: '2026-03-01', targetMealsPerDay: 3, dailyFoodGramGoal: 200, weightKg: 7.1 };
-const owner: UserAccount = { id: 'usr-1', email: 'owner@example.com', name: 'Owner', role: 'Member' };
+const owner: UserAccount = { email: 'owner@example.com', name: 'Owner', role: 'Member' };
 
 const weighIn = (id: string, timestamp: string, weightKg: number, notes: string | null = null): Activity =>
   ({ id, puppyId: puppy.id, type: 'weight', timestamp, weightKg, notes, loggedBy: 'Owner' });

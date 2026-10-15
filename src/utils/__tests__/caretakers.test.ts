@@ -4,26 +4,26 @@ import { resolveCaretakerName, badgeNameFromEmail, firstFreeBadgeColor, buildInv
 
 describe('household caretakers & identity binding — comprehensive test suite', () => {
   const defaultCaretakers: Caretaker[] = [
-    { id: 'c-1', name: 'Matthieu', role: 'Member', color: '#6366F1' },
-    { id: 'c-2', name: 'Daria', role: 'Member', color: '#EC4899' },
+    { id: 'c-1', name: 'Sam', role: 'Member', color: '#6366F1' },
+    { id: 'c-2', name: 'Alice', role: 'Member', color: '#EC4899' },
   ];
 
   it('resolves Google SSO full name to clean Household Caretaker name', () => {
-    expect(resolveCaretakerName('Matthieu Jacquet', defaultCaretakers)).toBe('Matthieu');
-    expect(resolveCaretakerName('Daria Doe', defaultCaretakers)).toBe('Daria');
-    expect(resolveCaretakerName('daria@example.com', defaultCaretakers)).toBe('Daria');
-    expect(resolveCaretakerName('Matthieu', defaultCaretakers)).toBe('Matthieu');
+    expect(resolveCaretakerName('Sam Taylor', defaultCaretakers)).toBe('Sam');
+    expect(resolveCaretakerName('Alice Doe', defaultCaretakers)).toBe('Alice');
+    expect(resolveCaretakerName('alice@example.com', defaultCaretakers)).toBe('Alice');
+    expect(resolveCaretakerName('Sam', defaultCaretakers)).toBe('Sam');
   });
 
   it('maps each production user to the caretaker row the delete guard must hide', () => {
-    // Real household FAMILY-COCKER-2026 caretakers and user names (read-only SELECT, 2026-10-14).
+    // The real household's badges and user names (read-only SELECT, 2026-10-14), with placeholder names.
     const productionCaretakers: Caretaker[] = [
-      { id: 'c-1', name: 'Matthieu', role: 'Member', color: '#6366F1' },
-      { id: 'c-2', name: 'Daria', role: 'Member', color: '#EC4899' },
-      { id: 'c-3', name: 'Dasha', role: 'Member', color: '#10B981' },
+      { id: 'c-1', name: 'Sam', role: 'Member', color: '#6366F1' },
+      { id: 'c-2', name: 'Alice', role: 'Member', color: '#EC4899' },
+      { id: 'c-3', name: 'Kim', role: 'Member', color: '#10B981' },
     ];
-    expect(resolveCaretakerName('Matthieu Jacquet', productionCaretakers)).toBe('Matthieu');
-    expect(resolveCaretakerName('Daria', productionCaretakers)).toBe('Daria');
+    expect(resolveCaretakerName('Sam Taylor', productionCaretakers)).toBe('Sam');
+    expect(resolveCaretakerName('Alice', productionCaretakers)).toBe('Alice');
     // No caretaker matches: no row is hidden.
     expect(resolveCaretakerName('guest.member', productionCaretakers)).toBe('guest.member');
   });
@@ -31,8 +31,8 @@ describe('household caretakers & identity binding — comprehensive test suite',
 
 describe('invite badges (19, 42)', () => {
   const badges: Caretaker[] = [
-    { id: 'c-1', name: 'Matthieu', role: 'Member', color: '#EC4899' },
-    { id: 'c-2', name: 'Daria', role: 'Member', color: '#10b981', email: 'daria@example.com' },
+    { id: 'c-1', name: 'Sam', role: 'Member', color: '#EC4899' },
+    { id: 'c-2', name: 'Alice', role: 'Member', color: '#10b981', email: 'alice@example.com' },
   ];
 
   it('names the badge with the capitalised first part of the email', () => {
@@ -64,15 +64,15 @@ describe('invite badges (19, 42)', () => {
   });
 
   it('builds no second badge for an email a badge already carries', () => {
-    expect(buildInviteBadge('DARIA@example.com', badges)).toBeNull();
+    expect(buildInviteBadge('ALICE@example.com', badges)).toBeNull();
   });
 
   // loggedBy is stored as a name: two badges with one name would merge two people's logs.
   it('gives the badge a name no other badge uses, ignoring case', () => {
-    expect(buildInviteBadge('daria.work@example.com', badges)?.name).toBe('Daria.work');
-    const crowded = [...badges, { id: 'c-3', name: 'daria.WORK', role: 'Member' as const, color: '#F59E0B' }];
-    expect(buildInviteBadge('daria.work@example.com', crowded)?.name).toBe('Daria.work 2');
-    expect(buildInviteBadge('matthieu@other.example', badges)?.name).toBe('Matthieu 2');
+    expect(buildInviteBadge('alice.work@example.com', badges)?.name).toBe('Alice.work');
+    const crowded = [...badges, { id: 'c-3', name: 'alice.WORK', role: 'Member' as const, color: '#F59E0B' }];
+    expect(buildInviteBadge('alice.work@example.com', crowded)?.name).toBe('Alice.work 2');
+    expect(buildInviteBadge('sam@other.example', badges)?.name).toBe('Sam 2');
   });
 });
 
@@ -90,7 +90,7 @@ describe('findLinkedCaretaker: the badge linked to a login (22)', () => {
   it('never links by name to a badge that carries an email', () => {
     const badges = [
       { id: 'c-1', name: 'Owner Fullname', email: 'someone.else@example.com' },
-      { id: 'c-2', name: 'Daria', email: 'daria@example.com' },
+      { id: 'c-2', name: 'Alice', email: 'alice@example.com' },
     ];
     expect(findLinkedCaretaker(owner, badges)).toBeUndefined();
   });

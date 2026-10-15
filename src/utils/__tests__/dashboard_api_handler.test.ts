@@ -11,10 +11,10 @@ vi.mock('@neondatabase/serverless', () => ({
 }));
 
 const mockPuppies = [
-  { id: 'pup-1', householdId: 'hh-123', name: 'Balma', breed: 'Cocker', birthDate: '2026-03-27' },
+  { id: 'pup-1', householdId: 'hh-123', name: 'Pistache', breed: 'Cocker', birthDate: '2026-04-03' },
 ];
 const mockCaretakers = [
-  { id: 'ct-1', householdId: 'hh-123', name: 'Matthieu', role: 'Husband' },
+  { id: 'ct-1', householdId: 'hh-123', name: 'Sam', role: 'Husband' },
 ];
 const mockActivities = [
   {
@@ -23,7 +23,7 @@ const mockActivities = [
     puppyId: 'pup-1',
     type: 'pee',
     timestamp: new Date('2026-08-30T10:00:00.000Z'),
-    loggedBy: 'Matthieu',
+    loggedBy: 'Sam',
   },
 ];
 const mockHealthRecords = [
@@ -39,7 +39,7 @@ const mockHealthRecords = [
 
 function rowsByTable(): Record<string, unknown[]> {
   return {
-    users: [{ id: 'usr-1', email: 'matthieu@example.com', name: 'Matthieu', householdId: 'hh-123', role: 'Husband', status: 'ACTIVE' }],
+    users: [{ id: 'usr-1', email: 'sam@example.com', name: 'Sam', householdId: 'hh-123', role: 'Husband', status: 'ACTIVE' }],
     puppies: mockPuppies,
     caretakers: mockCaretakers,
     activities: dbMock.activities ?? mockActivities,
@@ -205,8 +205,8 @@ describe('Dashboard API Serverless Handler Unit Tests', () => {
 
   it('authenticates valid session token and serves dashboard payload with healthRecords', async () => {
     const validToken = signAppSessionToken({
-      email: 'matthieu@example.com',
-      name: 'Matthieu',
+      email: 'sam@example.com',
+      name: 'Sam',
       householdId: 'hh-123',
       role: 'Husband',
     }, 30);
@@ -249,15 +249,15 @@ describe('Dashboard API Serverless Handler Unit Tests', () => {
   it('two poops in the same minute: the one logged last comes first, so a soft stool logged after a normal one gives the digestive alert', async () => {
     const sameMinute = new Date('2026-08-30T10:00:00.000Z');
     const poop = (id: string, stoolConsistency: string, createdAt: string) => ({
-      id, householdId: 'hh-123', puppyId: 'pup-1', type: 'poop', timestamp: sameMinute, loggedBy: 'Matthieu', stoolConsistency, createdAt: new Date(createdAt),
+      id, householdId: 'hh-123', puppyId: 'pup-1', type: 'poop', timestamp: sameMinute, loggedBy: 'Sam', stoolConsistency, createdAt: new Date(createdAt),
     });
     dbMock.activities = [poop('act-normal', 'normal', '2026-08-30T10:00:20.000Z'), poop('act-soft', 'soft', '2026-08-30T10:00:50.000Z')];
-    const token = signAppSessionToken({ email: 'matthieu@example.com', name: 'Matthieu', householdId: 'hh-123', role: 'Husband' }, 30);
+    const token = signAppSessionToken({ email: 'sam@example.com', name: 'Sam', householdId: 'hh-123', role: 'Husband' }, 30);
     const res = createMockResponse();
 
     await handler({ method: 'GET', headers: { authorization: `Bearer ${token}` }, query: { puppyId: 'pup-1', days: '14' } } as any, res);
 
-    const puppy = { id: 'pup-1', name: 'Balma', breed: 'Cocker', birthDate: '2026-03-27', targetMealsPerDay: 3, dailyFoodGramGoal: 200 };
+    const puppy = { id: 'pup-1', name: 'Pistache', breed: 'Cocker', birthDate: '2026-04-03', targetMealsPerDay: 3, dailyFoodGramGoal: 200 };
     const predictions = calculatePredictions(res.body.activities, puppy, new Date('2026-08-30T10:30:00.000Z'), 'Europe/Paris');
     expect(predictions.poopReason).toBe('Digestive alert: frequent checks recommended');
     expect(res.body.activities.map((activity: { id: string }) => activity.id)).toEqual(['act-soft', 'act-normal']);
@@ -265,13 +265,13 @@ describe('Dashboard API Serverless Handler Unit Tests', () => {
 
   it('sorts by timestamp first: a back-dated log entered last still comes after newer logs', async () => {
     const log = (id: string, timestamp: string, createdAt: string) => ({
-      id, householdId: 'hh-123', puppyId: 'pup-1', type: 'pee', timestamp: new Date(timestamp), loggedBy: 'Matthieu', createdAt: new Date(createdAt),
+      id, householdId: 'hh-123', puppyId: 'pup-1', type: 'pee', timestamp: new Date(timestamp), loggedBy: 'Sam', createdAt: new Date(createdAt),
     });
     dbMock.activities = [
       log('act-new', '2026-08-30T10:00:00.000Z', '2026-08-30T10:00:05.000Z'),
       log('act-backdated', '2026-08-30T08:00:00.000Z', '2026-08-30T10:30:00.000Z'),
     ];
-    const token = signAppSessionToken({ email: 'matthieu@example.com', name: 'Matthieu', householdId: 'hh-123', role: 'Husband' }, 30);
+    const token = signAppSessionToken({ email: 'sam@example.com', name: 'Sam', householdId: 'hh-123', role: 'Husband' }, 30);
     const res = createMockResponse();
 
     await handler({ method: 'GET', headers: { authorization: `Bearer ${token}` }, query: { puppyId: 'pup-1', days: '14' } } as any, res);
@@ -281,14 +281,14 @@ describe('Dashboard API Serverless Handler Unit Tests', () => {
 
   it('sends every weight event of the dog, whatever its date, in the same single batch (Phase 5c)', async () => {
     const event = (id: string, type: string, timestamp: string, weightKg?: number) => ({
-      id, householdId: 'hh-123', puppyId: 'pup-1', type, timestamp: new Date(timestamp), loggedBy: 'Matthieu', weightKg, createdAt: new Date(timestamp),
+      id, householdId: 'hh-123', puppyId: 'pup-1', type, timestamp: new Date(timestamp), loggedBy: 'Sam', weightKg, createdAt: new Date(timestamp),
     });
     dbMock.activities = [
       event('act-pee', 'pee', '2026-08-30T10:00:00.000Z'),
       event('act-weight-old', 'weight', '2026-05-10T10:00:00.000Z', 4.4),
       event('act-weight-new', 'weight', '2026-08-20T10:00:00.000Z', 9.1),
     ];
-    const token = signAppSessionToken({ email: 'matthieu@example.com', name: 'Matthieu', householdId: 'hh-123', role: 'Husband' }, 30);
+    const token = signAppSessionToken({ email: 'sam@example.com', name: 'Sam', householdId: 'hh-123', role: 'Husband' }, 30);
     const res = createMockResponse();
 
     await handler({ method: 'GET', headers: { authorization: `Bearer ${token}` }, query: { puppyId: 'pup-1', days: '14' } } as any, res);

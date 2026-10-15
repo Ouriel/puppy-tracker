@@ -231,7 +231,6 @@ function App() {
             exchangeSessionToken(currentToken).then((sessionResult) => {
               if (sessionResult.ok && sessionResult.data?.user) {
                 const userAccount: UserAccount = {
-                  id: sessionResult.data.user.id || 'u-1',
                   email: sessionResult.data.user.email,
                   name: sessionResult.data.user.name,
                   role: (FAMILY_ROLES.includes(sessionResult.data.user.role) ? sessionResult.data.user.role : 'Member') as FamilyRole,
@@ -382,7 +381,6 @@ function App() {
     if (sessionRes.ok && sessionRes.data?.user && sessionRes.data.sessionToken) {
       setAuthToken(sessionRes.data.sessionToken);
       const userAccount: UserAccount = {
-        id: sessionRes.data.user.id || `u-${Date.now()}`,
         email: sessionRes.data.user.email,
         name: sessionRes.data.user.name,
         role: (FAMILY_ROLES.includes(sessionRes.data.user.role) ? sessionRes.data.user.role : 'Member') as FamilyRole,
@@ -402,7 +400,6 @@ function App() {
     // Fallback for Super Admin on initial cold setup
     if (isSuperAdminEmail(email)) {
       const superUser: UserAccount = {
-        id: `u-${Date.now()}`,
         email,
         name,
         role: 'SuperAdmin',

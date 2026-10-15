@@ -7,10 +7,10 @@ import type { Activity, PuppyProfile } from '../../types';
 
 describe('Veterinary & Behavioral Scenario Test Suite (Classic Rules)', () => {
   const profile: PuppyProfile = {
-    id: 'pup-balma-vet',
-    name: 'Balma',
+    id: 'pup-pistache-vet',
+    name: 'Pistache',
     breed: 'English Cocker Spaniel',
-    birthDate: '2026-03-27',
+    birthDate: '2026-04-03',
     weightKg: 8.4,
     targetMealsPerDay: 3,
     dailyFoodGramGoal: 240,
@@ -18,16 +18,16 @@ describe('Veterinary & Behavioral Scenario Test Suite (Classic Rules)', () => {
 
   it('2. Double-Void Walk: Walk pees (<45m gap) do NOT pollute learned daytime retention', () => {
     const activities: Activity[] = [];
-    const base = new Date('2026-08-10T08:00:00Z');
+    const base = new Date('2026-08-17T08:00:00Z');
 
     for (let day = 10; day >= 0; day--) {
       const d1 = new Date(base.getTime() - day * 86400000);
       const d2 = new Date(d1.getTime() + 14 * 60000); // 14 mins later (walk double-void)
       const d3 = new Date(d1.getTime() + 210 * 60000); // 3.5 hours later
 
-      activities.push({ id: `p1-${day}`, puppyId: profile.id, type: 'pee', timestamp: d1.toISOString(), loggedBy: 'Matthieu' });
-      activities.push({ id: `p2-${day}`, puppyId: profile.id, type: 'pee', timestamp: d2.toISOString(), loggedBy: 'Matthieu' });
-      activities.push({ id: `p3-${day}`, puppyId: profile.id, type: 'pee', timestamp: d3.toISOString(), loggedBy: 'Matthieu' });
+      activities.push({ id: `p1-${day}`, puppyId: profile.id, type: 'pee', timestamp: d1.toISOString(), loggedBy: 'Sam' });
+      activities.push({ id: `p2-${day}`, puppyId: profile.id, type: 'pee', timestamp: d2.toISOString(), loggedBy: 'Sam' });
+      activities.push({ id: `p3-${day}`, puppyId: profile.id, type: 'pee', timestamp: d3.toISOString(), loggedBy: 'Sam' });
     }
 
     const learned = calculateLearnedIntervalMinutes(activities, 'pee', 180, { bedtimeHour: 23, wakeupHour: 7 }, 'UTC');
@@ -38,10 +38,10 @@ describe('Veterinary & Behavioral Scenario Test Suite (Classic Rules)', () => {
   });
 
   it('3. Diarrhea Emergency Spikes: Frequent 60m check-in window and GI upset alert', () => {
-    const lastPoopTime = new Date('2026-08-10T10:00:00Z');
+    const lastPoopTime = new Date('2026-08-17T10:00:00Z');
 
     // Within first hour: window should be at 60m mark
-    const earlyRef = new Date('2026-08-10T10:30:00Z');
+    const earlyRef = new Date('2026-08-17T10:30:00Z');
     const activities: Activity[] = [
       {
         id: 'diarrhea-1',
@@ -50,7 +50,7 @@ describe('Veterinary & Behavioral Scenario Test Suite (Classic Rules)', () => {
         timestamp: lastPoopTime.toISOString(),
         stoolConsistency: 'diarrhea',
         notes: 'diarrhea episode',
-        loggedBy: 'Matthieu',
+        loggedBy: 'Sam',
       },
     ];
 
@@ -60,7 +60,7 @@ describe('Veterinary & Behavioral Scenario Test Suite (Classic Rules)', () => {
     expect(earlyMinutes).toBe(60);
 
     // After first hour: sliding window advances to next hourly boundary
-    const lateRef = new Date('2026-08-10T11:15:00Z');
+    const lateRef = new Date('2026-08-17T11:15:00Z');
     const latePred = calculatePredictions(activities, profile, lateRef, 'UTC');
     expect(latePred.poopReason).toContain('Digestive alert');
     const lateMinutes = (latePred.nextPoopExpectedAt!.getTime() - lastPoopTime.getTime()) / 60000;
@@ -68,8 +68,8 @@ describe('Veterinary & Behavioral Scenario Test Suite (Classic Rules)', () => {
   });
 
   it('4. Constipation Refractory Window: Stool recovery keeps poop urgency safe', () => {
-    const lastPoopTime = new Date('2026-08-10T10:00:00Z');
-    const refTime = new Date('2026-08-10T14:00:00Z');
+    const lastPoopTime = new Date('2026-08-17T10:00:00Z');
+    const refTime = new Date('2026-08-17T14:00:00Z');
 
     const activities: Activity[] = [
       {
@@ -79,7 +79,7 @@ describe('Veterinary & Behavioral Scenario Test Suite (Classic Rules)', () => {
         timestamp: lastPoopTime.toISOString(),
         stoolConsistency: 'hard',
         notes: 'hard stool episode',
-        loggedBy: 'Matthieu',
+        loggedBy: 'Sam',
       },
     ];
 
@@ -87,15 +87,15 @@ describe('Veterinary & Behavioral Scenario Test Suite (Classic Rules)', () => {
 
     expect(pred.poopUrgency).toBe('safe');
     expect(pred.poopReason).toContain('hard stool');
-    expect(pred.nextPoopExpectedAt?.toISOString()).toBe('2026-08-10T18:24:00.000Z');
+    expect(pred.nextPoopExpectedAt?.toISOString()).toBe('2026-08-17T18:24:00.000Z');
   });
 
   it('5. Night Sleep Boundary: Sleeping overnight postpones potty until morning wakeup', () => {
-    const lastPee = new Date('2026-08-10T22:30:00Z');
-    const refTime = new Date('2026-08-10T23:30:00Z'); // Night sleep hours
+    const lastPee = new Date('2026-08-17T22:30:00Z');
+    const refTime = new Date('2026-08-17T23:30:00Z'); // Night sleep hours
 
     const activities: Activity[] = [
-      { id: '1', puppyId: profile.id, type: 'pee', timestamp: lastPee.toISOString(), loggedBy: 'Matthieu' },
+      { id: '1', puppyId: profile.id, type: 'pee', timestamp: lastPee.toISOString(), loggedBy: 'Sam' },
     ];
 
     const pred = calculatePredictions(activities, profile, refTime, 'UTC');
@@ -103,6 +103,6 @@ describe('Veterinary & Behavioral Scenario Test Suite (Classic Rules)', () => {
     expect(pred.peeMode).toBe('night_sleep');
     expect(pred.peeReason).toContain('Morning outing');
     // Postponed to the default 07:00 wakeup (fewer than 5 logs to learn a schedule), not the standard 02:30 interval
-    expect(pred.nextPeeExpectedAt?.toISOString()).toBe('2026-08-11T07:00:00.000Z');
+    expect(pred.nextPeeExpectedAt?.toISOString()).toBe('2026-08-18T07:00:00.000Z');
   });
 });

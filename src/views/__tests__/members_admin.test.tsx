@@ -76,12 +76,12 @@ async function setValue(element: HTMLInputElement | HTMLSelectElement, value: st
   });
 }
 
-const owner: UserAccount = { id: 'usr-owner', email: SUPER_ADMIN_EMAIL, name: 'Owner Fullname', role: 'SuperAdmin' };
-const member: UserAccount = { id: 'usr-member', email: 'member@example.com', name: 'Member Person', role: 'Member' };
-const familyAdmin: UserAccount = { id: 'usr-admin', email: 'admin@example.com', name: 'Family Admin', role: 'Admin' };
+const owner: UserAccount = { email: SUPER_ADMIN_EMAIL, name: 'Owner Fullname', role: 'SuperAdmin' };
+const member: UserAccount = { email: 'member@example.com', name: 'Member Person', role: 'Member' };
+const familyAdmin: UserAccount = { email: 'admin@example.com', name: 'Family Admin', role: 'Admin' };
 const badges: Caretaker[] = [
-  { id: 'c-owner', name: 'Matthieu', role: 'Member', color: '#EC4899', email: SUPER_ADMIN_EMAIL },
-  { id: 'c-daria', name: 'Daria', role: 'Member', color: '#10B981', email: 'daria@example.com' },
+  { id: 'c-owner', name: 'Sam', role: 'Member', color: '#EC4899', email: SUPER_ADMIN_EMAIL },
+  { id: 'c-alice', name: 'Alice', role: 'Member', color: '#10B981', email: 'alice@example.com' },
 ];
 const FIRST_FREE_COLOR = '#F59E0B';
 

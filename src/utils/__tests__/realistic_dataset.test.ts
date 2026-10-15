@@ -11,10 +11,10 @@ import { at, newestFirst } from './fixtures';
 
 describe('Comprehensive 30-Day Realistic Dataset Test Suite', () => {
   const puppyProfile: PuppyProfile = {
-    id: 'pup-balma-001',
-    name: 'Balma',
+    id: 'pup-pistache-001',
+    name: 'Pistache',
     breed: 'English Cocker Spaniel',
-    birthDate: '2026-03-27',
+    birthDate: '2026-04-03',
     weightKg: 8.2,
     targetMealsPerDay: 3,
     dailyFoodGramGoal: 240,
@@ -27,7 +27,7 @@ describe('Comprehensive 30-Day Realistic Dataset Test Suite', () => {
    */
   function build30DayRealisticDataset(): Activity[] {
     const records: Activity[] = [];
-    const startDate = new Date(2026, 6, 10); // July 10 2026
+    const startDate = new Date(2026, 6, 17); // July 17 2026
 
     for (let day = 0; day < 30; day++) {
       const current = new Date(startDate);
@@ -45,7 +45,7 @@ describe('Comprehensive 30-Day Realistic Dataset Test Suite', () => {
         timestamp: new Date(y, m, d, 8, 30).toISOString(),
         quantityGrams: 80,
         foodType: 'kibble',
-        loggedBy: 'Matthieu',
+        loggedBy: 'Sam',
       });
 
       // 2. Post-breakfast potty (pee 08:45 AM, poop 09:05 AM)
@@ -55,7 +55,7 @@ describe('Comprehensive 30-Day Realistic Dataset Test Suite', () => {
         type: 'pee',
         timestamp: new Date(y, m, d, 8, 45).toISOString(),
         pottyLocation: 'outside',
-        loggedBy: 'Matthieu',
+        loggedBy: 'Sam',
       });
 
       records.push({
@@ -66,7 +66,7 @@ describe('Comprehensive 30-Day Realistic Dataset Test Suite', () => {
         pottyLocation: 'outside',
         stoolConsistency: day === 15 ? 'hard' : 'normal', // Constipation episode on Day 15
         notes: day === 15 ? 'hard stool constipated' : undefined,
-        loggedBy: 'Matthieu',
+        loggedBy: 'Sam',
       });
 
       // 3. Morning Walk double-void pees (11:00 AM and 11:20 AM - gap <45m)
@@ -76,7 +76,7 @@ describe('Comprehensive 30-Day Realistic Dataset Test Suite', () => {
         type: 'pee',
         timestamp: new Date(y, m, d, 11, 0).toISOString(),
         pottyLocation: 'outside',
-        loggedBy: 'Matthieu',
+        loggedBy: 'Sam',
       });
 
       records.push({
@@ -85,7 +85,7 @@ describe('Comprehensive 30-Day Realistic Dataset Test Suite', () => {
         type: 'pee',
         timestamp: new Date(y, m, d, 11, 20).toISOString(), // Walk double-void pee
         pottyLocation: 'outside',
-        loggedBy: 'Matthieu',
+        loggedBy: 'Sam',
       });
 
       // 4. Lunch 13:30 PM (80g kibble)
@@ -96,7 +96,7 @@ describe('Comprehensive 30-Day Realistic Dataset Test Suite', () => {
         timestamp: new Date(y, m, d, 13, 30).toISOString(),
         quantityGrams: 80,
         foodType: 'kibble',
-        loggedBy: 'Matthieu',
+        loggedBy: 'Sam',
       });
 
       // 5. Post-lunch pee 13:50 PM
@@ -106,7 +106,7 @@ describe('Comprehensive 30-Day Realistic Dataset Test Suite', () => {
         type: 'pee',
         timestamp: new Date(y, m, d, 13, 50).toISOString(),
         pottyLocation: 'outside',
-        loggedBy: 'Matthieu',
+        loggedBy: 'Sam',
       });
 
       // 6. Afternoon pee 16:45 PM
@@ -116,7 +116,7 @@ describe('Comprehensive 30-Day Realistic Dataset Test Suite', () => {
         type: 'pee',
         timestamp: new Date(y, m, d, 16, 45).toISOString(),
         pottyLocation: 'outside',
-        loggedBy: 'Matthieu',
+        loggedBy: 'Sam',
       });
 
       // 7. Dinner 19:15 PM (80g kibble)
@@ -127,7 +127,7 @@ describe('Comprehensive 30-Day Realistic Dataset Test Suite', () => {
         timestamp: new Date(y, m, d, 19, 15).toISOString(),
         quantityGrams: 80,
         foodType: 'kibble',
-        loggedBy: 'Matthieu',
+        loggedBy: 'Sam',
       });
 
       // 8. Post-dinner poop 19:50 PM
@@ -138,7 +138,7 @@ describe('Comprehensive 30-Day Realistic Dataset Test Suite', () => {
         timestamp: new Date(y, m, d, 19, 50).toISOString(),
         pottyLocation: 'outside',
         stoolConsistency: 'normal',
-        loggedBy: 'Matthieu',
+        loggedBy: 'Sam',
       });
 
       // 9. Pre-bedtime pee 22:15 PM
@@ -148,7 +148,7 @@ describe('Comprehensive 30-Day Realistic Dataset Test Suite', () => {
         type: 'pee',
         timestamp: new Date(y, m, d, 22, 15).toISOString(),
         pottyLocation: 'outside',
-        loggedBy: 'Matthieu',
+        loggedBy: 'Sam',
       });
     }
 
@@ -170,21 +170,21 @@ describe('Comprehensive 30-Day Realistic Dataset Test Suite', () => {
   });
 
   it('computes next potty and meal predictions with attached schedule metadata from dataset', () => {
-    // Aug 8 (last dataset day) at 14:00: lunch 13:30 and pee 13:50 already logged, later logs are in the future
-    const predictions = calculatePredictions(dataset, puppyProfile, new Date(2026, 7, 8, 14, 0));
+    // Aug 15 (last dataset day) at 14:00: lunch 13:30 and pee 13:50 already logged, later logs are in the future
+    const predictions = calculatePredictions(dataset, puppyProfile, new Date(2026, 7, 15, 14, 0));
 
     // Pee: last pee 13:50 + learned 70th-percentile daytime interval (175m)
-    expect(at(predictions.nextPeeExpectedAt!)).toBe('2026-08-08 16:45');
+    expect(at(predictions.nextPeeExpectedAt!)).toBe('2026-08-15 16:45');
     expect(predictions.peeMode).toBe('daytime_baseline');
     expect(predictions.peeUrgency).toBe('safe');
 
     // Poop: post-lunch gastrocolic override (13:30 + 35m) comes before the standard transit time
-    expect(at(predictions.nextPoopExpectedAt!)).toBe('2026-08-08 14:05');
+    expect(at(predictions.nextPoopExpectedAt!)).toBe('2026-08-15 14:05');
     expect(predictions.poopMode).toBe('post_meal_override');
     expect(predictions.poopUrgency).toBe('soon');
 
     // Food: third meal paced over the remaining waking hours
-    expect(at(predictions.nextFoodExpectedAt!)).toBe('2026-08-08 17:52');
+    expect(at(predictions.nextFoodExpectedAt!)).toBe('2026-08-15 17:52');
     expect(predictions.foodMode).toBe('daytime_schedule');
     expect(predictions.foodUrgency).toBe('safe');
 
@@ -205,17 +205,17 @@ describe('Comprehensive 30-Day Realistic Dataset Test Suite', () => {
   it('correctly adapts portion sizes when puppy transitions between 2, 3, and 4 meals per day', () => {
     // 2 meals per day (e.g. adolescent dog: 240g / 2 = 120g)
     const twoMealsProfile: PuppyProfile = { ...puppyProfile, targetMealsPerDay: 2 };
-    const twoMealsPred = calculatePredictions(dataset, twoMealsProfile, new Date(2026, 7, 9, 14, 0));
+    const twoMealsPred = calculatePredictions(dataset, twoMealsProfile, new Date(2026, 7, 16, 14, 0));
     expect(twoMealsPred.portionGrams).toBe(120);
 
     // 4 meals per day (e.g. young puppy: 240g / 4 = 60g)
     const fourMealsProfile: PuppyProfile = { ...puppyProfile, targetMealsPerDay: 4 };
-    const fourMealsPred = calculatePredictions(dataset, fourMealsProfile, new Date(2026, 7, 9, 14, 0));
+    const fourMealsPred = calculatePredictions(dataset, fourMealsProfile, new Date(2026, 7, 16, 14, 0));
     expect(fourMealsPred.portionGrams).toBe(60);
   });
 
   it('calculates puppy age', () => {
-    const ageInfo = getPuppyAge(puppyProfile.birthDate, '2026-08-09');
+    const ageInfo = getPuppyAge(puppyProfile.birthDate, '2026-08-16');
     expect(ageInfo).toMatchObject({ weeks: 19, months: 4.4 });
   });
 
@@ -227,8 +227,8 @@ describe('Comprehensive 30-Day Realistic Dataset Test Suite', () => {
         puppyId: puppyProfile.id,
         type: 'vaccination',
         name: 'CHPPi + L4',
-        date: '2026-07-01',
-        boosterDate: '2027-07-01',
+        date: '2026-07-08',
+        boosterDate: '2027-07-08',
       },
       {
         id: 'v1',
@@ -236,13 +236,13 @@ describe('Comprehensive 30-Day Realistic Dataset Test Suite', () => {
         puppyId: puppyProfile.id,
         type: 'vaccination',
         name: 'CHPPi + L4',
-        date: '2026-06-01',
-        boosterDate: '2026-07-01',
+        date: '2026-06-08',
+        boosterDate: '2026-07-08',
       },
     ];
 
     vi.useFakeTimers({ toFake: ['Date'] });
-    vi.setSystemTime(new Date(2026, 7, 9, 14, 0));
+    vi.setSystemTime(new Date(2026, 7, 16, 14, 0));
     try {
       expect(getHealthRecordStatus(mockVaccines[0], mockVaccines)).toBe('upToDate'); // v2 is the latest active vaccine
       expect(getHealthRecordStatus(mockVaccines[1], mockVaccines)).toBe('fulfilled'); // v1 superseded by v2

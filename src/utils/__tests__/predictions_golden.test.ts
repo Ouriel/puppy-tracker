@@ -7,9 +7,9 @@
  * (R1, R4, R5, R8 and the rest of R11 in .agents/plans/2026-10-13-remediation-plan.md; R3, R7, NEW-1 and the
  * R11 clock-time fix landed in Phase 3a). Example: on 2027-03-28 04:00 and 04:15 the food portion is 0 g because
  * the 04:00 logical-day cutoff is computed as now - 4 h, which is still the previous day after the spring-forward change.
- * Known issue R1 x R7 ('night: pre-bed walk at 23:17, 3 Sept'): the learned bedtime is 18:00, then 19:10 (R1/INV-1,
+ * Known issue R1 x R7 ('night: pre-bed walk at 23:17, 10 Sept'): the learned bedtime is 18:00, then 19:10 (R1/INV-1,
  * Phase 8), while the dog is logged until 23:17. The R7 cap (missed meal kept until bedtime + 1 h) therefore drops the
- * missed meal at 19:00: 3 Sept 20:00-23:30 show night 'Breakfast' with 100 of 240 g eaten, and 4 Sept goes safe at 20:00,
+ * missed meal at 19:00: 10 Sept 20:00-23:30 show night 'Breakfast' with 100 of 240 g eaten, and 11 Sept goes safe at 20:00,
  * night at 22:00, then overdue 'Meal 3 of 3' at 23:30 once the 23:05 log moves bedtime to 23:05. Phase 8 should move these lines.
  *
  * A snapshot diff is EXPECTED when the model is changed on purpose (Phase 3a/3b engine fixes, Phase 8 refactor).
@@ -26,7 +26,7 @@
 import { describe, it, expect } from 'vitest';
 import { calculatePredictions } from '../predictions';
 import type { Activity, ActivityType, PuppyProfile } from '../../types';
-import { act, at, BALMA, newestFirst } from './fixtures';
+import { act, at, PISTACHE, newestFirst } from './fixtures';
 
 const TIME_ZONE = 'Europe/Paris';
 
@@ -90,21 +90,21 @@ interface GoldenScenario {
   extraTimes?: Date[];
 }
 
-/** Balma's routine 1–7 Aug 2026 (she is ~4.4 months old), used as history by the targeted scenarios. */
-const ROUTINE_WEEK = routineDays('2026-08-01', 7);
+/** Pistache's routine 8–14 Aug 2026 (she is ~4.4 months old), used as history by the targeted scenarios. */
+const ROUTINE_WEEK = routineDays('2026-08-08', 7);
 
 const SCENARIOS: GoldenScenario[] = [
   {
     name: 'routine week: baseline, night, goal',
-    profile: BALMA,
+    profile: PISTACHE,
     activities: ROUTINE_WEEK,
-    days: ['2026-08-06', '2026-08-07'],
+    days: ['2026-08-13', '2026-08-14'],
   },
   {
     name: 'post-meal: 8-week puppy',
-    profile: { ...BALMA, birthDate: '2026-06-12' },
+    profile: { ...PISTACHE, birthDate: '2026-06-19' },
     activities: [
-      ...dayLogs('2026-08-08', [
+      ...dayLogs('2026-08-15', [
         ['pee', '06:50'],
         ['food', '07:00', { quantityGrams: 80 }],
         ['poop', '09:30'],
@@ -115,19 +115,19 @@ const SCENARIOS: GoldenScenario[] = [
         ['poop', '20:30'],
         ['pee', '22:30'],
       ]),
-      ...routineDay('2026-08-09'),
+      ...routineDay('2026-08-16'),
     ],
-    days: ['2026-08-08', '2026-08-09'],
-    extraTimes: ['07:10', '07:30', '12:10', '12:30', '19:10', '19:40'].map((clockTime) => paris('2026-08-08', clockTime)),
+    days: ['2026-08-15', '2026-08-16'],
+    extraTimes: ['07:10', '07:30', '12:10', '12:30', '19:10', '19:40'].map((clockTime) => paris('2026-08-15', clockTime)),
   },
   {
-    // Balma's real logs of 1–3 Sept (night_mode_and_age_transitions.test.ts), then a regular 4 Sept.
-    name: 'night: pre-bed walk at 23:17, 3 Sept',
-    profile: BALMA,
+    // Real logs of 3 days, moved to 8–10 Sept (night_mode_and_age_transitions.test.ts), then a regular 11 Sept.
+    name: 'night: pre-bed walk at 23:17, 10 Sept',
+    profile: PISTACHE,
     activities: [
-      ...dayLogs('2026-09-01', [['poop', '08:30'], ['poop', '18:00']]),
-      ...dayLogs('2026-09-02', [['poop', '08:30'], ['poop', '18:00']]),
-      ...dayLogs('2026-09-03', [
+      ...dayLogs('2026-09-08', [['poop', '08:30'], ['poop', '18:00']]),
+      ...dayLogs('2026-09-09', [['poop', '08:30'], ['poop', '18:00']]),
+      ...dayLogs('2026-09-10', [
         ['pee', '08:37'],
         ['poop', '08:43'],
         ['food', '09:29', { quantityGrams: 100 }],
@@ -136,7 +136,7 @@ const SCENARIOS: GoldenScenario[] = [
         ['poop', '23:17'],
         ['pee', '23:18'],
       ]),
-      ...dayLogs('2026-09-04', [
+      ...dayLogs('2026-09-11', [
         ['pee', '08:41'],
         ['poop', '08:47'],
         ['food', '09:30', { quantityGrams: 100 }],
@@ -147,22 +147,22 @@ const SCENARIOS: GoldenScenario[] = [
         ['pee', '23:05'],
       ]),
     ],
-    days: ['2026-09-03', '2026-09-04'],
+    days: ['2026-09-10', '2026-09-11'],
   },
   {
     // night_mode_and_age_transitions.test.ts: 6-week puppy, pee at 22:00 then a mid-night pee at 02:00.
     name: 'young puppy night: 6 weeks, 02:00 pee',
-    profile: { ...BALMA, birthDate: '2026-06-25' },
-    activities: [...dayLogs('2026-08-08', [['pee', '22:00']]), ...dayLogs('2026-08-09', [['pee', '02:00']])],
-    days: ['2026-08-08', '2026-08-09'],
-    extraTimes: [paris('2026-08-08', '23:00'), paris('2026-08-09', '02:30')],
+    profile: { ...PISTACHE, birthDate: '2026-07-02' },
+    activities: [...dayLogs('2026-08-15', [['pee', '22:00']]), ...dayLogs('2026-08-16', [['pee', '02:00']])],
+    days: ['2026-08-15', '2026-08-16'],
+    extraTimes: [paris('2026-08-15', '23:00'), paris('2026-08-16', '02:30')],
   },
   {
     name: 'diarrhea: loose stools, one at 01:30',
-    profile: BALMA,
+    profile: PISTACHE,
     activities: [
       ...ROUTINE_WEEK,
-      ...dayLogs('2026-08-08', [
+      ...dayLogs('2026-08-15', [
         ['pee', '07:10'],
         ['poop', '07:30', { stoolConsistency: 'diarrhea' }],
         ['food', '07:45', { quantityGrams: 80 }],
@@ -174,32 +174,32 @@ const SCENARIOS: GoldenScenario[] = [
         ['food', '19:00', { quantityGrams: 80 }],
         ['pee', '22:30'],
       ]),
-      ...dayLogs('2026-08-09', [['poop', '01:30', { stoolConsistency: 'diarrhea' }]]),
-      ...routineDay('2026-08-09'),
+      ...dayLogs('2026-08-16', [['poop', '01:30', { stoolConsistency: 'diarrhea' }]]),
+      ...routineDay('2026-08-16'),
     ],
-    days: ['2026-08-08', '2026-08-09'],
-    extraTimes: [paris('2026-08-09', '01:45'), paris('2026-08-09', '02:45')],
+    days: ['2026-08-15', '2026-08-16'],
+    extraTimes: [paris('2026-08-16', '01:45'), paris('2026-08-16', '02:45')],
   },
   {
     // predictions.test.ts: hard stool at 21:11. A normal stool follows within 16 h, so R3 is not frozen here.
     name: 'hard stool at 21:11, normal at 11:30',
-    profile: BALMA,
+    profile: PISTACHE,
     activities: [
       ...ROUTINE_WEEK,
-      ...dayLogs('2026-08-07', [['poop', '21:11', { stoolConsistency: 'hard' }]]),
-      ...routineDay('2026-08-08').filter((activity) => activity.timestamp !== paris('2026-08-08', '07:45').toISOString()),
-      ...dayLogs('2026-08-08', [['poop', '11:30', { stoolConsistency: 'normal' }]]),
-      ...routineDay('2026-08-09'),
+      ...dayLogs('2026-08-14', [['poop', '21:11', { stoolConsistency: 'hard' }]]),
+      ...routineDay('2026-08-15').filter((activity) => activity.timestamp !== paris('2026-08-15', '07:45').toISOString()),
+      ...dayLogs('2026-08-15', [['poop', '11:30', { stoolConsistency: 'normal' }]]),
+      ...routineDay('2026-08-16'),
     ],
-    days: ['2026-08-08', '2026-08-09'],
-    extraTimes: [paris('2026-08-07', '21:30'), paris('2026-08-07', '23:30')],
+    days: ['2026-08-15', '2026-08-16'],
+    extraTimes: [paris('2026-08-14', '21:30'), paris('2026-08-14', '23:30')],
   },
   {
     name: 'goal reached: 240 g by noon',
-    profile: BALMA,
+    profile: PISTACHE,
     activities: [
       ...ROUTINE_WEEK,
-      ...dayLogs('2026-08-08', [
+      ...dayLogs('2026-08-15', [
         ['pee', '07:15'],
         ['food', '07:30', { quantityGrams: 120 }],
         ['poop', '07:50'],
@@ -210,27 +210,27 @@ const SCENARIOS: GoldenScenario[] = [
         ['poop', '19:35'],
         ['pee', '22:30'],
       ]),
-      ...routineDay('2026-08-09'),
+      ...routineDay('2026-08-16'),
     ],
-    days: ['2026-08-08', '2026-08-09'],
+    days: ['2026-08-15', '2026-08-16'],
   },
   {
     name: 'remaining portion: 3 meals of 50 g',
-    profile: BALMA,
-    activities: [...ROUTINE_WEEK, ...routineDay('2026-08-08', 50), ...routineDay('2026-08-09')],
-    days: ['2026-08-08', '2026-08-09'],
-    extraTimes: [paris('2026-08-08', '19:30'), paris('2026-08-08', '21:00')],
+    profile: PISTACHE,
+    activities: [...ROUTINE_WEEK, ...routineDay('2026-08-15', 50), ...routineDay('2026-08-16')],
+    days: ['2026-08-15', '2026-08-16'],
+    extraTimes: [paris('2026-08-15', '19:30'), paris('2026-08-15', '21:00')],
   },
   {
     name: 'empty history',
-    profile: BALMA,
+    profile: PISTACHE,
     activities: [],
-    days: ['2026-08-08', '2026-08-09'],
+    days: ['2026-08-15', '2026-08-16'],
   },
   {
     // Clocks go back 03:00 CEST -> 02:00 CET on 25 Oct 2026: 02:30 happens twice.
     name: 'DST autumn 2026: routine across 25 Oct',
-    profile: BALMA,
+    profile: PISTACHE,
     activities: routineDays('2026-10-18', 9),
     days: ['2026-10-25', '2026-10-26'],
     extraTimes: ['2026-10-25T01:30:00+02:00', '2026-10-25T02:30:00+02:00', '2026-10-25T02:30:00+01:00', '2026-10-25T03:30:00+01:00'].map(
@@ -240,7 +240,7 @@ const SCENARIOS: GoldenScenario[] = [
   {
     // Clocks go forward 02:00 CET -> 03:00 CEST on 28 Mar 2027: 02:00 does not exist and is skipped.
     name: 'DST spring 2027: routine across 28 Mar',
-    profile: BALMA,
+    profile: PISTACHE,
     activities: routineDays('2027-03-21', 9),
     days: ['2027-03-28', '2027-03-29'],
     extraTimes: [new Date('2027-03-28T01:30:00+01:00'), new Date('2027-03-28T03:30:00+02:00')],

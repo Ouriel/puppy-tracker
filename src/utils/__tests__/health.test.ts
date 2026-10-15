@@ -4,7 +4,7 @@ import type { Activity, HealthRecord } from '../../types';
 
 describe('Health Passport — French Veterinary Protocol & Dataset Test Suite', () => {
   /**
-   * Complete realistic lifetime health passport dataset for a puppy (Balma)
+   * Complete realistic lifetime health passport dataset for a puppy (Pistache)
    * covering initial primer shots, 12w/16w boosters, 1yr annual boosters, and ESCCAP deworming history.
    */
   const healthPassportDataset: HealthRecord[] = [
@@ -12,33 +12,33 @@ describe('Health Passport — French Veterinary Protocol & Dataset Test Suite', 
     {
       id: 'v1-8w',
       householdId: 'hh-001',
-      puppyId: 'pup-balma',
+      puppyId: 'pup-pistache',
       type: 'vaccination',
       name: 'CHPPi + L4 (Primovaccination 8 sem)',
-      date: '2026-05-22',
-      boosterDate: '2026-06-22',
+      date: '2026-05-29',
+      boosterDate: '2026-06-29',
       vetClinic: 'Clinique Vétérinaire des Alizés',
       batchNumber: 'LOT-CHPPi-2026A',
     },
     {
       id: 'v2-12w',
       householdId: 'hh-001',
-      puppyId: 'pup-balma',
+      puppyId: 'pup-pistache',
       type: 'vaccination',
       name: 'CHPPi + L4 (Rappel 1 - 12 sem)',
-      date: '2026-06-22',
-      boosterDate: '2026-07-22',
+      date: '2026-06-29',
+      boosterDate: '2026-07-29',
       vetClinic: 'Clinique Vétérinaire des Alizés',
       batchNumber: 'LOT-CHPPi-2026B',
     },
     {
       id: 'v3-16w',
       householdId: 'hh-001',
-      puppyId: 'pup-balma',
+      puppyId: 'pup-pistache',
       type: 'vaccination',
       name: 'CHPPi + L4 + Rage (Rappel 2 - 16 sem)',
-      date: '2026-07-22',
-      boosterDate: '2027-07-22',
+      date: '2026-07-29',
+      boosterDate: '2027-07-29',
       vetClinic: 'Clinique Vétérinaire des Alizés',
       batchNumber: 'LOT-RAGE-2026C',
     },
@@ -47,51 +47,51 @@ describe('Health Passport — French Veterinary Protocol & Dataset Test Suite', 
     {
       id: 'd1-4w',
       householdId: 'hh-001',
-      puppyId: 'pup-balma',
+      puppyId: 'pup-pistache',
       type: 'deworming',
       name: 'Milbemax Tab Chiot',
       productName: 'Milbemax Tab Chiot',
-      date: '2026-04-25',
-      boosterDate: '2026-05-09',
+      date: '2026-05-02',
+      boosterDate: '2026-05-16',
     },
     {
       id: 'd2-6w',
       householdId: 'hh-001',
-      puppyId: 'pup-balma',
+      puppyId: 'pup-pistache',
       type: 'deworming',
       name: 'Milbemax Tab Chiot',
       productName: 'Milbemax Tab Chiot',
-      date: '2026-05-09',
-      boosterDate: '2026-05-23',
+      date: '2026-05-16',
+      boosterDate: '2026-05-30',
     },
     {
       id: 'd3-8w',
       householdId: 'hh-001',
-      puppyId: 'pup-balma',
+      puppyId: 'pup-pistache',
       type: 'deworming',
       name: 'Milbemax Tab Chiot',
       productName: 'Milbemax Tab Chiot',
-      date: '2026-05-23',
-      boosterDate: '2026-06-23',
+      date: '2026-05-30',
+      boosterDate: '2026-06-30',
     },
     {
       id: 'd4-12w',
       householdId: 'hh-001',
-      puppyId: 'pup-balma',
+      puppyId: 'pup-pistache',
       type: 'deworming',
       name: 'Credelio Plus',
       productName: 'Credelio Plus',
-      date: '2026-06-23',
-      boosterDate: '2026-07-23',
+      date: '2026-06-30',
+      boosterDate: '2026-07-30',
     },
     {
       id: 'd5-16w',
       householdId: 'hh-001',
-      puppyId: 'pup-balma',
+      puppyId: 'pup-pistache',
       type: 'deworming',
       name: 'Credelio Plus',
       productName: 'Credelio Plus',
-      date: '2026-07-23',
+      date: '2026-07-30',
       boosterDate: '2026-08-23',
     },
   ];
@@ -170,15 +170,15 @@ describe('Health Passport — French Veterinary Protocol & Dataset Test Suite', 
 
   it('evaluates vaccines per vaccine: only a later record of the same vaccine renews one (same-day CHPPi + Rage stay overdue)', () => {
     // Same call as VaccineSection: each record against the vaccination list. The 16-week visit is logged as two
-    // records on the same day, and a kennel-cough shot comes later; both 2027-07-22 boosters are past on 2027-08-01.
+    // records on the same day, and a kennel-cough shot comes later; both 2027-07-29 boosters are past on 2027-08-08.
     const vaccines: HealthRecord[] = [
       ...healthPassportDataset.filter((record) => record.id === 'v1-8w' || record.id === 'v2-12w'),
-      { id: 'v3-chppi', householdId: 'hh-001', puppyId: 'pup-balma', type: 'vaccination', name: 'CHPPi + L4 (Rappel 2 - 16 sem)', date: '2026-07-22', boosterDate: '2027-07-22' },
-      { id: 'v3-rage', householdId: 'hh-001', puppyId: 'pup-balma', type: 'vaccination', name: 'Rage (Eurican LR / Nobivac Rabies / Versiguard / Rabisin)', date: '2026-07-22', boosterDate: '2027-07-22' },
-      { id: 'v4-kc', householdId: 'hh-001', puppyId: 'pup-balma', type: 'vaccination', name: 'Toux de Chenil (Nobivac KC / Bronchi-Shield)', date: '2026-09-01', boosterDate: '2027-09-01' },
+      { id: 'v3-chppi', householdId: 'hh-001', puppyId: 'pup-pistache', type: 'vaccination', name: 'CHPPi + L4 (Rappel 2 - 16 sem)', date: '2026-07-29', boosterDate: '2027-07-29' },
+      { id: 'v3-rage', householdId: 'hh-001', puppyId: 'pup-pistache', type: 'vaccination', name: 'Rage (Eurican LR / Nobivac Rabies / Versiguard / Rabisin)', date: '2026-07-29', boosterDate: '2027-07-29' },
+      { id: 'v4-kc', householdId: 'hh-001', puppyId: 'pup-pistache', type: 'vaccination', name: 'Toux de Chenil (Nobivac KC / Bronchi-Shield)', date: '2026-09-08', boosterDate: '2027-09-08' },
     ];
     vi.useFakeTimers({ toFake: ['Date'] });
-    vi.setSystemTime(new Date('2027-08-01T10:00:00.000Z'));
+    vi.setSystemTime(new Date('2027-08-08T10:00:00.000Z'));
     try {
       const urgencyById = Object.fromEntries(
         vaccines.map((record) => [record.id, getHealthRecordStatus(record, vaccines)])
@@ -197,7 +197,7 @@ describe('Health Passport — French Veterinary Protocol & Dataset Test Suite', 
 
   it('matches hand-typed vaccine names to the right vaccine (longest alias wins; r, l4, kc only as whole words)', () => {
     const record = (id: string, name: string, date: string, boosterDate: string): HealthRecord => (
-      { id, householdId: 'hh-001', puppyId: 'pup-balma', type: 'vaccination', name, date, boosterDate }
+      { id, householdId: 'hh-001', puppyId: 'pup-pistache', type: 'vaccination', name, date, boosterDate }
     );
     const statusOf = (target: HealthRecord, records: HealthRecord[]) => getHealthRecordStatus(target, records);
     vi.useFakeTimers({ toFake: ['Date'] });
@@ -217,10 +217,10 @@ describe('Health Passport — French Veterinary Protocol & Dataset Test Suite', 
   });
 
   it('renews a CHPPi + L4 shot with a later L4-only booster (L4 sets its yearly date; owner decision F2)', () => {
-    const combo: HealthRecord = { id: 'combo', householdId: 'hh-001', puppyId: 'pup-balma', type: 'vaccination', name: 'CHPPi + L4 (Eurican / Nobivac / Versican)', date: '2027-03-27', boosterDate: '2028-03-27' };
-    const leptoOnly: HealthRecord = { id: 'l4', householdId: 'hh-001', puppyId: 'pup-balma', type: 'vaccination', name: 'Leptospirose L4', date: '2028-03-27', boosterDate: '2029-03-27' };
+    const combo: HealthRecord = { id: 'combo', householdId: 'hh-001', puppyId: 'pup-pistache', type: 'vaccination', name: 'CHPPi + L4 (Eurican / Nobivac / Versican)', date: '2027-04-03', boosterDate: '2028-04-03' };
+    const leptoOnly: HealthRecord = { id: 'l4', householdId: 'hh-001', puppyId: 'pup-pistache', type: 'vaccination', name: 'Leptospirose L4', date: '2028-04-03', boosterDate: '2029-04-03' };
     vi.useFakeTimers({ toFake: ['Date'] });
-    vi.setSystemTime(new Date('2028-06-01T10:00:00.000Z'));
+    vi.setSystemTime(new Date('2028-06-08T10:00:00.000Z'));
     try {
       expect(getHealthRecordStatus(combo, [combo, leptoOnly])).toBe('fulfilled');
       expect(getHealthRecordStatus(leptoOnly, [combo, leptoOnly])).toBe('upToDate');
@@ -230,7 +230,7 @@ describe('Health Passport — French Veterinary Protocol & Dataset Test Suite', 
   });
 
   it('does not let two records of the same vaccine on the same day renew each other', () => {
-    const first: HealthRecord = { id: 'rage-a', householdId: 'hh-001', puppyId: 'pup-balma', type: 'vaccination', name: 'Rage', date: '2026-07-22', boosterDate: '2027-07-22' };
+    const first: HealthRecord = { id: 'rage-a', householdId: 'hh-001', puppyId: 'pup-pistache', type: 'vaccination', name: 'Rage', date: '2026-07-22', boosterDate: '2027-07-22' };
     const duplicate: HealthRecord = { ...first, id: 'rage-b' };
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(new Date('2027-08-01T10:00:00.000Z'));
@@ -244,12 +244,12 @@ describe('Health Passport — French Veterinary Protocol & Dataset Test Suite', 
 
   it('renews a vaccine with a later vaccine that covers it (real carnet: CHPPi sans L4 primo, then CHPPi + L4 shots)', () => {
     const vaccines: HealthRecord[] = [
-      { id: 'sans-l4', householdId: 'hh-001', puppyId: 'pup-balma', type: 'vaccination', name: 'CHPPi / DAPPi (sans L4)', date: '2026-05-27', boosterDate: '2026-06-27' },
-      { id: 'l4-1', householdId: 'hh-001', puppyId: 'pup-balma', type: 'vaccination', name: 'CHPPi + L4 (Eurican / Nobivac / Versican)', date: '2026-06-27', boosterDate: '2026-07-25' },
-      { id: 'l4-2', householdId: 'hh-001', puppyId: 'pup-balma', type: 'vaccination', name: 'CHPPi / DAPPi + L4 (Eurican / Nobivac / Versican / Canigen)', date: '2026-07-25', boosterDate: '2027-03-27' },
+      { id: 'sans-l4', householdId: 'hh-001', puppyId: 'pup-pistache', type: 'vaccination', name: 'CHPPi / DAPPi (sans L4)', date: '2026-06-03', boosterDate: '2026-07-04' },
+      { id: 'l4-1', householdId: 'hh-001', puppyId: 'pup-pistache', type: 'vaccination', name: 'CHPPi + L4 (Eurican / Nobivac / Versican)', date: '2026-07-04', boosterDate: '2026-08-01' },
+      { id: 'l4-2', householdId: 'hh-001', puppyId: 'pup-pistache', type: 'vaccination', name: 'CHPPi / DAPPi + L4 (Eurican / Nobivac / Versican / Canigen)', date: '2026-08-01', boosterDate: '2027-04-03' },
     ];
     vi.useFakeTimers({ toFake: ['Date'] });
-    vi.setSystemTime(new Date('2026-10-14T10:00:00.000Z'));
+    vi.setSystemTime(new Date('2026-10-21T10:00:00.000Z'));
     try {
       const urgencyById = Object.fromEntries(
         vaccines.map((record) => [record.id, getHealthRecordStatus(record, vaccines)])
@@ -261,10 +261,10 @@ describe('Health Passport — French Veterinary Protocol & Dataset Test Suite', 
   });
 
   it('evaluates deworming dataset: older doses (d1..d4) are fulfilled and the latest dose (d5) is overdue after its booster date', () => {
-    // Same call as DewormingSection: each record against the deworming list. d5's booster is 2026-08-23.
+    // Same call as DewormingSection: each record against the deworming list. d5's booster is 2026-08-30.
     const dewormingLogs = healthPassportDataset.filter((record) => record.type === 'deworming');
     vi.useFakeTimers({ toFake: ['Date'] });
-    vi.setSystemTime(new Date('2026-09-01T10:00:00.000Z'));
+    vi.setSystemTime(new Date('2026-09-08T10:00:00.000Z'));
     try {
       const urgencyById = Object.fromEntries(
         dewormingLogs.map((record) => [record.id, getHealthRecordStatus(record, dewormingLogs)])

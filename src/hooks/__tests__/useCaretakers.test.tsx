@@ -6,7 +6,7 @@ import { useCaretakers } from '../useCaretakers';
 import { clearApiCache } from '../../services/api';
 import type { Caretaker } from '../../types';
 
-const daria: Caretaker = { id: 'c-1', name: 'Daria', role: 'Member', color: 'bg-amber-500' };
+const alice: Caretaker = { id: 'c-1', name: 'Alice', role: 'Member', color: 'bg-amber-500' };
 const bob: Caretaker = { id: 'c-2', name: 'Bob', role: 'Member', color: 'bg-sky-500' };
 const eve: Caretaker = { id: 'c-3', name: 'Eve', role: 'Member', color: 'bg-rose-500' };
 
@@ -16,7 +16,7 @@ let hook: ReturnType<typeof useCaretakers>;
 let pendingAnswers: Array<(response: Response) => void> = [];
 
 function HookProbe({ onRender }: { onRender: (state: ReturnType<typeof useCaretakers>) => void }) {
-  onRender(useCaretakers(null, [daria, bob, eve]));
+  onRender(useCaretakers(null, [alice, bob, eve]));
   return null;
 }
 
@@ -64,19 +64,19 @@ describe('useCaretakers: a refused change rolls back only its own badge', () => 
       await first;
     });
 
-    expect(hook.caretakers).toEqual([daria, { ...bob, name: 'Sam' }, eve]);
+    expect(hook.caretakers).toEqual([alice, { ...bob, name: 'Sam' }, eve]);
   });
 
   it('a refused removal adds no second copy when a reload already brought the badge back', async () => {
     let removal: Promise<void> = Promise.resolve();
     await act(async () => { removal = hook.deleteCaretaker('c-1'); });
-    await act(async () => hook.setCaretakers([daria, bob, eve]));
+    await act(async () => hook.setCaretakers([alice, bob, eve]));
 
     await act(async () => {
       pendingAnswers[0](answer(403, { error: 'Only an admin can remove a badge' }));
       await removal;
     });
 
-    expect(hook.caretakers).toEqual([daria, bob, eve]);
+    expect(hook.caretakers).toEqual([alice, bob, eve]);
   });
 });

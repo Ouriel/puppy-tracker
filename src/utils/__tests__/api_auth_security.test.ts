@@ -61,7 +61,7 @@ vi.mock('drizzle-orm/neon-http', async () => {
 const activeUserRow = {
   id: 'usr-1',
   email: 'user@example.com',
-  name: 'Matthieu',
+  name: 'Sam',
   householdId: 'hh-family-123',
   role: 'Husband',
   status: 'ACTIVE',
@@ -187,7 +187,7 @@ describe('API Security & Session Token Validation Test Suite', () => {
 
   it('rejects an activity POST for a puppy outside the token household with 403', async () => {
     const token = signAppSessionToken(
-      { email: 'user@example.com', name: 'Matthieu', householdId: 'hh-family-123', role: 'Husband' },
+      { email: 'user@example.com', name: 'Sam', householdId: 'hh-family-123', role: 'Husband' },
       30
     );
     const request = {
@@ -225,7 +225,7 @@ describe('API Security & Session Token Validation Test Suite', () => {
     it('authenticates valid Bearer App Session Token on 0ms fast path', async () => {
       const payload = {
         email: 'user@example.com',
-        name: 'Matthieu',
+        name: 'Sam',
         householdId: 'hh-family-123',
         role: 'Husband',
       };
@@ -268,7 +268,7 @@ describe('API Security & Session Token Validation Test Suite', () => {
   });
   describe('S1: every request re-reads the users row', () => {
     const memberToken = () =>
-      signAppSessionToken({ email: 'user@example.com', name: 'Matthieu', householdId: 'hh-family-123', role: 'Husband' }, 30);
+      signAppSessionToken({ email: 'user@example.com', name: 'Sam', householdId: 'hh-family-123', role: 'Husband' }, 30);
 
     it('(1a) rejects a valid token whose email has no users row with 401', async () => {
       dbMock.rowsByTable.users = [];
@@ -330,7 +330,7 @@ describe('API Security & Session Token Validation Test Suite', () => {
     it('does not exempt a token that only claims the SuperAdmin role', async () => {
       dbMock.rowsByTable.users = [];
       const token = signAppSessionToken(
-        { email: 'user@example.com', name: 'Matthieu', householdId: 'hh-family-123', role: 'SuperAdmin' },
+        { email: 'user@example.com', name: 'Sam', householdId: 'hh-family-123', role: 'SuperAdmin' },
         30
       );
 
@@ -341,22 +341,22 @@ describe('API Security & Session Token Validation Test Suite', () => {
   // Improvement backlog 32: one Neon round trip less at each app start and each log
   describe('database round trips', () => {
     const memberToken = () =>
-      signAppSessionToken({ email: 'user@example.com', name: 'Matthieu', householdId: 'hh-family-123', role: 'Husband' }, 30);
+      signAppSessionToken({ email: 'user@example.com', name: 'Sam', householdId: 'hh-family-123', role: 'Husband' }, 30);
     const usersLookups = () => dbMock.selects.filter((select) => select.table === 'users').length;
 
     it('verifyAuth takes the name from the users row, not from the token', async () => {
-      dbMock.rowsByTable.users = [{ ...activeUserRow, name: 'Matthieu J.' }];
+      dbMock.rowsByTable.users = [{ ...activeUserRow, name: 'Sam T.' }];
 
-      expect((await verifyAuth(bearerRequest(memberToken()))).name).toBe('Matthieu J.');
+      expect((await verifyAuth(bearerRequest(memberToken()))).name).toBe('Sam T.');
     });
 
     it('POST /api/auth/session refreshes the name, household and role from a single users lookup', async () => {
-      dbMock.rowsByTable.users = [{ ...activeUserRow, name: 'Matthieu J.', householdId: 'hh-moved', role: 'Sitter' }];
+      dbMock.rowsByTable.users = [{ ...activeUserRow, name: 'Sam T.', householdId: 'hh-moved', role: 'Sitter' }];
       const response = createMockResponse();
 
       await sessionHandler(bearerRequest(memberToken(), 'POST'), response);
 
-      const refreshed = { email: 'user@example.com', name: 'Matthieu J.', householdId: 'hh-moved', role: 'Sitter' };
+      const refreshed = { email: 'user@example.com', name: 'Sam T.', householdId: 'hh-moved', role: 'Sitter' };
       expect(response.statusCode).toBe(200);
       expect(response.body.user).toEqual(refreshed);
       expect(verifyAppSessionToken(response.body.sessionToken)).toEqual(refreshed);
@@ -376,7 +376,7 @@ describe('API Security & Session Token Validation Test Suite', () => {
 
     it('POST /api/activities sends the existing-id lookup together with the dog and badge lookups', async () => {
       dbMock.rowsByTable.puppies = [{ id: 'pup-1', householdId: 'hh-family-123' }];
-      dbMock.rowsByTable.caretakers = [{ id: 'c-1', householdId: 'hh-family-123', name: 'Matthieu', role: 'Member', color: '#EC4899', email: 'user@example.com' }];
+      dbMock.rowsByTable.caretakers = [{ id: 'c-1', householdId: 'hh-family-123', name: 'Sam', role: 'Member', color: '#EC4899', email: 'user@example.com' }];
       const response = createMockResponse();
 
       await activitiesHandler(bearerRequest(memberToken(), 'POST', { id: 'act-1', puppyId: 'pup-1', type: 'pee' }), response);
@@ -388,7 +388,7 @@ describe('API Security & Session Token Validation Test Suite', () => {
     });
 
     describe('POST /api/activities with an id already stored (a log sent again)', () => {
-      const stored = { id: 'act-1', householdId: 'hh-family-123', puppyId: 'pup-1', type: 'pee', loggedBy: 'Matthieu' };
+      const stored = { id: 'act-1', householdId: 'hh-family-123', puppyId: 'pup-1', type: 'pee', loggedBy: 'Sam' };
       const sendAgain = async () => {
         const response = createMockResponse();
         await activitiesHandler(bearerRequest(memberToken(), 'POST', { id: 'act-1', puppyId: 'pup-1', type: 'pee' }), response);
@@ -425,16 +425,16 @@ describe('API Security & Session Token Validation Test Suite', () => {
 
   describe('S3: household roles for dog management', () => {
     const tokenFor = (role: string) =>
-      signAppSessionToken({ email: 'user@example.com', name: 'Matthieu', householdId: 'hh-family-123', role }, 30);
+      signAppSessionToken({ email: 'user@example.com', name: 'Sam', householdId: 'hh-family-123', role }, 30);
 
     it('(1b) lets a Member create a dog (201)', async () => {
       dbMock.rowsByTable.users = [{ ...activeUserRow, role: 'Member' }];
       const response = createMockResponse();
 
-      await dogsHandler(bearerRequest(tokenFor('Member'), 'POST', { id: 'dog-new', name: 'Balma', breed: 'Cocker', birthDate: '2026-05-01' }), response);
+      await dogsHandler(bearerRequest(tokenFor('Member'), 'POST', { id: 'dog-new', name: 'Pistache', breed: 'Cocker', birthDate: '2026-05-01' }), response);
 
       expect(response.statusCode).toBe(201);
-      expect(response.body).toMatchObject({ id: 'dog-new', householdId: 'hh-family-123', name: 'Balma' });
+      expect(response.body).toMatchObject({ id: 'dog-new', householdId: 'hh-family-123', name: 'Pistache' });
     });
 
     it('(1d) forbids a Sitter from deleting a dog (403)', async () => {
@@ -452,11 +452,11 @@ describe('API Security & Session Token Validation Test Suite', () => {
       const postResponse = createMockResponse();
       const deleteResponse = createMockResponse();
 
-      await householdsHandler(bearerRequest(tokenFor('Member'), 'POST', { id: 'ct-new', name: 'Daria' }), postResponse);
+      await householdsHandler(bearerRequest(tokenFor('Member'), 'POST', { id: 'ct-new', name: 'Alice' }), postResponse);
       await householdsHandler(bearerRequest(tokenFor('Member'), 'DELETE', undefined, { id: 'ct-1' }), deleteResponse);
 
       expect(postResponse.statusCode).toBe(201);
-      expect(postResponse.body).toMatchObject({ id: 'ct-new', householdId: 'hh-family-123', name: 'Daria' });
+      expect(postResponse.body).toMatchObject({ id: 'ct-new', householdId: 'hh-family-123', name: 'Alice' });
       expect(deleteResponse.statusCode).toBe(403);
       expect(dbMock.delete).not.toHaveBeenCalled();
     });
@@ -465,10 +465,10 @@ describe('API Security & Session Token Validation Test Suite', () => {
       dbMock.rowsByTable.users = [{ ...activeUserRow, role: 'Member' }];
       const response = createMockResponse();
 
-      await dogsHandler(bearerRequest(tokenFor('Member'), 'PUT', { id: 'dog-1', name: 'Balma' }), response);
+      await dogsHandler(bearerRequest(tokenFor('Member'), 'PUT', { id: 'dog-1', name: 'Pistache' }), response);
 
       expect(response.statusCode).toBe(200);
-      expect(response.body).toMatchObject({ name: 'Balma' });
+      expect(response.body).toMatchObject({ name: 'Pistache' });
     });
 
     it('lets a Member edit a caretaker (200)', async () => {
@@ -476,10 +476,10 @@ describe('API Security & Session Token Validation Test Suite', () => {
       dbMock.rowsByTable.caretakers = [{ id: 'ct-1', householdId: 'hh-family-123', role: 'Member' }];
       const response = createMockResponse();
 
-      await householdsHandler(bearerRequest(tokenFor('Member'), 'PUT', { id: 'ct-1', name: 'Daria' }), response);
+      await householdsHandler(bearerRequest(tokenFor('Member'), 'PUT', { id: 'ct-1', name: 'Alice' }), response);
 
       expect(response.statusCode).toBe(200);
-      expect(response.body).toMatchObject({ name: 'Daria' });
+      expect(response.body).toMatchObject({ name: 'Alice' });
     });
 
     it('forbids a Husband from deleting a dog or a caretaker: only the owner (SuperAdmin) deletes (owner decision)', async () => {
@@ -514,7 +514,7 @@ describe('API Security & Session Token Validation Test Suite', () => {
   // loggedBy is stored as a badge name and resolved by the badge email first, so a badge email is an identity.
   describe('badge links to a login (22): one badge per email and per name, only an admin links someone else', () => {
     const tokenFor = (role: string) =>
-      signAppSessionToken({ email: 'user@example.com', name: 'Matthieu', householdId: 'hh-family-123', role }, 30);
+      signAppSessionToken({ email: 'user@example.com', name: 'Sam', householdId: 'hh-family-123', role }, 30);
     const ownerBadge = { id: 'ct-owner', householdId: 'hh-family-123', name: 'Owner', role: 'Member', color: '#EC4899', email: 'owner@example.com' };
     const freeBadge = { id: 'ct-free', householdId: 'hh-family-123', name: 'Guest', role: 'Member', color: '#10B981', email: null };
     const myBadge = { id: 'ct-me', householdId: 'hh-family-123', name: 'Me', role: 'Member', color: '#F59E0B', email: 'user@example.com' };
@@ -544,7 +544,7 @@ describe('API Security & Session Token Validation Test Suite', () => {
       expect(dbMock.insert).not.toHaveBeenCalled();
     });
 
-    // Else a member renames Daria's badge away, takes 'Daria' for their own badge and logs as Daria.
+    // Else a member renames Alice's badge away, takes 'Alice' for their own badge and logs as Alice.
     it("refuses (403) a member renaming a badge linked to someone else's login; their own and unlinked badges stay editable", async () => {
       dbMock.rowsByTable.caretakers = [ownerBadge, freeBadge, myBadge];
 
@@ -628,7 +628,7 @@ describe('API Security & Session Token Validation Test Suite', () => {
 
   describe('/api/dogs input rules (Settings form)', () => {
     const memberToken = () =>
-      signAppSessionToken({ email: 'user@example.com', name: 'Matthieu', householdId: 'hh-family-123', role: 'Member' }, 30);
+      signAppSessionToken({ email: 'user@example.com', name: 'Sam', householdId: 'hh-family-123', role: 'Member' }, 30);
 
     it('PUT accepts null to clear the adult weight and the sex, as the API returns them for a dog without one', async () => {
       const response = createMockResponse();
@@ -697,13 +697,13 @@ describe('API Security & Session Token Validation Test Suite', () => {
         const issuedAt = Math.floor(Date.now() / 1000);
         const header = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url');
         const payload = Buffer.from(
-          JSON.stringify({ email: 'user@example.com', name: 'Matthieu', householdId: 'hh-family-123', role: 'Husband', exp: issuedAt + 86400, iat: issuedAt })
+          JSON.stringify({ email: 'user@example.com', name: 'Sam', householdId: 'hh-family-123', role: 'Husband', exp: issuedAt + 86400, iat: issuedAt })
         ).toString('base64url');
         const signature = createHmac('sha256', derivedKey).update(`${header}.${payload}`).digest('base64url');
 
         const auth = await verifyAuth(bearerRequest(`${header}.${payload}.${signature}`));
 
-        expect(auth).toEqual({ email: 'user@example.com', name: 'Matthieu', householdId: 'hh-family-123', role: 'Husband' });
+        expect(auth).toEqual({ email: 'user@example.com', name: 'Sam', householdId: 'hh-family-123', role: 'Husband' });
         expect(fetchSpy).not.toHaveBeenCalled();
       } finally {
         fetchSpy.mockRestore();
@@ -719,7 +719,7 @@ describe('API Security & Session Token Validation Test Suite', () => {
     const sessionSecret = 'test-secret-key-1234567890-very-secure';
     const deriveLegacyKey = (postgresUrl: string) => createHmac('sha256', 'puppace-salt-2026').update(postgresUrl).digest('hex');
     const legacyKey = deriveLegacyKey('postgres://example.invalid/db');
-    const memberClaims = { email: 'user@example.com', name: 'Matthieu', householdId: 'hh-family-123', role: 'Husband' };
+    const memberClaims = { email: 'user@example.com', name: 'Sam', householdId: 'hh-family-123', role: 'Husband' };
     const signatureWith = (key: string, signedPart: string) => createHmac('sha256', key).update(signedPart).digest('base64url');
     // Built by hand, independently of signAppSessionToken
     const tokenSignedWith = (key: string) => {
@@ -734,7 +734,7 @@ describe('API Security & Session Token Validation Test Suite', () => {
     };
     // Produced by today's code (no SESSION_SECRET, POSTGRES_URL above, issued 2026-10-15 08:00 UTC, 90 days)
     const pinnedLegacyToken =
-      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6InVzZXJAZXhhbXBsZS5jb20iLCJuYW1lIjoiTWF0dGhpZXUiLCJob3VzZWhvbGRJZCI6ImhoLWZhbWlseS0xMjMiLCJyb2xlIjoiSHVzYmFuZCIsImV4cCI6MTc5OTgyNzIwMCwiaWF0IjoxNzkyMDUxMjAwfQ.wrLMJ3Lx_mrXGAaJw5dgFDzTWczl29GwnBTzFGRV7Gk';
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6InVzZXJAZXhhbXBsZS5jb20iLCJuYW1lIjoiU2FtIiwiaG91c2Vob2xkSWQiOiJoaC1mYW1pbHktMTIzIiwicm9sZSI6Ikh1c2JhbmQiLCJleHAiOjE3OTk4MjcyMDAsImlhdCI6MTc5MjA1MTIwMH0.O0rxED0wqhVrxmGKoeIoo_dEfpQEfnVWQFFqHkwzmLQ';
     let fetchSpy: ReturnType<typeof vi.spyOn>;
 
     beforeEach(() => {

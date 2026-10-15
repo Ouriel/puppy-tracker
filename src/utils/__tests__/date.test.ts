@@ -131,10 +131,10 @@ describe('date utility module — comprehensive test suite', () => {
 
   it('parseIsoDate safely parses ISO strings, Date objects, and date-only strings', () => {
     // A date-only string is UTC midnight (ECMAScript rule), whatever the host timezone
-    const dOnly = parseIsoDate('2026-03-27');
-    expect(dOnly.toISOString()).toBe('2026-03-27T00:00:00.000Z');
+    const dOnly = parseIsoDate('2026-04-03');
+    expect(dOnly.toISOString()).toBe('2026-04-03T00:00:00.000Z');
 
-    const isoStr = '2026-08-09T21:10:14.280Z';
+    const isoStr = '2026-01-15T08:30:45.280Z';
     const parsedIso = parseIsoDate(isoStr);
     expect(parsedIso.toISOString()).toBe(isoStr);
 

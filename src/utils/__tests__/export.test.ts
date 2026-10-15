@@ -8,7 +8,7 @@ import { fr } from '../../i18n/fr';
 describe('export utilities — CSV and PDF export test suite', () => {
   const mockProfile: PuppyProfile = {
     id: 'pup-1',
-    name: 'Balma',
+    name: 'Pistache',
     breed: 'Australian Shepherd',
     birthDate: '2026-03-01',
     weightKg: 6.5,
@@ -17,8 +17,8 @@ describe('export utilities — CSV and PDF export test suite', () => {
   };
 
   const mockCaretakers: Caretaker[] = [
-    { id: 'c-1', name: 'Matthieu', role: 'Member', color: '#6366F1' },
-    { id: 'c-2', name: 'Daria', role: 'Member', color: '#EC4899' },
+    { id: 'c-1', name: 'Sam', role: 'Member', color: '#6366F1' },
+    { id: 'c-2', name: 'Alice', role: 'Member', color: '#EC4899' },
   ];
 
   const mockActivities: Activity[] = [
@@ -28,7 +28,7 @@ describe('export utilities — CSV and PDF export test suite', () => {
       type: 'pee',
       timestamp: '2026-08-19T08:30:00.000Z',
       pottyLocation: 'outside',
-      loggedBy: 'Matthieu Jacquet',
+      loggedBy: 'Sam Taylor',
       notes: 'Good pee on grass',
     },
     {
@@ -38,7 +38,7 @@ describe('export utilities — CSV and PDF export test suite', () => {
       timestamp: '2026-08-19T09:00:00.000Z',
       pottyLocation: 'indoor_accident',
       stoolConsistency: 'soft',
-      loggedBy: 'daria@example.com',
+      loggedBy: 'alice@example.com',
       notes: 'Accident in "hallway", cleaned immediately',
     },
     {
@@ -49,7 +49,7 @@ describe('export utilities — CSV and PDF export test suite', () => {
       foodType: 'kibble',
       quantityGrams: 80,
       quantityCups: 0.73,
-      loggedBy: 'Matthieu',
+      loggedBy: 'Sam',
     },
     {
       id: 'act-4',
@@ -57,7 +57,7 @@ describe('export utilities — CSV and PDF export test suite', () => {
       type: 'weight',
       timestamp: '2026-08-19T13:00:00.000Z',
       weightKg: 6.8,
-      loggedBy: 'Daria',
+      loggedBy: 'Alice',
     },
     {
       id: 'act-5',
@@ -65,7 +65,7 @@ describe('export utilities — CSV and PDF export test suite', () => {
       type: 'medication',
       timestamp: '2026-08-19T14:00:00.000Z',
       medicationName: 'Bravecto',
-      loggedBy: 'Matthieu',
+      loggedBy: 'Sam',
     },
   ];
 
@@ -136,11 +136,11 @@ describe('export utilities — CSV and PDF export test suite', () => {
         const text = await (createdBlob as Blob).text();
         // Check quoted French headers
         expect(text).toContain('"Date","Heure","Type d\'Activité","Lieu Besoins","Consistance Selles","Quantité (g)","Quantité (cups)","Durée (min)","Poids (kg)","Médicament","Enregistré Par","Notes"');
-        expect(text).toContain('"Matthieu"');
-        expect(text).toContain('"Daria"');
+        expect(text).toContain('"Sam"');
+        expect(text).toContain('"Alice"');
         // SSO full names and emails are resolved to the caretaker name, never exported raw
-        expect(text).not.toContain('Matthieu Jacquet');
-        expect(text).not.toContain('daria@example.com');
+        expect(text).not.toContain('Sam Taylor');
+        expect(text).not.toContain('alice@example.com');
         expect(text).toContain('Accident in ""hallway"", cleaned immediately');
         expect(text).toContain('"Pipi"');
         expect(text).toContain('"Caca"');
@@ -184,7 +184,7 @@ describe('export utilities — CSV and PDF export test suite', () => {
       expect(mockWindow?.document.close).toHaveBeenCalled();
 
       const htmlContent = mockWindow?.document.write.mock.calls[0][0] as string;
-      expect(htmlContent).toContain('Balma');
+      expect(htmlContent).toContain('Pistache');
       expect(htmlContent).toContain("Rapport d'Activités & Propreté");
       expect(htmlContent).toContain('Berger Australien');
       // The period printed; no goal: today's goal is not the goal of past days (history display decision (a))
@@ -218,7 +218,7 @@ describe('export utilities — CSV and PDF export test suite', () => {
         return htmlContent.match(/card-label">Meals<\/div>.*?<div class="card-sub">.*?<\/div>/)![0];
       };
       const gramlessMeals: Activity[] = ['2026-08-19T06:00:00.000Z', '2026-08-19T16:00:00.000Z']
-        .map((timestamp, index) => ({ id: `meal-${index}`, puppyId: 'pup-1', type: 'food', timestamp, loggedBy: 'Daria' }));
+        .map((timestamp, index) => ({ id: `meal-${index}`, puppyId: 'pup-1', type: 'food', timestamp, loggedBy: 'Alice' }));
 
       expect(mealsCard(gramlessMeals)).toContain('>2</div>');
       expect(mealsCard(gramlessMeals)).not.toMatch(/\dg/);
@@ -430,7 +430,7 @@ describe('export utilities — CSV and PDF export test suite', () => {
     const legacyDeworming = {
       id: 'd-legacy', householdId: 'hh-1', puppyId: 'pup-1', type: 'deworming', name: 'Credelio Plus', productName: 'Credelio Plus', date: '2026-07-21', boosterDate: '2026-08-21', weightAtTime: 7.55,
     } as HealthRecord;
-    const dewormingWeighIn: Activity = { id: 'act-w', puppyId: 'pup-1', type: 'weight', timestamp: '2026-07-21T10:00:00.000Z', weightKg: 7.55, notes: 'Credelio Plus', loggedBy: 'Daria' };
+    const dewormingWeighIn: Activity = { id: 'act-w', puppyId: 'pup-1', type: 'weight', timestamp: '2026-07-21T10:00:00.000Z', weightKg: 7.55, notes: 'Credelio Plus', loggedBy: 'Alice' };
 
     it('the CSV lists a deworming weight once, as its weight event', async () => {
       exportHealthPassportToCSV(mockProfile, [], [legacyDeworming], [dewormingWeighIn], 'fr', mockCaretakers);
@@ -471,7 +471,7 @@ describe('export utilities — CSV and PDF export test suite', () => {
 
     it('the printed passport lists every weigh-in, not only the 15 latest', () => {
       const weighIns: Activity[] = Array.from({ length: 20 }, (_, index) => ({
-        id: `act-w${index}`, puppyId: 'pup-1', type: 'weight', timestamp: new Date(Date.UTC(2026, 4, 1 + index * 7, 9)).toISOString(), weightKg: 3 + index / 2, loggedBy: 'Daria',
+        id: `act-w${index}`, puppyId: 'pup-1', type: 'weight', timestamp: new Date(Date.UTC(2026, 4, 1 + index * 7, 9)).toISOString(), weightKg: 3 + index / 2, loggedBy: 'Alice',
       }));
       printHealthPassportReport(mockProfile, [], [], weighIns, 'fr', fr);
       const htmlContent = mockWindow?.document.write.mock.calls[0][0] as string;
@@ -483,7 +483,7 @@ describe('export utilities — CSV and PDF export test suite', () => {
 
   describe('CSV exports never hand a spreadsheet a formula (OWASP CSV injection)', () => {
     const formulaLog = (id: string, extra: Partial<Activity>): Activity => ({
-      id, puppyId: 'pup-1', type: 'pee', timestamp: '2026-08-19T08:30:00.000Z', loggedBy: 'Daria', ...extra,
+      id, puppyId: 'pup-1', type: 'pee', timestamp: '2026-08-19T08:30:00.000Z', loggedBy: 'Alice', ...extra,
     });
 
     it('a text cell starting with = + - @, even after leading whitespace, gets a leading quote in the activity CSV; numbers stay numbers', async () => {

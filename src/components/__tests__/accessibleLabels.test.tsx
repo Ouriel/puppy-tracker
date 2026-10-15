@@ -9,7 +9,7 @@ import { QuickLogModal } from '../QuickLogModal';
 import { PredictorWidget } from '../PredictorWidget';
 import { MedicationSection } from '../../views/carnet/MedicationSection';
 import { calculatePredictions } from '../../utils/predictions';
-import { act as log, BALMA } from '../../utils/__tests__/fixtures';
+import { act as log, PISTACHE } from '../../utils/__tests__/fixtures';
 
 let root: Root | null = null;
 
@@ -56,7 +56,7 @@ const ariaLabels = () => [...document.querySelectorAll('[aria-label]')].map((ele
 
 // A fixed noon: the feed starts a day at 04:00, so a real clock between 04:00 and 04:10 would put the pee in yesterday.
 vi.useFakeTimers({ toFake: ['Date'] });
-vi.setSystemTime(new Date('2026-10-15T12:00:00+02:00'));
+vi.setSystemTime(new Date('2026-10-22T12:00:00+02:00'));
 const now = new Date();
 const pee = log('pee', new Date(now.getTime() - 10 * 60 * 1000).toISOString());
 const weighIn = log('weight', new Date(now.getTime() - 60 * 60 * 1000).toISOString(), { weightKg: 9 });
@@ -64,19 +64,19 @@ const medication = log('medication', new Date(now.getTime() - 60 * 60 * 1000).to
 
 describe('screen readers hear the app language (French)', () => {
   it('navbar: dog picker, language and settings buttons', async () => {
-    await render(<Navbar puppies={[BALMA]} activePuppy={BALMA} onSelectPuppy={vi.fn()} onOpenQuickLog={vi.fn()} onOpenSettings={vi.fn()} />, 'fr');
+    await render(<Navbar puppies={[PISTACHE]} activePuppy={PISTACHE} onSelectPuppy={vi.fn()} onOpenQuickLog={vi.fn()} onOpenSettings={vi.fn()} />, 'fr');
     expect(ariaLabels()).toEqual(expect.arrayContaining(['Choisir le chien', 'Changer de langue', 'Gestion du Foyer']));
   });
 
   it('activity feed: edit and delete buttons', async () => {
-    await render(<ActivityTimeline activities={[pee]} caretakers={[]} activePuppy={BALMA} onDeleteActivity={vi.fn()} onUpdateActivity={vi.fn()} referenceTime={now} />, 'fr');
+    await render(<ActivityTimeline activities={[pee]} caretakers={[]} activePuppy={PISTACHE} onDeleteActivity={vi.fn()} onUpdateActivity={vi.fn()} referenceTime={now} />, 'fr');
     const todayHeader = [...document.querySelectorAll<HTMLButtonElement>('button[aria-expanded="false"]')].find((button) => button.textContent!.includes("Aujourd'hui"))!;
     await act(async () => todayHeader.click());
     expect(ariaLabels()).toEqual(expect.arrayContaining(["Modifier l'Activité", "Supprimer l'activité"]));
   });
 
   it('weight history: delete button', async () => {
-    await render(<WeightGrowthChart profile={BALMA} activities={[weighIn]} onOpenQuickLogModal={vi.fn()} onDeleteActivity={vi.fn()} />, 'fr');
+    await render(<WeightGrowthChart profile={PISTACHE} activities={[weighIn]} onOpenQuickLogModal={vi.fn()} onDeleteActivity={vi.fn()} />, 'fr');
     expect(ariaLabels()).toContain('Supprimer la pesée');
   });
 
@@ -92,12 +92,12 @@ describe('screen readers hear the app language (French)', () => {
 
   it('prediction countdowns: spoken in French, the short visual text hidden from screen readers', async () => {
     const predictions = {
-      ...calculatePredictions([pee], BALMA, now, 'Europe/Paris'),
+      ...calculatePredictions([pee], PISTACHE, now, 'Europe/Paris'),
       nextPeeExpectedAt: new Date(now.getTime() + 90 * 60 * 1000),
       nextPoopExpectedAt: new Date(now.getTime() - 45 * 60 * 1000),
     };
     const container = await render(
-      <PredictorWidget predictions={predictions} profile={BALMA} activities={[pee]} todayFoodLoggedGrams={0} todayMealsCount={0} onQuickAction={vi.fn()} onOpenQuickLogModal={vi.fn()} referenceTime={now} />,
+      <PredictorWidget predictions={predictions} profile={PISTACHE} activities={[pee]} todayFoodLoggedGrams={0} todayMealsCount={0} onQuickAction={vi.fn()} onOpenQuickLogModal={vi.fn()} referenceTime={now} />,
       'fr'
     );
 
@@ -121,13 +121,13 @@ describe('choice groups, small text and pulsing chips (French)', () => {
 
   it('activity feed: the accident chip pulses only when motion is allowed, and the empty-feed hint is light enough to read', async () => {
     const accident = log('pee', new Date(now.getTime() - 10 * 60 * 1000).toISOString(), { pottyLocation: 'indoor_accident' });
-    await render(<ActivityTimeline activities={[accident]} caretakers={[]} activePuppy={BALMA} onDeleteActivity={vi.fn()} referenceTime={now} />, 'fr');
+    await render(<ActivityTimeline activities={[accident]} caretakers={[]} activePuppy={PISTACHE} onDeleteActivity={vi.fn()} referenceTime={now} />, 'fr');
     const accidentChipClasses = document.querySelector('[title="1 accident"]')!.className.split(/\s+/);
     expect(accidentChipClasses).toContain('motion-safe:animate-pulse');
     expect(accidentChipClasses).not.toContain('animate-pulse');
 
     await act(async () => root!.unmount());
-    await render(<ActivityTimeline activities={[]} caretakers={[]} activePuppy={BALMA} onDeleteActivity={vi.fn()} referenceTime={now} />, 'fr');
+    await render(<ActivityTimeline activities={[]} caretakers={[]} activePuppy={PISTACHE} onDeleteActivity={vi.fn()} referenceTime={now} />, 'fr');
     const hint = [...document.querySelectorAll('p')].find((paragraph) => paragraph.textContent === 'Cliquez sur "+ Nouveau Log" pour enregistrer une activité.')!;
     expect(hint.classList).toContain('text-slate-400');
   });
@@ -135,7 +135,7 @@ describe('choice groups, small text and pulsing chips (French)', () => {
 
 describe('English plurals: 1 meal, N meals', () => {
   const renderMealCard = (targetMealsPerDay: number) => {
-    const profile = { ...BALMA, dailyFoodGramGoal: 0, targetMealsPerDay };
+    const profile = { ...PISTACHE, dailyFoodGramGoal: 0, targetMealsPerDay };
     return render(
       <PredictorWidget predictions={calculatePredictions([], profile, now, 'Europe/Paris')} profile={profile} activities={[]} todayFoodLoggedGrams={0} todayMealsCount={0} onQuickAction={vi.fn()} onOpenQuickLogModal={vi.fn()} referenceTime={now} />,
       'en'

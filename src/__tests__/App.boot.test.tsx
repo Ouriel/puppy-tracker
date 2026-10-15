@@ -46,7 +46,7 @@ vi.mock('../components/DogHealthSummary', async (importOriginal) => {
 });
 
 const puppy: PuppyProfile = { id: 'pup-1', name: 'Rex', breed: 'Beagle', birthDate: '2026-01-01', targetMealsPerDay: 3, dailyFoodGramGoal: 200 };
-const owner: UserAccount = { id: 'usr-1', email: 'owner@example.com', name: 'Owner', role: 'Member' };
+const owner: UserAccount = { email: 'owner@example.com', name: 'Owner', role: 'Member' };
 
 let root: Root | null = null;
 let requestedUrls: string[] = [];

@@ -6,7 +6,7 @@ import { PredictorWidget } from '../PredictorWidget';
 import { DogHealthSummary } from '../DogHealthSummary';
 import { ActivityTimeline } from '../ActivityTimeline';
 import { calculatePredictions } from '../../utils/predictions';
-import { act as log, BALMA } from '../../utils/__tests__/fixtures';
+import { act as log, PISTACHE } from '../../utils/__tests__/fixtures';
 import { en } from '../../i18n/en';
 
 let root: Root | null = null;
@@ -35,9 +35,9 @@ async function render(element: ReactElement) {
 }
 
 // One 80 g breakfast today, 3 meals a day
-const now = new Date('2026-08-07T12:00:00+02:00');
-const meals = [log('food', '2026-08-07T08:00:00+02:00', { quantityGrams: 80 })];
-const withGoal = { ...BALMA, dailyFoodGramGoal: 240, targetMealsPerDay: 3 };
+const now = new Date('2026-08-14T12:00:00+02:00');
+const meals = [log('food', '2026-08-14T08:00:00+02:00', { quantityGrams: 80 })];
+const withGoal = { ...PISTACHE, dailyFoodGramGoal: 240, targetMealsPerDay: 3 };
 const noGoal = { ...withGoal, dailyFoodGramGoal: 0 };
 
 function renderMealCard(profile: typeof withGoal) {
@@ -88,7 +88,7 @@ describe('a dog with no gram goal: no goal in grams on any screen', () => {
   });
 
   it('timeline: a meal saved without grams shows the meal count, no "0g"', async () => {
-    const gramlessMeal = log('food', '2026-08-07T08:00:00+02:00');
+    const gramlessMeal = log('food', '2026-08-14T08:00:00+02:00');
     const container = await render(
       <ActivityTimeline activities={[gramlessMeal]} caretakers={[]} activePuppy={noGoal} onDeleteActivity={vi.fn()} referenceTime={now} />
     );

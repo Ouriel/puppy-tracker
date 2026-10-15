@@ -54,7 +54,7 @@ describe('Activity & CRUD Regression Tests', () => {
         puppyId: 'pup-1',
         type: 'pee',
         timestamp: '2026-08-18T10:00:00.000Z',
-        loggedBy: 'Matthieu',
+        loggedBy: 'Sam',
         pottyLocation: 'outside',
       };
 
@@ -77,7 +77,7 @@ describe('Activity & CRUD Regression Tests', () => {
         puppyId: 'pup-1',
         type: 'food',
         timestamp: '2026-08-18T12:00:00.000Z',
-        loggedBy: 'Matthieu',
+        loggedBy: 'Sam',
         quantityGrams: 90,
         quantityCups: 0.82,
       };
@@ -100,7 +100,7 @@ describe('Activity & CRUD Regression Tests', () => {
         puppyId: 'pup-1',
         type: 'poop',
         timestamp: '2026-08-18T14:00:00.000Z',
-        loggedBy: 'Matthieu',
+        loggedBy: 'Sam',
         pottyLocation: 'outside',
         stoolConsistency: 'normal',
       };
@@ -123,7 +123,7 @@ describe('Activity & CRUD Regression Tests', () => {
         puppyId: 'pup-1',
         type: 'poop',
         timestamp: '2026-08-18T15:00:00.000Z',
-        loggedBy: 'Matthieu',
+        loggedBy: 'Sam',
         pottyLocation: 'outside',
         stoolConsistency: 'hard',
       };
@@ -142,7 +142,7 @@ describe('Activity & CRUD Regression Tests', () => {
         puppyId: 'pup-1',
         type: 'medication',
         timestamp: '2026-08-18T16:00:00.000Z',
-        loggedBy: 'Matthieu',
+        loggedBy: 'Sam',
         medicationName: 'Amoxicillin',
       };
       const food: Activity = {
@@ -150,7 +150,7 @@ describe('Activity & CRUD Regression Tests', () => {
         puppyId: 'pup-1',
         type: 'food',
         timestamp: '2026-08-18T17:00:00.000Z',
-        loggedBy: 'Matthieu',
+        loggedBy: 'Sam',
         foodType: 'kibble',
         quantityGrams: 80,
       };
@@ -166,7 +166,7 @@ describe('Activity & CRUD Regression Tests', () => {
         puppyId: 'pup-1',
         type: 'food',
         timestamp: '2026-08-18T18:00:00.000Z',
-        loggedBy: 'Matthieu',
+        loggedBy: 'Sam',
         quantityGrams: 80,
       };
 
@@ -185,7 +185,7 @@ describe('Activity & CRUD Regression Tests', () => {
         puppyId: 'pup-1',
         type: 'food',
         timestamp: '2026-08-18T12:00:00.000Z',
-        loggedBy: 'Matthieu',
+        loggedBy: 'Sam',
         quantityGrams: 80,
       };
       vi.stubGlobal('fetch', vi.fn()

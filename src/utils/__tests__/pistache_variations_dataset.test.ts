@@ -8,12 +8,12 @@ import {
 import type { Activity, PuppyProfile } from '../../types';
 import { at, newestFirst } from './fixtures';
 
-describe('Balma Derived Variations Test Suite (5 Multi-Scenario Datasets)', () => {
-  const balmaBaseProfile: PuppyProfile = {
-    id: 'pup-balma-001',
-    name: 'Balma',
+describe('Pistache Derived Variations Test Suite (5 Multi-Scenario Datasets)', () => {
+  const pistacheBaseProfile: PuppyProfile = {
+    id: 'pup-pistache-001',
+    name: 'Pistache',
     breed: 'English Cocker Spaniel',
-    birthDate: '2026-03-27',
+    birthDate: '2026-04-03',
     weightKg: 8.4,
     targetMealsPerDay: 3,
     dailyFoodGramGoal: 240,
@@ -31,8 +31,8 @@ describe('Balma Derived Variations Test Suite (5 Multi-Scenario Datasets)', () =
     return dates;
   }
 
-  it('Scenario 2: Balma Shifted Night Schedule Dataset (Late Night Routine 00:30 -> 08:30)', () => {
-    const refDate = new Date('2026-08-10T12:00:00Z');
+  it('Scenario 2: Pistache Shifted Night Schedule Dataset (Late Night Routine 00:30 -> 08:30)', () => {
+    const refDate = new Date('2026-08-17T12:00:00Z');
     const days = createDayTimestamps(20, refDate);
     const activities: Activity[] = [];
 
@@ -48,9 +48,9 @@ describe('Balma Derived Variations Test Suite (5 Multi-Scenario Datasets)', () =
       // Late night bedtime potty after midnight: 00:30 AM UTC the next calendar day (same logical day)
       const bed = new Date(Date.UTC(y, m, d + 1, 0, 30));
 
-      activities.push({ id: `sw-${dayIdx}`, puppyId: balmaBaseProfile.id, type: 'pee', timestamp: wake.toISOString(), loggedBy: 'Matthieu' });
-      activities.push({ id: `sd-${dayIdx}`, puppyId: balmaBaseProfile.id, type: 'pee', timestamp: dayPotty.toISOString(), loggedBy: 'Matthieu' });
-      activities.push({ id: `sb-${dayIdx}`, puppyId: balmaBaseProfile.id, type: 'pee', timestamp: bed.toISOString(), loggedBy: 'Matthieu' });
+      activities.push({ id: `sw-${dayIdx}`, puppyId: pistacheBaseProfile.id, type: 'pee', timestamp: wake.toISOString(), loggedBy: 'Sam' });
+      activities.push({ id: `sd-${dayIdx}`, puppyId: pistacheBaseProfile.id, type: 'pee', timestamp: dayPotty.toISOString(), loggedBy: 'Sam' });
+      activities.push({ id: `sb-${dayIdx}`, puppyId: pistacheBaseProfile.id, type: 'pee', timestamp: bed.toISOString(), loggedBy: 'Sam' });
     });
 
     const schedule = detectSleepSchedule(activities, 'UTC');
@@ -58,8 +58,8 @@ describe('Balma Derived Variations Test Suite (5 Multi-Scenario Datasets)', () =
     expect(schedule).toEqual({ wakeupHour: 8.5, bedtimeHour: 0.5, wakeupStr: '08:30', bedtimeStr: '00:30' });
   });
 
-  it('Scenario 3: Balma Rainy Day Dataset (Wider Variability & Expanded Semi-IQR Delta)', () => {
-    const refDate = new Date('2026-08-10T12:00:00Z');
+  it('Scenario 3: Pistache Rainy Day Dataset (Wider Variability & Expanded Semi-IQR Delta)', () => {
+    const refDate = new Date('2026-08-17T12:00:00Z');
     const days = createDayTimestamps(15, refDate);
     const activities: Activity[] = [];
 
@@ -73,8 +73,8 @@ describe('Balma Derived Variations Test Suite (5 Multi-Scenario Datasets)', () =
       const t1 = new Date(Date.UTC(y, m, d, 8, 0));
       const t2 = new Date(t1.getTime() + gap1 * 60000);
 
-      activities.push({ id: `r1-${dayIdx}`, puppyId: balmaBaseProfile.id, type: 'pee', timestamp: t1.toISOString(), loggedBy: 'Matthieu' });
-      activities.push({ id: `r2-${dayIdx}`, puppyId: balmaBaseProfile.id, type: 'pee', timestamp: t2.toISOString(), loggedBy: 'Matthieu' });
+      activities.push({ id: `r1-${dayIdx}`, puppyId: pistacheBaseProfile.id, type: 'pee', timestamp: t1.toISOString(), loggedBy: 'Sam' });
+      activities.push({ id: `r2-${dayIdx}`, puppyId: pistacheBaseProfile.id, type: 'pee', timestamp: t2.toISOString(), loggedBy: 'Sam' });
     });
 
     const learned = calculateLearnedIntervalMinutes(activities, 'pee', 180, { bedtimeHour: 23, wakeupHour: 7 }, 'UTC');
@@ -85,8 +85,8 @@ describe('Balma Derived Variations Test Suite (5 Multi-Scenario Datasets)', () =
     expect(learned.intervalMins).toBe(210);
   });
 
-  it('Scenario 5: Balma Meal Frequency Transition Dataset (4 Meals/day -> 3 Meals/day)', () => {
-    const refDate = new Date('2026-08-10T12:00:00Z');
+  it('Scenario 5: Pistache Meal Frequency Transition Dataset (4 Meals/day -> 3 Meals/day)', () => {
+    const refDate = new Date('2026-08-17T12:00:00Z');
     const days = createDayTimestamps(20, refDate);
     const activities: Activity[] = [];
 
@@ -101,11 +101,11 @@ describe('Balma Derived Variations Test Suite (5 Multi-Scenario Datasets)', () =
         [8, 12, 16, 20].forEach((h, mIdx) => {
           activities.push({
             id: `m4-${dayIdx}-${mIdx}`,
-            puppyId: balmaBaseProfile.id,
+            puppyId: pistacheBaseProfile.id,
             type: 'food',
             timestamp: new Date(Date.UTC(y, m, d, h, 0)).toISOString(),
             quantityGrams: 60,
-            loggedBy: 'Matthieu',
+            loggedBy: 'Sam',
           });
         });
       } else {
@@ -114,11 +114,11 @@ describe('Balma Derived Variations Test Suite (5 Multi-Scenario Datasets)', () =
           const mins = (h - hours) * 60;
           activities.push({
             id: `m3-${dayIdx}-${mIdx}`,
-            puppyId: balmaBaseProfile.id,
+            puppyId: pistacheBaseProfile.id,
             type: 'food',
             timestamp: new Date(Date.UTC(y, m, d, hours, mins)).toISOString(),
             quantityGrams: 80,
-            loggedBy: 'Matthieu',
+            loggedBy: 'Sam',
           });
         });
       }
@@ -130,9 +130,9 @@ describe('Balma Derived Variations Test Suite (5 Multi-Scenario Datasets)', () =
     expect(mealSchedule).toEqual({ breakfastMins: 510, lunchMins: 810, dinnerMins: 1170 });
   });
 
-  it('Scenario 6: Balma Morning Awakening After Overnight Sleep Dataset (Screenshot 07:34 AM Reproduction)', () => {
-    const refDate = new Date('2026-08-21T07:34:00Z');
-    const yesterdayDate = new Date('2026-08-20T12:00:00Z');
+  it('Scenario 6: Pistache Morning Awakening After Overnight Sleep Dataset (Screenshot 07:34 AM Reproduction)', () => {
+    const refDate = new Date('2026-08-28T07:34:00Z');
+    const yesterdayDate = new Date('2026-08-27T12:00:00Z');
     const days = createDayTimestamps(14, yesterdayDate);
     const activities: Activity[] = [];
 
@@ -142,34 +142,34 @@ describe('Balma Derived Variations Test Suite (5 Multi-Scenario Datasets)', () =
       const d = dayDate.getUTCDate();
 
       // Morning wake pee 07:15, poop 07:30, breakfast 08:15
-      activities.push({ id: `p-wake-${dayIdx}`, puppyId: balmaBaseProfile.id, type: 'pee', timestamp: new Date(Date.UTC(y, m, d, 7, 15)).toISOString(), loggedBy: 'Matthieu' });
-      activities.push({ id: `po-wake-${dayIdx}`, puppyId: balmaBaseProfile.id, type: 'poop', timestamp: new Date(Date.UTC(y, m, d, 7, 30)).toISOString(), loggedBy: 'Matthieu' });
-      activities.push({ id: `f-bfast-${dayIdx}`, puppyId: balmaBaseProfile.id, type: 'food', timestamp: new Date(Date.UTC(y, m, d, 8, 15)).toISOString(), quantityGrams: 80, loggedBy: 'Matthieu' });
+      activities.push({ id: `p-wake-${dayIdx}`, puppyId: pistacheBaseProfile.id, type: 'pee', timestamp: new Date(Date.UTC(y, m, d, 7, 15)).toISOString(), loggedBy: 'Sam' });
+      activities.push({ id: `po-wake-${dayIdx}`, puppyId: pistacheBaseProfile.id, type: 'poop', timestamp: new Date(Date.UTC(y, m, d, 7, 30)).toISOString(), loggedBy: 'Sam' });
+      activities.push({ id: `f-bfast-${dayIdx}`, puppyId: pistacheBaseProfile.id, type: 'food', timestamp: new Date(Date.UTC(y, m, d, 8, 15)).toISOString(), quantityGrams: 80, loggedBy: 'Sam' });
 
       // Evening poop 17:38, dinner 19:30, bedtime pee 22:30
-      activities.push({ id: `po-eve-${dayIdx}`, puppyId: balmaBaseProfile.id, type: 'poop', timestamp: new Date(Date.UTC(y, m, d, 17, 38)).toISOString(), loggedBy: 'Matthieu' });
-      activities.push({ id: `f-din-${dayIdx}`, puppyId: balmaBaseProfile.id, type: 'food', timestamp: new Date(Date.UTC(y, m, d, 19, 30)).toISOString(), quantityGrams: 80, loggedBy: 'Matthieu' });
-      activities.push({ id: `p-bed-${dayIdx}`, puppyId: balmaBaseProfile.id, type: 'pee', timestamp: new Date(Date.UTC(y, m, d, 22, 30)).toISOString(), loggedBy: 'Matthieu' });
+      activities.push({ id: `po-eve-${dayIdx}`, puppyId: pistacheBaseProfile.id, type: 'poop', timestamp: new Date(Date.UTC(y, m, d, 17, 38)).toISOString(), loggedBy: 'Sam' });
+      activities.push({ id: `f-din-${dayIdx}`, puppyId: pistacheBaseProfile.id, type: 'food', timestamp: new Date(Date.UTC(y, m, d, 19, 30)).toISOString(), quantityGrams: 80, loggedBy: 'Sam' });
+      activities.push({ id: `p-bed-${dayIdx}`, puppyId: pistacheBaseProfile.id, type: 'pee', timestamp: new Date(Date.UTC(y, m, d, 22, 30)).toISOString(), loggedBy: 'Sam' });
     });
 
-    // On test morning Aug 21, pee logged at 07:34 AM
+    // On test morning Aug 28, pee logged at 07:34 AM
     activities.push({
       id: 'p-today-0734',
-      puppyId: balmaBaseProfile.id,
+      puppyId: pistacheBaseProfile.id,
       type: 'pee',
-      timestamp: '2026-08-21T07:34:00Z',
-      loggedBy: 'Matthieu',
+      timestamp: '2026-08-28T07:34:00Z',
+      loggedBy: 'Sam',
     });
 
-    const pred = calculatePredictions(newestFirst(activities), balmaBaseProfile, refDate, 'UTC');
+    const pred = calculatePredictions(newestFirst(activities), pistacheBaseProfile, refDate, 'UTC');
 
     // Next pee 4h later at 11:34 (no learned daytime interval, so the 4h age fallback applies; Safe Zone)
-    expect(at(pred.nextPeeExpectedAt!, 'UTC')).toBe('2026-08-21 11:34');
+    expect(at(pred.nextPeeExpectedAt!, 'UTC')).toBe('2026-08-28 11:34');
     expect(pred.peeUrgency).toBe('safe');
     expect(pred.peeMode).toBe('daytime_baseline');
 
     // Next poop expected for morning outing (~07:49 AM), NOT middle of the night (standard transit lands at 03:46 AM)
-    expect(at(pred.nextPoopExpectedAt!, 'UTC')).toBe('2026-08-21 07:49');
+    expect(at(pred.nextPoopExpectedAt!, 'UTC')).toBe('2026-08-28 07:49');
     expect(pred.poopUrgency).toBe('soon');
     expect(pred.poopReason).toBe('Morning outing (~07:49)');
   });

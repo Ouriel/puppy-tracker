@@ -9,6 +9,7 @@ import type { UnifiedWeightEntry } from '../../utils/weight';
 import { buildVetWeighIn } from '../../utils/activityPayloads';
 import { formatLocalDate, formatShortDate } from '../../utils/date';
 import { useI18n } from '../../i18n';
+import type { TranslationKeys } from '../../i18n/types';
 import { createHealthRecord, updateHealthRecord, deleteHealthRecord } from '../../services/api';
 import { ConfirmationModal } from '../../components/common/ConfirmationModal';
 import { WeightField } from './WeightField';
@@ -20,7 +21,7 @@ interface DewormingSectionProps {
   lastWeighIn?: UnifiedWeightEntry;
   currentUser: string;
   onAddActivity: (activity: Omit<Activity, 'id'>) => void;
-  t: any;
+  t: TranslationKeys;
 }
 
 export const DewormingSection: React.FC<DewormingSectionProps> = ({

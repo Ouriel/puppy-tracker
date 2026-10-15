@@ -7,7 +7,7 @@ PupPace — Smart Household Puppy Activity Tracker & Potty Predictor. React 19 +
 ## Before Making Changes
 
 1. `npx tsc -b` — must pass clean with 0 errors
-2. `npm test` — Vitest suite (194 tests across 22 files), all tests must pass
+2. `npm test` — Vitest suite, all tests must pass
 3. Check `src/types/index.ts` before defining any type locally
 
 ## Critical Rules
@@ -24,7 +24,7 @@ PupPace — Smart Household Puppy Activity Tracker & Potty Predictor. React 19 +
 - Schema changes are hand-written SQL run by hand: a numbered file in `migrations/` (`NNNN_short_name.sql`, idempotent where possible, rollback and "Applied to preview / production" lines in its header; procedure in `migrations/README.md`), plus `src/db/schema.ts` in the same pull request. No drizzle-kit, nothing applies them automatically. Code that needs a new column merges only once its file is applied to production. `0000_baseline.sql` documents the schema as of 2026-10-15 and is never run on an existing database; `src/db/__tests__/migrations.test.ts` checks the files build every column and index of `schema.ts`.
 - A dog with `puppies.deleted_at` set is deleted (owner only, `DELETE /api/dogs`): every read and edit of `puppies` skips it (`api/dogs.ts`, whose `PUT` and `POST` upsert answer 404 for it, `api/dashboard.ts`, the dog check of `POST /api/activities` and `POST /api/health-records`, which answer 404), its logs and health records stay, and only the owner gets it (`deletedPuppies` in `/api/dashboard`) and restores it (`PUT /api/dogs?id=…&restore=true`). A new query on `puppies` must skip it too.
 - Server API handlers (`api/activities.ts`) format Date objects into standard **ISO 8601 strings** (`.toISOString()`) before returning `res.json()`.
-- NEVER return raw PostgreSQL space-separated driver strings (`'2026-07-28 05:52:00+00'`) to client components; V8 engines reject raw PostgreSQL strings as `Invalid Date`.
+- NEVER return raw PostgreSQL space-separated driver strings (`'2026-01-15 08:00:00+00'`) to client components; V8 engines reject raw PostgreSQL strings as `Invalid Date`.
 
 ### CSV Export & Printable Report Standards
 
@@ -71,11 +71,11 @@ PupPace — Smart Household Puppy Activity Tracker & Potty Predictor. React 19 +
 
 - Modern, rich design aesthetics (dark mode, HSL gradients, glassmorphism, micro-animations).
 - Scalable dropdowns for multi-language selection (`en`, `fr`).
-- Clean English technical URL routing (`/`, `/health-passport`, `/settings`, `/care-guide`, `/admin`).
+- Clean English technical URL routing (`/`, `/health-passport`, `/settings`).
 
 ### Testing & Verification
 
-- Every test must exercise real code — zero placeholder assertions (244/244 tests passing across 25 test files).
+- Every test must exercise real code — zero placeholder assertions.
 - Multi-day 30-day realistic dataset test suite (`src/utils/__tests__/realistic_dataset.test.ts`, `predictions.test.ts`, `night_mode_and_age_transitions.test.ts`, and `weight_growth_engine.test.ts`) verifies predictions, sleep bounds, age-graduated gastrocolic reflex maturation, and protocols.
 
 ### Predictive Engine & Statistical Standards
@@ -91,7 +91,7 @@ PupPace — Smart Household Puppy Activity Tracker & Potty Predictor. React 19 +
 - **WALTHAM™ 5-Category Growth Curves (*Salt et al., PLOS ONE 2017*)**: Categorizes canine development into 5 adult size tiers (I: <6.5kg, II: 6.5–9kg, III: 9–16kg, IV: 16–30kg, V: 30–45kg) interpolated with smooth Hermite splines across clinical anchors.
 - **Timestamp-Synchronized Regression**: Evaluates each weigh-in log at the puppy's exact age on the day of the log ($t_{\text{log}} = (\text{timestamp}_{\text{log}} - \text{birthDate}) / 7\text{d}$), eliminating prediction decay when days or weeks elapse between weigh-ins.
 - **Multi-Point Exponential Time-Weighting**: Weights historical logs with a 30-day exponential half-life ($w_i = e^{-\Delta t / 30\text{d}}$), dynamically blending 15–35% breed baseline with 65–85% empirical trajectory depending on data density ($\ge 6$ logs achieves 85% empirical weight).
-- **Gompertz Growth Velocity Derivative ($dW/dt$)**: Computes physiologically authentic daily weight gain ($dW/dt = W(t) \cdot B \cdot e^{-B(t-M)}$), yielding 50–65 g/day for 5-month medium puppies (e.g. Balma at ~53 g/day) rather than stagnant linear estimates.
+- **Gompertz Growth Velocity Derivative ($dW/dt$)**: Computes physiologically authentic daily weight gain ($dW/dt = W(t) \cdot B \cdot e^{-B(t-M)}$), yielding 50–65 g/day for 5-month medium puppies rather than stagnant linear estimates.
 - **One Weight Timeline**: Every weigh-in is its own weight event (`activities` row, `type='weight'`), a vet visit's included, and nothing is merged (`getUnifiedWeightEntries`). The vaccine and deworming add forms save an optional weight as a weight event (12:00 Paris on the record date, or now if that is still ahead; a record dated after today with a weight is refused; notes = vaccine or product name), never in `health_records.weight_at_time` (legacy: the API drops it from any request, `migrations/0002` empties the weights a weight event holds). The vet badge marks a weight event whose notes are a `healthProtocols.json` vaccine or antiparasitic name. Weight boxes start empty with a "Last weigh-in" hint and never offer the profile weight or the model estimate.
 
 ### Safe Database Inspection
@@ -118,12 +118,12 @@ PupPace — Smart Household Puppy Activity Tracker & Potty Predictor. React 19 +
 | `scripts/inspect_db.ts`               | Safe database inspection & live prediction engine diagnostics script                    |
 | `src/i18n/en.ts` & `fr.ts`            | English & French localization dictionaries                                           |
 | `src/utils/predictions.ts`            | Predictive engine (learned intervals, age-graduated gastrocolic reflex, sleep bounds)   |
-| `src/views/HouseholdSettingsView.tsx` | Combined Chiens & Membres configuration view with inline member name editing           |
+| `src/views/SettingsView.tsx`          | Settings tabs: dogs (`PuppiesView`), members and badges (`HouseholdView`), accounts for the owner only (`AdminView`) |
 | `src/views/CarnetDeSanteView.tsx`      | French & International veterinary health protocol passport                          |
 
-### Global React Context for App-Wide State (i18n & Theme)
+### Global React Context for App-Wide State (i18n)
 
-- App-wide state (language, theme, active tenant) must be provided via a root React Context (`I18nProvider`) wrapped at `main.tsx`.
+- App-wide state must be provided via a root React Context wrapped at `main.tsx`. Today that is `I18nProvider`, which holds the language only (no theme or active tenant).
 - Never use local `useState(getStoredLanguage)` in individual components; this causes desynchronized state and fails to re-render sibling components upon language switch.
 
 ### API Caching, In-Flight Deduplication & BFF Boot Discipline
@@ -141,17 +141,17 @@ PupPace — Smart Household Puppy Activity Tracker & Potty Predictor. React 19 +
 
 ### SQL-Side Date Filtering & Progressive Timeline Pagination
 
-- Initial dashboard boot fetches a minimal 30-day window (`{ days: 30, limit: 300 }`), supplying 100% of data needed for the AI Prediction Engine while keeping network payloads light (~90 KB).
+- Initial dashboard boot fetches a 14-day window (`days=14`, `limit 300`: `fetchDashboard`, `RECENT_LOGS_DAYS` in `useActivities.ts`), keeping network payloads light.
 - Dynamic timeline expansion (`7d -> 14d -> 30d -> 90d -> 180d -> all-time`) must pass `days` to the backend so PostgreSQL executes indexed date bounds (`gte(timestamp, cutoffDate)` backed by `idx_activities_tenant_pup_time`). Never fetch all historical records over the wire when expanding a date window.
 
 ### Static Asset Compression & Responsive Mobile Localization
 
-- All static images in `public/` must be compressed (PNGs quantized with adaptive filtering, JPGs encoded with mozjpeg, WebP generated) to keep image payloads $\le 35\text{ KB}$.
+- All static images in `public/` must be compressed (PNGs quantized with adaptive filtering, JPGs encoded with mozjpeg, WebP generated) to keep image payloads $\le 35\text{ KB}$. Known exception: `public/icons/icon-512.png` is about 66 KB.
 - Button labels and action text must remain concise in both English and French to avoid overflowing containers on narrow 320px–375px mobile viewports (e.g. `Charger les {days} derniers jours` instead of `Charger les journaux précédents (Les {days} derniers jours)`).
 
 ## Common Mistakes to Avoid
 
-- Don't return raw space-separated PostgreSQL strings (`'2026-07-28 05:52:00+00'`) over API responses — serialize to ISO 8601 strings (`.toISOString()`)
+- Don't return raw space-separated PostgreSQL strings (`'2026-01-15 08:00:00+00'`) over API responses — serialize to ISO 8601 strings (`.toISOString()`)
 - Don't add useEffect to react to state changes — put logic in the event handler that causes the change
 - Don't execute inline DDL (`CREATE TABLE IF NOT EXISTS`) inside serverless handlers — schema changes belong in `src/db/schema.ts` and a numbered SQL file in `migrations/`
 - Don't stack sequential `await` calls in data loaders — use `Promise.all` for parallel fetching

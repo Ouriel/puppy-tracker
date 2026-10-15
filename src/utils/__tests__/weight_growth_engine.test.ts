@@ -11,54 +11,54 @@ import {
 } from '../weight';
 import { calculatePredictions } from '../predictions';
 import type { Activity, PuppyProfile } from '../../types';
-import { BALMA } from './fixtures';
+import { PISTACHE } from './fixtures';
 
 describe('Canine Weight Prediction & WALTHAM Growth Engine', () => {
-  const balmaBirthDate = BALMA.birthDate;
+  const pistacheBirthDate = PISTACHE.birthDate;
 
-  const balmaActivities: Activity[] = [
-    { id: 'act-1', puppyId: 'pup-balma', type: 'weight', timestamp: '2026-05-27T10:00:00.000Z', weightKg: 4.075, loggedBy: 'Matthieu' },
-    { id: 'act-2', puppyId: 'pup-balma', type: 'weight', timestamp: '2026-06-27T12:07:00.000Z', weightKg: 6.0, loggedBy: 'Matthieu' },
-    { id: 'act-3', puppyId: 'pup-balma', type: 'weight', timestamp: '2026-07-25T12:06:00.000Z', weightKg: 7.8, loggedBy: 'Matthieu' },
-    { id: 'act-4', puppyId: 'pup-balma', type: 'weight', timestamp: '2026-08-07T20:08:00.000Z', weightKg: 8.3, loggedBy: 'Matthieu' },
-    { id: 'act-5', puppyId: 'pup-balma', type: 'weight', timestamp: '2026-08-18T15:36:00.000Z', weightKg: 8.9, loggedBy: 'Matthieu' },
-    { id: 'act-6', puppyId: 'pup-balma', type: 'weight', timestamp: '2026-08-25T16:02:00.000Z', weightKg: 9.5, loggedBy: 'Matthieu' },
+  const pistacheActivities: Activity[] = [
+    { id: 'act-1', puppyId: 'pup-pistache', type: 'weight', timestamp: '2026-06-03T10:00:00.000Z', weightKg: 4.075, loggedBy: 'Sam' },
+    { id: 'act-2', puppyId: 'pup-pistache', type: 'weight', timestamp: '2026-07-04T12:07:00.000Z', weightKg: 6.0, loggedBy: 'Sam' },
+    { id: 'act-3', puppyId: 'pup-pistache', type: 'weight', timestamp: '2026-08-01T12:06:00.000Z', weightKg: 7.8, loggedBy: 'Sam' },
+    { id: 'act-4', puppyId: 'pup-pistache', type: 'weight', timestamp: '2026-08-14T20:08:00.000Z', weightKg: 8.3, loggedBy: 'Sam' },
+    { id: 'act-5', puppyId: 'pup-pistache', type: 'weight', timestamp: '2026-08-25T15:36:00.000Z', weightKg: 8.9, loggedBy: 'Sam' },
+    { id: 'act-6', puppyId: 'pup-pistache', type: 'weight', timestamp: '2026-09-01T16:02:00.000Z', weightKg: 9.5, loggedBy: 'Sam' },
   ];
 
   // Weigh-ins entered with a deworming: weight events at 12:00 Paris on the dose date, notes = product
-  const balmaVetWeighIns: Activity[] = ([
-    ['vet-1', 'Drontal Chiot', '2026-05-24', 4.0],
-    ['vet-2', 'Credelio Plus', '2026-06-28', 6.8],
-    ['vet-3', 'Credelio Plus', '2026-07-27', 7.8],
-    ['vet-4', 'Credelio Plus', '2026-08-27', 9.52],
-  ] as const).map(([id, product, date, weightKg]) => ({ id, puppyId: 'pup-balma', type: 'weight', timestamp: `${date}T10:00:00.000Z`, weightKg, notes: product, loggedBy: 'Matthieu' }));
+  const pistacheVetWeighIns: Activity[] = ([
+    ['vet-1', 'Drontal Chiot', '2026-05-31', 4.0],
+    ['vet-2', 'Credelio Plus', '2026-07-05', 6.8],
+    ['vet-3', 'Credelio Plus', '2026-08-03', 7.8],
+    ['vet-4', 'Credelio Plus', '2026-09-03', 9.52],
+  ] as const).map(([id, product, date, weightKg]) => ({ id, puppyId: 'pup-pistache', type: 'weight', timestamp: `${date}T10:00:00.000Z`, weightKg, notes: product, loggedBy: 'Sam' }));
 
-  const balmaProfile: PuppyProfile = {
-    id: 'pup-balma',
-    name: 'Balma',
+  const pistacheProfile: PuppyProfile = {
+    id: 'pup-pistache',
+    name: 'Pistache',
     breed: 'English Cocker Spaniel / Cocker Anglais',
-    birthDate: balmaBirthDate,
+    birthDate: pistacheBirthDate,
     weightKg: 7.8,
     dailyFoodGramGoal: 240,
     targetMealsPerDay: 3,
     gender: 'female',
   };
 
-  describe('Real Dog Data Regression: Balma', () => {
+  describe('Real Dog Data Regression: Pistache', () => {
     it('projects adult weight within healthy breed range (13.5 - 15.2 kg) from full longitudinal trail', () => {
-      const unified = getUnifiedWeightEntries([...balmaActivities, ...balmaVetWeighIns]);
+      const unified = getUnifiedWeightEntries([...pistacheActivities, ...pistacheVetWeighIns]);
       expect(unified).toHaveLength(10);
 
       const result = calculateProjectedAdultWeightRange(
-        balmaProfile.breed,
+        pistacheProfile.breed,
         unified,
-        balmaBirthDate,
-        balmaProfile.gender
+        pistacheBirthDate,
+        pistacheProfile.gender
       );
 
       expect(result.isTrajectoryBased).toBe(true);
       expect(result.walthamCategory).toBe('III');
-      // Balma's empirical trajectory converges tightly around 14.0 - 14.4 kg
+      // Pistache's empirical trajectory converges tightly around 14.0 - 14.4 kg
       expect(result.projectedAdultKg).toBeGreaterThanOrEqual(13.5);
       expect(result.projectedAdultKg).toBeLessThanOrEqual(14.8);
       // Min and max bounds encompass standard healthy Cocker range
@@ -68,25 +68,25 @@ describe('Canine Weight Prediction & WALTHAM Growth Engine', () => {
     });
 
     it('fixes timestamp desynchronization bug (projection does not decay over elapsed time)', () => {
-      // Simulating a snapshot where the only log is from July 25 (at age 17.1 weeks, 7.8kg)
-      const singleLog = [balmaActivities[2]]; // 7.8 kg on 2026-07-25
+      // Simulating a snapshot where the only log is from August 1 (at age 17.1 weeks, 7.8kg)
+      const singleLog = [pistacheActivities[2]]; // 7.8 kg on 2026-08-01
 
       vi.useFakeTimers({ toFake: ['Date'] });
       try {
-        // Calculate on July 25 (right after weigh-in, puppy was 17.1 weeks)
-        vi.setSystemTime(new Date('2026-07-25T12:06:00.000Z'));
+        // Calculate on August 1 (right after weigh-in, puppy was 17.1 weeks)
+        vi.setSystemTime(new Date('2026-08-01T12:06:00.000Z'));
         const resOnJuly25 = calculateProjectedAdultWeightRange(
-          balmaProfile.breed,
+          pistacheProfile.breed,
           singleLog,
-          balmaBirthDate
+          pistacheBirthDate
         );
 
         // Calculate 6 weeks later without any new weigh-in
-        vi.setSystemTime(new Date('2026-09-05T12:06:00.000Z'));
+        vi.setSystemTime(new Date('2026-09-12T12:06:00.000Z'));
         const resSixWeeksLater = calculateProjectedAdultWeightRange(
-          balmaProfile.breed,
+          pistacheProfile.breed,
           singleLog,
-          balmaBirthDate
+          pistacheBirthDate
         );
 
         // The prediction MUST remain identical because the puppy was 17.1 weeks when 7.8kg was recorded!
@@ -98,10 +98,10 @@ describe('Canine Weight Prediction & WALTHAM Growth Engine', () => {
 
     it('blends 85% empirical trajectory with 15% breed baseline from 6 weigh-ins', () => {
       const sixWeighIns: Activity[] = [
-        ['2026-05-01', 3], ['2026-05-15', 4], ['2026-06-01', 5], ['2026-06-15', 6], ['2026-07-01', 7], ['2026-07-15', 8],
-      ].map(([date, weightKg]) => ({ id: `w-${date}`, puppyId: 'pup-balma', type: 'weight', timestamp: `${date}T00:00:00.000Z`, weightKg: Number(weightKg), loggedBy: 'Matthieu' }));
+        ['2026-05-08', 3], ['2026-05-22', 4], ['2026-06-08', 5], ['2026-06-22', 6], ['2026-07-08', 7], ['2026-07-22', 8],
+      ].map(([date, weightKg]) => ({ id: `w-${date}`, puppyId: 'pup-pistache', type: 'weight', timestamp: `${date}T00:00:00.000Z`, weightKg: Number(weightKg), loggedBy: 'Sam' }));
 
-      const result = calculateProjectedAdultWeightRange('English Cocker Spaniel', sixWeighIns, '2026-03-27T00:00:00.000Z', 'female');
+      const result = calculateProjectedAdultWeightRange('English Cocker Spaniel', sixWeighIns, '2026-04-03T00:00:00.000Z', 'female');
 
       expect(result.isTrajectoryBased).toBe(true);
       expect(result.projectedAdultKg).toBe(14.9);
@@ -153,11 +153,11 @@ describe('Canine Weight Prediction & WALTHAM Growth Engine', () => {
     });
 
     it('estimates accurate current weight between weigh-ins without severe underestimation', () => {
-      // Last weigh-in: 9.5 kg on August 25. Target date: August 30 (5 days elapsed)
+      // Last weigh-in: 9.5 kg on September 1. Target date: September 6 (5 days elapsed)
       const estimated = estimateCurrentWeightFromLastLog(
         9.5,
-        '2026-08-25T16:00:00.000Z',
-        '2026-08-30T16:00:00.000Z',
+        '2026-09-01T16:00:00.000Z',
+        '2026-09-06T16:00:00.000Z',
         21.7,
         14.4
       );
@@ -170,10 +170,10 @@ describe('Canine Weight Prediction & WALTHAM Growth Engine', () => {
 
   describe('Weight timeline: every weight event, nothing merged (Phase 5c)', () => {
     it('returns every weight event oldest first: a home weigh-in 2 h and 0.05 kg from a vet weigh-in is its own entry', () => {
-      const homeWeighIn: Activity = { id: 'act-home', puppyId: 'pup-balma', type: 'weight', timestamp: '2026-08-27T08:00:00.000Z', weightKg: 9.47, loggedBy: 'Matthieu' };
-      const pee: Activity = { id: 'act-pee', puppyId: 'pup-balma', type: 'pee', timestamp: '2026-08-27T09:00:00.000Z', loggedBy: 'Matthieu' };
+      const homeWeighIn: Activity = { id: 'act-home', puppyId: 'pup-pistache', type: 'weight', timestamp: '2026-09-03T08:00:00.000Z', weightKg: 9.47, loggedBy: 'Sam' };
+      const pee: Activity = { id: 'act-pee', puppyId: 'pup-pistache', type: 'pee', timestamp: '2026-09-03T09:00:00.000Z', loggedBy: 'Sam' };
 
-      const unified = getUnifiedWeightEntries([balmaVetWeighIns[3], pee, homeWeighIn, ...balmaActivities]);
+      const unified = getUnifiedWeightEntries([pistacheVetWeighIns[3], pee, homeWeighIn, ...pistacheActivities]);
 
       expect(unified.map((entry) => entry.id)).toEqual(['act-1', 'act-2', 'act-3', 'act-4', 'act-5', 'act-6', 'act-home', 'vet-4']);
     });
@@ -181,15 +181,15 @@ describe('Canine Weight Prediction & WALTHAM Growth Engine', () => {
     it('the last logged weight is the latest weight event, a vet weigh-in included', () => {
       // Puppy age must come from targetDateISO, never from the wall clock.
       vi.useFakeTimers({ toFake: ['Date'] });
-      vi.setSystemTime(new Date('2027-06-01T12:00:00.000Z'));
+      vi.setSystemTime(new Date('2027-06-08T12:00:00.000Z'));
       try {
         const effective = getEffectivePuppyWeight(
-          balmaProfile,
-          [...balmaActivities, ...balmaVetWeighIns],
-          '2026-08-30T16:00:00.000Z'
+          pistacheProfile,
+          [...pistacheActivities, ...pistacheVetWeighIns],
+          '2026-09-06T16:00:00.000Z'
         );
 
-        expect(effective.lastLoggedWeight).toBe(9.52); // The Aug 27 deworming weigh-in
+        expect(effective.lastLoggedWeight).toBe(9.52); // The Sept 3 deworming weigh-in
         expect(effective.estimatedCurrentWeight).toBeGreaterThan(9.52);
         expect(effective.dailyGainGrams).toBe(50);
       } finally {
@@ -199,11 +199,11 @@ describe('Canine Weight Prediction & WALTHAM Growth Engine', () => {
   });
 
   describe('a new dog before its first weigh-in: the profile weight is made up (4.5 kg by default), never used', () => {
-    const newChihuahua: PuppyProfile = { ...balmaProfile, breed: 'Chihuahua', birthDate: '2026-06-18', weightKg: 4.5 };
+    const newChihuahua: PuppyProfile = { ...pistacheProfile, breed: 'Chihuahua', birthDate: '2026-06-25', weightKg: 4.5 };
 
     it('the current weight is the breed curve at its age, and there is no last weigh-in', () => {
       // 12 weeks old: WALTHAM category I is at 50 % of the 2.5 kg female baseline
-      expect(getEffectivePuppyWeight(newChihuahua, [], '2026-09-10T10:00:00.000Z')).toMatchObject({
+      expect(getEffectivePuppyWeight(newChihuahua, [], '2026-09-17T10:00:00.000Z')).toMatchObject({
         lastLoggedWeight: undefined,
         estimatedCurrentWeight: 1.25,
         isEstimated: true,
@@ -213,22 +213,22 @@ describe('Canine Weight Prediction & WALTHAM Growth Engine', () => {
 
   // Backlog item 19: a dog created from now on stores no profile weight (null), older dogs keep theirs
   describe('a dog without a profile weight (null): every estimate is the same as with one', () => {
-    const target = '2026-08-30T16:00:00.000Z';
-    const withoutWeight: PuppyProfile = { ...balmaProfile, weightKg: null };
+    const target = '2026-09-06T16:00:00.000Z';
+    const withoutWeight: PuppyProfile = { ...pistacheProfile, weightKg: null };
 
     it('before the first weigh-in: the same breed curve', () => {
-      expect(getEffectivePuppyWeight(withoutWeight, [], target)).toEqual(getEffectivePuppyWeight(balmaProfile, [], target));
+      expect(getEffectivePuppyWeight(withoutWeight, [], target)).toEqual(getEffectivePuppyWeight(pistacheProfile, [], target));
     });
 
     it('with weigh-ins: the same last weigh-in, estimate and daily gain', () => {
-      const weighIns = [...balmaActivities, ...balmaVetWeighIns];
-      expect(getEffectivePuppyWeight(withoutWeight, weighIns, target)).toEqual(getEffectivePuppyWeight(balmaProfile, weighIns, target));
+      const weighIns = [...pistacheActivities, ...pistacheVetWeighIns];
+      expect(getEffectivePuppyWeight(withoutWeight, weighIns, target)).toEqual(getEffectivePuppyWeight(pistacheProfile, weighIns, target));
     });
 
     it('the same potty and meal predictions', () => {
       const referenceTime = new Date(target);
-      expect(calculatePredictions(balmaActivities, withoutWeight, referenceTime, 'Europe/Paris')).toEqual(
-        calculatePredictions(balmaActivities, balmaProfile, referenceTime, 'Europe/Paris')
+      expect(calculatePredictions(pistacheActivities, withoutWeight, referenceTime, 'Europe/Paris')).toEqual(
+        calculatePredictions(pistacheActivities, pistacheProfile, referenceTime, 'Europe/Paris')
       );
     });
   });
@@ -263,7 +263,7 @@ describe('Canine Weight Prediction & WALTHAM Growth Engine', () => {
       const m12 = benchmarks.find((b) => b.label === '12m');
 
       // For a 14kg adult Cocker:
-      // 8w should be ~3.8kg (min ~3.3, max ~4.3), correctly validating Balma's 4.0kg!
+      // 8w should be ~3.8kg (min ~3.3, max ~4.3), correctly validating Pistache's 4.0kg!
       expect(w8?.expectedKg).toBeGreaterThanOrEqual(3.5);
       expect(w8?.expectedKg).toBeLessThanOrEqual(4.2);
       expect(w8?.minKg).toBeLessThanOrEqual(4.0);
