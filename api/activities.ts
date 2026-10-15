@@ -7,8 +7,9 @@ import { activitiesTable, caretakersTable, puppiesTable } from '../src/db/schema
 import { buildInviteBadge, findLinkedCaretaker, getCurrentCaretakerName } from '../src/utils/caretakers.js';
 import { ActivityInputSchema, parseDeleteId } from '../src/utils/schemas.js';
 import { verifyAuth, sendAuthError, setCorsHeaders, type AuthContext } from './_auth.js';
+import { getDatabaseUrl } from './_db.js';
 
-const connectionString = process.env.POSTGRES_URL || process.env.DATABASE_URL || '';
+const connectionString = getDatabaseUrl();
 const sql = neon(connectionString);
 const db = drizzle(sql);
 

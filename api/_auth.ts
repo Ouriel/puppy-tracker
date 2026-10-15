@@ -5,6 +5,7 @@ import { eq } from 'drizzle-orm';
 import { usersTable } from '../src/db/schema.js';
 import { isSuperAdminEmail } from '../src/utils/auth.js';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { getDatabaseUrl } from './_db.js';
 
 export function setCorsHeaders(req: VercelRequest, res: VercelResponse, methods = 'GET, POST, PUT, DELETE, OPTIONS') {
   const origin = (req.headers.origin as string) || '';
@@ -26,7 +27,7 @@ export function setCorsHeaders(req: VercelRequest, res: VercelResponse, methods 
   res.setHeader('Cache-Control', 'no-store');
 }
 
-const connectionString = process.env.POSTGRES_URL || process.env.DATABASE_URL || '';
+const connectionString = getDatabaseUrl();
 const db = drizzle(neon(connectionString));
 
 function getSessionSecret(): string {

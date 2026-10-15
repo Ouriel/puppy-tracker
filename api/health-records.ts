@@ -5,8 +5,9 @@ import { eq, and, desc } from 'drizzle-orm';
 import { healthRecordsTable, puppiesTable } from '../src/db/schema.js';
 import { HealthRecordInputSchema, parseDeleteId } from '../src/utils/schemas.js';
 import { verifyAuth, sendAuthError, setCorsHeaders } from './_auth.js';
+import { getDatabaseUrl } from './_db.js';
 
-const connectionString = process.env.POSTGRES_URL || process.env.DATABASE_URL || '';
+const connectionString = getDatabaseUrl();
 const sql = neon(connectionString);
 const db = drizzle(sql);
 
