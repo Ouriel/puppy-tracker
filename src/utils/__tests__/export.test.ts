@@ -183,6 +183,11 @@ describe('export utilities — CSV and PDF export test suite', () => {
       expect(htmlContent).toContain("Rapport d'Activités & Propreté");
       expect(htmlContent).toContain('Berger Australien');
       expect(htmlContent).toContain('240g / jour (3 repas)');
+
+      vi.mocked(mockWindow!.document.write).mockClear();
+      printActivitiesReport(mockActivities, { ...mockProfile, dailyFoodGramGoal: 0 }, 'fr', fr, mockCaretakers);
+      const noGoalContent = vi.mocked(mockWindow!.document.write).mock.calls[0][0] as string;
+      expect(noGoalContent).toContain('<strong>Objectif Repas :</strong> 3 repas / jour</div>');
       expect(htmlContent).toContain('window.print()');
       expect(htmlContent).toContain('<div class="card-value">5</div>'); // total logs card
       expect(htmlContent).toContain('Dehors');

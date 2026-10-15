@@ -146,7 +146,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
 
   const hasMorePriorLogs = sortedCoreActivities.length > visibleActivities.length || hasMoreRemote;
 
-  const dailyGoalGrams = activePuppy?.dailyFoodGramGoal || 200;
+  const dailyGoalGrams = activePuppy?.dailyFoodGramGoal ?? 200; // 0: no gram goal
   const targetMealsCount = activePuppy?.targetMealsPerDay || 3;
 
   // Group visible activities by logical day

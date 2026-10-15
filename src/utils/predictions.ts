@@ -93,6 +93,15 @@ export function getPuppyAge(
 }
 
 /**
+ * Meals per day for the dog's age: 4 under 3 months, 3 under 6 months, then 2.
+ * The engine's fallback when a profile has none, and the meals box default for a new dog.
+ */
+export function getRecommendedMealsPerDay(birthDateIso: string, targetDate: Date = new Date()): number {
+  const { months } = getPuppyAge(birthDateIso, targetDate);
+  return months < 3 ? 4 : months < 6 ? 3 : 2;
+}
+
+/**
  * Calculates veterinary recommended daily food gram intake based on NRC/AAFCO RER / MER equations.
  * @internal Utility calculation for estimations & tests; production uses user-configured `PuppyProfile.dailyFoodGramGoal`.
  */
@@ -108,14 +117,16 @@ export function calculateVetFoodGramGoal(weightKg: number, ageMonths: number): n
 
 /**
  * Calculates remaining portion grams for the next meal given daily goal and meals logged today.
+ * Undefined for a dog with no gram goal (0): its meals are only counted.
  */
 export function calculateNextMealPortion(
   dailyGramGoal: number = 200,
   targetMealsPerDay: number = 3,
   loggedGramsToday: number = 0,
   loggedMealsCountToday: number = 0
-): number {
-  const goal = dailyGramGoal || 200;
+): number | undefined {
+  if (!(dailyGramGoal > 0)) return undefined;
+  const goal = dailyGramGoal;
   const targetMeals = targetMealsPerDay || 3;
   const remainingGrams = Math.max(0, goal - loggedGramsToday);
   const remainingMeals = Math.max(1, targetMeals - loggedMealsCountToday);
@@ -966,8 +977,7 @@ export function predictNextFood(
   const past = activities.filter((a) => parseIsoDate(a.timestamp).getTime() <= maxAllowedTime);
   const sorted = [...past].sort((a, b) => parseIsoDate(b.timestamp).getTime() - parseIsoDate(a.timestamp).getTime());
 
-  const { months } = getPuppyAge(profile.birthDate, now);
-  const vetRecommendedMeals = months < 3 ? 4 : months < 6 ? 3 : 2;
+  const vetRecommendedMeals = getRecommendedMealsPerDay(profile.birthDate, now);
   const targetMeals = Math.max(1, profile.targetMealsPerDay || vetRecommendedMeals);
 
   const todayMeals = past.filter(
@@ -1012,7 +1022,9 @@ export function predictNextFood(
   } else if (isGoalReached) {
     mode = 'goal_reached';
     nextExpectedAt = nextBreakfast;
-    reason = `Daily goal reached (${todayGramTotal}g)`;
+    reason = profile.dailyFoodGramGoal > 0
+      ? `Daily goal reached (${todayGramTotal}g)`
+      : `Daily goal reached (${todayMeals.length} meals)`;
   } else if (todayMeals.length === 0) {
     nextExpectedAt = todayBreakfast;
     const minsUntilBreakfast = (todayBreakfast.getTime() - now.getTime()) / 60000;

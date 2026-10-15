@@ -43,6 +43,7 @@ describe('Zod Schemas Validation', () => {
     const inputDog = {
       name: 'Balma',
       breed: 'English Cocker Spaniel',
+      birthDate: '2026-05-01',
       weightKg: '7.8',
       dailyFoodGramGoal: 240,
     };

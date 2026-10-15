@@ -16,9 +16,11 @@ export function getDayFoodPill(
   if (!day.isToday) {
     return { text: `${day.totalFoodGrams}g · ${mealsCountTemplate.replace('{count}', String(day.mealsCount))}`, tone: 'neutral' };
   }
-  const isGoalReached = day.dailyGoalGrams > 0 && day.totalFoodGrams >= day.dailyGoalGrams;
+  // No gram goal (0): the day's target is its meal count, and no goal in grams is shown
+  const hasGramGoal = day.dailyGoalGrams > 0;
+  const isGoalReached = hasGramGoal ? day.totalFoodGrams >= day.dailyGoalGrams : day.mealsCount >= day.targetMealsCount;
   return {
-    text: `${day.totalFoodGrams}g / ${day.dailyGoalGrams}g`,
+    text: hasGramGoal ? `${day.totalFoodGrams}g / ${day.dailyGoalGrams}g` : `${day.totalFoodGrams}g`,
     mealsText: `(${day.mealsCount}/${day.targetMealsCount})`,
     tone: isGoalReached ? 'goalReached' : day.totalFoodGrams > 0 ? 'underGoal' : 'neutral',
   };

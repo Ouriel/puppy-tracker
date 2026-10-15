@@ -22,6 +22,14 @@ describe('getDayFoodPill', () => {
     expect(pill).toEqual({ text: '0g / 200g', mealsText: '(0/2)', tone: 'neutral' });
   });
 
+  it('with no gram goal, today counts meals against the target and shows the grams eaten without a goal', () => {
+    const noGoal = { dailyGoalGrams: 0, targetMealsCount: 2 };
+    expect(getDayFoodPill({ isToday: true, totalFoodGrams: 150, mealsCount: 1, ...noGoal }, en.dashboard.mealsCount))
+      .toEqual({ text: '150g', mealsText: '(1/2)', tone: 'underGoal' });
+    expect(getDayFoodPill({ isToday: true, totalFoodGrams: 230, mealsCount: 2, ...noGoal }, en.dashboard.mealsCount))
+      .toEqual({ text: '230g', mealsText: '(2/2)', tone: 'goalReached' });
+  });
+
   it('shows a past day as plain totals, not against the current goal (owner report "240g / 200g (3/2)")', () => {
     const pastDay = { isToday: false, totalFoodGrams: 240, mealsCount: 3, ...currentGoal };
     expect(getDayFoodPill(pastDay, en.dashboard.mealsCount)).toEqual({ text: '240g · 3 meal(s)', tone: 'neutral' });

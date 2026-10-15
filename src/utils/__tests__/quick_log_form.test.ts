@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import type { ActivityType } from '../../types';
 import { buildQuickLogActivity, parseDecimalInput, validateQuickLogForm } from '../activityPayloads';
-import { isDailyGramGoalMet, suggestNextMealGrams } from '../predictions';
+import { calculateNextMealPortion, getRecommendedMealsPerDay, isDailyGramGoalMet, suggestNextMealGrams } from '../predictions';
 
 const form = {
   puppyId: 'pup-1',
@@ -109,4 +109,18 @@ describe('suggestNextMealGrams (feed button label and meal box share it)', () =>
   it.each([[179, 21], [180, undefined]])('goal 200 g, 2 meals, 1 eaten, %d g eaten -> %s', (grams, expected) => {
     expect(suggestNextMealGrams(200, 2, grams, 1)).toBe(expected);
   });
+
+  it('a dog with no gram goal gets no grams suggested: no "(Xg)" on the button, an empty box', () => {
+    expect(suggestNextMealGrams(0, 2, 0, 0)).toBeUndefined();
+    expect(suggestNextMealGrams(0, 2, 80, 1)).toBeUndefined();
+    expect(calculateNextMealPortion(0, 2, 0, 0)).toBeUndefined();
+  });
+});
+
+describe('getRecommendedMealsPerDay (engine fallback and new-dog default)', () => {
+  it.each([['2026-07-18', 4], ['2026-07-17', 3], ['2026-04-17', 3], ['2026-04-16', 2], ['2026-01-01', 2]])(
+    'born %s, on 2026-10-15 -> %i meals', (birthDate, meals) => {
+      expect(getRecommendedMealsPerDay(birthDate, new Date('2026-10-15T12:00:00+02:00'))).toBe(meals);
+    }
+  );
 });

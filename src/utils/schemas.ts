@@ -135,15 +135,22 @@ export const DogInputSchema = z.object({
   id: z.string().optional(),
   name: z.string().min(1, 'Name is required'),
   breed: z.string().min(1, 'Breed is required').optional(),
-  birthDate: z.string().optional(),
+  // Required on POST (PUT uses .partial()). A real day, at most one day ahead of UTC: it is already tomorrow east of it.
+  birthDate: z.iso.date().refine((value) => Date.parse(value) <= Date.now() + 24 * 60 * 60 * 1000, 'birthDate is in the future'),
   weightKg: z.number().or(z.string()).optional(),
-  dailyFoodGramGoal: z.number().or(z.string()).optional(),
-  targetMealsPerDay: z.number().or(z.string()).optional(),
+  // 0: no gram goal, the dog's meals are only counted
+  dailyFoodGramGoal: z
+    .number()
+    .int()
+    .refine((goal) => goal === 0 || (goal >= 10 && goal <= 2000), 'dailyFoodGramGoal is 0 (no gram goal) or 10 to 2000 g')
+    .optional(),
+  targetMealsPerDay: z.number().int().min(1).max(6).optional(),
   careInstructions: z.string().nullable().optional(),
   avatarUrl: z.string().nullable().optional(),
   notes: z.string().nullable().optional(),
-  gender: z.enum(['female', 'male']).optional(),
-  expectedAdultWeightKg: z.number().positive().max(120).optional(),
+  // null clears a stored value: the API returns null for a dog without one
+  gender: z.enum(['female', 'male']).nullable().optional(),
+  expectedAdultWeightKg: z.number().positive().max(120).nullable().optional(),
 });
 
 export const HealthRecordInputSchema = z.object({

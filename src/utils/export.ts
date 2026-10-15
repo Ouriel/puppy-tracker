@@ -177,9 +177,13 @@ export function printActivitiesReport(
   const poopsCount = sortedActivities.filter((activity) => activity.type === 'poop').length;
 
   const breedLabel = formatBreedName(profile?.breed || 'Puppy', lang);
-  const foodGoalLabel = profile?.dailyFoodGramGoal
-    ? `${profile.dailyFoodGramGoal}g / ${isFrench ? 'jour' : 'day'} (${profile.targetMealsPerDay || 3} ${isFrench ? 'repas' : 'meals'})`
-    : '-';
+  const mealsLabel = `${profile?.targetMealsPerDay || 3} ${isFrench ? 'repas' : 'meals'}`;
+  // A goal of 0 means no gram goal: only the meal count is a goal
+  const foodGoalLabel = !profile
+    ? '-'
+    : profile.dailyFoodGramGoal
+      ? `${profile.dailyFoodGramGoal}g / ${isFrench ? 'jour' : 'day'} (${mealsLabel})`
+      : `${mealsLabel} / ${isFrench ? 'jour' : 'day'}`;
 
   const getTypeBadge = (type: string) => {
     switch (type) {

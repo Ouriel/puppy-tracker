@@ -124,6 +124,8 @@ describe("predictionsTranslation utility", () => {
       [smallMeals, BALMA, "2026-08-07T15:00:00+02:00"],
       // Daily gram goal reached
       [lunchDay, BALMA, "2026-08-07T19:30:00+02:00"],
+      // No gram goal: reached once the meals are logged
+      [lunchDay, { ...BALMA, dailyFoodGramGoal: 0 }, "2026-08-07T19:30:00+02:00"],
     ];
 
     const reasons = new Set<string>();
@@ -136,6 +138,7 @@ describe("predictionsTranslation utility", () => {
     const templates = new Set([...reasons].map((reason) => reason.replace(/\d+/g, "#")));
     expect([...templates].sort()).toEqual([
       "Breakfast (~#:#, Meal # of #)",
+      "Daily goal reached (# meals)",
       "Daily goal reached (#g)",
       "Digestive alert: frequent checks recommended",
       "Digestive recovery: pause after hard stool",
