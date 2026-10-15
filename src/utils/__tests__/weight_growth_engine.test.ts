@@ -9,6 +9,7 @@ import {
   getEffectivePuppyWeight,
   scaleGrowthBenchmarks,
 } from '../weight';
+import { calculatePredictions } from '../predictions';
 import type { Activity, PuppyProfile } from '../../types';
 import { BALMA } from './fixtures';
 
@@ -207,6 +208,28 @@ describe('Canine Weight Prediction & WALTHAM Growth Engine', () => {
         estimatedCurrentWeight: 1.25,
         isEstimated: true,
       });
+    });
+  });
+
+  // Backlog item 19: a dog created from now on stores no profile weight (null), older dogs keep theirs
+  describe('a dog without a profile weight (null): every estimate is the same as with one', () => {
+    const target = '2026-08-30T16:00:00.000Z';
+    const withoutWeight: PuppyProfile = { ...balmaProfile, weightKg: null };
+
+    it('before the first weigh-in: the same breed curve', () => {
+      expect(getEffectivePuppyWeight(withoutWeight, [], target)).toEqual(getEffectivePuppyWeight(balmaProfile, [], target));
+    });
+
+    it('with weigh-ins: the same last weigh-in, estimate and daily gain', () => {
+      const weighIns = [...balmaActivities, ...balmaVetWeighIns];
+      expect(getEffectivePuppyWeight(withoutWeight, weighIns, target)).toEqual(getEffectivePuppyWeight(balmaProfile, weighIns, target));
+    });
+
+    it('the same potty and meal predictions', () => {
+      const referenceTime = new Date(target);
+      expect(calculatePredictions(balmaActivities, withoutWeight, referenceTime, 'Europe/Paris')).toEqual(
+        calculatePredictions(balmaActivities, balmaProfile, referenceTime, 'Europe/Paris')
+      );
     });
   });
 

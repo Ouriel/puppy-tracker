@@ -21,7 +21,7 @@ function defaultSql(column: PgColumn): string | null {
   return typeof column.default === 'string' ? `'${column.default}'` : String(column.default);
 }
 
-/** "table.column" → its definition ("text NOT NULL DEFAULT ..."), from CREATE TABLE and ADD COLUMN. */
+/** "table.column" → its definition ("text NOT NULL DEFAULT ..."), from CREATE TABLE, ADD COLUMN and DROP NOT NULL. */
 function migratedColumns(): Map<string, string> {
   const columns = new Map<string, string>();
   for (const [, table, body] of migrationsSql.matchAll(/CREATE TABLE IF NOT EXISTS (\w+) \(([^;]*)\);/g)) {
@@ -32,6 +32,9 @@ function migratedColumns(): Map<string, string> {
   }
   for (const [, table, column, definition] of migrationsSql.matchAll(/ALTER TABLE (\w+) ADD COLUMN IF NOT EXISTS "?(\w+)"? ([^;]*);/g)) {
     columns.set(`${table}.${column}`, definition);
+  }
+  for (const [, table, column] of migrationsSql.matchAll(/ALTER TABLE (\w+) ALTER COLUMN "?(\w+)"? DROP NOT NULL;/g)) {
+    columns.set(`${table}.${column}`, (columns.get(`${table}.${column}`) ?? '').replace(' NOT NULL', ''));
   }
   return columns;
 }

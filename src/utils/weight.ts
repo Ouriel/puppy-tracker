@@ -182,7 +182,7 @@ export function calculateProjectedAdultWeightRange(
       Boolean(log && typeof log.weightKg === 'number' && log.weightKg > 0)
   );
 
-  // Before the first weigh-in: the breed baseline. Never the profile weight, a new dog's is a made-up 4.5 kg.
+  // Before the first weigh-in: the breed baseline. Never the profile weight: legacy, an older dog's is a made-up 4.5 kg (a new dog has none).
   if (validLogs.length === 0) {
     const adultTarget = breedBaselineKg;
     const minAdultKg = Math.round(adultTarget * 0.88 * 10) / 10;
@@ -308,7 +308,7 @@ export function getEffectivePuppyWeight(
 
   const unifiedEntries = getUnifiedWeightEntries(activities);
 
-  // Before the first weigh-in: the breed curve at this age. Never the profile weight, a new dog's is a made-up 4.5 kg.
+  // Before the first weigh-in: the breed curve at this age. Never the profile weight: legacy, an older dog's is a made-up 4.5 kg (a new dog has none).
   if (unifiedEntries.length === 0) {
     const breedCurveKg = adultBaseline * getWalthamGrowthFraction(getWalthamCategory(adultBaseline), ageWeeks);
     return {

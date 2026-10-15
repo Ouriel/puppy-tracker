@@ -78,6 +78,24 @@ describe('PUT /api/health-records writes only the fields sent (pre-fill review i
   });
 });
 
+describe('POST and PUT /api/health-records never write the legacy weight_at_time (backlog item 19)', () => {
+  const record = { puppyId: 'pup-1', type: 'deworming', name: 'Credelio Plus', productName: 'Credelio Plus', date: '2026-09-21' };
+
+  it('POST from an older app sending a weight saves the record, without the weight', async () => {
+    const response = await send('POST', { ...record, weightAtTime: 7.8 });
+
+    expect(response.statusCode).toBe(201);
+    expect(response.body).not.toHaveProperty('weightAtTime');
+  });
+
+  it('PUT from an older app sending a weight saves the edit and leaves the column alone', async () => {
+    const response = await put({ id: 'hr-1', ...record, weightAtTime: '7.8' });
+
+    expect(response.statusCode).toBe(200);
+    expect(dbMock.setValues).not.toHaveProperty('weightAtTime');
+  });
+});
+
 describe('POST and PUT /api/health-records date rules (pre-fill review item 38)', () => {
   /** A UTC calendar date, days from now. */
   const utcDate = (days: number) => new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);

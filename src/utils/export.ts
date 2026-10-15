@@ -661,7 +661,7 @@ export function printHealthPassportReport(
     .filter((activity) => activity.type === 'weight' && activity.weightKg && activity.weightKg > 0)
     .sort((activityA, activityB) => new Date(activityB.timestamp).getTime() - new Date(activityA.timestamp).getTime());
 
-  // Never the profile weight: a new dog's is a made-up 4.5 kg
+  // Never the profile weight: legacy, an older dog's is a made-up 4.5 kg (a new dog has none)
   const latestWeight = weightLogs.length > 0 ? `${weightLogs[0].weightKg} kg` : '-';
   const breedLabel = formatBreedName(profile?.breed || 'Puppy', lang);
 

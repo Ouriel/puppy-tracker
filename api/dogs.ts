@@ -68,7 +68,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             name: body.name,
             breed: body.breed,
             birthDate: body.birthDate,
-            weightKg: Number(body.weightKg) || existing.weightKg,
             dailyFoodGramGoal: body.dailyFoodGramGoal ?? existing.dailyFoodGramGoal,
             targetMealsPerDay: body.targetMealsPerDay ?? existing.targetMealsPerDay,
             notes: body.notes ?? existing.notes,
@@ -89,7 +88,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           name: body.name,
           breed: body.breed,
           birthDate: body.birthDate,
-          weightKg: Number(body.weightKg) || 4.5,
+          // No weight_kg: a new dog stores none (it used to get a made-up 4.5 kg); its weight is its weight events
           dailyFoodGramGoal: body.dailyFoodGramGoal ?? 200,
           targetMealsPerDay: body.targetMealsPerDay ?? 3,
           notes: body.notes || '',
@@ -123,14 +122,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (!parsed.success) {
         return res.status(400).json({ error: 'Invalid dog payload', details: parsed.error.issues });
       }
-      const { id, weightKg, dailyFoodGramGoal, targetMealsPerDay, ...rest } = parsed.data;
+      const { id, dailyFoodGramGoal, targetMealsPerDay, ...rest } = parsed.data;
       if (!id) return res.status(400).json({ error: 'id is required' });
 
       const [updated] = await db
         .update(puppiesTable)
         .set({
           ...rest,
-          ...(weightKg !== undefined ? { weightKg: Number(weightKg) } : {}),
           ...(dailyFoodGramGoal !== undefined ? { dailyFoodGramGoal: Number(dailyFoodGramGoal) } : {}),
           ...(targetMealsPerDay !== undefined ? { targetMealsPerDay: Number(targetMealsPerDay) } : {}),
           updatedAt: new Date(),

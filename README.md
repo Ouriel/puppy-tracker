@@ -199,7 +199,7 @@ Browser (React SPA, PWA)  ──/api/*──▶  Vercel functions (api/*.ts)  �
 | `puppies` | dog profile: breed, birth date, sex, daily gram goal (0 = no gram goal), meals per day, expected adult weight (custom breeds); `deleted_at` is set on a deleted dog, which every read skips |
 | `caretakers` | badges: name, colour, optional linked email |
 | `activities` | one row per log: `type` (pee, poop, food, weight, medication; the API also accepts `walk`, which the app never sends), timestamp (timestamptz), `logged_by` (badge name), potty place, stool, grams, weight, medication name, notes |
-| `health_records` | vaccinations and dewormings: name/product, date, next date, clinic, batch. `weight_at_time` is a legacy column the app no longer reads: weigh-ins are `activities` rows of type `weight`. |
+| `health_records` | vaccinations and dewormings: name/product, date, next date, clinic, batch. `weight_at_time` is a legacy column the app neither reads nor writes (`migrations/0002` empties the weights a weight event holds): weigh-ins are `activities` rows of type `weight`. |
 
 APIs return timestamps as ISO strings. Inputs are validated with Zod (`src/utils/schemas.ts`). Schema changes go in `src/db/schema.ts` with a hand-written SQL file in `migrations/`, run by hand on the preview branch then on production (`migrations/README.md`), and must carry existing production data over.
 
