@@ -150,11 +150,11 @@ export const DogHealthSummary: React.FC<DogHealthSummaryProps> = React.memo(({
   const localizedBreed = formatBreedName(profile.breed, lang as Language);
 
   const nextVaccineDueDate = lastVaccine
-    ? lastVaccine.boosterDate || calculateNextVaccineBooster(lastVaccine.date, lastVaccine.name, ageInfo.months)
+    ? lastVaccine.boosterDate || calculateNextVaccineBooster(lastVaccine.date, lastVaccine.name, profile.birthDate)
     : null;
 
   const nextDewormingDueDate = lastDeworming
-    ? lastDeworming.boosterDate || calculateNextDewormingDate(lastDeworming.date, Math.max(1, Math.floor(ageInfo.weeks / 4)))
+    ? lastDeworming.boosterDate || calculateNextDewormingDate(lastDeworming.date, profile.birthDate)
     : null;
 
   return (

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { calculateNextVaccineBooster, calculateNextDewormingDate, calculateNextAntiparasiticDate, getHealthRecordStatus, isVetVisitWeight } from '../health';
+import { calculateNextVaccineBooster, calculateNextDewormingDate, calculateNextAntiparasiticDate, getHealthRecordDateError, getHealthRecordStatus, isVetVisitWeight } from '../health';
 import type { Activity, HealthRecord } from '../../types';
 
 describe('Health Passport — French Veterinary Protocol & Dataset Test Suite', () => {
@@ -97,7 +97,8 @@ describe('Health Passport — French Veterinary Protocol & Dataset Test Suite', 
   ];
 
   it('calculates 1-month DHPP booster date for puppy primers', () => {
-    const nextDue = calculateNextVaccineBooster('2026-05-22', 'DHPP', 2);
+    // 2 months old on the injection day
+    const nextDue = calculateNextVaccineBooster('2026-05-22', 'DHPP', '2026-03-22');
     expect(nextDue).toBe('2026-06-22');
   });
 
@@ -112,58 +113,58 @@ describe('Health Passport — French Veterinary Protocol & Dataset Test Suite', 
   });
 
   it('calculates 36-month (3-year) triennial booster for viral-only vaccines (CHPPi sans L4, Vanguard CPV) from 16 months', () => {
-    // CHPPi sans L4 at age 18 months -> 36 months
-    const nextDueViral = calculateNextVaccineBooster('2026-07-22', 'chppi_sans_l4', 18);
+    // CHPPi sans L4 given at 18 months -> 36 months
+    const nextDueViral = calculateNextVaccineBooster('2026-07-22', 'chppi_sans_l4', '2025-01-22');
     expect(nextDueViral).toBe('2029-07-22');
 
-    // 16 months is the cutoff: triennial from 16, annual at 14
-    expect(calculateNextVaccineBooster('2026-07-22', 'chppi_sans_l4', 16)).toBe('2029-07-22');
-    expect(calculateNextVaccineBooster('2026-07-22', 'chppi_sans_l4', 14)).toBe('2027-07-22');
+    // 16 months on the injection day is the cutoff: triennial from 16, annual at 14
+    expect(calculateNextVaccineBooster('2026-07-22', 'chppi_sans_l4', '2025-03-22')).toBe('2029-07-22');
+    expect(calculateNextVaccineBooster('2026-07-22', 'chppi_sans_l4', '2025-05-22')).toBe('2027-07-22');
 
-    // Vanguard CPV at age 24 months -> 36 months
-    const nextDueCpv = calculateNextVaccineBooster('2026-07-22', 'vanguard_cpv', 24);
+    // Vanguard CPV given at 24 months -> 36 months
+    const nextDueCpv = calculateNextVaccineBooster('2026-07-22', 'vanguard_cpv', '2024-07-22');
     expect(nextDueCpv).toBe('2029-07-22');
   });
 
   it('calculates 12-month annual booster for combined CHPPi + L4 even for adult dogs (L4 drives annual cadence)', () => {
-    const nextDueCombined = calculateNextVaccineBooster('2026-07-22', 'chppi_l4', 18);
+    const nextDueCombined = calculateNextVaccineBooster('2026-07-22', 'chppi_l4', '2025-01-22');
     expect(nextDueCombined).toBe('2027-07-22');
   });
 
   it('calculates Credelio Plus, Nexgard Spectra, and Simparica Trio as strictly monthly (+1 month)', () => {
-    expect(calculateNextAntiparasiticDate('2026-06-15', 'Credelio Plus', 4)).toBe('2026-07-15');
-    expect(calculateNextAntiparasiticDate('2026-06-15', 'Nexgard Spectra', 8)).toBe('2026-07-15');
-    expect(calculateNextAntiparasiticDate('2026-06-15', 'Simparica Trio', 12)).toBe('2026-07-15');
+    expect(calculateNextAntiparasiticDate('2026-06-15', 'Credelio Plus', '2026-02-15')).toBe('2026-07-15');
+    expect(calculateNextAntiparasiticDate('2026-06-15', 'Nexgard Spectra', '2025-10-15')).toBe('2026-07-15');
+    expect(calculateNextAntiparasiticDate('2026-06-15', 'Simparica Trio', '2025-06-15')).toBe('2026-07-15');
   });
 
   it('calculates Bravecto as quarterly (+3 months / 12 weeks)', () => {
-    expect(calculateNextAntiparasiticDate('2026-06-15', 'Bravecto', 8)).toBe('2026-09-15');
+    expect(calculateNextAntiparasiticDate('2026-06-15', 'Bravecto', '2025-10-15')).toBe('2026-09-15');
   });
 
   it('calculates Milbemax puppy as monthly (<6m) and adult as quarterly (>=6m)', () => {
-    expect(calculateNextAntiparasiticDate('2026-06-15', 'Milbemax Tab', 3)).toBe('2026-07-15');
-    expect(calculateNextAntiparasiticDate('2026-06-15', 'Milbemax Tab', 6)).toBe('2026-09-15');
-    expect(calculateNextAntiparasiticDate('2026-06-15', 'Milbemax Tab', 8)).toBe('2026-09-15');
+    expect(calculateNextAntiparasiticDate('2026-06-15', 'Milbemax Tab', '2026-03-15')).toBe('2026-07-15');
+    expect(calculateNextAntiparasiticDate('2026-06-15', 'Milbemax Tab', '2025-12-15')).toBe('2026-09-15');
+    expect(calculateNextAntiparasiticDate('2026-06-15', 'Milbemax Tab', '2025-10-15')).toBe('2026-09-15');
   });
 
   it('falls back to monthly (<6m) and quarterly (>=6m) for an unknown product', () => {
-    expect(calculateNextAntiparasiticDate('2026-06-15', 'Xyzzy', 3)).toBe('2026-07-15');
-    expect(calculateNextAntiparasiticDate('2026-06-15', 'Xyzzy', 6)).toBe('2026-09-15');
-    expect(calculateNextAntiparasiticDate('2026-06-15', 'Xyzzy', 8)).toBe('2026-09-15');
+    expect(calculateNextAntiparasiticDate('2026-06-15', 'Xyzzy', '2026-03-15')).toBe('2026-07-15');
+    expect(calculateNextAntiparasiticDate('2026-06-15', 'Xyzzy', '2025-12-15')).toBe('2026-09-15');
+    expect(calculateNextAntiparasiticDate('2026-06-15', 'Xyzzy', '2025-10-15')).toBe('2026-09-15');
   });
 
-  it('calculates biweekly vermifuge under 2 months according to ESCCAP France', () => {
-    const nextDeworming = calculateNextDewormingDate('2026-04-25', 1);
+  it('calculates biweekly vermifuge for a young puppy according to ESCCAP France', () => {
+    const nextDeworming = calculateNextDewormingDate('2026-04-25', '2026-03-25');
     expect(nextDeworming).toBe('2026-05-09');
   });
 
-  it('calculates monthly vermifuge between 2 and 6 months according to ESCCAP France', () => {
-    const nextDeworming = calculateNextDewormingDate('2026-05-23', 3);
+  it('calculates monthly vermifuge between 12 weeks and 6 months according to ESCCAP France', () => {
+    const nextDeworming = calculateNextDewormingDate('2026-05-23', '2026-02-23');
     expect(nextDeworming).toBe('2026-06-23');
   });
 
   it('calculates quarterly vermifuge over 6 months according to ESCCAP France', () => {
-    const nextDeworming = calculateNextDewormingDate('2026-09-23', 8);
+    const nextDeworming = calculateNextDewormingDate('2026-09-23', '2026-01-23');
     expect(nextDeworming).toBe('2026-12-23');
   });
 
@@ -311,5 +312,99 @@ describe('isVetVisitWeight (the stethoscope on a weigh-in, Phase 5c step 7)', ()
     [null, false],
   ])('notes %j -> %s: only a vaccine or antiparasitic name of healthProtocols.json', (notes, expected) => {
     expect(isVetVisitWeight(weighIn(notes))).toBe(expected);
+  });
+});
+
+describe('Suggested next dates (pre-fill review items 11, 12, 13; TZ=Europe/Paris)', () => {
+  // Made-up dog born 5 Jan 2026: 16 weeks old on 27 Apr 2026, 1 year old on 5 Jan 2027
+  const birthDate = '2026-01-05';
+
+  describe('vaccines: age on the injection day, French puppy series (owner decision 2026-10-14)', () => {
+    it('a CHPPi-family dose before 16 weeks suggests +1 month, even when entered months later', () => {
+      expect(calculateNextVaccineBooster('2026-03-02', 'chppi_l4', birthDate)).toBe('2026-04-02'); // 8 weeks
+      expect(calculateNextVaccineBooster('2026-04-20', 'CHPPi / DAPPi (sans L4)', birthDate)).toBe('2026-05-20'); // 15 weeks
+      expect(calculateNextVaccineBooster('2026-03-02', 'vanguard_cpv', birthDate)).toBe('2026-04-02');
+    });
+
+    it('a dose from 16 weeks to just before 6 months suggests the 1st birthday', () => {
+      expect(calculateNextVaccineBooster('2026-04-27', 'chppi_l4', birthDate)).toBe('2027-01-05'); // exactly 16 weeks
+      expect(calculateNextVaccineBooster('2026-05-04', 'CHPPi / DAPPi + L4 (Eurican / Nobivac / Versican / Canigen)', birthDate)).toBe('2027-01-05');
+      expect(calculateNextVaccineBooster('2026-07-04', 'chppi_sans_l4', birthDate)).toBe('2027-01-05'); // the day before 6 months
+    });
+
+    it('a dose at 6 months or later is not a puppy dose: the adult rule applies (owner decision 2026-10-15)', () => {
+      expect(calculateNextVaccineBooster('2026-07-05', 'chppi_l4', birthDate)).toBe('2027-07-05'); // exactly 6 months
+      expect(calculateNextVaccineBooster('2026-09-10', 'chppi_sans_l4', birthDate)).toBe('2027-09-10');
+      // The annual booster given a week early: +12 months, not the birthday a week later
+      expect(calculateNextVaccineBooster('2026-12-29', 'chppi_l4', birthDate)).toBe('2027-12-29');
+    });
+
+    it('from the 1st birthday, the adult rules apply unchanged (CHPPi + L4 yearly, viral-only every 3 years from 16 months)', () => {
+      expect(calculateNextVaccineBooster('2027-01-05', 'chppi_l4', birthDate)).toBe('2028-01-05');
+      expect(calculateNextVaccineBooster('2027-01-05', 'chppi_sans_l4', birthDate)).toBe('2028-01-05'); // 12 months old
+      expect(calculateNextVaccineBooster('2027-07-05', 'chppi_sans_l4', birthDate)).toBe('2030-07-05'); // 18 months old
+    });
+
+    it('other vaccines keep their own interval, whatever the age', () => {
+      expect(calculateNextVaccineBooster('2026-03-02', 'Rage', birthDate)).toBe('2027-03-02');
+      expect(calculateNextVaccineBooster('2026-03-02', 'l4', birthDate)).toBe('2027-03-02');
+    });
+
+    it('with no birth date, a CHPPi-family dose suggests +12 months, as before', () => {
+      expect(calculateNextVaccineBooster('2026-03-02', 'chppi_l4')).toBe('2027-03-02');
+      expect(calculateNextVaccineBooster('2026-03-02', 'chppi_sans_l4', '')).toBe('2027-03-02');
+    });
+  });
+
+  describe('age-based wormers: age on the dose day, every 2 weeks until 12 weeks', () => {
+    it('a Drontal dose under 12 weeks suggests +14 days, even when entered months later', () => {
+      expect(calculateNextAntiparasiticDate('2026-03-02', 'Drontal Chiot (Sirop / Comprimés)', birthDate)).toBe('2026-03-16'); // 8 weeks
+      expect(calculateNextAntiparasiticDate('2026-03-26', 'Drontal Chiot (Sirop / Comprimés)', birthDate)).toBe('2026-04-09'); // 11 weeks
+    });
+
+    it('from 12 weeks to 6 months monthly, then quarterly', () => {
+      expect(calculateNextAntiparasiticDate('2026-03-30', 'Drontal Chiot (Sirop / Comprimés)', birthDate)).toBe('2026-04-30'); // 12 weeks
+      expect(calculateNextAntiparasiticDate('2026-08-10', 'Milbemax', birthDate)).toBe('2026-11-10'); // 7 months
+    });
+
+    it('a monthly product stays +1 month at any age', () => {
+      expect(calculateNextAntiparasiticDate('2026-03-02', 'Credelio Plus', birthDate)).toBe('2026-04-02');
+    });
+
+    it('with no birth date, an age-based wormer suggests +1 month, as before', () => {
+      expect(calculateNextAntiparasiticDate('2026-03-02', 'Drontal Chiot (Sirop / Comprimés)')).toBe('2026-04-02');
+    });
+  });
+
+  describe('calendar month arithmetic', () => {
+    it('keeps the day of the month across the spring clock change', () => {
+      expect(calculateNextAntiparasiticDate('2027-03-15', 'Credelio Plus', birthDate)).toBe('2027-04-15');
+      expect(calculateNextAntiparasiticDate('2027-03-20', 'Credelio Plus', birthDate)).toBe('2027-04-20');
+    });
+
+    it('caps a month end at the last day of the target month', () => {
+      expect(calculateNextAntiparasiticDate('2027-01-31', 'Credelio Plus', birthDate)).toBe('2027-02-28');
+      expect(calculateNextAntiparasiticDate('2027-05-31', 'Bravecto', birthDate)).toBe('2027-08-31');
+      expect(calculateNextAntiparasiticDate('2027-11-30', 'Bravecto', birthDate)).toBe('2028-02-29');
+      expect(calculateNextVaccineBooster('2028-02-29', 'Rage', birthDate)).toBe('2029-02-28');
+    });
+
+    it('a dog born on 29 February has its 1st birthday on 28 February', () => {
+      expect(calculateNextVaccineBooster('2024-06-28', 'chppi_l4', '2024-02-29')).toBe('2025-02-28');
+    });
+
+    it('+14 days crosses the clock change on the calendar', () => {
+      expect(calculateNextAntiparasiticDate('2027-03-20', 'Drontal Chiot (Sirop / Comprimés)', '2027-01-20')).toBe('2027-04-03');
+    });
+  });
+});
+
+describe('getHealthRecordDateError (pre-fill review items 37, 38)', () => {
+  it('needs a date, not after today, and a next date not before it', () => {
+    expect(getHealthRecordDateError('', '2026-11-01', '2026-10-15')).toBe('dateRequired');
+    expect(getHealthRecordDateError('2026-10-16', '2026-11-16', '2026-10-15')).toBe('dateInFuture');
+    expect(getHealthRecordDateError('2026-10-15', '2026-10-14', '2026-10-15')).toBe('boosterBeforeDate');
+    expect(getHealthRecordDateError('2026-10-15', '2026-10-15', '2026-10-15')).toBeNull();
+    expect(getHealthRecordDateError('2026-10-15', '', '2026-10-15')).toBeNull(); // no next date: allowed in an edit
   });
 });

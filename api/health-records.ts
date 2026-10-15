@@ -10,6 +10,18 @@ const connectionString = process.env.POSTGRES_URL || process.env.DATABASE_URL ||
 const sql = neon(connectionString);
 const db = drizzle(sql);
 
+/**
+ * A record's date is not after tomorrow (UTC: a device ahead of UTC may already be there) and its next date is not before it.
+ * Checked here, not as a refine on HealthRecordInputSchema: PUT parses it with .partial(), which throws on object-level refinements.
+ * ponytail: a PUT sending only one of the two dates is compared with nothing (the app always sends both); read the stored row if that changes.
+ */
+function getDateError(date: string | undefined, boosterDate: string | null | undefined): string | null {
+  const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  if (date && date > tomorrow) return 'date is in the future';
+  if (date && boosterDate && boosterDate < date) return 'boosterDate is before date';
+  return null;
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   setCorsHeaders(req, res, 'GET, POST, PUT, DELETE, OPTIONS');
 
@@ -53,6 +65,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(400).json({ error: 'Invalid health record payload', details: parsed.error.issues });
       }
       const body = parsed.data;
+      const dateError = getDateError(body.date, body.boosterDate);
+      if (dateError) return res.status(400).json({ error: dateError });
 
       // Verify puppy belongs to this household
       const [puppy] = await db
@@ -93,6 +107,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
       const body = parsed.data;
       if (!body.id) return res.status(400).json({ error: 'id is required' });
+      const dateError = getDateError(body.date, body.boosterDate);
+      if (dateError) return res.status(400).json({ error: dateError });
 
       // Only the fields sent are written (drizzle skips undefined): an edit form that does not show a field keeps it. null or '' clears it.
       const clearable = <T,>(value: T | null | undefined) => (value === undefined ? undefined : value || null);
