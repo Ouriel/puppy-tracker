@@ -248,8 +248,8 @@ describe('Comprehensive 30-Day Realistic Dataset Test Suite', () => {
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(new Date(2026, 7, 9, 14, 0));
     try {
-      expect(getHealthRecordStatus(mockVaccines[0], mockVaccines).urgency).toBe('upToDate'); // v2 is the latest active vaccine
-      expect(getHealthRecordStatus(mockVaccines[1], mockVaccines).urgency).toBe('fulfilled'); // v1 superseded by v2
+      expect(getHealthRecordStatus(mockVaccines[0], mockVaccines)).toBe('upToDate'); // v2 is the latest active vaccine
+      expect(getHealthRecordStatus(mockVaccines[1], mockVaccines)).toBe('fulfilled'); // v1 superseded by v2
     } finally {
       vi.useRealTimers();
     }

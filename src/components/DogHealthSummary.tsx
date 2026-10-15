@@ -10,8 +10,9 @@ import {
   getUnifiedWeightEntries,
 } from '../utils/weight';
 import { getPuppyAge } from '../utils/predictions';
-import { calculateNextVaccineBooster, calculateNextDewormingDate } from '../utils/health';
+import { getHealthRecordStatus } from '../utils/health';
 import { formatShortDate } from '../utils/date';
+import { StatusBadge } from './common/StatusBadge';
 
 interface DogHealthSummaryProps {
   profile: PuppyProfile;
@@ -20,6 +21,20 @@ interface DogHealthSummaryProps {
   predictions?: PredictionResult | null;
   healthRecords?: HealthRecord[];
   onOpenHealthPassport: () => void;
+}
+
+/**
+ * The record to show for one type: among those no later record renews, the one due first
+ * (with no next date anywhere: the latest one), with its status.
+ */
+function getNextDue(records: HealthRecord[]) {
+  const openRecords = records
+    .map((record) => ({ record, urgency: getHealthRecordStatus(record, records) }))
+    .filter((item) => item.urgency !== 'fulfilled');
+  const byBoosterDate = openRecords
+    .filter((item) => item.record.boosterDate)
+    .sort((first, second) => first.record.boosterDate!.localeCompare(second.record.boosterDate!));
+  return byBoosterDate[0] ?? openRecords.sort((first, second) => second.record.date.localeCompare(first.record.date))[0];
 }
 
 export const DogHealthSummary: React.FC<DogHealthSummaryProps> = React.memo(({
@@ -32,22 +47,14 @@ export const DogHealthSummary: React.FC<DogHealthSummaryProps> = React.memo(({
 }) => {
   const { t, lang } = useI18n();
 
-  // Derive last vaccine and deworming from BFF-provided health records (no secondary fetch needed)
+  // Derive the next vaccine and deworming due from BFF-provided health records (no secondary fetch needed)
   const puppyRecords = useMemo(() => {
     return healthRecords.filter((record) => record.puppyId === profile.id);
   }, [healthRecords, profile.id]);
 
-  const lastVaccine = useMemo(() => {
-    const vRecords = puppyRecords.filter((record) => record.type === 'vaccination');
-    if (vRecords.length === 0) return null;
-    return [...vRecords].sort((recordA, recordB) => new Date(recordB.date).getTime() - new Date(recordA.date).getTime())[0];
-  }, [puppyRecords]);
+  const nextVaccine = useMemo(() => getNextDue(puppyRecords.filter((record) => record.type === 'vaccination')), [puppyRecords]);
 
-  const lastDeworming = useMemo(() => {
-    const dRecords = puppyRecords.filter((record) => record.type === 'deworming');
-    if (dRecords.length === 0) return null;
-    return [...dRecords].sort((recordA, recordB) => new Date(recordB.date).getTime() - new Date(recordA.date).getTime())[0];
-  }, [puppyRecords]);
+  const nextDeworming = useMemo(() => getNextDue(puppyRecords.filter((record) => record.type === 'deworming')), [puppyRecords]);
 
   // Calculate puppy age in weeks & months
   const ageInfo = useMemo(() => {
@@ -148,14 +155,6 @@ export const DogHealthSummary: React.FC<DogHealthSummaryProps> = React.memo(({
 
   const localizedBreed = formatBreedName(profile.breed, lang as Language);
 
-  const nextVaccineDueDate = lastVaccine
-    ? lastVaccine.boosterDate || calculateNextVaccineBooster(lastVaccine.date, lastVaccine.name, profile.birthDate)
-    : null;
-
-  const nextDewormingDueDate = lastDeworming
-    ? lastDeworming.boosterDate || calculateNextDewormingDate(lastDeworming.date, profile.birthDate)
-    : null;
-
   return (
     <Card className="shadow-xl bg-slate-900/90 border-slate-800">
       <Card.Content className="p-3.5 sm:p-5 space-y-4">
@@ -198,23 +197,23 @@ export const DogHealthSummary: React.FC<DogHealthSummaryProps> = React.memo(({
               <div className="bg-slate-950/60 p-2.5 rounded-lg border border-slate-800/80">
                 <div className="text-xs text-slate-400 font-semibold">{t.health.lastLogged}</div>
                 <div className="font-extrabold text-slate-100">{weightData.lastWeightKg !== undefined ? `${weightData.lastWeightKg} kg` : '—'}</div>
-                <div className="text-xs text-slate-400 mt-0.5 truncate">
-                  {weightData.lastLogDateStr ? `${weightData.lastLogDateStr} ${weightData.lastLogAgeWeeks ? `(${weightData.lastLogAgeWeeks}w)` : ''}` : t.health.noLogsYet}
+                <div className="text-xs text-slate-400 mt-0.5 break-words">
+                  {weightData.lastLogDateStr ? `${weightData.lastLogDateStr} ${weightData.lastLogAgeWeeks ? t.health.ageInWeeks.replace('{weeks}', String(weightData.lastLogAgeWeeks)) : ''}` : t.health.noLogsYet}
                 </div>
               </div>
 
               <div className="bg-slate-950/60 p-2.5 rounded-lg border border-slate-800/80">
-                <div className="flex items-center justify-between text-xs">
+                <div className="flex flex-wrap items-center justify-between gap-1 text-xs">
                   <span className="text-slate-400 font-semibold">{t.health.assumedCurrent}</span>
                   {weightData.dailyGainGrams ? (
                     <span className="text-[10px] text-emerald-400 font-bold bg-emerald-950/60 border border-emerald-800/50 px-1.5 py-0.5 rounded">
-                      +{weightData.dailyGainGrams}g/j
+                      {t.health.dailyGain.replace('{grams}', String(weightData.dailyGainGrams))}
                     </span>
                   ) : null}
                 </div>
                 <div className="font-extrabold text-pink-400">~{weightData.assumedCurrentKg} kg</div>
-                <div className="text-xs text-slate-400 mt-0.5 truncate">
-                  {t.dashboard.today} ({ageInfo.weeks}w)
+                <div className="text-xs text-slate-400 mt-0.5 break-words">
+                  {t.dashboard.today} {t.health.ageInWeeks.replace('{weeks}', String(ageInfo.weeks))}
                 </div>
               </div>
             </div>
@@ -306,17 +305,18 @@ export const DogHealthSummary: React.FC<DogHealthSummaryProps> = React.memo(({
               </div>
               <div className="space-y-0.5">
                 <div className="text-xs font-bold text-slate-200">
-                  {lastVaccine ? lastVaccine.name : t.health.lastVaccination}
+                  {nextVaccine ? nextVaccine.record.name : t.health.lastVaccination}
                 </div>
                 <div className="text-xs text-slate-400">
-                  {lastVaccine ? (
-                    <>{t.health.given} {lastVaccine.date} &bull; {t.health.nextDue} <strong className="text-teal-300">{nextVaccineDueDate}</strong></>
+                  {nextVaccine ? (
+                    <>{t.health.given} {formatShortDate(nextVaccine.record.date, lang)} &bull; {t.health.nextDue} <strong className="text-teal-300">{nextVaccine.record.boosterDate ? formatShortDate(nextVaccine.record.boosterDate, lang) : '—'}</strong></>
                   ) : (
                     t.health.noVaccineRecords
                   )}
                 </div>
               </div>
             </div>
+            {nextVaccine?.record.boosterDate && <StatusBadge status={nextVaccine.urgency} className="self-start sm:self-auto shrink-0" />}
           </div>
 
           {/* Last Deworming */}
@@ -327,17 +327,18 @@ export const DogHealthSummary: React.FC<DogHealthSummaryProps> = React.memo(({
               </div>
               <div className="space-y-0.5">
                 <div className="text-xs font-bold text-slate-200">
-                  {lastDeworming ? (lastDeworming.productName || lastDeworming.name) : t.health.lastDeworming}
+                  {nextDeworming ? (nextDeworming.record.productName || nextDeworming.record.name) : t.health.lastDeworming}
                 </div>
                 <div className="text-xs text-slate-400">
-                  {lastDeworming ? (
-                    <>{t.health.given} {lastDeworming.date} &bull; {t.health.nextDue} <strong className="text-amber-300">{nextDewormingDueDate}</strong></>
+                  {nextDeworming ? (
+                    <>{t.health.given} {formatShortDate(nextDeworming.record.date, lang)} &bull; {t.health.nextDue} <strong className="text-amber-300">{nextDeworming.record.boosterDate ? formatShortDate(nextDeworming.record.boosterDate, lang) : '—'}</strong></>
                   ) : (
                     t.health.noDewormingRecords
                   )}
                 </div>
               </div>
             </div>
+            {nextDeworming?.record.boosterDate && <StatusBadge status={nextDeworming.urgency} className="self-start sm:self-auto shrink-0" />}
           </div>
         </div>
 

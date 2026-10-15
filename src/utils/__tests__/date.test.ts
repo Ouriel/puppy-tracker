@@ -11,6 +11,7 @@ import {
   getLocalDecimalHour,
   formatLocalTime,
   getOccurrenceOfClockTimeInTimezone,
+  formatShortDate,
 } from '../date';
 
 describe('date utility module — comprehensive test suite', () => {
@@ -145,4 +146,28 @@ describe('date utility module — comprehensive test suite', () => {
   it.todo('formatRelativeTime: "Yesterday" across a DST change (it subtracts 24 h from local midnight)');
   it.todo('createDateInTimezone: second offset pass for wall-clock times next to a DST change');
   it.todo('formatLogicalDate: 04:00 cutoff on the wall clock, not now - 4 h (04:00-05:00 on the spring-forward day is still the previous day)');
+});
+
+describe('formatShortDate: health dates (backlog item 3)', () => {
+  it('shows a calendar date in French, with the year only when it is not this year', () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-15T10:00:00+02:00'));
+    try {
+      expect(formatShortDate('2026-09-27', 'fr')).toBe('27 sept.');
+      expect(formatShortDate('2027-07-01', 'fr')).toBe('1 juil. 2027');
+      expect(formatShortDate('2026-09-27', 'en')).toBe('Sep 27');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('shows a calendar date as that same day west of UTC', () => {
+    const previousTimeZone = process.env.TZ;
+    process.env.TZ = 'America/New_York';
+    try {
+      expect(formatShortDate('2026-09-27', 'en')).toMatch(/^Sep 27\b/);
+    } finally {
+      process.env.TZ = previousTimeZone;
+    }
+  });
 });
