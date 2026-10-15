@@ -69,7 +69,7 @@ Everything is learned from the dog's own logs; recent days count more than old o
 
 ### Health summary
 
-Below the cards: last weigh-in, estimated current weight and adult weight range; the learned daily routine (bedtime, wake-up, meal times and portions); last vaccine and last deworming with their next date. "View full health passport" opens the passport.
+Below the cards: last weigh-in, estimated current weight and adult weight range; the learned daily routine (bedtime, wake-up, meal times and portions); the vaccine due first among those no later shot renewed, and the latest deworming, each with its name, next date and status (a dash and no status when it has no next date). "View full health passport" opens the passport.
 
 The cards refresh every minute, and the data reloads each time you come back to the app.
 
@@ -125,7 +125,7 @@ Open it from the health summary, or at `/health-passport`.
 - Dates: not after today; the next date not before the given date. Months land on the same day, capped at the end of the month (31 Jan + 1 month = 28 Feb).
 - An optional weight box saves a separate weigh-in (12:00 Paris time on that date, or now if noon is still ahead).
 - Editing keeps the stored next date (often set by the vet). If you change the date or the product, the form offers "Suggested: date", one tap to apply.
-- Status: up to date; due soon (14 days); overdue; or **Completed** ("Effectué") once a later dose of the same vaccine, or of a vaccine that contains it, is logged (an L4 booster also completes CHPPi + L4). A different vaccine given the same day never completes it. Any later deworming completes a deworming.
+- Status: up to date; due soon (14 days, the due day included); overdue (from the next day); or **Completed** ("Effectué") once a later dose of the same vaccine, or of a vaccine that contains it, is logged (an L4 booster also completes CHPPi + L4). A different vaccine given the same day never completes it. Any later deworming completes a deworming. An entry with no next date shows a dash and no status.
 
 **Medication.** The medication logs, with add and delete buttons.
 
@@ -167,7 +167,7 @@ Browser (React SPA, PWA)  ──/api/*──▶  Vercel functions (api/*.ts)  �
 
 - **SPA**: three routes, `/`, `/health-passport`, `/settings` (history API). Passport, settings, sign-in and the log form are lazy chunks; the log form chunk is prefetched 2 s after the dashboard is ready.
 - **Predictions run in the browser** (`src/utils/predictions.ts`), from the logs loaded on the device. The server only stores and returns rows.
-- **BFF**: `GET /api/dashboard?puppyId=&days=` returns, in one Neon batch: the household's dogs and badges, the dog's logs of the last `days` (default 14, max 90, at most 300 rows), the household's health records, and **every** weight event of the dog (weigh-ins are weeks apart). The app calls it at boot and on every return to the foreground. Switching dogs loads that dog's logs from `/api/activities`; the passport loads its vaccines and dewormings from `/api/health-records?puppyId=`.
+- **BFF**: `GET /api/dashboard?puppyId=&days=` returns, in one Neon batch: the household's dogs and badges, the dog's logs of the last `days` (default 14, max 90, at most 300 rows), the household's health records, and **every** weight event of the dog (weigh-ins are weeks apart). The app calls it at boot and on every return to the foreground. Switching dogs loads that dog's logs from `/api/activities`; the passport and the health summary share its health records (the passport calls `/api/health-records?puppyId=` only while `/api/dashboard` fails).
 - Other endpoints: `api/activities.ts`, `api/dogs.ts`, `api/health-records.ts`, `api/households.ts` (badges), `api/users.ts` (accounts), `api/auth/session.ts`.
 - `vercel.json`: `npm ci` install, SPA rewrite (except `/api/` and files), `/privacy` and `/terms` static pages, long cache on `/assets/`.
 - Vercel Web Analytics and Speed Insights are on; the URLs they send are reduced to the route.
