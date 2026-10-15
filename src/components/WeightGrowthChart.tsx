@@ -1,10 +1,12 @@
-import React from 'react';
+import React, { lazy, Suspense, useState } from 'react';
 import { Card, Button } from '@heroui/react';
-import type { Activity, PuppyProfile, HealthRecord } from '../types';
-import { Scale, Plus, Trash2, Stethoscope, Sparkles } from 'lucide-react';
+import type { Activity, PuppyProfile } from '../types';
+import { Scale, Plus, Trash2, Stethoscope, Sparkles, Pencil } from 'lucide-react';
 import { useI18n } from '../i18n';
 import { formatRelativeTime } from '../utils/date';
 import { getPuppyAge } from '../utils/predictions';
+import { isVetVisitWeight } from '../utils/health';
+import { ConfirmationModal } from './common/ConfirmationModal';
 import {
   calculateProjectedAdultWeightRange,
   getEffectivePuppyWeight,
@@ -12,27 +14,31 @@ import {
   scaleGrowthBenchmarks,
 } from '../utils/weight';
 
+const QuickLogModal = lazy(() => import('./QuickLogModal').then((module) => ({ default: module.QuickLogModal })));
+
 interface WeightGrowthChartProps {
   activities: Activity[];
   profile: PuppyProfile;
-  healthRecords?: HealthRecord[];
   onOpenQuickLogModal: (type: 'weight') => void;
   onDeleteActivity?: (id: string) => void;
+  onUpdateActivity?: (updated: Partial<Activity> & { id: string }) => void;
 }
 
 export const WeightGrowthChart: React.FC<WeightGrowthChartProps> = ({
   activities,
   profile,
-  healthRecords = [],
   onOpenQuickLogModal,
   onDeleteActivity,
+  onUpdateActivity,
 }) => {
+  const [editingWeight, setEditingWeight] = useState<Activity | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const { t } = useI18n();
 
-  // Extract and unify weight entries (activities + veterinary health records)
+  // Every weight event, a vet visit's included: each one is its own entry
   const unifiedLogs = React.useMemo(() => {
-    return getUnifiedWeightEntries(activities, healthRecords);
-  }, [activities, healthRecords]);
+    return getUnifiedWeightEntries(activities);
+  }, [activities]);
 
   // Display logs (newest first)
   const displayLogs = React.useMemo(() => {
@@ -53,8 +59,8 @@ export const WeightGrowthChart: React.FC<WeightGrowthChartProps> = ({
 
   // Centralized effective puppy weight from WALTHAM growth velocity curve
   const effectiveWeight = React.useMemo(() => {
-    return getEffectivePuppyWeight(profile, activities, undefined, healthRecords);
-  }, [profile, activities, healthRecords]);
+    return getEffectivePuppyWeight(profile, activities);
+  }, [profile, activities]);
 
   // WALTHAM Category Milestones
   const benchmarks = React.useMemo(() => {
@@ -155,7 +161,7 @@ export const WeightGrowthChart: React.FC<WeightGrowthChartProps> = ({
             {displayLogs.map((log) => {
               const formattedDate = formatRelativeTime(log.timestamp);
               const logAgeWeeks = profile.birthDate ? getPuppyAge(profile.birthDate, log.timestamp).weeks : null;
-              const isVetRecord = log.source === 'vet';
+              const isVetRecord = isVetVisitWeight(log);
 
               return (
                 <div
@@ -184,15 +190,26 @@ export const WeightGrowthChart: React.FC<WeightGrowthChartProps> = ({
                         )}
                       </div>
                       <div className="text-[11px] text-slate-400 truncate">
-                        {formattedDate} {log.name ? `• ${log.name}` : ''} {log.notes ? `• ${log.notes}` : ''}
+                        {formattedDate} {log.notes ? `• ${log.notes}` : ''}
                       </div>
                     </div>
                   </div>
 
-                  {!isVetRecord && onDeleteActivity && (
+                  {onUpdateActivity && (
                     <button
                       type="button"
-                      onClick={() => onDeleteActivity(log.id)}
+                      onClick={() => setEditingWeight(log)}
+                      aria-label={t.weightChart.editWeightEntry}
+                      className="ml-auto p-2 min-h-[38px] min-w-[38px] flex items-center justify-center text-slate-400 hover:text-indigo-300 hover:bg-slate-800 rounded-lg border border-slate-800 bg-slate-950 transition-colors shrink-0"
+                    >
+                      <Pencil className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+
+                  {onDeleteActivity && (
+                    <button
+                      type="button"
+                      onClick={() => setConfirmDeleteId(log.id)}
                       aria-label="Delete weight entry"
                       className="p-2 min-h-[38px] min-w-[38px] flex items-center justify-center text-slate-400 hover:text-red-400 hover:bg-slate-800 rounded-lg border border-slate-800 bg-slate-950 transition-colors shrink-0"
                     >
@@ -204,6 +221,33 @@ export const WeightGrowthChart: React.FC<WeightGrowthChartProps> = ({
             })}
           </div>
         )}
+
+        {editingWeight && onUpdateActivity && (
+          <Suspense fallback={null}>
+            <QuickLogModal
+              key={`edit-${editingWeight.id}`}
+              isOpen={true}
+              activityToEdit={editingWeight}
+              currentUser={editingWeight.loggedBy}
+              onClose={() => setEditingWeight(null)}
+              onSave={(activityData) => {
+                onUpdateActivity({ id: editingWeight.id, ...activityData });
+                setEditingWeight(null);
+              }}
+            />
+          </Suspense>
+        )}
+
+        {/* A one-tap trash next to the pencil, on every weigh-in a vet visit's included: confirm first */}
+        <ConfirmationModal
+          isOpen={!!confirmDeleteId}
+          onClose={() => setConfirmDeleteId(null)}
+          onConfirm={() => {
+            if (confirmDeleteId) onDeleteActivity?.(confirmDeleteId);
+          }}
+          title={t.potty.deleteActivityTitle}
+          message={t.potty.deleteActivityMessage}
+        />
       </Card.Content>
     </Card>
   );

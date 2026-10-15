@@ -27,6 +27,13 @@ export function sanitizeActivityUpdate(target: Activity, updatedFields: Partial<
   };
 }
 
+/** `weights` with the row `id` set to `activity`, or without it when `activity` is missing or not a weight; the same list when nothing changes. */
+function replaceWeightRow(weights: Activity[], id: string, activity?: Activity): Activity[] {
+  const others = weights.filter((weight) => weight.id !== id);
+  if (activity?.type === 'weight') return [activity, ...others];
+  return others.length === weights.length ? weights : others;
+}
+
 /** `current` followed by the rows of `older` it does not hold yet. */
 export function mergeOlderActivities(current: Activity[], older: Activity[]): Activity[] {
   const currentIds = new Set(current.map((activity) => activity.id));
@@ -76,6 +83,8 @@ export function useActivities(
     const cached = getStoredRecentActivities(activePuppy.id);
     return !cached || cached.length === 0;
   });
+  // Every weight event of the loaded dog, whatever its date: the recent window often holds no weigh-in
+  const [weightActivities, setWeightActivities] = useState<Activity[]>([]);
   const [isFetchingMore, setIsFetchingMore] = useState(false);
   const [hasMoreRemote, setHasMoreRemote] = useState(true);
   const loadedPuppyIdRef = useRef<string | null>(null);
@@ -93,8 +102,8 @@ export function useActivities(
   // Read before requesting the recent window, and given back to setActivitiesForPuppy with the answer
   const getMutationVersion = useCallback(() => mutationsRef.current.version, []);
 
-  // The recent window replaces the rows it covers; the older ones ("load more") stay
-  const setActivitiesForPuppy = useCallback((recentActivities: Activity[], puppyId: string, mutationVersion = mutationsRef.current.version) => {
+  // The recent window replaces the rows it covers; the older ones ("load more") stay. `allWeightActivities` replaces the weight list.
+  const setActivitiesForPuppy = useCallback((recentActivities: Activity[], puppyId: string, mutationVersion = mutationsRef.current.version, allWeightActivities?: Activity[]) => {
     // A change answered or still pending while the window was read may be missing from it: only add its new rows
     const isStale = mutationVersion !== mutationsRef.current.version || mutationsRef.current.pending > 0;
     const windowStart = recentWindowStart(recentActivities);
@@ -109,6 +118,11 @@ export function useActivities(
           recentActivities,
           previous.filter((activity) => activity.puppyId === puppyId && Date.parse(activity.timestamp) <= windowStart)
         )));
+      if (allWeightActivities) {
+        setWeightActivities((previous) => (isStale
+          ? mergeOlderActivities(previous, allWeightActivities.filter((activity) => !locallyDeletedIdsRef.current.has(activity.id)))
+          : allWeightActivities));
+      }
       setIsLoading(false);
       // A refresh of the same dog never hides "load more"
       setHasMoreRemote((previous) => (isSamePuppy && previous) || recentActivities.length >= RECENT_LOGS_LIMIT);
@@ -135,13 +149,19 @@ export function useActivities(
     let isMounted = true;
     async function loadActivities() {
       setIsLoading(true);
-      // Fetch initial 14-day window (matches 10-day decay learning history & 7-day timeline view)
-      const result = await fetchActivities(activePuppy!.id, { days: RECENT_LOGS_DAYS, limit: RECENT_LOGS_LIMIT, offset: 0 });
+      // Fetch initial 14-day window (matches 10-day decay learning history & 7-day timeline view), and every weigh-in
+      const [result, weightResult] = await Promise.all([
+        fetchActivities(activePuppy!.id, { days: RECENT_LOGS_DAYS, limit: RECENT_LOGS_LIMIT, offset: 0 }),
+        fetchActivities(activePuppy!.id, { type: 'weight' }),
+      ]);
       if (isMounted && result.ok) {
         loadedPuppyIdRef.current = activePuppy!.id;
         historyStartRef.current = recentWindowStart(result.data);
         setActivities(result.data);
         setHasMoreRemote(result.data.length >= RECENT_LOGS_LIMIT);
+      }
+      if (isMounted && weightResult.ok) {
+        setWeightActivities(weightResult.data);
       }
       if (isMounted) {
         setIsLoading(false);
@@ -214,6 +234,7 @@ export function useActivities(
 
       startTransition(() => {
         setActivities((previous) => [newActivity, ...previous]);
+        setWeightActivities((previous) => replaceWeightRow(previous, newActivity.id, newActivity));
       });
 
       pendingAddIdsRef.current.add(newActivity.id);
@@ -222,6 +243,7 @@ export function useActivities(
       if (result.ok) {
         startTransition(() => {
           setActivities((previous) => previous.map((activity) => (activity.id === newActivity.id ? result.data : activity)));
+          setWeightActivities((previous) => replaceWeightRow(previous, newActivity.id, result.data));
         });
         toast.success(t.toasts.activityLogged);
       } else {
@@ -229,6 +251,7 @@ export function useActivities(
         if (lastLogTapRef.current.get(tapKey) === tapTime) lastLogTapRef.current.delete(tapKey);
         startTransition(() => {
           setActivities((previous) => previous.filter((activity) => activity.id !== newActivity.id));
+          setWeightActivities((previous) => replaceWeightRow(previous, newActivity.id));
         });
         toast.danger(result.error || t.toasts.errorGeneric);
       }
@@ -237,28 +260,34 @@ export function useActivities(
   );
 
   const updateActivity = useCallback(async (updatedFields: Partial<Activity> & { id: string }) => {
-    const target = activities.find((act) => act.id === updatedFields.id);
+    // A weigh-in older than the loaded logs is only in the weight list
+    const target = activities.find((act) => act.id === updatedFields.id) ?? weightActivities.find((weight) => weight.id === updatedFields.id);
     if (!target) return;
 
     const optimisticActivity = sanitizeActivityUpdate(target, updatedFields);
 
     setActivities((previous) => previous.map((activity) => (activity.id === updatedFields.id ? optimisticActivity : activity)));
+    setWeightActivities((previous) => replaceWeightRow(previous, updatedFields.id, optimisticActivity));
 
     const result = await trackMutation(mutationsRef.current, apiUpdateActivity(updatedFields));
     if (result.ok) {
       setActivities((previous) => previous.map((activity) => (activity.id === updatedFields.id ? result.data : activity)));
+      setWeightActivities((previous) => replaceWeightRow(previous, updatedFields.id, result.data));
       toast.success(t.toasts.activityUpdated);
     } else {
       setActivities((previous) => previous.map((activity) => (activity.id === updatedFields.id ? target : activity)));
+      setWeightActivities((previous) => replaceWeightRow(previous, updatedFields.id, target));
       toast.danger(result.error || t.toasts.errorGeneric);
     }
-  }, [activities, t]);
+  }, [activities, weightActivities, t]);
 
   const deleteActivity = useCallback(
     async (id: string) => {
       const removed = activities.find((activity) => activity.id === id);
+      const removedWeight = weightActivities.find((weight) => weight.id === id);
       locallyDeletedIdsRef.current.add(id);
       setActivities((previous) => previous.filter((activity) => activity.id !== id));
+      setWeightActivities((previous) => replaceWeightRow(previous, id));
 
       const result = await trackMutation(mutationsRef.current, apiDeleteActivity(id));
       if (result.ok) {
@@ -266,14 +295,16 @@ export function useActivities(
       } else {
         locallyDeletedIdsRef.current.delete(id);
         if (removed) setActivities((previous) => [removed, ...previous]);
+        if (removedWeight) setWeightActivities((previous) => replaceWeightRow(previous, id, removedWeight));
         toast.danger(result.error || t.toasts.errorGeneric);
       }
     },
-    [activities, t]
+    [activities, weightActivities, t]
   );
 
   return {
     activities,
+    weightActivities,
     setActivities,
     getMutationVersion,
     setActivitiesForPuppy,

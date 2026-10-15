@@ -49,7 +49,7 @@ function rowsByTable(): Record<string, unknown[]> {
 }
 
 // WHERE clause received by each table's query, to check household scoping; activity rows to serve instead of the default.
-const dbMock = vi.hoisted(() => ({ whereByTable: new Map<string, SQL>(), activities: null as unknown[] | null }));
+const dbMock = vi.hoisted(() => ({ whereByTable: new Map<string, SQL>(), wheres: [] as SQL[], batchSizes: [] as number[], activities: null as unknown[] | null }));
 
 vi.mock('drizzle-orm/neon-http', async () => {
   const { getTableName, getTableColumns } = await import('drizzle-orm');
@@ -77,10 +77,15 @@ vi.mock('drizzle-orm/neon-http', async () => {
         from: vi.fn((table: Table) => {
           const tableName = getTableName(table);
           let orderClauses: SQL[] = [];
-          const rows = () => sortRows(table, rowsByTable()[tableName], orderClauses);
+          let whereParams: unknown[] = [];
+          // Like the WHERE clause: a query for type 'weight' gets only the weight rows
+          const matchesType = (row: any) => !whereParams.includes('weight') || row.type === 'weight';
+          const rows = () => sortRows(table, rowsByTable()[tableName].filter(matchesType), orderClauses);
           const queryChain: any = {
             where: vi.fn((condition: SQL) => {
               dbMock.whereByTable.set(tableName, condition);
+              dbMock.wheres.push(condition);
+              whereParams = dialect.sqlToQuery(condition).params;
               return queryChain;
             }),
             orderBy: vi.fn((...clauses: SQL[]) => {
@@ -93,7 +98,10 @@ vi.mock('drizzle-orm/neon-http', async () => {
           return queryChain;
         }),
       })),
-      batch: vi.fn((queries: any[]) => Promise.all(queries)),
+      batch: vi.fn((queries: any[]) => {
+        dbMock.batchSizes.push(queries.length);
+        return Promise.all(queries);
+      }),
     })),
   };
 });
@@ -104,6 +112,8 @@ describe('Dashboard API Serverless Handler Unit Tests', () => {
   beforeEach(() => {
     process.env.SESSION_SECRET = 'test-secret-key-1234567890-very-secure';
     dbMock.activities = null;
+    dbMock.wheres = [];
+    dbMock.batchSizes = [];
   });
 
   afterEach(() => {
@@ -222,6 +232,7 @@ describe('Dashboard API Serverless Handler Unit Tests', () => {
       caretakers: mockCaretakers,
       activities: [{ ...mockActivities[0], timestamp: '2026-08-30T10:00:00.000Z' }],
       healthRecords: mockHealthRecords,
+      weightActivities: [],
     });
 
     // Every query is scoped to the household carried by the session token
@@ -266,5 +277,33 @@ describe('Dashboard API Serverless Handler Unit Tests', () => {
     await handler({ method: 'GET', headers: { authorization: `Bearer ${token}` }, query: { puppyId: 'pup-1', days: '14' } } as any, res);
 
     expect(res.body.activities.map((activity: { id: string }) => activity.id)).toEqual(['act-new', 'act-backdated']);
+  });
+
+  it('sends every weight event of the dog, whatever its date, in the same single batch (Phase 5c)', async () => {
+    const event = (id: string, type: string, timestamp: string, weightKg?: number) => ({
+      id, householdId: 'hh-123', puppyId: 'pup-1', type, timestamp: new Date(timestamp), loggedBy: 'Matthieu', weightKg, createdAt: new Date(timestamp),
+    });
+    dbMock.activities = [
+      event('act-pee', 'pee', '2026-08-30T10:00:00.000Z'),
+      event('act-weight-old', 'weight', '2026-05-10T10:00:00.000Z', 4.4),
+      event('act-weight-new', 'weight', '2026-08-20T10:00:00.000Z', 9.1),
+    ];
+    const token = signAppSessionToken({ email: 'matthieu@example.com', name: 'Matthieu', householdId: 'hh-123', role: 'Husband' }, 30);
+    const res = createMockResponse();
+
+    await handler({ method: 'GET', headers: { authorization: `Bearer ${token}` }, query: { puppyId: 'pup-1', days: '14' } } as any, res);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(dbMock.batchSizes).toEqual([5]);
+    expect(res.body.weightActivities.map((activity: { id: string; timestamp: string }) => [activity.id, activity.timestamp])).toEqual([
+      ['act-weight-new', '2026-08-20T10:00:00.000Z'],
+      ['act-weight-old', '2026-05-10T10:00:00.000Z'],
+    ]);
+    // The weight query: this household and dog, type 'weight', no date bound
+    const weightQuery = dbMock.wheres.map((condition) => new PgDialect().sqlToQuery(condition)).find((query) => query.params.includes('weight'))!;
+    expect(weightQuery.sql).toContain('"activities"."household_id" = $1');
+    expect(weightQuery.sql).toContain('"activities"."puppy_id"');
+    expect(weightQuery.sql).not.toContain('"activities"."timestamp"');
+    expect(weightQuery.params).toEqual(['hh-123', 'weight', 'pup-1']);
   });
 });

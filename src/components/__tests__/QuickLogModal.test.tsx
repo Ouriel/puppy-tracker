@@ -173,3 +173,45 @@ describe('QuickLogModal labels and notes', () => {
     expect(document.querySelector('label[for="quicklog-quantity-grams"]')!.textContent).toBe('Quantity (g)');
   });
 });
+
+describe('QuickLogModal weight box: last weigh-in hint and decimal check (Phase 5c)', () => {
+  const lastWeighIn = { id: 'act-w', puppyId: 'pup-1', type: 'weight' as const, timestamp: '2026-09-25T07:00:00.000Z', weightKg: 10.05, loggedBy: 'Tester' };
+  const weightBoxText = () => field('quicklog-weight-kg').parentElement!.textContent!;
+
+  afterEach(() => localStorage.clear());
+
+  it('the box starts empty with the last weigh-in as a hint, whatever its date; none before a first weigh-in', async () => {
+    await renderModal({ initialType: 'weight', lastWeighIn });
+    expect(field('quicklog-weight-kg').value).toBe('');
+    expect(weightBoxText()).toContain('Last weigh-in: 10.05 kg on 09/25');
+
+    await act(async () => root!.unmount());
+    document.body.innerHTML = '';
+    await renderModal({ initialType: 'weight' });
+    expect(weightBoxText()).not.toContain('Last weigh-in');
+  });
+
+  it.each([
+    ['25', 'Check the decimal point: 25 kg?'],
+    ['4,9', 'Check the decimal point: 4.9 kg?'],
+    ['10,4', null],
+    ['20,1', null],
+  ])('typing %j after a 10.05 kg weigh-in warns %j, and never blocks Save', async (typed, warning) => {
+    const { onSave } = await renderModal({ initialType: 'weight', lastWeighIn });
+    await typeKeys('quicklog-weight-kg', typed);
+
+    const status = document.querySelector('[role="status"]');
+    expect(status?.textContent ?? null).toBe(warning);
+    await submit();
+    expect(onSave).toHaveBeenCalledTimes(1);
+  });
+
+  it('in French: "Dernière pesée : 10,05 kg le 25/09" and "Vérifie la virgule : 1,005 kg ?"', async () => {
+    localStorage.setItem('puppace_lang_v1', 'fr');
+    await renderModal({ initialType: 'weight', lastWeighIn });
+    await typeKeys('quicklog-weight-kg', '1,005');
+
+    expect(weightBoxText()).toContain('Dernière pesée : 10,05 kg le 25/09');
+    expect(document.querySelector('[role="status"]')!.textContent).toBe('Vérifie la virgule : 1,005 kg ?');
+  });
+});

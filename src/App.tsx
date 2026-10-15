@@ -26,7 +26,8 @@ import { useI18n } from './i18n';
 import { Dog, Plus } from 'lucide-react';
 import { usePuppies } from './hooks/usePuppies';
 import { useCaretakers } from './hooks/useCaretakers';
-import { useActivities } from './hooks/useActivities';
+import { useActivities, mergeOlderActivities } from './hooks/useActivities';
+import { getUnifiedWeightEntries } from './utils/weight';
 
 import { getStoredRecentActivities } from './utils/storage';
 
@@ -100,13 +101,13 @@ function App() {
     const mutationVersion = getMutationVersion();
     const dashboardRes = await fetchDashboard(puppyId || undefined, 14);
     if (!dashboardRes.ok) return false;
-    const { puppies, caretakers, activities, healthRecords: records } = dashboardRes.data;
+    const { puppies, caretakers, activities, healthRecords: records, weightActivities } = dashboardRes.data;
     if (puppies && puppies.length > 0) {
       // The stored dog is gone, so these are its logs (none): load the first dog's instead
       if (puppyId && !puppies.some((puppy) => puppy.id === puppyId)) return loadDashboard(puppies[0].id);
       setPuppies(puppies);
       selectPuppy(puppyId || puppies[0].id);
-      setActivitiesForPuppy(activities, puppyId || puppies[0].id, mutationVersion);
+      setActivitiesForPuppy(activities, puppyId || puppies[0].id, mutationVersion, weightActivities);
     }
     if (Array.isArray(caretakers)) {
       setCaretakers(caretakers);
@@ -239,6 +240,17 @@ function App() {
     if (!puppyState.activePuppy) return [];
     return activityState.activities.filter((act) => act.puppyId === puppyState.activePuppy!.id);
   }, [activityState.activities, puppyState.activePuppy]);
+
+  // Every weigh-in of the dog, whatever its date: weigh-ins come weeks apart, so the recent window often holds none.
+  // The recent window stands in until the full list has loaded.
+  const activePuppyWeights = useMemo(() => {
+    if (!puppyState.activePuppy) return [];
+    const puppyId = puppyState.activePuppy.id;
+    return mergeOlderActivities(activityState.weightActivities, activePuppyActivities)
+      .filter((activity) => activity.type === 'weight' && activity.puppyId === puppyId);
+  }, [activityState.weightActivities, activePuppyActivities, puppyState.activePuppy]);
+
+  const lastWeighIn = useMemo(() => getUnifiedWeightEntries(activePuppyWeights).at(-1), [activePuppyWeights]);
 
   const predictions = useMemo(() => {
     if (!puppyState.activePuppy) return null;
@@ -409,6 +421,10 @@ function App() {
             <CarnetDeSanteView
               activePuppy={puppyState.activePuppy}
               activities={activePuppyActivities}
+              weightActivities={activePuppyWeights}
+              currentUser={caretakerState.currentUser}
+              onAddActivity={activityState.addActivity}
+              onUpdateActivity={activityState.updateActivity}
               onOpenQuickLogModal={handleOpenQuickLogModal}
               onBackToDashboard={() => handleNavigate('dashboard')}
               onDeleteActivity={activityState.deleteActivity}
@@ -477,6 +493,7 @@ function App() {
               <DogHealthSummary
                 profile={puppyState.activePuppy}
                 activities={activePuppyActivities}
+                weightActivities={activePuppyWeights}
                 predictions={predictions}
                 healthRecords={healthRecords}
                 onOpenHealthPassport={handleOpenHealthPassport}
@@ -511,6 +528,7 @@ function App() {
             }}
             currentUser={caretakerState.currentUser}
             defaultMealPortionGrams={nextMealPortionGrams}
+            lastWeighIn={lastWeighIn}
           />
         </Suspense>
       )}

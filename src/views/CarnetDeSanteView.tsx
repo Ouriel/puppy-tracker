@@ -10,10 +10,15 @@ import { VaccineSection } from './carnet/VaccineSection';
 import { DewormingSection } from './carnet/DewormingSection';
 import { MedicationSection } from './carnet/MedicationSection';
 import { printHealthPassportReport, exportHealthPassportToCSV } from '../utils/export';
+import { getUnifiedWeightEntries } from '../utils/weight';
 
 interface CarnetDeSanteViewProps {
   activePuppy: PuppyProfile | null;
   activities?: Activity[];
+  weightActivities: Activity[]; // every weigh-in of the dog, whatever its date
+  currentUser: string;
+  onAddActivity: (activity: Omit<Activity, 'id'>) => void;
+  onUpdateActivity: (updated: Partial<Activity> & { id: string }) => void;
   onOpenQuickLogModal?: (type: ActivityType) => void;
   onBackToDashboard?: () => void;
   onDeleteActivity?: (id: string) => void;
@@ -22,6 +27,10 @@ interface CarnetDeSanteViewProps {
 export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({
   activePuppy,
   activities = [],
+  weightActivities,
+  currentUser,
+  onAddActivity,
+  onUpdateActivity,
   onOpenQuickLogModal,
   onBackToDashboard,
   onDeleteActivity,
@@ -41,22 +50,19 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({
   };
 
 
+  const lastWeighIn = useMemo(() => getUnifiedWeightEntries(weightActivities).at(-1), [weightActivities]);
+
   const handleExportPdf = useCallback(() => {
     setIsExportMenuOpen(false);
     if (!activePuppy) return;
-    printHealthPassportReport(activePuppy, vaccinations, dewormingLogs, activities, lang as 'en' | 'fr', t);
-  }, [activePuppy, vaccinations, dewormingLogs, activities, lang, t]);
+    printHealthPassportReport(activePuppy, vaccinations, dewormingLogs, weightActivities, lang as 'en' | 'fr', t);
+  }, [activePuppy, vaccinations, dewormingLogs, weightActivities, lang, t]);
 
   const handleExportCsv = useCallback(() => {
     setIsExportMenuOpen(false);
     if (!activePuppy) return;
-    exportHealthPassportToCSV(activePuppy, vaccinations, dewormingLogs, activities, lang as 'en' | 'fr');
-  }, [activePuppy, vaccinations, dewormingLogs, activities, lang]);
-
-  const healthRecords = useMemo(
-    () => [...vaccinations, ...dewormingLogs],
-    [vaccinations, dewormingLogs]
-  );
+    exportHealthPassportToCSV(activePuppy, vaccinations, dewormingLogs, weightActivities, lang as 'en' | 'fr');
+  }, [activePuppy, vaccinations, dewormingLogs, weightActivities, lang]);
 
   useEffect(() => {
     let isMounted = true;
@@ -213,11 +219,11 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({
 
       {/* Weight & Growth Trajectory Chart */}
       <WeightGrowthChart
-        activities={activities}
+        activities={weightActivities}
         profile={activePuppy}
-        healthRecords={healthRecords}
         onOpenQuickLogModal={onOpenQuickLogModal || (() => {})}
         onDeleteActivity={onDeleteActivity}
+        onUpdateActivity={onUpdateActivity}
       />
 
       {/* Modular Vaccinations Section */}
@@ -225,15 +231,20 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({
         activePuppy={activePuppy}
         vaccinations={vaccinations}
         setVaccinations={setVaccinations}
+        lastWeighIn={lastWeighIn}
+        currentUser={currentUser}
+        onAddActivity={onAddActivity}
         t={t}
       />
 
       {/* Modular Deworming / Parasitology Section */}
       <DewormingSection
         activePuppy={activePuppy}
-        activities={activities}
         dewormingLogs={dewormingLogs}
         setDewormingLogs={setDewormingLogs}
+        lastWeighIn={lastWeighIn}
+        currentUser={currentUser}
+        onAddActivity={onAddActivity}
         t={t}
       />
 

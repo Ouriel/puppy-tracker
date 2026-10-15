@@ -138,11 +138,11 @@ export interface HealthRecord {
   type: 'vaccination' | 'deworming';
   name: string;
   date: string;
-  boosterDate?: string;
-  batchNumber?: string;
-  vetClinic?: string;
+  // null: none (the API sends null; an edit sends null to clear one)
+  boosterDate?: string | null;
+  batchNumber?: string | null;
+  vetClinic?: string | null;
   productName?: string;
-  weightAtTime?: number;
   notes?: string;
 }
 
@@ -151,6 +151,7 @@ export interface DashboardPayload {
   caretakers: Caretaker[];
   activities: Activity[];
   healthRecords?: HealthRecord[];
+  weightActivities?: Activity[]; // every weight event, whatever its date
 }
 
 export interface EffectiveWeightInfo {

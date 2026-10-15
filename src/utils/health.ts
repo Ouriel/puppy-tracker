@@ -1,5 +1,12 @@
 import healthProtocols from '../data/healthProtocols.json';
-import type { HealthRecord } from '../types';
+import type { Activity, HealthRecord } from '../types';
+
+const VET_PRODUCT_NAMES = new Set([...healthProtocols.vaccines, ...healthProtocols.antiparasitics].map((protocol) => protocol.name));
+
+/** A weigh-in entered with a vaccine or deworming: its note is the vaccine or product name. */
+export function isVetVisitWeight(activity: Activity): boolean {
+  return VET_PRODUCT_NAMES.has(activity.notes ?? '');
+}
 
 export interface HealthProtocolData {
   vaccines: Array<{ id: string; name: string; fullName: string; defaultBoosterMonths: number; description: string; aliases?: string[] }>;

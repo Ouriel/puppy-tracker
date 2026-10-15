@@ -71,7 +71,7 @@ describe('a dog with no gram goal: no goal in grams on any screen', () => {
 
   it('health summary: meal schedule without grams', async () => {
     const container = await render(
-      <DogHealthSummary profile={noGoal} activities={meals} predictions={calculatePredictions(meals, noGoal, now, 'Europe/Paris')} onOpenHealthPassport={vi.fn()} />
+      <DogHealthSummary profile={noGoal} activities={meals} weightActivities={[]} predictions={calculatePredictions(meals, noGoal, now, 'Europe/Paris')} onOpenHealthPassport={vi.fn()} />
     );
     expect(container.textContent).toContain('3 meals / day');
     // No word boundary: per-meal grams render glued to the next label ('~80gLunch')
