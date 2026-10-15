@@ -30,13 +30,15 @@ export function setCorsHeaders(req: VercelRequest, res: VercelResponse, methods 
 const connectionString = getDatabaseUrl();
 const db = drizzle(neon(connectionString));
 
+/** The key derived from POSTGRES_URL: the session key wherever SESSION_SECRET and AUTH_SECRET are unset. */
+function getLegacySessionSecret(): string | undefined {
+  const postgresUrl = process.env.POSTGRES_URL;
+  return postgresUrl ? createHmac('sha256', 'puppace-salt-2026').update(postgresUrl).digest('hex') : undefined;
+}
+
 function getSessionSecret(): string {
-  const secret = process.env.SESSION_SECRET || process.env.AUTH_SECRET;
+  const secret = process.env.SESSION_SECRET || process.env.AUTH_SECRET || getLegacySessionSecret();
   if (!secret) {
-    // In development, derive from POSTGRES_URL if available
-    if (process.env.POSTGRES_URL) {
-      return createHmac('sha256', 'puppace-salt-2026').update(process.env.POSTGRES_URL).digest('hex');
-    }
     throw new Error('FATAL: SESSION_SECRET or AUTH_SECRET environment variable is required in production');
   }
   return secret;
@@ -98,13 +100,22 @@ export function verifyAppSessionToken(token: string): AuthContext | null {
     if (parts.length !== 3) return null;
 
     const [encodedHeader, encodedPayload, signature] = parts;
-    const expectedSignature = createHmac('sha256', getSessionSecret())
-      .update(`${encodedHeader}.${encodedPayload}`)
-      .digest('base64url');
+    const isSignedWith = (secret: string) => {
+      const expectedSignature = createHmac('sha256', secret)
+        .update(`${encodedHeader}.${encodedPayload}`)
+        .digest('base64url');
+      return signature.length === expectedSignature.length &&
+        timingSafeEqual(Buffer.from(signature), Buffer.from(expectedSignature));
+    };
 
-    if (signature.length !== expectedSignature.length) return null;
-    if (!timingSafeEqual(Buffer.from(signature), Buffer.from(expectedSignature))) {
-      return null;
+    if (!isSignedWith(getSessionSecret())) {
+      // Tokens signed before SESSION_SECRET was set in production carry the POSTGRES_URL-derived key; their renewal
+      // at the next app start is signed with SESSION_SECRET. Remove this fallback 90 days after the secret went live
+      // (2027-01-20 if it was live by 2026-10-21). Until then, keep the production POSTGRES_URL value byte-identical:
+      // another string (a password rotation, a variable re-created with another value) signs out every device not
+      // opened since the secret went live.
+      const legacySecret = getLegacySessionSecret();
+      if (!legacySecret || !isSignedWith(legacySecret)) return null;
     }
 
     const payload = JSON.parse(Buffer.from(encodedPayload, 'base64url').toString('utf-8'));
