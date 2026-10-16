@@ -1,9 +1,9 @@
 /**
- * Edge cases of the pee, poop and meal cards (prediction review of 2026-10-16, items B2-B14, P7).
+ * Edge cases of the pee, poop and meal cards (prediction review of 2026-10-16, items B2-B14, P5-P7).
  * Made-up dogs and logs, Europe/Paris summer time (+02:00).
  */
 import { describe, it, expect } from 'vitest';
-import { calculatePredictions } from '../predictions';
+import { calculateLearnedIntervalMinutes, calculatePredictions } from '../predictions';
 import { translatePredictionReason } from '../predictionsTranslation';
 import type { Activity, ActivityType, PredictionResult, PuppyProfile, SleepSchedule } from '../../types';
 import { act, at, PISTACHE, newestFirst } from './fixtures';
@@ -124,14 +124,271 @@ describe('B4: one night target for the pee card, the break kept 30 min', () => {
     expect(result.peeUrgency).toBe('safe');
   });
 
-  // P5 (break under 4 months) is on hold: once the family logs the 01:50 break, a 2nd break at 05:50 would follow,
-  // and that log ends the night and turns the poop card red before wake-up
+  // A 3-month puppy gets no break: P5 (break under 4 months) stays on hold, see the late walks in P5 below
   it('3-month puppy whose 01:50 break pee is logged: the morning outing, no 2nd break at 05:50', () => {
     const logs = [logAt('pee', '2026-09-14', '21:50'), logAt('pee', '2026-09-15', '01:50')];
     const result = predictAt(logs, threeMonthsOld, '2026-09-15', '02:00', NIGHT_22_TO_07);
 
     expect(result.peeReason).toBe('Morning outing (~07:00)');
     expect(at(result.nextPeeExpectedAt!)).toBe('2026-09-15 07:00');
+  });
+});
+
+describe('P5: one mid-night break a night, before 05:00, under 2.5 months', () => {
+  const BREAK = 'Night mode: Young puppy mid-night potty break';
+
+  it('break logged at 00:40 (pre-bed pee 20:40): the morning outing next, no 2nd break at 04:40, also after 04:00', () => {
+    const logs = [logAt('pee', '2026-08-15', '20:40'), logAt('pee', '2026-08-16', '00:40')];
+
+    for (const clockTime of ['00:50', '04:10']) {
+      const result = predictAt(logs, twoMonthsOld, '2026-08-16', clockTime, NIGHT_22_TO_07);
+      expect(result.peeReason, clockTime).toBe('Morning outing (~07:00)');
+      expect(at(result.nextPeeExpectedAt!), clockTime).toBe('2026-08-16 07:00');
+    }
+  });
+
+  it('break logged as a poop at 00:39 then a pee at 00:40: still one break', () => {
+    const logs = [logAt('pee', '2026-08-15', '20:40'), logAt('poop', '2026-08-16', '00:39'), logAt('pee', '2026-08-16', '00:40')];
+    const result = predictAt(logs, twoMonthsOld, '2026-08-16', '00:50', NIGHT_22_TO_07);
+
+    expect(result.peeReason).toBe('Morning outing (~07:00)');
+  });
+
+  it.each([
+    ['a late poop at 23:00', logAt('poop', '2026-08-15', '23:00')],
+    ['a medicine at 23:30', logAt('medication', '2026-08-15', '23:30')],
+    ['a weigh-in at 23:30', logAt('weight', '2026-08-15', '23:30', { weightKg: 3 })],
+  ])('%s between the pre-bed pee (20:40) and the 00:40 break: still one break', (_name, between) => {
+    const logs = [logAt('pee', '2026-08-15', '20:40'), between, logAt('pee', '2026-08-16', '00:40')];
+    const result = predictAt(logs, twoMonthsOld, '2026-08-16', '00:50', NIGHT_22_TO_07);
+
+    expect(result.peeReason).toBe('Morning outing (~07:00)');
+  });
+
+  // The break card turns amber 20 min before it is due: a break logged then, 3 h 40 after the pee, is the break
+  it.each(['23:25', '23:45'])('an early night: break logged at %s (pre-bed pee 19:45), no 2nd break', (breakTime) => {
+    const earlyNight: SleepSchedule = { bedtimeHour: 19.75, wakeupHour: 7, bedtimeStr: '19:45', wakeupStr: '07:00' };
+    const logs = [logAt('pee', '2026-08-15', '19:45'), logAt('pee', '2026-08-15', breakTime)];
+    const result = predictAt(logs, twoMonthsOld, '2026-08-15', '23:55', earlyNight);
+
+    expect(result.peeReason).toBe('Morning outing (~07:00)');
+  });
+
+  // The card asks for the break from 3 h 40 after the last pee (amber) to 4 h 30 (its 30 min 'due now')
+  it.each([
+    ['3 h 40', '21:00', true],
+    ['4 h 30', '20:10', true],
+    ['3 h 35', '21:05', false],
+    ['4 h 35', '20:05', false],
+  ])('a pee at 00:40, %s after the one at %s, is the break: %s', (_gap, previousPee, isBreak) => {
+    const logs = [logAt('pee', '2026-08-15', previousPee), logAt('pee', '2026-08-16', '00:40')];
+    const result = predictAt(logs, twoMonthsOld, '2026-08-16', '00:50', NIGHT_22_TO_07);
+
+    expect(result.peeReason).toBe(isBreak ? 'Morning outing (~07:00)' : BREAK);
+    expect(at(result.nextPeeExpectedAt!)).toBe(isBreak ? '2026-08-16 07:00' : '2026-08-16 04:40');
+  });
+
+  it('a pee at 21:30, 4 h after the last one, is not a break (before 22:00): the break follows at 01:30', () => {
+    const logs = [logAt('pee', '2026-08-15', '17:30'), logAt('pee', '2026-08-15', '21:30')];
+    const result = predictAt(logs, twoMonthsOld, '2026-08-15', '22:10', NIGHT_22_TO_07);
+
+    expect(result.peeReason).toBe(BREAK);
+    expect(at(result.nextPeeExpectedAt!)).toBe('2026-08-16 01:30');
+  });
+
+  it('a pee 8 h after the last one (an evening without pee logs, the pre-bed walk at 22:30) is not the break', () => {
+    const logs = [
+      logAt('pee', '2026-08-15', '14:30'),
+      logAt('food', '2026-08-15', '19:00', { quantityGrams: 80 }),
+      logAt('poop', '2026-08-15', '20:30'),
+      logAt('pee', '2026-08-15', '22:30'),
+    ];
+    const result = predictAt(logs, twoMonthsOld, '2026-08-15', '23:00', NIGHT_22_TO_07);
+
+    expect(result.peeReason).toBe(BREAK);
+    expect(at(result.nextPeeExpectedAt!)).toBe('2026-08-16 02:30');
+  });
+
+  it('a late walk 1 h 30 after the last pee (00:30) is not the break: the break follows at 04:30', () => {
+    const logs = [logAt('pee', '2026-08-15', '23:00'), logAt('pee', '2026-08-16', '00:30')];
+    const result = predictAt(logs, twoMonthsOld, '2026-08-16', '00:40', NIGHT_22_TO_07);
+
+    expect(result.peeReason).toBe(BREAK);
+    expect(at(result.nextPeeExpectedAt!)).toBe('2026-08-16 04:30');
+  });
+
+  it('last pee at 01:10 (a late walk): no break at 05:10, the morning outing', () => {
+    const logs = [logAt('pee', '2026-08-15', '23:30'), logAt('pee', '2026-08-16', '01:10')];
+    const result = predictAt(logs, twoMonthsOld, '2026-08-16', '01:20', NIGHT_22_TO_07);
+
+    expect(result.peeReason).toBe('Morning outing (~07:00)');
+  });
+
+  it('break due 04:50: "due now" at 04:55, the morning outing from 05:00', () => {
+    const logs = [logAt('pee', '2026-08-15', '23:00'), logAt('pee', '2026-08-16', '00:50')];
+
+    const dueNow = predictAt(logs, twoMonthsOld, '2026-08-16', '04:55', NIGHT_22_TO_07);
+    expect(dueNow.peeReason).toBe(BREAK);
+    expect(dueNow.peeUrgency).toBe('soon');
+
+    const after = predictAt(logs, twoMonthsOld, '2026-08-16', '05:05', NIGHT_22_TO_07);
+    expect(after.peeReason).toBe('Morning outing (~07:00)');
+  });
+
+  // Nightly routine of a family that logs the break 4 h after a 21:00 pre-bed pee; `extra` adds logs to each night
+  const nightlyBreaks = (firstDay: string, count: number, extra: (day: string) => Activity[] = () => []) => daysFrom(firstDay, count).flatMap((day) => [
+    logAt('pee', day, '07:00'),
+    logAt('poop', day, '07:10'),
+    logAt('food', day, '07:30', { quantityGrams: 60 }),
+    logAt('pee', day, '10:00'),
+    logAt('pee', day, '13:00'),
+    logAt('pee', day, '16:00'),
+    logAt('pee', day, '19:00'),
+    logAt('poop', day, '19:10'),
+    logAt('pee', day, '21:00'),
+    logAt('pee', addDays(day, 1), '01:00'),
+    ...extra(day),
+  ]);
+
+  it('breaks logged at 01:00 every night are not the bedtime: bedtime 21:00, tonight\'s break at 01:00', () => {
+    const logs = nightlyBreaks('2026-08-08', 8);
+    const result = predictAt(logs, twoMonthsOld, '2026-08-15', '23:00');
+
+    expect(result.sleepSchedule?.bedtimeStr).toBe('21:00');
+    expect(result.peeMode).toBe('night_sleep');
+    expect(result.peeReason).toBe(BREAK);
+    expect(at(result.nextPeeExpectedAt!)).toBe('2026-08-16 01:00');
+  });
+
+  it.each([
+    ['a poop 5 min after the break pee', (day: string) => [logAt('poop', addDays(day, 1), '01:05')], '21:00'],
+    ['an evening medicine at 23:30', (day: string) => [logAt('medication', day, '23:30')], '23:30'],
+  ])('breaks logged at 01:00 with %s: the bedtime is the evening\'s last log', (_name, extra, bedtime) => {
+    const result = predictAt(nightlyBreaks('2026-08-08', 8, extra), twoMonthsOld, '2026-08-15', '18:00');
+
+    expect(result.sleepSchedule?.bedtimeStr).toBe(bedtime);
+  });
+
+  it('a medicine logged 4 h after the pre-bed pee (00:40) is not a break: the family was up, the bedtime is 00:40', () => {
+    const logs = daysFrom('2026-08-08', 8).flatMap((day) => [
+      ...['07:00', '10:00', '13:00', '16:00', '19:00', '20:40'].map((clockTime) => logAt('pee', day, clockTime)),
+      logAt('medication', addDays(day, 1), '00:40'),
+    ]);
+
+    expect(predictAt(logs, twoMonthsOld, '2026-08-15', '18:00').sleepSchedule?.bedtimeStr).toBe('00:40');
+  });
+
+  it('breaks logged at 23:45 every night (pre-bed pee 19:45) are not the bedtime either: bedtime 19:45', () => {
+    const logs = daysFrom('2026-08-08', 8).flatMap((day) => [
+      logAt('pee', day, '07:00'),
+      logAt('food', day, '07:30', { quantityGrams: 60 }),
+      logAt('pee', day, '10:00'),
+      logAt('pee', day, '13:00'),
+      logAt('pee', day, '16:00'),
+      logAt('pee', day, '19:45'),
+      logAt('pee', day, '23:45'),
+    ]);
+    const result = predictAt(logs, twoMonthsOld, '2026-08-15', '21:00');
+
+    expect(result.sleepSchedule?.bedtimeStr).toBe('19:45');
+    expect(result.peeReason).toBe(BREAK);
+  });
+
+  it('a pre-bed walk at 22:30, 3 h 30 after the last log, is the bedtime, not a break', () => {
+    const logs = daysFrom('2026-08-08', 8).flatMap((day) => [
+      logAt('pee', day, '07:00'),
+      logAt('pee', day, '10:00'),
+      logAt('pee', day, '13:00'),
+      logAt('pee', day, '16:00'),
+      logAt('pee', day, '19:00'),
+      logAt('pee', day, '22:30'),
+    ]);
+    const result = predictAt(logs, twoMonthsOld, '2026-08-15', '23:00');
+
+    expect(result.sleepSchedule?.bedtimeStr).toBe('22:30');
+    expect(result.peeReason).toBe(BREAK);
+  });
+
+  // A late family: pees 2 h 30 apart, the last walk at 00:20, 2 h 20 after the 22:00 pee
+  const lateWalks = (firstDay: string, count: number) => daysFrom(firstDay, count).flatMap((day) => [
+    ...['07:00', '09:30', '12:00', '14:30', '17:00', '19:30', '22:00'].map((clockTime) => logAt('pee', day, clockTime)),
+    logAt('poop', day, '07:10'),
+    logAt('poop', day, '19:10'),
+    ...['07:30', '12:30', '18:30'].map((clockTime) => logAt('food', day, clockTime, { quantityGrams: 80 })),
+    logAt('pee', addDays(day, 1), '00:20'),
+  ]);
+
+  it('a 2-month puppy\'s last walk at 00:20, 2 h 20 after the last pee, stays the bedtime', () => {
+    const result = predictAt(lateWalks('2026-08-08', 8), twoMonthsOld, '2026-08-15', '22:30');
+
+    expect(result.sleepSchedule?.bedtimeStr).toBe('00:20');
+    expect(result.peeMode).not.toBe('night_sleep');
+    expect(result.foodMode).not.toBe('night_sleep');
+  });
+
+  it('a 3-month puppy\'s 01:00 log after a 4 h gap stays a late walk, the bedtime (late walks look like breaks)', () => {
+    const threeMonthsInAugust = { ...PISTACHE, birthDate: '2026-05-15' }; // 3.0 months on 15 Aug
+    const result = predictAt(nightlyBreaks('2026-08-08', 8), threeMonthsInAugust, '2026-08-15', '21:30');
+
+    expect(result.sleepSchedule?.bedtimeStr).toBe('01:00');
+    expect(result.peeMode).not.toBe('night_sleep');
+    expect(result.foodMode).not.toBe('night_sleep');
+  });
+
+  /** Replays the night from `from` to 07:00 every 5 min; the family logs each break the card asks for at its first amber tick. */
+  function followTheCard(logs: Activity[], profile: PuppyProfile, from: string) {
+    const breaks: string[] = [];
+    const red: string[] = [];
+    for (let now = new Date(from); at(now) < '2026-08-16 07:00'; now = new Date(now.getTime() + 5 * 60_000)) {
+      const result = calculatePredictions(newestFirst(logs.filter((log) => Date.parse(log.timestamp) <= now.getTime())), profile, now, TIME_ZONE);
+      for (const [card, urgency, reason] of [['pee', result.peeUrgency, result.peeReason], ['poop', result.poopUrgency, result.poopReason], ['meal', result.foodUrgency, result.foodReason]]) {
+        if (urgency === 'overdue') red.push(`${at(now)} ${card}: ${reason}`);
+      }
+      if (result.peeReason === BREAK && result.peeUrgency !== 'safe') {
+        logs.push(act('pee', now.toISOString()));
+        breaks.push(at(now));
+      }
+    }
+    return { breaks, red };
+  }
+
+  it('a family that logs every break the card asks for: one break, no red card before wake-up', () => {
+    const tonight = paris('2026-08-15', '21:30');
+    const logs = nightlyBreaks('2026-08-08', 8).filter((log) => Date.parse(log.timestamp) < tonight.getTime());
+
+    expect(followTheCard(logs, twoMonthsOld, tonight.toISOString())).toEqual({ breaks: ['2026-08-16 00:40'], red: [] });
+  });
+
+  it('a late family that follows the card: its 00:20 walk is the bedtime, then one break at 04:00 (amber), no red', () => {
+    const tonight = paris('2026-08-15', '21:00');
+    const lastWalk = paris('2026-08-16', '00:20');
+    const logs = lateWalks('2026-08-08', 8).filter((log) => Date.parse(log.timestamp) < tonight.getTime() || (log.type === 'pee' && Date.parse(log.timestamp) <= lastWalk.getTime()));
+
+    expect(followTheCard(logs, twoMonthsOld, tonight.toISOString())).toEqual({ breaks: ['2026-08-16 04:00'], red: [] });
+  });
+
+  it('under 2.5 months: a 2.4-month puppy, pee at 21:10, gets the 01:10 break', () => {
+    const almostTwoAndAHalf = { ...PISTACHE, birthDate: '2026-07-04' }; // 2.4 months on 15 Sept
+    const result = predictAt([logAt('pee', '2026-09-15', '21:10')], almostTwoAndAHalf, '2026-09-15', '21:30', NIGHT_22_TO_07);
+
+    expect(result.peeReason).toBe(BREAK);
+    expect(at(result.nextPeeExpectedAt!)).toBe('2026-09-16 01:10');
+  });
+
+  it('from 2.5 months: no break, the morning outing', () => {
+    const twoAndAHalf = { ...PISTACHE, birthDate: '2026-06-30' }; // 2.5 months on 15 Sept
+    const result = predictAt([logAt('pee', '2026-09-15', '21:10')], twoAndAHalf, '2026-09-15', '21:30', NIGHT_22_TO_07);
+
+    expect(result.peeReason).toBe('Morning outing (~07:00)');
+  });
+
+  it('a puppy just past 2.5 months: the breaks it logged under 2.5 months are still not the bedtime', () => {
+    const justPast = { ...PISTACHE, birthDate: '2026-05-30' }; // 2.3 months on 8 Aug, 2.5 from 13 Aug
+    const result = predictAt(nightlyBreaks('2026-08-08', 8), justPast, '2026-08-15', '23:00');
+
+    expect(result.sleepSchedule?.bedtimeStr).toBe('21:00');
+    expect(result.peeReason).toBe('Morning outing (~07:00)');
+    expect(result.peeUrgency).not.toBe('overdue');
   });
 });
 
@@ -356,5 +613,31 @@ describe('B14: the new-day reasons say "first of the day"', () => {
     expect(result.poopReason).toBe('First poop of the day (~07:10)');
     expect(translatePredictionReason(result.peeReason, 'fr')).toBe('Premier pipi du jour (~07:00)');
     expect(translatePredictionReason(result.poopReason, 'fr')).toBe('Premier caca du jour (~07:10)');
+  });
+});
+
+describe('P6: "Learned average" after 3 usable gaps', () => {
+  const day = '2026-09-15';
+
+  it('a 3-month puppy\'s first two pees an hour apart: the age default (~3h), not a red "Learned average: ~1h"', () => {
+    const logs = [logAt('pee', day, '08:00'), logAt('pee', day, '09:00')];
+    const result = predictAt(logs, threeMonthsOld, day, '10:05', NIGHT_22_TO_07);
+
+    expect(result.peeReason).toBe('Standard bladder interval (~3h)');
+    expect(at(result.nextPeeExpectedAt!)).toBe(`${day} 12:00`);
+    expect(result.peeUrgency).toBe('safe');
+  });
+
+  it.each([
+    ['pee', ['08:00', '10:00', '12:00', '14:00'], 240, 120],
+    ['poop', ['08:00', '12:00', '16:00', '20:00'], 360, 240],
+  ] as const)('%s: 2 usable gaps keep the default, the 3rd is learned', (type, clockTimes, fallbackMinutes, gapMinutes) => {
+    const threeGaps = clockTimes.map((clockTime) => logAt(type, day, clockTime));
+    const twoGaps = threeGaps.slice(0, 3);
+
+    expect(calculateLearnedIntervalMinutes(twoGaps, type, fallbackMinutes, NIGHT_22_TO_07, TIME_ZONE, 4))
+      .toMatchObject({ intervalMins: fallbackMinutes, sampleCount: 2, isLearned: false });
+    expect(calculateLearnedIntervalMinutes(threeGaps, type, fallbackMinutes, NIGHT_22_TO_07, TIME_ZONE, 4))
+      .toMatchObject({ intervalMins: gapMinutes, sampleCount: 3, isLearned: true });
   });
 });

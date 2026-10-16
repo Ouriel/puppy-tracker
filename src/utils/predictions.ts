@@ -177,12 +177,42 @@ function calculateWeightedMedian(data: { mins: number; weight: number }[], fallb
 }
 
 /**
+ * Under this age the pee card offers one mid-night break, and the logged break is not read as the bedtime.
+ * ponytail: 2.5 months, not 4 (owner's P5, on hold): older puppies hold 3-4 h, so a pre-bed or late walk 3 h 40 to 4 h 30
+ * after the last pee is common; read as the break, it locks the learned bedtime hours early, night after night
+ */
+const MID_NIGHT_BREAK_MAX_AGE_MONTHS = 2.5;
+
+/**
+ * A young puppy's logged night break in one logical day's logs (oldest first): the index of the first pee or poop from
+ * 22:00 to 05:00 that comes 3 h 40 to 4 h 30 after the previous pee, when the card asks for its 4 h break (amber from
+ * 20 min before, 'due now' for 30 min), or -1. Medicine, weight and meal logs neither are nor hide a break.
+ * Keep it age-gated: older dogs' late walks often look like this.
+ * ponytail: a pre-bed walk in that window reads as the break: the log before it is that day's bedtime (night mode starts
+ * there) and the card asks no break that night; a night potty outside it, or before 22:00, reads as the bedtime
+ */
+function findNightBreakIndex(oldestFirst: Activity[], timeZone: string): number {
+  let lastPee: Date | undefined;
+  for (const [index, activity] of oldestFirst.entries()) {
+    const logDate = parseIsoDate(activity.timestamp);
+    const hour = getLocalHour(logDate, timeZone);
+    const gapMinutes = lastPee ? (logDate.getTime() - lastPee.getTime()) / 60_000 : 0;
+    const isOuting = activity.type === 'pee' || activity.type === 'poop';
+    if (isOuting && (hour >= 22 || hour < 5) && gapMinutes >= 220 && gapMinutes <= 270) return index;
+    if (activity.type === 'pee') lastPee = logDate;
+  }
+  return -1;
+}
+
+/**
  * Learns puppy's exact night sleep schedule (bedtime & morning wakeup) dynamically from activity logs.
  * Uses Exponential Time-Decay Weighted Medians across daily first and last activities.
+ * With `birthDate`, a night break logged while the dog was under MID_NIGHT_BREAK_MAX_AGE_MONTHS is not the bedtime.
  */
 export function detectSleepSchedule(
   activities: Activity[],
-  timeZone?: string
+  timeZone?: string,
+  birthDate?: string
 ): SleepSchedule {
   const defaultSchedule: SleepSchedule = { bedtimeHour: 22, wakeupHour: 7, bedtimeStr: '22:00', wakeupStr: '07:00' };
 
@@ -195,13 +225,12 @@ export function detectSleepSchedule(
 
   if (targetLogs.length < 5) return defaultSchedule;
 
-  const byDate: Record<string, Date[]> = {};
+  const byDate: Record<string, Activity[]> = {};
 
   targetLogs.forEach((activity) => {
-    const d = parseIsoDate(activity.timestamp);
-    const dateStr = formatLogicalDate(d, tz);
+    const dateStr = formatLogicalDate(parseIsoDate(activity.timestamp), tz);
     if (!byDate[dateStr]) byDate[dateStr] = [];
-    byDate[dateStr].push(d);
+    byDate[dateStr].push(activity);
   });
 
   // One evening of logs would set the whole schedule (wake-up at 19:00): keep the default until 3 days have 2+ logs
@@ -210,14 +239,18 @@ export function detectSleepSchedule(
   const morningData: { mins: number; weight: number }[] = [];
   const eveningData: { mins: number; weight: number }[] = [];
 
-  Object.values(byDate).forEach((logs) => {
-    if (logs.length >= 2) {
-      const sortedLogs = [...logs].sort((a, b) => a.getTime() - b.getTime());
+  Object.values(byDate).forEach((dayActivities) => {
+    if (dayActivities.length >= 2) {
+      const sortedActivities = [...dayActivities].sort((first, second) => parseIsoDate(first.timestamp).getTime() - parseIsoDate(second.timestamp).getTime());
+      const sortedLogs = sortedActivities.map((activity) => parseIsoDate(activity.timestamp));
       // First activity of the day after 05:00 AM (filters out mid-night potty breaks)
       const firstMorning = sortedLogs.find((a) => getLocalHour(a, tz) >= 5) || sortedLogs[0];
-      // A log between 02:00 and 05:00 is a night potty, not the day's bedtime.
-      // ponytail: a night potty logged before 02:00 still reads as the bedtime; telling them apart needs the gap before it
-      const last = sortedLogs.findLast((log) => { const hour = getLocalHour(log, tz); return hour < 2 || hour >= 5; }) ?? sortedLogs[sortedLogs.length - 1];
+      // A log between 02:00 and 05:00 is a night potty, not the day's bedtime; on a day the dog was a young puppy so is its
+      // night break (and what follows it). Not for older dogs: their late walk often falls in the break window.
+      const isYoungPuppy = birthDate !== undefined && getPuppyAge(birthDate, sortedLogs[0]).months < MID_NIGHT_BREAK_MAX_AGE_MONTHS;
+      const nightBreak = isYoungPuppy ? findNightBreakIndex(sortedActivities, tz) : -1;
+      const eveningLogs = nightBreak === -1 ? sortedLogs : sortedLogs.slice(0, nightBreak);
+      const last = eveningLogs.findLast((log) => { const hour = getLocalHour(log, tz); return hour < 2 || hour >= 5; }) ?? sortedLogs[sortedLogs.length - 1];
 
       const firstM = Math.round(getLocalDecimalHour(firstMorning, tz) * 60);
       const lastHour = getLocalDecimalHour(last, tz);
@@ -424,8 +457,9 @@ export function calculateLearnedIntervalMinutes(
     }
   }
 
-  if (intervals.length === 0) {
-    return { intervalMins: fallbackMinutes, deltaMins: defaultDelta, sampleCount: 0, isLearned: false };
+  // "Learned" from 3 usable gaps: one or two (a new dog's first day) give the age default, not a learned ~1 h
+  if (intervals.length < 3) {
+    return { intervalMins: fallbackMinutes, deltaMins: defaultDelta, sampleCount: intervals.length, isLearned: false };
   }
 
   intervals.sort((itemA, itemB) => itemA.diffMinutes - itemB.diffMinutes);
@@ -645,7 +679,7 @@ export function predictNextPee(
   options?: PredictorOptions
 ): SinglePredictionResult {
   const tz = options?.timeZone || getUserTimezone();
-  const sleepSchedule = options?.sleepSchedule || detectSleepSchedule(activities, tz);
+  const sleepSchedule = options?.sleepSchedule || detectSleepSchedule(activities, tz, profile.birthDate);
 
   const maxAllowedTime = now.getTime() + 60 * 1000;
   const past = activities.filter((a) => parseIsoDate(a.timestamp).getTime() <= maxAllowedTime);
@@ -703,16 +737,23 @@ export function predictNextPee(
 
   const todayPees = past.filter((a) => a.type === 'pee' && isSameLogicalDate(parseIsoDate(a.timestamp), now, tz));
 
-  // Night target, at night and for an evening pee due in the deep night: a puppy under 2.5 months gets a break 4 h after
-  // its last pee while that is 45 min or more before wake-up, kept 30 min as 'due now'; otherwise the next wake-up.
-  // ponytail: 2.5 months, not 4 (owner's P5, on hold): a logged break before 02:00 reads as bedtime, a 2nd break can fall
-  // after 05:00 and end the night, and from 2.5 months a held break can show red in the daytime branch; fix those first
+  // Night target, at night and for an evening pee due in the deep night: a young puppy gets one break, 4 h after its last
+  // pee, kept 30 min as 'due now', and only before 05:00 and 45 min before wake-up (a log from 05:00 would end the night);
+  // otherwise, and once a pee is logged at or after the night's break (as the sleep schedule reads it), the next wake-up.
   const nextWakeup = getNextOccurrenceOfClockTime(now, sleepSchedule.wakeupHour, tz);
+  const breakDeadline = Math.min(nextWakeup.getTime() - 45 * 60 * 1000, getOccurrenceOfClockTimeInTimezone(nextWakeup, 5, tz, 0).getTime());
   const midNightPeeTime = lastPeeTime + 4 * 60 * 60 * 1000;
-  const isMidNightBreak = months < 2.5
+  const breakTarget = Math.max(midNightPeeTime, now.getTime());
+  const lastPeeDayLogs = past
+    .filter((activity) => isSameLogicalDate(parseIsoDate(activity.timestamp), lastPeeDate, tz))
+    .sort((first, second) => parseIsoDate(first.timestamp).getTime() - parseIsoDate(second.timestamp).getTime());
+  const nightBreakIndex = findNightBreakIndex(lastPeeDayLogs, tz);
+  const isBreakLogged = nightBreakIndex !== -1 && lastPeeTime >= parseIsoDate(lastPeeDayLogs[nightBreakIndex].timestamp).getTime();
+  const isMidNightBreak = months < MID_NIGHT_BREAK_MAX_AGE_MONTHS
+    && !isBreakLogged
     && midNightPeeTime > now.getTime() - 30 * 60 * 1000
-    && midNightPeeTime < nextWakeup.getTime() - 45 * 60 * 1000;
-  const nightTarget = isMidNightBreak ? new Date(Math.max(midNightPeeTime, now.getTime())) : nextWakeup;
+    && breakTarget < breakDeadline;
+  const nightTarget = isMidNightBreak ? new Date(breakTarget) : nextWakeup;
   const nightReason = isMidNightBreak ? 'Night mode: Young puppy mid-night potty break' : `Morning outing (~${wakeupStr})`;
 
   if (isNightTime && !preservePreBed) {
@@ -744,8 +785,9 @@ export function predictNextPee(
 
   const diffMins = (nextExpectedAt.getTime() - now.getTime()) / 60000;
   let urgency: 'safe' | 'soon' | 'overdue' = 'safe';
-  // Night targets (morning outing, young-puppy mid-night break) show soon in their last 20 min, never overdue
-  if (diffMins <= 0 && mode !== 'night_sleep') urgency = 'overdue';
+  // Night targets (morning outing, young-puppy mid-night break) show soon in their last 20 min, never overdue,
+  // at night and for an evening pee due in the deep night alike
+  if (diffMins <= 0 && nextExpectedAt !== nightTarget) urgency = 'overdue';
   else if (diffMins <= 20) urgency = 'soon';
 
   const deltaMins = mode === 'post_meal_override' ? learnedPostMealPee.deltaMins : learnedPee.deltaMins;
@@ -770,7 +812,7 @@ export function predictNextPoop(
   options?: PredictorOptions
 ): SinglePredictionResult {
   const tz = options?.timeZone || getUserTimezone();
-  const sleepSchedule = options?.sleepSchedule || detectSleepSchedule(activities, tz);
+  const sleepSchedule = options?.sleepSchedule || detectSleepSchedule(activities, tz, profile.birthDate);
 
   const maxAllowedTime = now.getTime() + 60 * 1000;
   const past = activities.filter((a) => parseIsoDate(a.timestamp).getTime() <= maxAllowedTime);
@@ -945,7 +987,7 @@ export function predictNextFood(
   options?: PredictorOptions
 ): FoodPredictionResult {
   const tz = options?.timeZone || getUserTimezone();
-  const sleepSchedule = options?.sleepSchedule || detectSleepSchedule(activities, tz);
+  const sleepSchedule = options?.sleepSchedule || detectSleepSchedule(activities, tz, profile.birthDate);
 
   const maxAllowedTime = now.getTime() + 60 * 1000;
   const past = activities.filter((a) => parseIsoDate(a.timestamp).getTime() <= maxAllowedTime);
@@ -1088,7 +1130,7 @@ export function calculatePredictions(
   const past = excludeFutureLogs(activities, now).filter(
     (activity) => parseIsoDate(activity.timestamp).getTime() >= now.getTime() - 14 * 24 * 60 * 60 * 1000
   );
-  const sleepSchedule = customSleepSchedule || detectSleepSchedule(past, tz);
+  const sleepSchedule = customSleepSchedule || detectSleepSchedule(past, tz, profile.birthDate);
   const mealSchedule = detectMealSchedule(past, tz);
   const options: PredictorOptions = {
     timeZone: tz,

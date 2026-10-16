@@ -116,11 +116,16 @@ describe("predictionsTranslation utility", () => {
     const scenarios: Array<[Activity[], PuppyProfile, string]> = [
       // No pee / no poop yet, breakfast
       [[], PISTACHE, "2026-08-14T10:00:00+02:00"],
-      // Learned bladder and digestive intervals, next meal of the day
+      // Learned bladder and digestive intervals (3 gaps each), next meal of the day
       [
         [
+          act("pee", "2026-08-13T13:00:00+02:00"),
+          act("pee", "2026-08-13T16:00:00+02:00"),
+          act("pee", "2026-08-13T19:00:00+02:00"),
           act("pee", "2026-08-14T07:00:00+02:00"),
           act("pee", "2026-08-14T10:00:00+02:00"),
+          act("poop", "2026-08-13T17:00:00+02:00"),
+          act("poop", "2026-08-13T21:50:00+02:00"),
           act("poop", "2026-08-14T07:10:00+02:00"),
           act("poop", "2026-08-14T12:00:00+02:00"),
           act("food", "2026-08-14T07:30:00+02:00", { quantityGrams: 80 }),
