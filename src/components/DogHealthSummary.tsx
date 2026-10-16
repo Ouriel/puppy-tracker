@@ -7,6 +7,7 @@ import { formatBreedName } from '../data/breedsCatalog';
 import {
   calculateProjectedAdultWeightRange,
   formatChange,
+  formatGrams,
   formatKg,
   formatKgRange,
   getEffectivePuppyWeight,
@@ -15,7 +16,7 @@ import {
 } from '../utils/weight';
 import { getPuppyAge } from '../utils/predictions';
 import { getHealthRecordStatus } from '../utils/health';
-import { formatShortDate } from '../utils/date';
+import { formatDuration, formatShortDate } from '../utils/date';
 import { StatusBadge } from './common/StatusBadge';
 import { AddToCalendarButton } from './common/AddToCalendarButton';
 
@@ -115,9 +116,7 @@ export const DogHealthSummary: React.FC<DogHealthSummaryProps> = React.memo(({
     const sleepDurationMins = Math.round(
       (sleep.wakeupHour * 60 + 24 * 60 - sleep.bedtimeHour * 60) % (24 * 60)
     );
-    const sleepH = Math.floor(sleepDurationMins / 60);
-    const sleepM = sleepDurationMins % 60;
-    const sleepDurationStr = sleepM > 0 ? `${sleepH}h ${sleepM}m` : `${sleepH}h`;
+    const sleepDurationStr = formatDuration(sleepDurationMins, lang);
 
     const targetMeals = profile.targetMealsPerDay || 3;
     const dailyGrams = profile.dailyFoodGramGoal; // 0: no gram goal, no grams shown
@@ -157,7 +156,7 @@ export const DogHealthSummary: React.FC<DogHealthSummaryProps> = React.memo(({
       dailyGrams,
       isLearned,
     };
-  }, [predictions, activities, profile.targetMealsPerDay, profile.dailyFoodGramGoal, t]);
+  }, [predictions, activities, profile.targetMealsPerDay, profile.dailyFoodGramGoal, t, lang]);
 
   const localizedBreed = formatBreedName(profile.breed, lang as Language);
 
@@ -254,7 +253,7 @@ export const DogHealthSummary: React.FC<DogHealthSummaryProps> = React.memo(({
 
               <div className="grid grid-cols-2 gap-2 text-xs pt-0.5">
                 <div className="bg-slate-950/70 p-2.5 rounded-lg border border-slate-800/70">
-                  <div className="flex items-center gap-1.5 text-slate-400 font-medium text-[11px]">
+                  <div className="flex items-center gap-1.5 text-slate-400 font-medium text-xs">
                     <Moon className="w-3 h-3 text-indigo-400" />
                     <span>{t.health.bedtime}</span>
                   </div>
@@ -264,7 +263,7 @@ export const DogHealthSummary: React.FC<DogHealthSummaryProps> = React.memo(({
                 </div>
 
                 <div className="bg-slate-950/70 p-2.5 rounded-lg border border-slate-800/70">
-                  <div className="flex items-center gap-1.5 text-slate-400 font-medium text-[11px]">
+                  <div className="flex items-center gap-1.5 text-slate-400 font-medium text-xs">
                     <Sunrise className="w-3 h-3 text-amber-400" />
                     <span>{t.health.wakeup}</span>
                   </div>
@@ -284,7 +283,7 @@ export const DogHealthSummary: React.FC<DogHealthSummaryProps> = React.memo(({
                 </div>
                 <span className="text-[11px] font-semibold text-emerald-300/90 bg-emerald-950/50 border border-emerald-800/40 px-2 py-0.5 rounded">
                   {t.health.mealsPerDay.replace('{count}', String(scheduleData.targetMeals))}
-                  {scheduleData.dailyGrams > 0 && ` (${scheduleData.dailyGrams}g)`}
+                  {scheduleData.dailyGrams > 0 && ` (${formatGrams(scheduleData.dailyGrams, lang)})`}
                 </span>
               </div>
 
@@ -293,7 +292,7 @@ export const DogHealthSummary: React.FC<DogHealthSummaryProps> = React.memo(({
                   <div key={index} className="bg-slate-950/70 p-2 sm:p-2.5 rounded-lg border border-slate-800/70 text-center sm:text-left">
                     <div className="text-[11px] text-slate-400 font-medium truncate" title={item.name}>{item.name}</div>
                     <div className="font-extrabold text-emerald-300 text-xs sm:text-sm mt-0.5">~{item.timeStr}</div>
-                    {item.grams !== undefined && <div className="text-[10px] text-slate-400 mt-0.5 font-medium">~{item.grams}g</div>}
+                    {item.grams !== undefined && <div className="text-xs text-slate-400 mt-0.5 font-medium">~{formatGrams(item.grams, lang)}</div>}
                   </div>
                 ))}
               </div>
@@ -303,7 +302,7 @@ export const DogHealthSummary: React.FC<DogHealthSummaryProps> = React.memo(({
 
         {/* Dynamic Health Overview (Vaccine & Deworming) */}
         <div className="space-y-2.5">
-          {/* Last Vaccine */}
+          {/* Last Vaccine. On a narrow phone the date line breaks at the bullet, never inside a date */}
           <div className="bg-slate-950/60 p-3 sm:p-3.5 rounded-xl border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3">
             <div className="flex items-start sm:items-center gap-3">
               <div className="p-2 bg-teal-500/20 text-teal-400 rounded-lg shrink-0 mt-0.5 sm:mt-0">
@@ -315,7 +314,7 @@ export const DogHealthSummary: React.FC<DogHealthSummaryProps> = React.memo(({
                 </div>
                 <div className="text-xs text-slate-400">
                   {nextVaccine ? (
-                    <>{t.health.given} {formatShortDate(nextVaccine.record.date, lang)} &bull; {t.health.nextDue} <strong className="text-teal-300">{nextVaccine.record.boosterDate ? formatShortDate(nextVaccine.record.boosterDate, lang) : '—'}</strong></>
+                    <><span className="whitespace-nowrap">{t.health.injectedOn} {formatShortDate(nextVaccine.record.date, lang)}</span> &bull; <span className="whitespace-nowrap">{t.health.booster}{t.common.colon} <strong className="text-teal-300">{nextVaccine.record.boosterDate ? formatShortDate(nextVaccine.record.boosterDate, lang) : '—'}</strong></span></>
                   ) : (
                     t.health.noVaccineRecords
                   )}
@@ -342,7 +341,7 @@ export const DogHealthSummary: React.FC<DogHealthSummaryProps> = React.memo(({
                 </div>
                 <div className="text-xs text-slate-400">
                   {nextDeworming ? (
-                    <>{t.health.given} {formatShortDate(nextDeworming.record.date, lang)} &bull; {t.health.nextDue} <strong className="text-amber-300">{nextDeworming.record.boosterDate ? formatShortDate(nextDeworming.record.boosterDate, lang) : '—'}</strong></>
+                    <><span className="whitespace-nowrap">{t.health.givenOn} {formatShortDate(nextDeworming.record.date, lang)}</span> &bull; <span className="whitespace-nowrap">{t.health.nextDeworming}{t.common.colon} <strong className="text-amber-300">{nextDeworming.record.boosterDate ? formatShortDate(nextDeworming.record.boosterDate, lang) : '—'}</strong></span></>
                   ) : (
                     t.health.noDewormingRecords
                   )}
@@ -363,7 +362,7 @@ export const DogHealthSummary: React.FC<DogHealthSummaryProps> = React.memo(({
           variant="primary"
           size="sm"
           onPress={onOpenHealthPassport}
-          className="w-full font-bold text-xs py-2 shadow"
+          className="w-full min-h-11 font-bold text-xs shadow"
         >
           <ExternalLink className="w-3.5 h-3.5 mr-1.5 inline" />
           <span>{t.health.viewFullHealthPassport}</span>

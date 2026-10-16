@@ -46,7 +46,8 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail, caretake
     !ownHouseholdId || households.some((household) => household.id === ownHouseholdId)
       ? households
       : [{ id: ownHouseholdId, name: t.admin.ownHousehold }, ...households];
-  const householdName = (householdId: string) => households.find((household) => household.id === householdId)?.name || householdId;
+  // Named as the select names it: a household with no row (a sign-up's own) is 'Own household', never its id
+  const householdName = (householdId?: string) => households.find((household) => household.id === householdId)?.name || t.admin.ownHousehold;
 
   const loadData = useCallback(async () => {
     setIsLoading(true);
@@ -98,7 +99,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail, caretake
               : registeredUser
           )
         );
-        setStatusMessage(`Activated ${email} in household "${targetHouseholdId ? householdName(targetHouseholdId) : ''}"`);
+        setStatusMessage(t.admin.activatedAccount.replace('{email}', email).replace('{household}', householdName(targetHouseholdId)));
         setTimeout(() => setStatusMessage(''), 3500);
       } else {
         // Refused (409) when the row is stale, e.g. a family Admin took the sign-up in since: show where it is now.
@@ -124,9 +125,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail, caretake
               : registeredUser
           )
         );
-        setStatusMessage(
-          `Moved ${email} to household "${households.find((h) => h.id === newHouseholdId)?.name || newHouseholdId}"`
-        );
+        setStatusMessage(t.admin.movedAccount.replace('{email}', email).replace('{household}', householdName(newHouseholdId)));
         setTimeout(() => setStatusMessage(''), 3500);
       }
     } catch (err) {
@@ -146,7 +145,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail, caretake
               : registeredUser
           )
         );
-        setStatusMessage(t.admin.revokedAccess ? t.admin.revokedAccess.replace('{email}', email) : `Revoked ${email}`);
+        setStatusMessage(t.admin.revokedAccess.replace('{email}', email));
         setTimeout(() => setStatusMessage(''), 3500);
       }
     } catch (err) {
@@ -165,7 +164,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail, caretake
       const res = await deleteUser(userToDelete.email);
       if (res.ok) {
         setUsers((previous) => previous.filter((registeredUser) => registeredUser.email !== userToDelete.email));
-        setStatusMessage(t.admin.deletedAccount ? t.admin.deletedAccount.replace('{email}', userToDelete.email) : `Deleted ${userToDelete.email}`);
+        setStatusMessage(t.admin.deletedAccount.replace('{email}', userToDelete.email));
       }
     } catch (err) {
       console.error('Failed to delete user', err);
@@ -185,7 +184,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail, caretake
         if (badge) onAddCaretaker(badge);
         await loadData();
         setNewInviteEmail('');
-        setStatusMessage(`Pre-approved ${email} in household "${householdId ? householdName(householdId) : ''}"`);
+        setStatusMessage(t.admin.preApprovedAccount.replace('{email}', email).replace('{household}', householdName(householdId)));
         setTimeout(() => setStatusMessage(''), 3500);
       } else if (res.status === 409) {
         setInviteToMove({ email, householdId });
@@ -253,9 +252,9 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail, caretake
       <ConfirmationModal
         isOpen={!!userToJoin}
         title={t.admin.approveAndAssign}
-        message={t.admin.joinHousehold.replace('{email}', userToJoin?.email ?? '').replace('{household}', householdName(userToJoin?.householdId ?? ''))}
+        message={t.admin.joinHousehold.replace('{email}', userToJoin?.email ?? '').replace('{household}', householdName(userToJoin?.householdId))}
         confirmLabel={t.admin.approveAndAssign}
-        cancelLabel={t.potty.cancel}
+        tone="primary"
         onConfirm={() => userToJoin && void activateUser(userToJoin.email, userToJoin.householdId)}
         onClose={() => setUserToJoin(null)}
       />
@@ -263,11 +262,11 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail, caretake
       <ConfirmationModal
         isOpen={!!inviteToMove}
         title={t.household.addToFamily}
-        cancelLabel={t.potty.cancel}
+        tone="primary"
         message={
           inviteToMove?.householdId === currentHouseholdId
             ? t.household.alreadyHasAccount
-            : t.admin.joinHousehold.replace('{email}', inviteToMove?.email ?? '').replace('{household}', householdName(inviteToMove?.householdId ?? ''))
+            : t.admin.joinHousehold.replace('{email}', inviteToMove?.email ?? '').replace('{household}', householdName(inviteToMove?.householdId))
         }
         confirmLabel={t.household.addToFamily}
         onConfirm={() => inviteToMove && void inviteMember(inviteToMove.email, inviteToMove.householdId, true)}
@@ -277,9 +276,9 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail, caretake
       <ConfirmationModal
         isOpen={!!accountToMove}
         title={t.admin.move}
-        message={t.admin.moveHousehold.replace('{email}', accountToMove?.email ?? '').replace('{household}', householdName(accountToMove?.householdId ?? ''))}
+        message={t.admin.moveHousehold.replace('{email}', accountToMove?.email ?? '').replace('{household}', householdName(accountToMove?.householdId))}
         confirmLabel={t.admin.move}
-        cancelLabel={t.potty.cancel}
+        tone="primary"
         onConfirm={() => accountToMove && void handleMoveHousehold(accountToMove.email, accountToMove.householdId)}
         onClose={() => setAccountToMove(null)}
       />
@@ -341,7 +340,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail, caretake
                         <div className="text-xs font-bold text-slate-100">
                           {userItem.name}
                         </div>
-                        <div className="text-[11px] text-slate-400 font-mono mt-0.5">{userItem.email}</div>
+                        <div className="text-xs text-slate-400 font-mono mt-0.5">{userItem.email}</div>
                       </div>
 
                       <div className="flex items-center gap-1.5 text-[11px] text-slate-400 bg-slate-900 px-2.5 py-1 rounded-lg border border-slate-800">
@@ -352,8 +351,9 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail, caretake
 
                     <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-900">
                       <div className="flex items-center gap-2">
-                        <span className="text-[11px] text-slate-400">{t.admin.assignTo}</span>
+                        <label htmlFor={`assign-${userItem.id}`} className="text-xs text-slate-400">{t.admin.assignTo}</label>
                         <select
+                          id={`assign-${userItem.id}`}
                           value={currentSelectedHousehold}
                           onChange={(event) =>
                             setTargetHouseholds({ ...targetHouseholds, [userItem.email]: event.target.value })
@@ -380,8 +380,8 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail, caretake
                         <button
                           type="button"
                           onClick={() => setUserToDelete(userItem)}
-                          aria-label={t.admin.deleteUserAccount}
-                          className="p-2 text-slate-400 hover:text-red-400 hover:bg-slate-800 rounded-xl border border-slate-800 bg-slate-950 transition-colors"
+                          aria-label={t.common.deleteItem.replace('{item}', userItem.email)}
+                          className="min-h-11 min-w-11 flex items-center justify-center text-slate-400 hover:text-red-400 hover:bg-slate-800 rounded-xl border border-slate-800 bg-slate-950 transition-colors"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
@@ -406,7 +406,8 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail, caretake
               <div className="flex-1 min-w-[200px]">
                 <Input
                   type="email"
-                  placeholder="e.g. partner@family.com"
+                  aria-label={t.admin.preApproveTitle}
+                  placeholder={t.household.emailPlaceholder}
                   className="bg-slate-950 border-slate-800 text-slate-100"
                   value={newInviteEmail}
                   onChange={(event) => setNewInviteEmail(event.target.value)}
@@ -416,6 +417,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail, caretake
 
               <div className="flex items-center gap-2">
                 <select
+                  aria-label={t.admin.household}
                   value={newInviteHousehold || currentHouseholdId || ''}
                   onChange={(event) => setNewInviteHousehold(event.target.value)}
                   className="bg-slate-950 border border-slate-800 text-slate-200 text-xs rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-500"
@@ -464,10 +466,10 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail, caretake
                     <div className="flex items-center gap-2">
                       <span className="text-xs font-bold text-slate-100">{userItem.name}</span>
                       <Chip color="default" size="sm" variant="soft" className="text-[10px]">
-                        {userItem.role}
+                        {t.admin.roles[userItem.role as keyof typeof t.admin.roles] ?? userItem.role}
                       </Chip>
                     </div>
-                    <div className="text-[11px] text-slate-400 font-mono mt-0.5">{userItem.email}</div>
+                    <div className="text-xs text-slate-400 font-mono mt-0.5">{userItem.email}</div>
                   </div>
 
                   <div className="flex flex-wrap items-center gap-3">
@@ -506,8 +508,8 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail, caretake
                           <button
                             type="button"
                             onClick={() => setUserToDelete(userItem)}
-                            aria-label={t.admin.deleteUserAccount}
-                            className="p-2 text-slate-400 hover:text-red-400 hover:bg-slate-800 rounded-xl border border-slate-800 bg-slate-950 transition-colors"
+                            aria-label={t.common.deleteItem.replace('{item}', userItem.email)}
+                            className="min-h-11 min-w-11 flex items-center justify-center text-slate-400 hover:text-red-400 hover:bg-slate-800 rounded-xl border border-slate-800 bg-slate-950 transition-colors"
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>

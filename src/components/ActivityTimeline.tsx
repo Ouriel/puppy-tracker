@@ -8,6 +8,7 @@ import { formatLocalTime, formatLogicalDate, getUserTimezone } from '../utils/da
 import { resolveCaretakerName } from '../utils/caretakers';
 import { exportActivitiesToCSV, printActivitiesReport } from '../utils/export';
 import { getDayFoodPill } from '../utils/dayFoodPill';
+import { formatGrams, formatKg } from '../utils/weight';
 import { ConfirmationModal } from './common/ConfirmationModal';
 
 const QuickLogModal = lazy(() => import('./QuickLogModal').then((m) => ({ default: m.QuickLogModal })));
@@ -306,14 +307,15 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
                 <button
                   type="button"
                   onClick={() => setIsExportMenuOpen((previous) => !previous)}
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-950 border border-slate-800 text-slate-300 hover:text-white hover:bg-slate-800 transition-colors shrink-0"
+                  className="inline-flex items-center justify-center gap-1.5 min-h-11 min-w-11 px-2.5 rounded-lg text-xs font-semibold bg-slate-950 border border-slate-800 text-slate-300 hover:text-white hover:bg-slate-800 transition-colors shrink-0"
                   aria-expanded={isExportMenuOpen}
-                  aria-haspopup="true"
+                  aria-label={t.dashboard.export}
                   title={t.dashboard.export}
                 >
                   <Download className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
                   <span className="hidden sm:inline">{t.dashboard.export}</span>
-                  <ChevronDown className={`w-3 h-3 text-slate-400 transition-transform duration-200 ${isExportMenuOpen ? 'rotate-180 text-indigo-400' : ''}`} />
+                  {/* Below sm the download icon alone, so the 44 px buttons leave the title its two lines */}
+                  <ChevronDown className={`hidden sm:block w-3 h-3 text-slate-400 transition-transform duration-200 ${isExportMenuOpen ? 'rotate-180 text-indigo-400' : ''}`} />
                 </button>
 
                 {isExportMenuOpen && (
@@ -330,7 +332,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
                         <div className="text-xs font-bold text-slate-100 group-hover:text-emerald-300 transition-colors">
                           {t.dashboard.exportCsv}
                         </div>
-                        <div className="text-[11px] text-slate-400 leading-tight mt-0.5">
+                        <div className="text-xs text-slate-400 leading-tight mt-0.5">
                           {t.dashboard.exportCsvDesc}
                         </div>
                       </div>
@@ -348,7 +350,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
                         <div className="text-xs font-bold text-slate-100 group-hover:text-teal-300 transition-colors">
                           {t.dashboard.exportPdf}
                         </div>
-                        <div className="text-[11px] text-slate-400 leading-tight mt-0.5">
+                        <div className="text-xs text-slate-400 leading-tight mt-0.5">
                           {t.dashboard.exportPdfDesc}
                         </div>
                       </div>
@@ -363,7 +365,8 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
               <button
                 type="button"
                 onClick={handleToggleExpandAll}
-                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-950 border border-slate-800 text-slate-300 hover:text-white hover:bg-slate-800 transition-colors shrink-0"
+                className="inline-flex items-center justify-center gap-1.5 min-h-11 min-w-11 px-2.5 rounded-lg text-xs font-semibold bg-slate-950 border border-slate-800 text-slate-300 hover:text-white hover:bg-slate-800 transition-colors shrink-0"
+                aria-label={isAllExpanded ? t.dashboard.collapseAll : t.dashboard.expandAll}
                 title={isAllExpanded ? t.dashboard.collapseAll : t.dashboard.expandAll}
               >
                 <ChevronsUpDown className="w-3.5 h-3.5" />
@@ -384,7 +387,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
             {dayGroups.map((group) => {
               // A day holding a log not saved stays open, so its Retry is never hidden
               const isExpanded = expandedDays.has(group.dateKey) || group.activities.some((activity) => unsavedIds?.has(activity.id));
-              const foodPill = getDayFoodPill(group, formatCount(t.dashboard.mealsCount, group.mealsCount, lang));
+              const foodPill = getDayFoodPill(group, formatCount(t.dashboard.mealsCount, group.mealsCount, lang), lang);
 
               return (
                 <div
@@ -399,7 +402,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
                   <button
                     type="button"
                     onClick={() => toggleDay(group.dateKey)}
-                    className="w-full p-3 sm:p-4 text-left transition-colors hover:bg-slate-900/50 focus:outline-none"
+                    className="w-full p-3 sm:p-4 text-left transition-colors hover:bg-slate-900/50 outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-indigo-400"
                     aria-expanded={isExpanded}
                   >
                     <div className="flex items-center justify-between gap-2">
@@ -430,7 +433,14 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
                       </div>
                     </div>
 
-                    {/* Nutrition & Potty Summaries (Responsive Wrap) */}
+                    {/* Nutrition & Potty Summaries (Responsive Wrap). Screen readers hear the counts as words, not bare numbers */}
+                    <span className="sr-only">
+                      {[
+                        formatCount(t.dashboard.peesCount, group.peeCount, lang),
+                        formatCount(t.dashboard.poopsCount, group.poopCount, lang),
+                        group.accidentCount > 0 ? formatCount(t.dashboard.accidentsCount, group.accidentCount, lang) : '',
+                      ].filter(Boolean).join(', ')}
+                    </span>
                     <div className="flex items-center gap-1.5 flex-wrap mt-2.5 pt-2 border-t border-slate-800/50">
                       {/* Food Summary Pill */}
                       <div
@@ -441,12 +451,12 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
                             ? 'bg-amber-950/60 border-amber-700/50 text-amber-300'
                             : 'bg-slate-900 border-slate-800 text-slate-400'
                         }`}
-                        title={`${t.dashboard.foodIntake}: ${foodPill.text || foodPill.mealsText}`}
+                        title={`${t.dashboard.foodIntake}${t.common.colon} ${foodPill.text || foodPill.mealsText}`}
                       >
                         <Utensils className="w-3.5 h-3.5 shrink-0" />
                         {foodPill.text && <span>{foodPill.text}</span>}
                         {foodPill.mealsText && (
-                          <span className="text-[10px] opacity-80">{foodPill.mealsText}</span>
+                          <span className="text-xs opacity-80">{foodPill.mealsText}</span>
                         )}
                         {foodPill.tone === 'goalReached' && <CheckCircle2 className="w-3 h-3 text-emerald-400 ml-0.5 shrink-0" />}
                       </div>
@@ -455,6 +465,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
                       <div
                         className="inline-flex items-center gap-1 px-2 py-1 rounded-xl text-xs font-bold bg-sky-950/60 border border-sky-800/50 text-sky-300"
                         title={formatCount(t.dashboard.peesCount, group.peeCount, lang)}
+                        aria-hidden="true"
                       >
                         <Droplet className="w-3.5 h-3.5 shrink-0" />
                         <span>{group.peeCount}</span>
@@ -464,6 +475,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
                       <div
                         className="inline-flex items-center gap-1 px-2 py-1 rounded-xl text-xs font-bold bg-amber-950/60 border border-amber-800/50 text-amber-300"
                         title={formatCount(t.dashboard.poopsCount, group.poopCount, lang)}
+                        aria-hidden="true"
                       >
                         <PoopIcon className="w-3.5 h-3.5 shrink-0" />
                         <span>{group.poopCount}</span>
@@ -474,6 +486,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
                         <div
                           className="inline-flex items-center gap-1 px-2 py-1 rounded-xl text-xs font-bold bg-red-950/80 border border-red-700 text-red-300 motion-safe:animate-pulse"
                           title={formatCount(t.dashboard.accidentsCount, group.accidentCount, lang)}
+                          aria-hidden="true"
                         >
                           <AlertTriangle className="w-3.5 h-3.5 text-red-400 shrink-0" />
                           <span>{group.accidentCount}</span>
@@ -493,6 +506,8 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
                             const color = getCaretakerColor(item.loggedBy);
                             const caretakerName = resolveCaretakerName(item.loggedBy, caretakers);
                             const isUnsaved = unsavedIds?.has(item.id);
+                            // 'pipi 14:20': names this row's buttons
+                            const rowName = `${String(t.potty[item.type as keyof typeof t.potty] || item.type).toLocaleLowerCase(lang)} ${formatLocalTime(new Date(item.timestamp), tz)}`;
 
                             return (
                               <div
@@ -517,7 +532,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
                                       </span>
 
                                       {isUnsaved && (
-                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold bg-amber-950/70 border border-amber-700/60 text-amber-300 whitespace-nowrap">
+                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-semibold bg-amber-950/70 border border-amber-700/60 text-amber-300 whitespace-nowrap">
                                           <AlertTriangle className="w-3 h-3 shrink-0" />
                                           <span>{t.potty.notSaved}</span>
                                         </span>
@@ -525,12 +540,12 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
 
                                       {/* Potty location pill */}
                                       {item.pottyLocation === 'outside' && (
-                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold bg-emerald-950/70 border border-emerald-800/60 text-emerald-300 whitespace-nowrap">
-                                          🌳 {t.potty.outside}
+                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-semibold bg-emerald-950/70 border border-emerald-800/60 text-emerald-300 whitespace-nowrap">
+                                          <span aria-hidden="true">🌳</span> {t.potty.outside}
                                         </span>
                                       )}
                                       {item.pottyLocation === 'indoor_accident' && (
-                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold bg-red-950/80 border border-red-700/80 text-red-300 whitespace-nowrap">
+                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-semibold bg-red-950/80 border border-red-700/80 text-red-300 whitespace-nowrap">
                                           <AlertTriangle className="w-3 h-3 text-red-400 shrink-0" />
                                           <span>{t.potty.accident}</span>
                                         </span>
@@ -538,15 +553,15 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
 
                                       {/* Stool consistency */}
                                       {item.stoolConsistency && (
-                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-slate-950 border border-slate-800 text-slate-300 whitespace-nowrap">
-                                          {t.potty[item.stoolConsistency as keyof typeof t.potty] || item.stoolConsistency}
+                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium bg-slate-950 border border-slate-800 text-slate-300 whitespace-nowrap">
+                                          {t.dashboard.stoolChip[item.stoolConsistency] || item.stoolConsistency}
                                         </span>
                                       )}
 
                                       {/* Food Grams */}
                                       {item.quantityGrams && (
-                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold bg-purple-950/60 border border-purple-800/60 text-purple-300 whitespace-nowrap">
-                                          {item.quantityGrams}{t.units.grams}
+                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-bold bg-purple-950/60 border border-purple-800/60 text-purple-300 whitespace-nowrap">
+                                          {formatGrams(item.quantityGrams, lang)}
                                           {item.quantityCups ? (
                                             <span className="font-normal text-purple-400/80"> ({item.quantityCups} {t.units.cups})</span>
                                           ) : null}
@@ -555,15 +570,15 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
 
                                       {/* Weight Kg */}
                                       {item.weightKg && (
-                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold bg-pink-950/60 border border-pink-800/60 text-pink-300 whitespace-nowrap">
-                                          {item.weightKg} {t.units.kg}
+                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-bold bg-pink-950/60 border border-pink-800/60 text-pink-300 whitespace-nowrap">
+                                          {formatKg(item.weightKg, lang)}
                                         </span>
                                       )}
 
                                       {/* Medication */}
                                       {item.medicationName && (
-                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold bg-teal-950/60 border border-teal-800/60 text-teal-300 whitespace-nowrap">
-                                          💊 {item.medicationName}
+                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-semibold bg-teal-950/60 border border-teal-800/60 text-teal-300 whitespace-nowrap">
+                                          <span aria-hidden="true">💊</span> {item.medicationName}
                                         </span>
                                       )}
                                     </div>
@@ -579,7 +594,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
                                       <span className="font-medium text-slate-300 shrink-0 whitespace-nowrap">{formatLocalTime(new Date(item.timestamp), tz)}</span>
                                       <span className="text-slate-600 shrink-0">&bull;</span>
                                       <span
-                                        className="inline-flex items-center gap-1 font-bold px-2 py-0.5 rounded-full bg-slate-950 border border-slate-800 text-[11px] max-w-[130px] sm:max-w-[220px] min-w-0"
+                                        className="inline-flex items-center gap-1 font-bold px-2 py-0.5 rounded-full bg-slate-950 border border-slate-800 text-xs max-w-[130px] sm:max-w-[220px] min-w-0"
                                         style={{ color }}
                                         title={caretakerName}
                                       >
@@ -601,7 +616,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
                                           setExpandedDays((previous) => new Set(previous).add(group.dateKey));
                                           onRetry?.(item);
                                         }}
-                                        className="px-2.5 min-h-[36px] inline-flex items-center gap-1.5 text-xs font-bold text-amber-200 hover:bg-slate-800 rounded-lg border border-amber-700/60 bg-slate-950 transition-colors"
+                                        className="px-2.5 min-h-11 inline-flex items-center gap-1.5 text-xs font-bold text-amber-200 hover:bg-slate-800 rounded-lg border border-amber-700/60 bg-slate-950 transition-colors"
                                       >
                                         <RotateCw className="w-3.5 h-3.5" />
                                         <span>{t.potty.retry}</span>
@@ -610,7 +625,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
                                         type="button"
                                         onClick={() => onDiscard?.(item.id)}
                                         aria-label={t.potty.discard}
-                                        className="p-1.5 sm:p-2 min-h-[36px] min-w-[36px] flex items-center justify-center text-slate-400 hover:text-red-400 hover:bg-slate-800 rounded-lg border border-slate-800 bg-slate-950 transition-colors"
+                                        className="p-1.5 sm:p-2 min-h-11 min-w-11 flex items-center justify-center text-slate-400 hover:text-red-400 hover:bg-slate-800 rounded-lg border border-slate-800 bg-slate-950 transition-colors"
                                       >
                                         <X className="w-3.5 h-3.5" />
                                       </button>
@@ -621,8 +636,8 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
                                         <button
                                           type="button"
                                           onClick={() => setEditingActivity(item)}
-                                          aria-label={t.potty.editActivity}
-                                          className="p-1.5 sm:p-2 min-h-[36px] min-w-[36px] flex items-center justify-center text-slate-400 hover:text-indigo-300 hover:bg-slate-800 rounded-lg border border-slate-800 bg-slate-950 transition-colors"
+                                          aria-label={t.common.editItem.replace('{item}', rowName)}
+                                          className="p-1.5 sm:p-2 min-h-11 min-w-11 flex items-center justify-center text-slate-400 hover:text-indigo-300 hover:bg-slate-800 rounded-lg border border-slate-800 bg-slate-950 transition-colors"
                                         >
                                           <Pencil className="w-3.5 h-3.5" />
                                         </button>
@@ -631,8 +646,8 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
                                       <button
                                         type="button"
                                         onClick={() => setConfirmDelete({ id: item.id, type: 'activity' })}
-                                        aria-label={t.potty.deleteActivityTitle}
-                                        className="p-1.5 sm:p-2 min-h-[36px] min-w-[36px] flex items-center justify-center text-slate-400 hover:text-red-400 hover:bg-slate-800 rounded-lg border border-slate-800 bg-slate-950 transition-colors"
+                                        aria-label={t.common.deleteItem.replace('{item}', rowName)}
+                                        className="p-1.5 sm:p-2 min-h-11 min-w-11 flex items-center justify-center text-slate-400 hover:text-red-400 hover:bg-slate-800 rounded-lg border border-slate-800 bg-slate-950 transition-colors"
                                       >
                                         <Trash2 className="w-3.5 h-3.5" />
                                       </button>
@@ -658,7 +673,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
                   size="sm"
                   onPress={handleLoadMore}
                   isDisabled={isLoadingMore}
-                  className="w-full text-xs font-bold text-slate-300 border-slate-800 hover:bg-slate-950"
+                  className="w-full min-h-11 text-xs font-bold text-slate-300 border-slate-800 hover:bg-slate-950"
                 >
                   <ChevronDown className={`w-4 h-4 mr-1 inline ${isLoadingMore ? 'animate-spin' : ''}`} />
                   <span>

@@ -44,9 +44,17 @@ describe('Veterinary Breed Catalog & Resolution Tests', () => {
   it('formats breed names in both English and French', () => {
     expect(formatBreedName('golden-retriever', 'en')).toBe('Golden Retriever');
     expect(formatBreedName('golden-retriever', 'fr')).toBe('Golden Retriever');
-    expect(formatBreedName('australian-shepherd', 'fr')).toBe('Berger Australien');
+    expect(formatBreedName('australian-shepherd', 'fr')).toBe('Berger australien');
     expect(formatBreedName('australian-shepherd', 'en')).toBe('Australian Shepherd');
-    expect(formatBreedName('english-cocker-spaniel', 'fr')).toBe('Cocker Anglais');
+    expect(formatBreedName('english-cocker-spaniel', 'fr')).toBe('Cocker anglais');
+    expect(formatBreedName('mixed-breed', 'fr')).toBe('Bâtard / croisé');
+  });
+
+  // French writes nationality adjectives and common nouns in lower case ('Cocker anglais'); English keeps Title Case.
+  // Shown names only: a breed saved as 'Cocker Anglais' still resolves, since matching ignores case (above).
+  it('French breed names are in sentence case', () => {
+    const titleCased = /[ (](Anglais|Américain|Allemand|Australien|Belge|Blanc|Suisse|Français|Bernois|Écossais|Sibérien|Rhodésien|Breton|Hongrois|Irlandais|Italien|Frisé|Maltais|Havanais|Nain|Moyen|Royal|Toy|Standard|Croisé|Inconnue|Chasse|Lapin|Crête|Poil|Plat|Continental|Papillon|Poméranien|Malinois|Ancestral|Berger|Lévrier|Caniche)\b/u;
+    expect(BREED_CATALOG.map((breed) => breed.nameFr).filter((name) => titleCased.test(name))).toEqual([]);
   });
 
   it('computes correct gender-dimorphic expected adult weights', () => {

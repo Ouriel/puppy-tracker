@@ -4,6 +4,7 @@ import type { HealthRecord } from '../../types';
 import type { HealthUrgency } from '../../utils/health';
 import { buildGoogleCalendarUrl, downloadDueDateIcs, isAndroid } from '../../utils/calendar';
 import { useI18n } from '../../i18n';
+import { formatShortDate } from '../../utils/date';
 
 interface AddToCalendarButtonProps {
   record: HealthRecord;
@@ -20,6 +21,8 @@ export const AddToCalendarButton: React.FC<AddToCalendarButtonProps> = ({ record
   const { boosterDate } = record;
 
   if (!boosterDate || status === 'fulfilled' || status === 'overdue') return null;
+  // Named after its row, like the row's pencil: 'Ajouter au calendrier : Credelio Plus du 10 sept.'
+  const rowName = t.health.recordOn.replace('{name}', record.productName || record.name).replace('{date}', formatShortDate(record.date, lang));
 
   return (
     <button
@@ -29,7 +32,7 @@ export const AddToCalendarButton: React.FC<AddToCalendarButtonProps> = ({ record
         if (isAndroid()) window.open(buildGoogleCalendarUrl(dueRecord, dogName, t, lang), '_blank', 'noopener');
         else downloadDueDateIcs(dueRecord, dogName, t, lang);
       }}
-      aria-label={t.health.addToCalendar}
+      aria-label={`${t.health.addToCalendar}${t.common.colon} ${rowName}`}
       title={t.health.addToCalendar}
       className="p-2 min-h-11 min-w-11 flex items-center justify-center text-slate-400 hover:text-teal-300 hover:bg-slate-800 rounded-lg border border-slate-800 bg-slate-950 transition-colors shrink-0"
     >

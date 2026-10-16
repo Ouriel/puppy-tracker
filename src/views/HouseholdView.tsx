@@ -30,6 +30,7 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteSuccess, setInviteSuccess] = useState('');
   const [emailToMove, setEmailToMove] = useState<string | null>(null);
+  const [badgeToDelete, setBadgeToDelete] = useState<Caretaker | null>(null);
 
   const [name, setName] = useState('');
   const [color, setColor] = useState('#EC4899');
@@ -52,7 +53,7 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
     const result = await createUser({ email, role: 'Member', status: 'ACTIVE', ...(confirmMove ? { confirmMove } : {}) });
 
     if (result.ok) {
-      setInviteSuccess(`${email} authorized!`);
+      setInviteSuccess(t.household.inviteAuthorized.replace('{email}', email));
       setInviteEmail('');
       const badge = buildInviteBadge(email, caretakers);
       if (badge) onAddCaretaker(badge);
@@ -118,9 +119,17 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
         title={t.household.addToFamily}
         message={t.household.alreadyHasAccount}
         confirmLabel={t.household.addToFamily}
-        cancelLabel={t.potty.cancel}
+        tone="primary"
         onConfirm={() => emailToMove && void inviteMember(emailToMove, true)}
         onClose={() => setEmailToMove(null)}
+      />
+
+      <ConfirmationModal
+        isOpen={!!badgeToDelete}
+        title={t.household.deleteMember}
+        message={t.household.deleteMemberMessage.replace('{name}', badgeToDelete?.name ?? '')}
+        onConfirm={() => badgeToDelete && onDeleteCaretaker(badgeToDelete.id)}
+        onClose={() => setBadgeToDelete(null)}
       />
 
       {/* Email Registration Box */}
@@ -130,7 +139,7 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
             <Card.Content className="p-4 sm:p-6 space-y-4">
               <h3 className="text-sm font-bold text-slate-100 flex items-center gap-2">
                 <Mail className="w-4 h-4 text-indigo-400" />
-                <span>{t.household.inviteViaEmail}</span>
+                <span id="invite-email-title">{t.household.inviteViaEmail}</span>
               </h3>
 
               <p className="text-xs text-slate-400 leading-relaxed">
@@ -158,6 +167,7 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
                 <div className="flex-1 min-w-[200px]">
                   <Input
                     type="email"
+                    aria-labelledby="invite-email-title"
                     placeholder={t.household.emailPlaceholder}
                     value={inviteEmail}
                     onChange={(event) => setInviteEmail(event.target.value)}
@@ -207,8 +217,9 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
             <form onSubmit={handleAddSubmit} className="bg-slate-950/60 p-3.5 sm:p-4 rounded-xl border border-slate-800 space-y-3">
               <div className="flex flex-wrap items-center gap-3">
                 <div className="flex-1 min-w-[180px]">
-                  <label className="block text-xs font-semibold text-slate-400 mb-1">{t.household.memberName}</label>
+                  <label htmlFor="new-member-name" className="block text-xs font-semibold text-slate-400 mb-1">{t.household.memberName}</label>
                   <Input
+                    id="new-member-name"
                     type="text"
                     placeholder={t.household.namePlaceholder}
                     maxLength={80}
@@ -219,9 +230,11 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-400 mb-1">{t.household.badgeColor}</label>
+                  <label htmlFor="new-member-color" className="block text-xs font-semibold text-slate-400 mb-1">{t.household.badgeColor}</label>
                   <input
+                    id="new-member-color"
                     type="color"
+                    aria-label={t.household.badgeColor}
                     value={color}
                     onChange={(event) => setColor(event.target.value)}
                     className="w-10 h-10 rounded-xl bg-transparent border border-slate-700 cursor-pointer"
@@ -263,6 +276,7 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
                     <div className="flex items-center gap-3 flex-1 min-w-[200px]">
                       <input
                         type="color"
+                        aria-label={t.household.badgeColor}
                         value={editColor}
                         onChange={(event) => setEditColor(event.target.value)}
                         className="w-7 h-7 rounded-full bg-transparent border border-slate-700 cursor-pointer shrink-0"
@@ -273,6 +287,7 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
                         value={editName}
                         onChange={(event) => setEditName(event.target.value)}
                         placeholder={t.household.memberName}
+                        aria-label={t.household.memberName}
                         autoFocus
                       />
                       {canClaim && (
@@ -312,7 +327,8 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
                         size="sm"
                         isIconOnly
                         onPress={() => setEditingId(null)}
-                        className="bg-slate-950 border border-slate-800 text-slate-400 hover:text-white hover:bg-slate-800"
+                        aria-label={t.potty.cancel}
+                        className="min-h-11 min-w-11 bg-slate-950 border border-slate-800 text-slate-400 hover:text-white hover:bg-slate-800"
                       >
                         <X className="w-4 h-4" />
                       </Button>
@@ -345,8 +361,8 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
                         setEditColor(caretaker.color);
                         setEditIsMe(caretaker.email?.toLowerCase() === myEmail);
                       }}
-                      aria-label={t.household.editMemberName}
-                      className="p-2 min-h-[38px] min-w-[38px] flex items-center justify-center text-slate-400 hover:text-indigo-300 hover:bg-slate-800 rounded-xl border border-slate-800 bg-slate-950 transition-colors"
+                      aria-label={t.common.editItem.replace('{item}', caretaker.name)}
+                      className="p-2 min-h-11 min-w-11 flex items-center justify-center text-slate-400 hover:text-indigo-300 hover:bg-slate-800 rounded-xl border border-slate-800 bg-slate-950 transition-colors"
                     >
                       <Pencil className="w-4 h-4" />
                     </button>
@@ -361,9 +377,9 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
                     {!isSelected && (
                       <button
                         type="button"
-                        onClick={() => onDeleteCaretaker(caretaker.id)}
-                        aria-label={t.household.deleteMember}
-                        className="p-2 min-h-[38px] min-w-[38px] flex items-center justify-center text-slate-400 hover:text-red-400 hover:bg-slate-800 rounded-xl border border-slate-800 bg-slate-950 transition-colors"
+                        onClick={() => setBadgeToDelete(caretaker)}
+                        aria-label={t.common.deleteItem.replace('{item}', caretaker.name)}
+                        className="p-2 min-h-11 min-w-11 flex items-center justify-center text-slate-400 hover:text-red-400 hover:bg-slate-800 rounded-xl border border-slate-800 bg-slate-950 transition-colors"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>

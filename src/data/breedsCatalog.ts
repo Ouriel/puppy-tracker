@@ -15,7 +15,7 @@ export const BREED_CATALOG: BreedEntry[] = [
   {
     id: 'australian-shepherd',
     nameEn: 'Australian Shepherd',
-    nameFr: 'Berger Australien',
+    nameFr: 'Berger australien',
     femaleWeightKg: 22,
     maleWeightKg: 27,
     defaultWeightKg: 25,
@@ -32,7 +32,7 @@ export const BREED_CATALOG: BreedEntry[] = [
   {
     id: 'german-shepherd',
     nameEn: 'German Shepherd',
-    nameFr: 'Berger Allemand',
+    nameFr: 'Berger allemand',
     femaleWeightKg: 30,
     maleWeightKg: 36,
     defaultWeightKg: 32,
@@ -41,7 +41,7 @@ export const BREED_CATALOG: BreedEntry[] = [
   {
     id: 'belgian-malinois',
     nameEn: 'Belgian Shepherd (Malinois)',
-    nameFr: 'Berger Belge Malinois',
+    nameFr: 'Berger belge malinois',
     femaleWeightKg: 24,
     maleWeightKg: 29,
     aliases: ['malinois', 'berger belge', 'belgian shepherd'],
@@ -81,7 +81,7 @@ export const BREED_CATALOG: BreedEntry[] = [
   {
     id: 'white-swiss-shepherd',
     nameEn: 'White Swiss Shepherd',
-    nameFr: 'Berger Blanc Suisse',
+    nameFr: 'Berger blanc suisse',
     femaleWeightKg: 30,
     maleWeightKg: 37,
     aliases: ['white swiss shepherd', 'berger blanc suisse', 'bbs'],
@@ -89,7 +89,7 @@ export const BREED_CATALOG: BreedEntry[] = [
   {
     id: 'old-english-sheepdog',
     nameEn: 'Old English Sheepdog (Bobtail)',
-    nameFr: 'Bobtail (Berger Anglais Ancestral)',
+    nameFr: 'Bobtail (berger anglais ancestral)',
     femaleWeightKg: 30,
     maleWeightKg: 38,
     aliases: ['bobtail', 'old english sheepdog'],
@@ -99,7 +99,7 @@ export const BREED_CATALOG: BreedEntry[] = [
   {
     id: 'french-bulldog',
     nameEn: 'French Bulldog',
-    nameFr: 'Bouledogue Français',
+    nameFr: 'Bouledogue français',
     femaleWeightKg: 11.5,
     maleWeightKg: 13,
     aliases: ['french bulldog', 'bouledogue français', 'bouledogue', 'frenchie'],
@@ -107,7 +107,7 @@ export const BREED_CATALOG: BreedEntry[] = [
   {
     id: 'english-bulldog',
     nameEn: 'English Bulldog',
-    nameFr: 'Bouledogue Anglais',
+    nameFr: 'Bouledogue anglais',
     femaleWeightKg: 20,
     maleWeightKg: 24,
     aliases: ['english bulldog', 'bouledogue anglais', 'bulldog'],
@@ -147,7 +147,7 @@ export const BREED_CATALOG: BreedEntry[] = [
   {
     id: 'bernese-mountain-dog',
     nameEn: 'Bernese Mountain Dog',
-    nameFr: 'Bouvier Bernois',
+    nameFr: 'Bouvier bernois',
     femaleWeightKg: 40,
     maleWeightKg: 48,
     aliases: ['bernese', 'bouvier bernois', 'bernois'],
@@ -155,7 +155,7 @@ export const BREED_CATALOG: BreedEntry[] = [
   {
     id: 'great-dane',
     nameEn: 'Great Dane',
-    nameFr: 'Dogue Allemand',
+    nameFr: 'Dogue allemand',
     femaleWeightKg: 55,
     maleWeightKg: 70,
     aliases: ['great dane', 'dogue allemand', 'danois'],
@@ -261,7 +261,7 @@ export const BREED_CATALOG: BreedEntry[] = [
   {
     id: 'scottish-terrier',
     nameEn: 'Scottish Terrier',
-    nameFr: 'Terrier Écossais',
+    nameFr: 'Terrier écossais',
     femaleWeightKg: 8.5,
     maleWeightKg: 9.5,
     aliases: ['scottish terrier', 'scottie', 'terrier ecossais'],
@@ -279,7 +279,7 @@ export const BREED_CATALOG: BreedEntry[] = [
   {
     id: 'standard-dachshund',
     nameEn: 'Standard Dachshund',
-    nameFr: 'Teckel Standard',
+    nameFr: 'Teckel standard',
     femaleWeightKg: 8.5,
     maleWeightKg: 9.5,
     aliases: ['dachshund', 'teckel', 'standard dachshund', 'teckel standard'],
@@ -287,7 +287,7 @@ export const BREED_CATALOG: BreedEntry[] = [
   {
     id: 'miniature-dachshund',
     nameEn: 'Miniature Dachshund',
-    nameFr: 'Teckel Nain',
+    nameFr: 'Teckel nain',
     femaleWeightKg: 4.5,
     maleWeightKg: 5,
     aliases: ['miniature dachshund', 'teckel nain', 'mini dachshund'],
@@ -295,7 +295,7 @@ export const BREED_CATALOG: BreedEntry[] = [
   {
     id: 'kaninchen-dachshund',
     nameEn: 'Rabbit Dachshund (Kaninchen)',
-    nameFr: 'Teckel de Chasse au Lapin (Kaninchen)',
+    nameFr: 'Teckel de chasse au lapin (Kaninchen)',
     femaleWeightKg: 3.2,
     maleWeightKg: 3.5,
     aliases: ['kaninchen', 'rabbit dachshund'],
@@ -305,7 +305,7 @@ export const BREED_CATALOG: BreedEntry[] = [
   {
     id: 'siberian-husky',
     nameEn: 'Siberian Husky',
-    nameFr: 'Husky Sibérien',
+    nameFr: 'Husky sibérien',
     femaleWeightKg: 20,
     maleWeightKg: 25,
     aliases: ['siberian husky', 'husky', 'husky sibérien'],
@@ -337,7 +337,7 @@ export const BREED_CATALOG: BreedEntry[] = [
   {
     id: 'pomeranian',
     nameEn: 'Pomeranian',
-    nameFr: 'Spitz Nain (Poméranien)',
+    nameFr: 'Spitz nain (poméranien)',
     femaleWeightKg: 2.2,
     maleWeightKg: 2.5,
     aliases: ['pomeranian', 'spitz nain', 'pomeranien', 'loulou de pomeranie'],
@@ -395,7 +395,7 @@ export const BREED_CATALOG: BreedEntry[] = [
   {
     id: 'rhodesian-ridgeback',
     nameEn: 'Rhodesian Ridgeback',
-    nameFr: 'Chien de Crête Rhodésien',
+    nameFr: 'Chien de crête rhodésien',
     femaleWeightKg: 32,
     maleWeightKg: 38,
     aliases: ['rhodesian ridgeback', 'ridgeback', 'chien de crete'],
@@ -405,7 +405,7 @@ export const BREED_CATALOG: BreedEntry[] = [
   {
     id: 'brittany-spaniel',
     nameEn: 'Brittany Spaniel',
-    nameFr: 'Épagneul Breton',
+    nameFr: 'Épagneul breton',
     femaleWeightKg: 15,
     maleWeightKg: 17,
     aliases: ['brittany', 'epagneul breton', 'breton', 'épagneul breton'],
@@ -413,7 +413,7 @@ export const BREED_CATALOG: BreedEntry[] = [
   {
     id: 'english-setter',
     nameEn: 'English Setter',
-    nameFr: 'Setter Anglais',
+    nameFr: 'Setter anglais',
     femaleWeightKg: 24,
     maleWeightKg: 29,
     aliases: ['english setter', 'setter anglais', 'setter'],
@@ -421,7 +421,7 @@ export const BREED_CATALOG: BreedEntry[] = [
   {
     id: 'german-shorthaired-pointer',
     nameEn: 'German Shorthaired Pointer',
-    nameFr: 'Braque Allemand',
+    nameFr: 'Braque allemand',
     femaleWeightKg: 25,
     maleWeightKg: 31,
     aliases: ['german shorthaired pointer', 'braque allemand', 'braque'],
@@ -437,7 +437,7 @@ export const BREED_CATALOG: BreedEntry[] = [
   {
     id: 'vizsla',
     nameEn: 'Hungarian Vizsla',
-    nameFr: 'Braque Hongrois (Vizsla)',
+    nameFr: 'Braque hongrois (Vizsla)',
     femaleWeightKg: 20,
     maleWeightKg: 26,
     aliases: ['vizsla', 'braque hongrois'],
@@ -445,7 +445,7 @@ export const BREED_CATALOG: BreedEntry[] = [
   {
     id: 'irish-setter',
     nameEn: 'Irish Setter',
-    nameFr: 'Setter Irlandais',
+    nameFr: 'Setter irlandais',
     femaleWeightKg: 25,
     maleWeightKg: 31,
     aliases: ['irish setter', 'setter irlandais'],
@@ -472,7 +472,7 @@ export const BREED_CATALOG: BreedEntry[] = [
   {
     id: 'english-cocker-spaniel',
     nameEn: 'English Cocker Spaniel',
-    nameFr: 'Cocker Anglais',
+    nameFr: 'Cocker anglais',
     femaleWeightKg: 13,
     maleWeightKg: 14.5,
     defaultWeightKg: 13,
@@ -481,7 +481,7 @@ export const BREED_CATALOG: BreedEntry[] = [
   {
     id: 'american-cocker-spaniel',
     nameEn: 'American Cocker Spaniel',
-    nameFr: 'Cocker Américain',
+    nameFr: 'Cocker américain',
     femaleWeightKg: 11,
     maleWeightKg: 13,
     aliases: ['american cocker spaniel', 'cocker américain', 'cocker americain'],
@@ -489,7 +489,7 @@ export const BREED_CATALOG: BreedEntry[] = [
   {
     id: 'english-springer-spaniel',
     nameEn: 'English Springer Spaniel',
-    nameFr: 'Springer Anglais',
+    nameFr: 'Springer anglais',
     femaleWeightKg: 18,
     maleWeightKg: 21,
     aliases: ['english springer spaniel', 'springer anglais', 'springer'],
@@ -497,7 +497,7 @@ export const BREED_CATALOG: BreedEntry[] = [
   {
     id: 'flat-coated-retriever',
     nameEn: 'Flat-Coated Retriever',
-    nameFr: 'Retriever à Poil Plat',
+    nameFr: 'Retriever à poil plat',
     femaleWeightKg: 26,
     maleWeightKg: 32,
     aliases: ['flat-coated retriever', 'flat coated', 'retriever a poil plat'],
@@ -532,7 +532,7 @@ export const BREED_CATALOG: BreedEntry[] = [
   {
     id: 'bichon-frise',
     nameEn: 'Bichon Frisé',
-    nameFr: 'Bichon Frisé',
+    nameFr: 'Bichon frisé',
     femaleWeightKg: 4.5,
     maleWeightKg: 5.5,
     aliases: ['bichon frisé', 'bichon frise', 'bichon'],
@@ -540,7 +540,7 @@ export const BREED_CATALOG: BreedEntry[] = [
   {
     id: 'maltese',
     nameEn: 'Maltese',
-    nameFr: 'Bichon Maltais',
+    nameFr: 'Bichon maltais',
     femaleWeightKg: 3.5,
     maleWeightKg: 4,
     aliases: ['maltese', 'bichon maltais', 'maltais'],
@@ -556,7 +556,7 @@ export const BREED_CATALOG: BreedEntry[] = [
   {
     id: 'toy-poodle',
     nameEn: 'Toy Poodle',
-    nameFr: 'Caniche Toy',
+    nameFr: 'Caniche toy',
     femaleWeightKg: 3,
     maleWeightKg: 3.5,
     aliases: ['toy poodle', 'caniche toy'],
@@ -564,7 +564,7 @@ export const BREED_CATALOG: BreedEntry[] = [
   {
     id: 'miniature-poodle',
     nameEn: 'Miniature Poodle',
-    nameFr: 'Caniche Nain',
+    nameFr: 'Caniche nain',
     femaleWeightKg: 6,
     maleWeightKg: 7.5,
     aliases: ['miniature poodle', 'caniche nain'],
@@ -572,7 +572,7 @@ export const BREED_CATALOG: BreedEntry[] = [
   {
     id: 'medium-poodle',
     nameEn: 'Medium Poodle',
-    nameFr: 'Caniche Moyen',
+    nameFr: 'Caniche moyen',
     femaleWeightKg: 11,
     maleWeightKg: 13,
     aliases: ['medium poodle', 'caniche moyen', 'caniche', 'poodle'],
@@ -580,7 +580,7 @@ export const BREED_CATALOG: BreedEntry[] = [
   {
     id: 'standard-poodle',
     nameEn: 'Standard Poodle',
-    nameFr: 'Grand Caniche (Royal)',
+    nameFr: 'Grand caniche (royal)',
     femaleWeightKg: 22,
     maleWeightKg: 27,
     aliases: ['standard poodle', 'grand caniche', 'caniche royal'],
@@ -596,7 +596,7 @@ export const BREED_CATALOG: BreedEntry[] = [
   {
     id: 'havanese',
     nameEn: 'Havanese',
-    nameFr: 'Bichon Havanais',
+    nameFr: 'Bichon havanais',
     femaleWeightKg: 4.5,
     maleWeightKg: 6,
     aliases: ['havanese', 'bichon havanais', 'havanais'],
@@ -604,7 +604,7 @@ export const BREED_CATALOG: BreedEntry[] = [
   {
     id: 'papillon',
     nameEn: 'Papillon (Continental Toy Spaniel)',
-    nameFr: 'Épagneul Nain Continental (Papillon)',
+    nameFr: 'Épagneul nain continental (papillon)',
     femaleWeightKg: 3.5,
     maleWeightKg: 4.2,
     aliases: ['papillon', 'epagneul papillon', 'épagneul papillon'],
@@ -630,7 +630,7 @@ export const BREED_CATALOG: BreedEntry[] = [
   {
     id: 'italian-greyhound',
     nameEn: 'Italian Greyhound',
-    nameFr: 'Petit Lévrier Italien',
+    nameFr: 'Petit lévrier italien',
     femaleWeightKg: 4,
     maleWeightKg: 4.8,
     aliases: ['italian greyhound', 'petit levrier italien', 'pli'],
@@ -638,7 +638,7 @@ export const BREED_CATALOG: BreedEntry[] = [
   {
     id: 'greyhound',
     nameEn: 'Greyhound',
-    nameFr: 'Lévrier Greyhound',
+    nameFr: 'Lévrier greyhound',
     femaleWeightKg: 28,
     maleWeightKg: 34,
     aliases: ['greyhound', 'levrier greyhound'],
@@ -648,7 +648,7 @@ export const BREED_CATALOG: BreedEntry[] = [
   {
     id: 'mixed-breed',
     nameEn: 'Mixed Breed',
-    nameFr: 'Bâtard / Croisé',
+    nameFr: 'Bâtard / croisé',
     femaleWeightKg: 13,
     maleWeightKg: 15,
     defaultWeightKg: 13,
@@ -657,7 +657,7 @@ export const BREED_CATALOG: BreedEntry[] = [
   {
     id: 'unknown',
     nameEn: 'Unknown Breed',
-    nameFr: 'Race Inconnue',
+    nameFr: 'Race inconnue',
     femaleWeightKg: 13,
     maleWeightKg: 15,
     defaultWeightKg: 13,

@@ -119,7 +119,7 @@ Open it from the health summary, or at `/health-passport`.
 | CHPPi without L4, or parvo only, at 6 months or later | +1 year; +3 years from 16 months of age |
 | Rabies, L4, kennel cough, piroplasmosis, leishmaniasis | +1 year |
 
-**Dewormings.** Credelio Plus is pre-selected. Monthly products (Credelio Plus, Nexgard Spectra, Simparica Trio, Advocate, Stronghold) suggest +1 month; Bravecto +3 months. Age-based wormers (Milbemax, Drontal, Panacur...) use the age **on the dose day**: every 2 weeks under 12 weeks, monthly until 6 months, then every 3 months.
+**Dewormings.** The add form starts on the last product given (or Credelio Plus). Monthly products (Credelio Plus, Nexgard Spectra, Simparica Trio, Advocate, Stronghold) suggest +1 month; Bravecto +3 months. Age-based wormers (Milbemax, Drontal, Panacur...) use the age **on the dose day**: every 2 weeks under 12 weeks, monthly until 6 months, then every 3 months.
 
 **Rules for both:**
 - Each entry can be edited or deleted.

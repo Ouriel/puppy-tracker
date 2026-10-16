@@ -45,7 +45,7 @@ describe('a failed change shows a translated toast', () => {
     ['a server error', () => Promise.resolve(new Response(JSON.stringify({ error: 'Internal server error' }), { status: 500 })), 'Une erreur est survenue — modifications annulées.'],
     ['an unknown refusal', () => Promise.resolve(new Response(JSON.stringify({ error: 'Invalid caretaker payload' }), { status: 400 })), 'Une erreur est survenue — modifications annulées.'],
     ['a taken name', () => Promise.resolve(new Response(JSON.stringify({ error: 'Another member already has this name.', code: 'memberNameTaken' }), { status: 409 })), 'Un autre membre porte déjà ce nom.'],
-    ['a taken or foreign email', () => Promise.resolve(new Response(JSON.stringify({ error: 'Another member is already linked to this email.', code: 'memberEmailTaken' }), { status: 409 })), "Cet e-mail est déjà lié, ou n'est pas le vôtre."],
+    ['a taken or foreign email', () => Promise.resolve(new Response(JSON.stringify({ error: 'Another member is already linked to this email.', code: 'memberEmailTaken' }), { status: 409 })), "Cet e-mail est déjà lié, ou n'est pas le tien."],
     ['an admin-only change', () => Promise.resolve(new Response(JSON.stringify({ error: 'Only an admin can unlink a member from a login.', code: 'memberAdminOnly' }), { status: 403 })), 'Seul un admin peut faire ce changement.'],
   ])('%s', async (_case, answer, message) => {
     vi.stubGlobal('fetch', vi.fn(answer));

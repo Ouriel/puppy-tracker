@@ -13,28 +13,28 @@ describe("predictionsTranslation utility", () => {
   it("translates learned bladder average into French", () => {
     const enReason = "Learned average: ~4h26 bladder interval";
     expect(translatePredictionReason(enReason, "fr")).toBe(
-      "Moyenne apprise : intervalle d'env. ~4h26"
+      "Moyenne apprise\u00a0: intervalle d'env. 4\u00a0h\u00a026"
     );
   });
 
   it("translates standard bladder interval into French", () => {
     const enReason = "Standard bladder interval (~4h)";
     expect(translatePredictionReason(enReason, "fr")).toBe(
-      "Intervalle standard (~4h)"
+      "Intervalle standard (~4\u00a0h)"
     );
   });
 
   it("translates post-meal potty break into French", () => {
     const enReason = "Post-meal potty break (~20m after food)";
     expect(translatePredictionReason(enReason, "fr")).toBe(
-      "Sortie post-repas (~20m après repas)"
+      "Sortie post-repas (~20\u00a0min après le repas)"
     );
   });
 
   it("translates learned digestive interval into French", () => {
     const enReason = "Learned average: ~9h59 digestive interval";
     expect(translatePredictionReason(enReason, "fr")).toBe(
-      "Moyenne apprise : intervalle d'env. ~9h59"
+      "Moyenne apprise\u00a0: intervalle d'env. 9\u00a0h\u00a059"
     );
   });
 
@@ -46,16 +46,16 @@ describe("predictionsTranslation utility", () => {
 
   it("translates the young-puppy mid-night break into French", () => {
     expect(translatePredictionReason("Night mode: Young puppy mid-night potty break", "fr")).toBe(
-      "Mode nuit : Pause propreté nocturne"
+      "Mode nuit\u00a0: pause propreté nocturne"
     );
   });
 
   it("translates digestive alert and recovery into French", () => {
     expect(translatePredictionReason("Digestive alert: frequent checks recommended", "fr")).toBe(
-      "Alerte digestion : sorties fréquentes conseillées"
+      "Alerte digestion\u00a0: sorties fréquentes conseillées"
     );
     expect(translatePredictionReason("Digestive recovery: pause after hard stool", "fr")).toBe(
-      "Récupération : pause après selle dure"
+      "Récupération\u00a0: pause après selle dure"
     );
   });
 
@@ -66,17 +66,30 @@ describe("predictionsTranslation utility", () => {
     );
   });
 
+  it("French durations: '45 min', never '45m' (metres)", () => {
+    expect(translatePredictionReason("Learned average: ~45m bladder interval", "fr")).toBe(
+      "Moyenne apprise\u00a0: intervalle d'env. 45\u00a0min"
+    );
+    expect(translatePredictionReason("Standard digestive interval (~11h)", "fr")).toBe("Intervalle standard (~11\u00a0h)");
+  });
+
+  // One duration style on the meal card: '~2 h 30', like 'il y a 2 h 30' above it, never '2,5 h'
+  it("translates the remaining portion with the app's duration: '~2 h 30'", () => {
+    expect(translatePredictionReason("Remaining portion (spaced ~2.5h)", "fr")).toBe("Portion restante (espacée de ~2\u00a0h\u00a030)");
+    expect(translatePredictionReason("Remaining portion (spaced ~3.0h)", "fr")).toBe("Portion restante (espacée de ~3\u00a0h)");
+  });
+
   it("translates daytime meal schedule into French", () => {
     const enReason = "Meal 2 of 3 (spaced ~5.4h)";
     expect(translatePredictionReason(enReason, "fr")).toBe(
-      "Repas 2 sur 3 (espacés de ~5.4h)"
+      "Repas 2 sur 3 (espacés de ~5\u00a0h\u00a024)"
     );
   });
 
   it("translates food goal reached into French", () => {
     const enReason = "Daily goal reached (240g)";
     expect(translatePredictionReason(enReason, "fr")).toBe(
-      "Objectif du jour atteint (240g)"
+      "Objectif du jour atteint (240\u00a0g)"
     );
   });
 

@@ -152,7 +152,7 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
               <button
                 type="button"
                 onClick={onClose}
-                className="p-2 text-slate-400 hover:text-white rounded-xl hover:bg-slate-800 transition-colors"
+                className="min-h-11 min-w-11 flex items-center justify-center text-slate-400 hover:text-white rounded-xl hover:bg-slate-800 transition-colors"
                 aria-label={t.potty.close}
               >
                 <X className="w-5 h-5" />
@@ -247,7 +247,7 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
                               : 'bg-slate-950 border-slate-800 text-slate-300 hover:bg-slate-800'
                           }`}
                         >
-                          <span className="text-base">🌳</span>
+                          <span className="text-base" aria-hidden="true">🌳</span>
                           <span>{t.potty.outside}</span>
                         </button>
 
@@ -263,7 +263,7 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
                               : 'bg-slate-950 border-slate-800 text-slate-300 hover:bg-slate-800'
                           }`}
                         >
-                          <span className="text-base">🚨</span>
+                          <span className="text-base" aria-hidden="true">🚨</span>
                           <span>{t.potty.accident}</span>
                         </button>
                       </div>
@@ -305,7 +305,7 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
                                 aria-checked={isSelected}
                                 tabIndex={isSelected ? 0 : -1}
                                 onClick={() => setStoolConsistency(consistency)}
-                                className={`py-2.5 px-2 rounded-xl text-xs font-bold border transition-all text-center capitalize ${
+                                className={`py-2.5 px-2 rounded-xl text-xs font-bold border transition-all text-center ${
                                   isSelected
                                     ? 'bg-amber-700 border-amber-600 text-white shadow ring-2 ring-amber-400/30'
                                     : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-white hover:bg-slate-800'
@@ -441,7 +441,7 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
               <button
                 type="button"
                 onClick={onClose}
-                className="px-4 py-2.5 rounded-xl border border-slate-800 text-slate-300 font-bold text-xs hover:bg-slate-800 hover:text-white transition-colors"
+                className="min-h-11 px-4 rounded-xl border border-slate-800 text-slate-300 font-bold text-xs hover:bg-slate-800 hover:text-white transition-colors"
               >
                 {t.potty.cancel}
               </button>
@@ -450,7 +450,7 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
                 form="quicklog-form"
                 disabled={isSaving}
                 aria-busy={isSaving || undefined}
-                className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-lg shadow-indigo-600/30 transition-all disabled:opacity-60"
+                className="min-h-11 px-5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-lg shadow-indigo-600/30 transition-all disabled:opacity-60"
               >
                 {isSaving ? t.potty.saving : isEditMode ? t.potty.saveChanges : t.potty.saveLog}
               </button>

@@ -50,8 +50,9 @@ export const Navbar: React.FC<NavbarProps> = ({
                 onChange={(val) => onSelectPuppy(val as string)}
                 aria-label={t.nav.selectDog}
               >
-                <Select.Trigger className="bg-slate-950/80 border-slate-700/80 min-h-0 h-9 font-bold text-xs text-slate-100 ps-2 sm:ps-3 pe-7">
-                  <Select.Value className="truncate text-xs" />
+                <Select.Trigger className="bg-slate-950/80 border-slate-700/80 min-h-0 h-11 items-center font-bold text-xs text-slate-100 ps-2 sm:ps-3 pe-7">
+                  {/* The name alone: the age is in the list */}
+                  <Select.Value className="truncate text-xs">{activePuppy.name}</Select.Value>
                   <Select.Indicator />
                 </Select.Trigger>
                 <Select.Popover className="bg-slate-900 border-slate-800 text-slate-100">
@@ -60,7 +61,9 @@ export const Navbar: React.FC<NavbarProps> = ({
                       let ageLabel = '';
                       if (puppy.birthDate) {
                         const age = getPuppyAge(puppy.birthDate);
-                        ageLabel = age.weeks < 16 ? `${age.weeks}w` : `${Math.floor(age.months)}m`;
+                        ageLabel = age.weeks < 16
+                          ? t.weightChart.weeksOld.replace('{weeks}', String(age.weeks))
+                          : t.weightChart.monthsOld.replace('{months}', String(Math.floor(age.months)));
                       }
                       const displayName = ageLabel ? `${puppy.name} (${ageLabel})` : puppy.name;
 

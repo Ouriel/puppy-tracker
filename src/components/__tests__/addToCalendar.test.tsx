@@ -70,7 +70,7 @@ async function render(element: ReactElement) {
 }
 
 const calendarButtons = (container: HTMLElement) =>
-  Array.from(container.querySelectorAll<HTMLButtonElement>(`button[aria-label="${fr.health.addToCalendar}"]`));
+  Array.from(container.querySelectorAll<HTMLButtonElement>(`button[aria-label^="${fr.health.addToCalendar}"]`));
 
 describe('health passport', () => {
   const renderPassport = (healthRecords: HealthRecord[]) =>
@@ -102,8 +102,18 @@ describe('health passport', () => {
     expect(blobs[0].type).toBe('text/calendar;charset=utf-8');
     const content = await blobs[0].text();
     expect(content).toContain('DTSTART;VALUE=DATE:20261020');
-    expect(content.replace(/\r\n /g, '')).toContain(`SUMMARY:Rex : ${chppiL4} à faire`);
+    expect(content.replace(/\r\n /g, '')).toContain(`SUMMARY:Rex\u00a0: ${chppiL4} à faire`);
     expect(downloads).toEqual(['rex-chppi-dappi-l4-eurican-nobivac-versican-2026-10-20.ics']);
+  });
+
+  // Like the row's pencil and trash ('Modifier Credelio Plus du 1 oct.'): a screen reader's button list tells them apart
+  it('each button names its record and date: "Ajouter au calendrier : Credelio Plus du 1 oct."', async () => {
+    const container = await renderPassport([dueDose, dueDeworming]);
+
+    expect(calendarButtons(container).map((button) => button.getAttribute('aria-label'))).toEqual([
+      `Ajouter au calendrier\u00a0: ${chppiL4} du 1 juin`,
+      'Ajouter au calendrier\u00a0: Credelio Plus du 1 oct.',
+    ]);
   });
 
   it('no button on an overdue entry: an event in the past would never remind anyone', async () => {
@@ -118,7 +128,7 @@ describe('health passport', () => {
     expect(calendarButtons(container)).toHaveLength(1);
     await act(async () => calendarButtons(container)[0].click());
 
-    expect(await blobs[0].text()).toContain('SUMMARY:Rex : Credelio Plus à faire');
+    expect(await blobs[0].text()).toContain('SUMMARY:Rex\u00a0: Credelio Plus à faire');
     expect(downloads).toEqual(['rex-credelio-plus-2026-11-01.ics']);
   });
 });
@@ -162,7 +172,7 @@ describe('by phone', () => {
     const params = new URL(String(url)).searchParams;
     expect(String(url).startsWith('https://calendar.google.com/calendar/render?')).toBe(true);
     expect(params.get('action')).toBe('TEMPLATE');
-    expect(params.get('text')).toBe('Rex : Credelio Plus à faire');
+    expect(params.get('text')).toBe('Rex\u00a0: Credelio Plus à faire');
     expect(params.get('dates')).toBe('20261101/20261102');
     expect(params.get('details')).toBe('Donné le 1 octobre 2026');
     expect([target, features]).toEqual(['_blank', 'noopener']);
@@ -179,7 +189,7 @@ describe('by phone', () => {
 
     expect(open).not.toHaveBeenCalled();
     expect(blobs).toHaveLength(1);
-    expect(await blobs[0].text()).toContain('SUMMARY:Rex : Credelio Plus à faire');
+    expect(await blobs[0].text()).toContain('SUMMARY:Rex\u00a0: Credelio Plus à faire');
     expect(downloads).toEqual(['rex-credelio-plus-2026-11-01.ics']);
   });
 });

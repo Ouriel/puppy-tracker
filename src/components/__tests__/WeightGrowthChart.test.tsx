@@ -96,7 +96,7 @@ describe('the weight card, in French', () => {
     expect(chart().getAttribute('height')).toBe('200');
     expect(chart().hasAttribute('viewBox')).toBe(false);
     expect(chart().querySelector('title')!.textContent).toBe('Courbe de poids de Rex');
-    expect(chart().querySelector('desc')!.textContent).toContain('Pesées : 4 (du 1 août au 1 oct.), de 7,6 kg à 10,4 kg');
+    expect(chart().querySelector('desc')!.textContent).toContain('Pesées\u00a0: 4 (du 1 août au 1 oct.), de 7,6 kg à 10,4 kg');
   });
 
   it('three tiles in one row: the last weigh-in, the measured pace, the adult range; no WALTHAM on screen', async () => {
@@ -104,7 +104,7 @@ describe('the weight card, in French', () => {
 
     expect(tile('weight')).toBe('Poids10,4 kgil y a 14\u00a0j'); // Intl.RelativeTimeFormat puts a no-break space before "j"
     // 9,6 kg on 15 Sep, 10,4 kg on 1 Oct: the 28 days up to the last weigh-in
-    expect(tile('pace')).toBe('Rythme+50 g/jsur 16 j');
+    expect(tile('pace')).toBe('Rythme+50\u00a0g/jsur 16\u00a0j');
     expect(tile('adult')).toMatch(/^Adulte\d+–\d+ kgestimé$/);
     expect(container.querySelector('[data-tile]')!.parentElement!.className).toContain('grid-cols-3');
     expect(container.textContent).not.toMatch(/WALTHAM|Cat\. /);
@@ -115,14 +115,14 @@ describe('the weight card, in French', () => {
 
     expect(document.querySelector('[aria-live="polite"]')).not.toBeNull();
     expect(readout()).toContain('10,4 kg');
-    expect(readout()).toContain('1 oct. · 7 mois');
+    expect(readout()).toContain('1 oct. · 7\u00a0mois');
     expect(readout()).toContain('+0,8 kg en 16\u00a0j (50\u00a0g/j)'); // no-break spaces: the rate never wraps from its unit
 
     await press('ArrowLeft');
     expect(readout()).toContain('9,6 kg');
     await press('Home');
     expect(readout()).toContain('7,6 kg');
-    expect(readout()).toContain('1 août · 5 mois'); // 22 weeks: months from 16 weeks on
+    expect(readout()).toContain('1 août · 5\u00a0mois'); // 22 weeks: months from 16 weeks on
     expect(readout()).toContain(fr.weightChart.firstWeighIn);
     await press('ArrowRight');
     expect(readout()).toContain('9 kg');
@@ -211,7 +211,7 @@ describe('the weight card, in French', () => {
     expect(rows()).toHaveLength(4);
     expect(toggle.getAttribute('aria-expanded')).toBe('true');
     expect(toggle.textContent).toBe('Réduire');
-    expect(document.querySelectorAll(`tbody button[aria-label="${fr.weightChart.editWeightEntry}"]`)).toHaveLength(4);
+    expect(document.querySelectorAll('tbody button[aria-label^="Modifier la pesée du "]')).toHaveLength(4);
   });
 
   it('delete asks first, then deletes the selected weigh-in', async () => {
@@ -219,11 +219,11 @@ describe('the weight card, in French', () => {
     await renderChart({ onDeleteActivity });
     const readoutCard = document.querySelector('[aria-live="polite"]')!;
 
-    await act(async () => readoutCard.querySelector<HTMLButtonElement>(`button[aria-label="${fr.weightChart.deleteWeightEntry}"]`)!.click());
+    await act(async () => readoutCard.querySelector<HTMLButtonElement>('button[aria-label="Supprimer la pesée du 1 oct."]')!.click());
     expect(onDeleteActivity).not.toHaveBeenCalled();
     // The question names the weigh-in it deletes
-    expect(document.body.textContent).toContain('Supprimer la pesée du 1 oct. (10,4 kg) ?');
-    await act(async () => buttonWithText('Delete')!.click()); // ConfirmationModal's English default: phase 2
+    expect(document.body.textContent).toContain('Supprimer la pesée du 1 oct. (10,4 kg)\u00a0?');
+    await act(async () => buttonWithText(fr.common.delete)!.click());
 
     expect(onDeleteActivity).toHaveBeenCalledWith('w-oct');
   });
@@ -251,7 +251,7 @@ describe('the weight card, in French', () => {
   it('no weigh-in yet: the expected zone only, and a line asking to weigh the dog', async () => {
     const container = await renderChart({ activities: [] });
 
-    expect(readout()).toBe('Pas encore de pesée. Pèse Rex pour voir sa courbe.');
+    expect(readout()).toBe('Pas encore de pesée. Touche «\u00a0Peser le chiot\u00a0» pour voir la courbe de Rex.');
     expect(chart().querySelector('[data-band]')).not.toBeNull();
     expect(chart().querySelectorAll('[data-weigh-in]')).toHaveLength(0);
     expect(container.querySelector('table')).toBeNull();
@@ -261,7 +261,7 @@ describe('the weight card, in French', () => {
   it('a breed the app does not know, no adult weight typed, no weigh-in: no adult figure (the 13 kg fallback is made up)', async () => {
     await renderChart({ activities: [], profile: { ...puppy, breed: 'Unknown Breed' } });
 
-    expect(tile('adult')).toBe('Adulte—≥ 1 pesée');
+    expect(tile('adult')).toBe('Adulte—≥\u00a01\u00a0pesée');
   });
 
   it('tile sub-lines fit a 320 px phone in French and English: 12 characters at most, wrapped rather than cut', async () => {
@@ -281,8 +281,8 @@ describe('the weight card, in French', () => {
     await renderChart({ activities: [weighIn('w-may', '2026-05-20', 4.1)] });
 
     expect(chart().querySelectorAll('[data-weigh-in]')).toHaveLength(1);
-    expect(tile('pace')).toBe('Rythme—≥ 2 pesées');
-    expect(readout()).toContain('20 mai · 11 sem.');
+    expect(tile('pace')).toBe('Rythme—≥\u00a02\u00a0pesées');
+    expect(readout()).toContain('20 mai · 11\u00a0sem.');
   });
 
   it('a breed the app does not know, with no adult weight typed: no expected zone', async () => {
@@ -299,7 +299,7 @@ describe('the weight card, in French', () => {
 
     expect(zoom.getAttribute('aria-pressed')).toBe('true');
     expect(buttonWithText(fr.weightChart.periodYear)!.getAttribute('aria-pressed')).toBe('false');
-    expect(chart().textContent).not.toContain('12 mois');
+    expect(chart().textContent).not.toContain('12\u00a0mois');
   });
 
   it('a dog over a year old: the full view is "Tout", not "1 an"', async () => {
@@ -312,14 +312,14 @@ describe('the weight card, in French', () => {
   it('editing a weigh-in from the list checks the typed weight against the weigh-ins either side of it', async () => {
     await renderChart();
     // The 15 Sep row, between 9 kg (1 Sep) and 10,4 kg (1 Oct)
-    const editButton = document.querySelectorAll<HTMLButtonElement>(`tbody button[aria-label="${fr.weightChart.editWeightEntry}"]`)[1];
+    const editButton = document.querySelectorAll<HTMLButtonElement>('tbody button[aria-label^="Modifier la pesée du "]')[1];
 
     await act(async () => {
       editButton.click();
       await import('../QuickLogModal');
     });
     await typeIn('quicklog-weight-kg', '96');
-    expect(document.querySelector('[role="status"]')!.textContent).toBe('Vérifie la virgule : 96 kg ?');
+    expect(document.querySelector('[role="status"]')!.textContent).toBe('Vérifie la virgule\u00a0: 96\u00a0kg\u00a0?');
 
     await typeIn('quicklog-weight-kg', '9,7');
     expect(document.querySelector('[role="status"]')).toBeNull();

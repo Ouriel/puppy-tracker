@@ -12,6 +12,7 @@ import {
   formatLocalTime,
   getOccurrenceOfClockTimeInTimezone,
   formatShortDate,
+  formatDuration,
 } from '../date';
 
 describe('date utility module — comprehensive test suite', () => {
@@ -97,6 +98,21 @@ describe('date utility module — comprehensive test suite', () => {
     expect(formatMinutesToXhXX(120)).toBe('2h');
     expect(formatMinutesToXhXX(125)).toBe('2h05');
     expect(formatMinutesToXhXX(150)).toBe('2h30');
+  });
+
+  // French: "25 min" (never "m", metres) and "1 h 05", with no-break spaces so it never wraps; English keeps "25m", "1h 5m"
+  it.each([
+    [25, 'fr', '25\u00a0min'],
+    [65, 'fr', '1\u00a0h\u00a005'],
+    [360, 'fr', '6\u00a0h'],
+    [176, 'fr', '2\u00a0h\u00a056'],
+    [0, 'fr', '0\u00a0min'],
+    [25, 'en', '25m'],
+    [65, 'en', '1h 5m'],
+    [360, 'en', '6h'],
+    [89.6, 'en', '1h 30m'],
+  ] as const)('formatDuration(%s, %s) reads "%s"', (minutes, lang, text) => {
+    expect(formatDuration(minutes, lang)).toBe(text);
   });
 
   describe('Logical Day Boundary (4:00 AM cutoff)', () => {

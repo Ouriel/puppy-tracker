@@ -16,7 +16,7 @@ export const TermsOfServiceModal: React.FC<TermsOfServiceModalProps> = ({ isOpen
       <Modal.Backdrop>
         <Modal.Container size="lg" scroll="inside">
           <Modal.Dialog className="bg-slate-900 border border-slate-800 text-slate-100 shadow-2xl">
-            <Modal.CloseTrigger />
+            <Modal.CloseTrigger aria-label={t.terms.close} />
             <Modal.Header>
               <Modal.Heading className="flex items-center gap-2 text-indigo-400">
                 <FileText className="w-5 h-5" />

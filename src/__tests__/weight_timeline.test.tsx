@@ -55,6 +55,12 @@ let answerDashboard = () => respond(prodShapedDashboard());
 
 const respond = (body: unknown, status = 200) => Promise.resolve(new Response(JSON.stringify(body), { status }));
 
+/** The first row's edit (pencil) or delete (trash) button in the passport's vaccine or deworming list. */
+function rowButton(form: 'vaccine' | 'deworming', action: 'edit' | 'delete'): HTMLButtonElement {
+  const pencil = document.querySelector<HTMLButtonElement>(`[id^="${form}-pencil-"]`)!;
+  return action === 'edit' ? pencil : (pencil.nextElementSibling as HTMLButtonElement);
+}
+
 function stubApi() {
   vi.stubGlobal('fetch', vi.fn((url: string, init: RequestInit = {}) => {
     const method = init.method ?? 'GET';
@@ -174,8 +180,8 @@ describe('Weight timeline (Phase 5c, prod-shaped)', () => {
     const newestFirst = [...homeWeighIns, ...migratedWeighIns].sort((weightA, weightB) => Date.parse(weightB.timestamp) - Date.parse(weightA.timestamp));
     expect(rows.map((row) => row.cells[0].firstElementChild!.textContent)).toEqual(newestFirst.map((weight) => formatShortDate(weight.timestamp, 'en')));
     rows.forEach((row) => {
-      expect(row.querySelector('button[aria-label="Edit weight entry"]')).not.toBeNull();
-      expect(row.querySelector('button[aria-label="Delete weight entry"]')).not.toBeNull();
+      expect(row.querySelector('button[aria-label^="Edit the weigh-in of "]')).not.toBeNull();
+      expect(row.querySelector('button[aria-label^="Delete the weigh-in of "]')).not.toBeNull();
     });
     // Owner decision 2026-10-16: no vet/home distinction, a product-name note included
     expect(document.querySelector('table')!.textContent).not.toMatch(/vet/i);
@@ -187,7 +193,7 @@ describe('Weight timeline (Phase 5c, prod-shaped)', () => {
     await openPassport();
     await showAllWeighIns();
 
-    await click(rowOn('2026-05-18').querySelector<HTMLButtonElement>('button[aria-label="Edit weight entry"]')!);
+    await click(rowOn('2026-05-18').querySelector<HTMLButtonElement>('button[aria-label^="Edit the weigh-in of "]')!);
     await settleUntil(() => document.getElementById('quicklog-weight-kg') !== null);
     const weightBox = document.getElementById('quicklog-weight-kg') as HTMLInputElement;
     expect(weightBox.value).toBe('3.85');
@@ -199,7 +205,7 @@ describe('Weight timeline (Phase 5c, prod-shaped)', () => {
     expect(rowOn('2026-05-18').textContent).toContain('3.9 kg');
 
     // One tap on the trash, next to the pencil, only asks
-    await click(rowOn('2026-05-18').querySelector<HTMLButtonElement>('button[aria-label="Delete weight entry"]')!);
+    await click(rowOn('2026-05-18').querySelector<HTMLButtonElement>('button[aria-label^="Delete the weigh-in of "]')!);
     expect(requests.filter((request) => request.method === 'DELETE')).toEqual([]);
     expect(document.body.textContent).toContain('Delete the weigh-in of May 18 (3.9 kg)? This cannot be undone.');
     await click(buttonWithText('Delete'));
@@ -210,7 +216,7 @@ describe('Weight timeline (Phase 5c, prod-shaped)', () => {
   it('a weigh-in edit the server does not take keeps the edit form open with the typed weight', async () => {
     await openPassport();
     await showAllWeighIns();
-    await click(rowOn('2026-05-18').querySelector<HTMLButtonElement>('button[aria-label="Edit weight entry"]')!);
+    await click(rowOn('2026-05-18').querySelector<HTMLButtonElement>('button[aria-label^="Edit the weigh-in of "]')!);
     await settleUntil(() => document.getElementById('quicklog-weight-kg') !== null);
     const serverStub = globalThis.fetch;
     vi.stubGlobal('fetch', vi.fn((url: string, init: RequestInit = {}) => (init.method === 'PUT' ? Promise.reject(new TypeError('Load failed')) : serverStub(url, init))));
@@ -310,7 +316,7 @@ describe('Weight timeline (Phase 5c, prod-shaped)', () => {
 
   it('editing a deworming shows no weight box, and an emptied next date is sent as null so it is cleared', async () => {
     await openPassport();
-    await click(document.querySelector<HTMLButtonElement>(`[aria-label="${en.health.editDewormingEntry}"]`)!);
+    await click(rowButton('deworming', 'edit'));
     const editCard = buttonWithText(en.potty.saveChanges).closest('.space-y-3')!;
     expect(editCard.textContent).not.toContain(en.potty.weight);
     expect(editCard.querySelectorAll('input:not([type="date"])')).toHaveLength(0);
@@ -325,7 +331,7 @@ describe('Weight timeline (Phase 5c, prod-shaped)', () => {
 
   it('editing a vaccination sends null for an emptied clinic and lot, so they are cleared', async () => {
     await openPassport();
-    await click(document.querySelector<HTMLButtonElement>(`[aria-label="${en.health.editVaccineEntry}"]`)!);
+    await click(rowButton('vaccine', 'edit'));
     const editCard = buttonWithText(en.potty.saveChanges).closest('.space-y-3')!;
     const [clinic, lot] = editCard.querySelectorAll<HTMLInputElement>('input[type="text"]');
 
@@ -339,7 +345,7 @@ describe('Weight timeline (Phase 5c, prod-shaped)', () => {
 
   it('editing a vaccination sends null for an emptied next date, so it is cleared', async () => {
     await openPassport();
-    await click(document.querySelector<HTMLButtonElement>(`[aria-label="${en.health.editVaccineEntry}"]`)!);
+    await click(rowButton('vaccine', 'edit'));
     const editCard = buttonWithText(en.potty.saveChanges).closest('.space-y-3')!;
 
     await setValue(editCard.querySelectorAll<HTMLInputElement>('input[type="date"]')[1], '');
@@ -356,7 +362,7 @@ describe('Weight timeline (Phase 5c, prod-shaped)', () => {
     answerDashboard = () => respond({ ...prodShapedDashboard(), puppies: [noGoalPuppy] });
     await openPassport();
 
-    await click(weightRows()[0].querySelector<HTMLButtonElement>('button[aria-label="Edit weight entry"]')!);
+    await click(weightRows()[0].querySelector<HTMLButtonElement>('button[aria-label^="Edit the weigh-in of "]')!);
     await settleUntil(() => document.getElementById('quicklog-form') !== null);
     await click([...document.querySelectorAll<HTMLButtonElement>('[role="radio"]')].find((button) => button.textContent === en.potty.food)!);
     expect((document.getElementById('quicklog-quantity-grams') as HTMLInputElement).value).toBe('');
@@ -539,8 +545,8 @@ describe('Carnet add and edit forms (pre-fill review items 11, 12, 23, 35-38)', 
     // Both differ from the rule: Rage 1 Jul 2026 -> 1 Jul 2027, Credelio 21 Sep -> 21 Oct
     vaccinationRecords = [{ ...vaccination, boosterDate: '2027-06-25' }];
     await openPassport();
-    await click(document.querySelector<HTMLButtonElement>(`[aria-label="${en.health.editVaccineEntry}"]`)!);
-    await click(document.querySelector<HTMLButtonElement>(`[aria-label="${en.health.editDewormingEntry}"]`)!);
+    await click(rowButton('vaccine', 'edit'));
+    await click(rowButton('deworming', 'edit'));
 
     expect(dateInputs(document).map((input) => input.value)).toEqual(['2026-07-01', '2027-06-25', '2026-09-21', '2026-09-21']);
     expect(document.body.textContent).not.toContain('Suggested');
@@ -548,7 +554,7 @@ describe('Carnet add and edit forms (pre-fill review items 11, 12, 23, 35-38)', 
 
   it('item 37: editing the date keeps the stored next date and offers the suggestion, applied in one tap', async () => {
     await openPassport();
-    await click(document.querySelector<HTMLButtonElement>(`[aria-label="${en.health.editVaccineEntry}"]`)!);
+    await click(rowButton('vaccine', 'edit'));
     const editCard = buttonWithText(en.potty.saveChanges).closest('.space-y-3')!;
     const [injected, booster] = dateInputs(editCard);
 
@@ -565,7 +571,7 @@ describe('Carnet add and edit forms (pre-fill review items 11, 12, 23, 35-38)', 
 
   it('item 37: changing only the vaccine keeps the stored next date and offers the new vaccine\'s, applied in one tap', async () => {
     await openPassport();
-    await click(document.querySelector<HTMLButtonElement>(`[aria-label="${en.health.editVaccineEntry}"]`)!);
+    await click(rowButton('vaccine', 'edit'));
     const editCard = buttonWithText(en.potty.saveChanges).closest('.space-y-3')!;
     const booster = dateInputs(editCard)[1];
 
@@ -583,7 +589,7 @@ describe('Carnet add and edit forms (pre-fill review items 11, 12, 23, 35-38)', 
   it('item 37: changing only the product keeps the stored next date and offers the new product\'s, applied in one tap', async () => {
     await openPassport();
     // Newest first: Credelio Plus on 2026-09-21
-    await click(document.querySelector<HTMLButtonElement>(`[aria-label="${en.health.editDewormingEntry}"]`)!);
+    await click(rowButton('deworming', 'edit'));
     const editCard = buttonWithText(en.potty.saveChanges).closest('.space-y-3')!;
     const next = dateInputs(editCard)[1];
 
@@ -612,14 +618,15 @@ describe('Carnet add and edit forms (pre-fill review items 11, 12, 23, 35-38)', 
     await settleUntil(() => document.body.textContent!.includes(en.health.summaryTitle));
 
     // The rules would give 26 May (+1 month at 8 weeks) and 17 May (+14 days at 9 weeks)
-    expect(document.body.textContent!.split(`${en.health.nextDue} —`)).toHaveLength(3);
+    expect(document.body.textContent).toContain(`${en.health.booster}${en.common.colon} —`);
+    expect(document.body.textContent).toContain(`${en.health.nextDeworming}${en.common.colon} —`);
     expect(document.body.textContent).not.toMatch(/2026-05-26|2026-05-17|May 26|May 17/);
   });
 
   it('item 11: a CHPPi edit moved to 16 weeks suggests the 1st birthday, from her age on the injection day', async () => {
     vaccinationRecords = [{ ...vaccination, id: 'hr-chppi', name: chppiL4, date: '2026-06-14', boosterDate: '2026-07-14' }];
     await openPassport();
-    await click(document.querySelector<HTMLButtonElement>(`[aria-label="${en.health.editVaccineEntry}"]`)!);
+    await click(rowButton('vaccine', 'edit'));
     const editCard = buttonWithText(en.potty.saveChanges).closest('.space-y-3')!;
 
     await setValue(dateInputs(editCard)[0], '2026-06-21'); // Rex is 16 weeks old that day
@@ -629,7 +636,7 @@ describe('Carnet add and edit forms (pre-fill review items 11, 12, 23, 35-38)', 
   it('item 12: a Drontal edit moved to 11 weeks suggests +14 days, from her age on the dose day, applied in one tap', async () => {
     await openPassport();
     // Newest first: the last one is the Drontal dose
-    await click([...document.querySelectorAll<HTMLButtonElement>(`[aria-label="${en.health.editDewormingEntry}"]`)].at(-1)!);
+    await click([...document.querySelectorAll<HTMLButtonElement>('[id^="deworming-pencil-"]')].at(-1)!);
     const editCard = buttonWithText(en.potty.saveChanges).closest('.space-y-3')!;
     const [given, next] = dateInputs(editCard);
     expect(given.value).toBe('2026-05-18');
@@ -642,14 +649,14 @@ describe('Carnet add and edit forms (pre-fill review items 11, 12, 23, 35-38)', 
   });
 
   describe.each([
-    { form: 'vaccine', addButton: en.health.addVaccine, weightBoxId: 'vaccine-weight-kg', editLabel: en.health.editVaccineEntry },
-    { form: 'deworming', addButton: en.health.addDeworming, weightBoxId: 'deworming-weight-kg', editLabel: en.health.editDewormingEntry },
-  ])('the $form forms: date rules (items 37, 38)', ({ addButton, weightBoxId, editLabel }) => {
+    { form: 'vaccine' as const, addButton: en.health.addVaccine, weightBoxId: 'vaccine-weight-kg' },
+    { form: 'deworming' as const, addButton: en.health.addDeworming, weightBoxId: 'deworming-weight-kg' },
+  ])('the $form forms: date rules (items 37, 38)', ({ form: formName, addButton, weightBoxId }) => {
     const puts = () => requests.filter((request) => request.method === 'PUT');
 
     async function openEditCard() {
       await openPassport();
-      await click(document.querySelector<HTMLButtonElement>(`[aria-label="${editLabel}"]`)!);
+      await click(rowButton(formName, 'edit'));
       return buttonWithText(en.potty.saveChanges).closest('.space-y-3')!;
     }
 
@@ -681,7 +688,8 @@ describe('Carnet add and edit forms (pre-fill review items 11, 12, 23, 35-38)', 
       await setValue(next, '2026-06-30');
       await click(buttonWithText(en.potty.saveChanges));
 
-      expect(editCard.textContent).toContain(en.health.boosterBeforeDate);
+      // An antiparasitic is a dose, not an injection
+      expect(editCard.textContent).toContain(formName === 'deworming' ? en.health.nextDoseBeforeDate : en.health.boosterBeforeDate);
       expect(puts()).toEqual([]);
     });
 
@@ -698,7 +706,7 @@ describe('Carnet add and edit forms (pre-fill review items 11, 12, 23, 35-38)', 
       form.noValidate = true;
       await click(form.querySelector<HTMLButtonElement>('button[type="submit"]')!);
 
-      expect(form.textContent).toContain(en.health.boosterBeforeDate);
+      expect(form.textContent).toContain(formName === 'deworming' ? en.health.nextDoseBeforeDate : en.health.boosterBeforeDate);
       expect(posts('/api/health-records')).toEqual([]);
     });
 
@@ -743,7 +751,7 @@ describe('one copy of the health records (backlog item 2)', () => {
     await click(buttonWithText(en.nav.backToDashboard));
     await settleUntil(() => document.body.textContent!.includes(en.health.summaryTitle));
 
-    expect(document.body.textContent).toContain(`${en.health.nextDue} ${formatShortDate('2026-10-28', 'en')}`);
+    expect(document.body.textContent).toContain(`${en.health.nextDeworming}${en.common.colon} ${formatShortDate('2026-10-28', 'en')}`);
     expect(healthRecordGets()).toEqual([]);
   });
 
@@ -809,15 +817,15 @@ describe('one copy of the health records (backlog item 2)', () => {
     await click(buttonWithText(en.nav.backToDashboard));
     await settleUntil(() => document.body.textContent!.includes(en.health.summaryTitle));
 
-    expect(document.body.textContent).toContain(`${en.health.nextDue} ${formatShortDate('2026-11-05', 'en')}`);
+    expect(document.body.textContent).toContain(`${en.health.booster}${en.common.colon} ${formatShortDate('2026-11-05', 'en')}`);
     expect(healthRecordGets()).toEqual([]);
   });
 
   describe.each([
     // The newest deworming (21 Sep) is the one the card shows; once deleted, the 21 Aug dose is
-    { form: 'deworming', editLabel: en.health.editDewormingEntry, deleteLabel: en.health.deleteDewormingConfirm, newNextDate: '2026-11-21', afterDelete: `${en.health.given} ${formatShortDate('2026-08-21', 'en')}` },
-    { form: 'vaccine', editLabel: en.health.editVaccineEntry, deleteLabel: en.health.deleteVaccineConfirm, newNextDate: '2027-08-01', afterDelete: en.health.noVaccineRecords },
-  ])('the $form list writes its changes to the dashboard card', ({ editLabel, deleteLabel, newNextDate, afterDelete }) => {
+    { form: 'deworming' as const, nextLabel: en.health.nextDeworming, newNextDate: '2026-11-21', afterDelete: `${en.health.givenOn} ${formatShortDate('2026-08-21', 'en')}` },
+    { form: 'vaccine' as const, nextLabel: en.health.booster, newNextDate: '2027-08-01', afterDelete: en.health.noVaccineRecords },
+  ])('the $form list writes its changes to the dashboard card', ({ form, nextLabel, newNextDate, afterDelete }) => {
     async function backToDashboard() {
       await click(buttonWithText(en.nav.backToDashboard));
       await settleUntil(() => document.body.textContent!.includes(en.health.summaryTitle));
@@ -825,20 +833,20 @@ describe('one copy of the health records (backlog item 2)', () => {
 
     it('an edited next date shows on the card after Back', async () => {
       await openPassport();
-      await click(document.querySelector<HTMLButtonElement>(`[aria-label="${editLabel}"]`)!);
+      await click(rowButton(form, 'edit'));
       const editCard = buttonWithText(en.potty.saveChanges).closest('.space-y-3')!;
       await setValue(editCard.querySelectorAll<HTMLInputElement>('input[type="date"]')[1], newNextDate);
       await click(buttonWithText(en.potty.saveChanges));
 
       await backToDashboard();
 
-      expect(document.body.textContent).toContain(`${en.health.nextDue} ${formatShortDate(newNextDate, 'en')}`);
+      expect(document.body.textContent).toContain(`${nextLabel}${en.common.colon} ${formatShortDate(newNextDate, 'en')}`);
       expect(healthRecordGets()).toEqual([]);
     });
 
     it('a deleted dose leaves the card after Back', async () => {
       await openPassport();
-      await click(document.querySelector<HTMLButtonElement>(`[aria-label="${deleteLabel}"]`)!);
+      await click(rowButton(form, 'delete'));
       await click(buttonWithText('Delete'));
 
       await backToDashboard();
@@ -874,7 +882,7 @@ describe('one copy of the health records (backlog item 2)', () => {
     await act(async () => {
       document.dispatchEvent(new Event('visibilitychange'));
     });
-    await click(document.querySelector<HTMLButtonElement>(`[aria-label="${en.health.deleteDewormingConfirm}"]`)!);
+    await click(rowButton('deworming', 'delete'));
     await click(buttonWithText('Delete'));
     expect(document.body.textContent).toContain(`${en.health.deworming} (4)`);
 
@@ -900,7 +908,7 @@ describe('one copy of the health records (backlog item 2)', () => {
     await click(buttonWithText(en.nav.backToDashboard));
     await settleUntil(() => document.body.textContent!.includes(en.health.summaryTitle));
 
-    expect(document.body.textContent).toContain(`${en.health.nextDue} ${formatShortDate('2026-09-21', 'en')}`);
+    expect(document.body.textContent).toContain(`${en.health.nextDeworming}${en.common.colon} ${formatShortDate('2026-09-21', 'en')}`);
     expect(document.body.textContent).not.toContain(formatShortDate('2026-11-01', 'en'));
   });
 

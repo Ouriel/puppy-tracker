@@ -17,6 +17,9 @@
 iframe[src*="accounts.google.com"] { color-scheme: light; }
 
 @layer base {
+  /* Keyboard focus is always visible; HeroUI parts draw their own ring (their outline: none wins over this layer) */
+  :focus-visible { outline: 2px solid var(--color-indigo-400); outline-offset: 2px; }
+
   body {
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
     @apply bg-slate-950 text-slate-100 min-h-screen antialiased selection:bg-indigo-500 selection:text-white;
@@ -29,4 +32,9 @@ iframe[src*="accounts.google.com"] { color-scheme: light; }
   .button { @apply rounded-xl; }
   .chip { @apply rounded-lg; }
   .input { @apply w-full; }
+}
+
+/* iPhone Safari zooms into a field under 16 px when it gets focus. Outside any layer, so no text-xs utility wins */
+@media (pointer: coarse) {
+  input, select, textarea { font-size: 16px; }
 }

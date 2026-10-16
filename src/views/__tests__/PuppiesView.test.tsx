@@ -92,7 +92,7 @@ async function click(element: Element) {
   await act(async () => (element as HTMLElement).click());
 }
 
-const editButton = () => document.querySelector('button[aria-label="Edit Profile"]')!;
+const editButton = () => document.querySelector('button[aria-label="Edit Rex"]')!;
 const submit = () => click(document.querySelector('button[type="submit"]')!);
 
 describe('PuppiesView edit form', () => {
@@ -233,7 +233,7 @@ describe('PuppiesView gram goal (optional: "No gram goal" counts meals only)', (
 
   it('the dog card label names grams only when there is a gram goal', async () => {
     await renderView({ puppies: [REX, { ...REX, id: 'dog-2', name: 'Max', dailyFoodGramGoal: 0 }] });
-    const cardLabels = [...document.querySelectorAll('.text-\\[10px\\]')].map((label) => label.textContent);
+    const cardLabels = [...document.querySelectorAll('.text-xs.text-slate-400.font-semibold')].map((label) => label.textContent);
     expect(cardLabels).toContain('Daily Food Goal (Grams)');
     expect(cardLabels).toContain('Meals per day');
     expect(cardLabels.filter((label) => label === 'Daily Food Goal (Grams)')).toHaveLength(1);
@@ -379,9 +379,9 @@ describe('PuppiesView dog card meals (English plurals)', () => {
   it('"1 meal" for a dog on one meal a day, "3 meals" otherwise, with or without a gram goal', async () => {
     await renderView({ puppies: [{ ...REX, targetMealsPerDay: 1 }, { ...REX, id: 'dog-2', dailyFoodGramGoal: 0, targetMealsPerDay: 1 }, { ...REX, id: 'dog-3' }] });
 
-    expect(document.body.textContent).toContain('200g (1 meal)');
+    expect(document.body.textContent).toContain('200\u00a0g (1 meal)');
     expect(document.body.textContent).not.toContain('1 meals');
-    expect(document.body.textContent).toContain('200g (3 meals)');
+    expect(document.body.textContent).toContain('200\u00a0g (3 meals)');
   });
 });
 
@@ -410,10 +410,37 @@ describe('PuppiesView deleted dogs, in French', () => {
 
   it('the delete dialog says the owner can restore the dog, no longer that it cannot be undone', async () => {
     await renderView();
-    await click(buttonLabelled('Supprimer le chien')!);
+    await click(buttonLabelled('Supprimer Rex')!);
 
     const dialog = document.querySelector('[role="dialog"]')!;
     expect(dialog.textContent).toContain('le propriétaire peut le restaurer');
     expect(dialog.textContent).not.toContain('irréversible');
+  });
+});
+
+// App review 2026-10-16, 5.3: no French placeholder on the English form
+describe('PuppiesView placeholders', () => {
+  it('the adult weight box of a mixed breed reads "e.g. 14" in English', async () => {
+    await renderView({ puppies: [{ ...REX, breed: 'Mixed Breed' }] });
+    await click(editButton());
+    expect(field('dog-adult-weight').placeholder).toBe('e.g. 14');
+  });
+});
+
+describe('PuppiesView dog card, in French', () => {
+  beforeEach(() => {
+    localStorage.setItem('puppace_lang_v1', 'fr');
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-15T10:00:00+02:00'));
+  });
+  afterEach(() => {
+    localStorage.removeItem('puppace_lang_v1');
+    vi.useRealTimers();
+  });
+
+  it('the birth date reads "1 mai", never "2026-05-01"', async () => {
+    await renderView();
+    expect(document.body.textContent).toContain('Date de naissance1 mai');
+    expect(document.body.textContent).not.toContain('2026-05-01');
   });
 });

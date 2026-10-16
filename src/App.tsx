@@ -286,6 +286,12 @@ function App() {
     }
   }, [isLoading, user, puppyState.puppies.length]);
 
+  // The tab title names the screen, in the app language
+  useEffect(() => {
+    const screenTitle = { dashboard: t.nav.dashboard, carnetdesante: t.nav.carnetDeSante, settings: t.nav.settings }[currentView];
+    document.title = `${screenTitle} — ${t.brand}`;
+  }, [currentView, t]);
+
   const activePuppyActivities = useMemo(() => {
     if (!puppyState.activePuppy) return [];
     return activityState.activities.filter((act) => act.puppyId === puppyState.activePuppy!.id);
@@ -547,6 +553,7 @@ function App() {
           </Card>
         ) : (
           <div className="space-y-6">
+            <h1 className="sr-only">{puppyState.activePuppy?.name}</h1>
             {offlineDataTime !== null && (
               <p role="status" className="text-xs font-semibold text-amber-300">
                 {t.dashboard.offlineDataFrom.replace('{time}', formatLocalTime(new Date(offlineDataTime)))}

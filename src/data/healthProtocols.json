@@ -35,7 +35,7 @@
     {
       "id": "vanguard_cpv",
       "name": "Parvovirose Précoce (CPV / Vanguard / Nobivac Parvo)",
-      "fullName": "Parvovirose Précoce (CPV - Vanguard / Nobivac Parvo dès 6 sem)",
+      "fullName": "Parvovirose précoce (CPV – Vanguard / Nobivac Parvo dès 6\u00a0sem.)",
       "aliases": ["vanguard", "cpv", "parvo", "parvovirose"],
       "defaultBoosterMonths": 1,
       "description": "Vaccination précoce ciblée Parvovirose pour chiots dès 6 semaines"
@@ -43,7 +43,7 @@
     {
       "id": "kc",
       "name": "Toux de Chenil (Nobivac KC / Bronchi-Shield)",
-      "fullName": "Toux de Chenil (Nobivac KC / Bronchi-Shield - Bordetella + Pi)",
+      "fullName": "Toux de chenil (Nobivac KC / Bronchi-Shield – Bordetella + Pi)",
       "aliases": ["toux de chenil", "kc", "nobivac kc", "bronchi-shield", "bordetella"],
       "defaultBoosterMonths": 12,
       "description": "Vaccin intranasal ou injectable pour chenils, cours collectifs et pensions"
@@ -69,7 +69,7 @@
     {
       "id": "credelio_plus",
       "name": "Credelio Plus",
-      "label": "Credelio Plus (Tout-en-1: Puces, Tiques, Vers • Mensuel)",
+      "label": "Credelio Plus (tout-en-un\u00a0: puces, tiques, vers • mensuel)",
       "category": "all_in_one",
       "minAgeWeeks": 8,
       "minWeightKg": 1.4,
@@ -80,7 +80,7 @@
     {
       "id": "nexgard_spectra",
       "name": "Nexgard Spectra",
-      "label": "Nexgard Spectra (Tout-en-1: Puces, Tiques, Vers • Mensuel)",
+      "label": "Nexgard Spectra (tout-en-un\u00a0: puces, tiques, vers • mensuel)",
       "category": "all_in_one",
       "minAgeWeeks": 8,
       "minWeightKg": 2.0,
@@ -91,7 +91,7 @@
     {
       "id": "simparica_trio",
       "name": "Simparica Trio",
-      "label": "Simparica Trio (Tout-en-1: Puces, Tiques, Vers • Mensuel)",
+      "label": "Simparica Trio (tout-en-un\u00a0: puces, tiques, vers • mensuel)",
       "category": "all_in_one",
       "minAgeWeeks": 8,
       "minWeightKg": 1.25,
@@ -102,7 +102,7 @@
     {
       "id": "milbemax",
       "name": "Milbemax Chiot / Milprazon / Milprazikan",
-      "label": "Milbemax Chiot / Milprazon / Milprazikan (Vers • Mensuel <6m)",
+      "label": "Milbemax Chiot / Milprazon / Milprazikan (vers • mensuel avant 6\u00a0mois)",
       "category": "dewormer_only",
       "minAgeWeeks": 2,
       "minWeightKg": 0.5,
@@ -114,7 +114,7 @@
     {
       "id": "drontal_chiot",
       "name": "Drontal Chiot (Sirop / Comprimés)",
-      "label": "Drontal Chiot (Sirop / Comprimés • Vers internes)",
+      "label": "Drontal Chiot (sirop / comprimés • vers internes)",
       "category": "dewormer_only",
       "minAgeWeeks": 2,
       "minWeightKg": 0.5,
@@ -126,7 +126,7 @@
     {
       "id": "panacur",
       "name": "Panacur (Fenbendazole)",
-      "label": "Panacur (Vers & Giardiose • Poudre / Comprimés / Sirop)",
+      "label": "Panacur (vers et giardiose • poudre / comprimés / sirop)",
       "category": "dewormer_only",
       "minAgeWeeks": 2,
       "minWeightKg": 0.5,
@@ -138,7 +138,7 @@
     {
       "id": "vitaminthe",
       "name": "Vitaminthe (Pâte Virbac)",
-      "label": "Vitaminthe Virbac (Pâte orale en seringue graduée • Chiot)",
+      "label": "Vitaminthe Virbac (pâte orale en seringue graduée • chiot)",
       "category": "dewormer_only",
       "minAgeWeeks": 2,
       "minWeightKg": 0.5,
@@ -150,7 +150,7 @@
     {
       "id": "procox",
       "name": "Procox (Sirop Elanco)",
-      "label": "Procox Elanco (Sirop oral • Vers & Coccidiose chiot)",
+      "label": "Procox Elanco (sirop oral • vers et coccidiose du chiot)",
       "category": "dewormer_only",
       "minAgeWeeks": 2,
       "minWeightKg": 0.4,
@@ -162,7 +162,7 @@
     {
       "id": "strantel_biocanina",
       "name": "Strantel / Biocanina / Clément Thékan",
-      "label": "Strantel / Biocanina / Clément Thékan (Vermifuge Pharmacie)",
+      "label": "Strantel / Biocanina / Clément Thékan (vermifuge de pharmacie)",
       "category": "dewormer_only",
       "minAgeWeeks": 2,
       "minWeightKg": 0.5,
@@ -174,7 +174,7 @@
     {
       "id": "dolpac",
       "name": "Dolpac (Vetoquinol)",
-      "label": "Dolpac Vetoquinol (Vers internes chien)",
+      "label": "Dolpac Vetoquinol (vers internes du chien)",
       "category": "dewormer_only",
       "minAgeWeeks": 8,
       "minWeightKg": 1.0,
@@ -186,7 +186,7 @@
     {
       "id": "advocate",
       "name": "Advocate (Pipette Spot-on)",
-      "label": "Advocate (Pipette: Puces, Vers, Gale • Mensuel)",
+      "label": "Advocate (pipette\u00a0: puces, vers, gale • mensuel)",
       "category": "all_in_one",
       "minAgeWeeks": 7,
       "minWeightKg": 1.0,
@@ -197,7 +197,7 @@
     {
       "id": "stronghold",
       "name": "Stronghold / Stronghold Plus",
-      "label": "Stronghold / Stronghold Plus (Pipette Spot-on • Mensuel)",
+      "label": "Stronghold / Stronghold Plus (pipette spot-on • mensuel)",
       "category": "all_in_one",
       "minAgeWeeks": 6,
       "minWeightKg": 1.25,
@@ -208,7 +208,7 @@
     {
       "id": "bravecto",
       "name": "Bravecto",
-      "label": "Bravecto (Puces & Tiques • Trimestriel 12 sem)",
+      "label": "Bravecto (puces et tiques • tous les 3{NB}mois)",
       "category": "flea_tick_only",
       "minAgeWeeks": 8,
       "minWeightKg": 2.0,

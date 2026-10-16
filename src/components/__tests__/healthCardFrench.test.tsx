@@ -65,7 +65,8 @@ describe('dashboard health card, in French (backlog item 1)', () => {
 
     expect(container.textContent).toContain(chppiL4);
     expect(container.textContent).not.toContain(rage);
-    expect(container.textContent).toContain(`${fr.health.given} 1 juil. • ${fr.health.nextDue} 20 oct.`);
+    // The passport's words for a vaccine: 'Injecté le', 'Rappel'
+    expect(container.textContent).toContain('Injecté le 1 juil. • Rappel\u00a0: 20 oct.');
     expect(container.textContent).toContain(fr.potty.dueSoon);
   });
 
@@ -75,7 +76,7 @@ describe('dashboard health card, in French (backlog item 1)', () => {
       record({ id: 'hr-chppi-2', type: 'vaccination', name: chppiL4, date: '2026-06-01', boosterDate: '2027-03-01' }),
     ]);
 
-    expect(container.textContent).toContain(`${fr.health.given} 1 juin`);
+    expect(container.textContent).toContain('Injecté le 1 juin');
     expect(container.textContent).not.toContain(fr.potty.overdue);
   });
 
@@ -84,7 +85,8 @@ describe('dashboard health card, in French (backlog item 1)', () => {
       record({ id: 'hr-dose', type: 'deworming', name: 'Credelio Plus', productName: 'Credelio Plus', date: '2026-09-10', boosterDate: '2026-10-10' }),
     ]);
 
-    expect(container.textContent).toContain(`${fr.health.given} 10 sept. • ${fr.health.nextDue} 10 oct.`);
+    // The passport's words for a dose: 'Donné le', 'Prochaine prise'
+    expect(container.textContent).toContain('Donné le 10 sept. • Prochaine prise\u00a0: 10 oct.');
     expect(container.textContent).toContain(fr.potty.overdue);
   });
 
@@ -97,12 +99,20 @@ describe('dashboard health card, in French (backlog item 1)', () => {
     expect(container.textContent).not.toContain(fr.potty.overdue);
   });
 
+  it('with no records, the antiparasitic line is titled "Dernier antiparasitaire", like its empty text', async () => {
+    const container = await renderCard([]);
+
+    expect(container.textContent).toContain('Dernier antiparasitaire');
+    expect(container.textContent).toContain('Aucun antiparasitaire enregistré.');
+    expect(container.textContent).not.toContain('vermifuge');
+  });
+
   it('a record with no next date shows an em dash and no chip, never a made-up date', async () => {
     const container = await renderCard([
       record({ id: 'hr-dose', type: 'deworming', name: 'Milbemax', productName: 'Milbemax', date: '2026-10-01', boosterDate: null }),
     ]);
 
-    expect(container.textContent).toContain(`${fr.health.nextDue} —`);
+    expect(container.textContent).toContain('Prochaine prise\u00a0: —');
     expect(container.textContent).not.toMatch(new RegExp(`${fr.potty.overdue}|${fr.potty.dueSoon}|${fr.health.statusUpToDate}`));
   });
 });
@@ -134,7 +144,7 @@ describe('health passport, in French (backlog item 3)', () => {
     const container = await renderPassport(passportRecords);
     const chips = [...container.querySelectorAll('.chip')].map((chip) => chip.textContent);
 
-    expect(chips).toEqual(expect.arrayContaining([fr.potty.overdue, `✅ ${fr.health.statusUpToDate}`, `✅ ${fr.health.statusFulfilled}`, fr.potty.dueSoon]));
+    expect(chips).toEqual(expect.arrayContaining([fr.potty.overdue, fr.health.statusUpToDate, fr.health.statusFulfilled, fr.potty.dueSoon]));
     expect(container.textContent).not.toMatch(/Overdue|Due Soon/);
   });
 
@@ -142,9 +152,9 @@ describe('health passport, in French (backlog item 3)', () => {
     const container = await renderPassport(passportRecords);
 
     expect(container.textContent).toContain(`${fr.health.injectedOn} 1 juil.`);
-    expect(container.textContent).toContain(`${fr.health.booster}: 1 juil. 2027`);
+    expect(container.textContent).toContain(`${fr.health.booster}${fr.common.colon} 1 juil. 2027`);
     expect(container.textContent).toContain(`${fr.health.givenOn} 20 sept.`);
-    expect(container.textContent).toContain(`${fr.health.nextDeworming}: 20 oct.`);
+    expect(container.textContent).toContain(`${fr.health.nextDeworming}${fr.common.colon} 20 oct.`);
     expect(container.textContent).not.toMatch(/\d{4}-\d{2}-\d{2}/);
   });
 
@@ -153,7 +163,7 @@ describe('health passport, in French (backlog item 3)', () => {
       record({ id: 'hr-dose', type: 'deworming', name: 'Milbemax', productName: 'Milbemax', date: '2026-10-01', boosterDate: null }),
     ]);
 
-    expect(container.textContent).toContain(`${fr.health.nextDeworming}: —`);
+    expect(container.textContent).toContain(`${fr.health.nextDeworming}${fr.common.colon} —`);
     expect(container.querySelectorAll('.chip')).toHaveLength(0);
   });
 });
@@ -189,10 +199,10 @@ describe('weight card units (backlog item 3)', () => {
   it('in French, ages read "sem." and the daily gain "g/j"', async () => {
     const container = await renderWeightCard();
 
-    expect(container.textContent).toContain('(30 sem.)'); // the last weigh-in, at 30 weeks
-    expect(container.textContent).toContain(`${fr.dashboard.today} (32 sem.)`);
+    expect(container.textContent).toContain('(30\u00a0sem.)'); // the last weigh-in, at 30 weeks
+    expect(container.textContent).toContain(`${fr.dashboard.today} (32\u00a0sem.)`);
     // The measured pace, not the model's: 9 kg on 1 Sep, 10 kg on 1 Oct
-    expect(container.textContent).toContain('+33 g/j');
+    expect(container.textContent).toContain('+33\u00a0g/j');
     expect(container.textContent).not.toMatch(/\d+w\)/);
   });
 
@@ -213,7 +223,7 @@ describe('weight card units (backlog item 3)', () => {
     );
 
     expect(container.textContent).toContain(`${fr.health.lastLogged}10 kg`);
-    expect(container.textContent).toContain('+33 g/j');
+    expect(container.textContent).toContain('+33\u00a0g/j');
     expect(container.textContent).not.toContain('104');
   });
 
@@ -232,8 +242,8 @@ describe('weight card units (backlog item 3)', () => {
   it('the passport\'s weight card, in French: ages read "mois" and the measured pace "g/j"', async () => {
     const container = await renderGrowthCard();
 
-    expect(container.textContent).toContain('1 oct. · 7 mois'); // the 1 Oct weigh-in, at 30 weeks
-    expect(container.querySelector('[data-tile="pace"]')!.textContent).toContain('+33 g/j');
+    expect(container.textContent).toContain('1 oct. · 7\u00a0mois'); // the 1 Oct weigh-in, at 30 weeks
+    expect(container.querySelector('[data-tile="pace"]')!.textContent).toContain('+33\u00a0g/j');
     expect(container.textContent).not.toMatch(/\d+w /);
   });
 
@@ -255,8 +265,8 @@ describe('status chips on the dark cards (accessibility)', () => {
     expect(chipClasses(fr.potty.overdue)).toEqual(expect.arrayContaining(['text-rose-300', 'motion-safe:animate-pulse']));
     expect(chipClasses(fr.potty.overdue)).not.toContain('animate-pulse');
     expect(chipClasses(fr.potty.dueSoon)).toContain('text-amber-300');
-    expect(chipClasses(`✅ ${fr.health.statusUpToDate}`)).toContain('text-emerald-300');
-    expect(chipClasses(`✅ ${fr.health.statusFulfilled}`)).toContain('text-emerald-300');
+    expect(chipClasses(fr.health.statusUpToDate)).toContain('text-emerald-300');
+    expect(chipClasses(fr.health.statusFulfilled)).toContain('text-emerald-300');
   });
 });
 
@@ -292,12 +302,12 @@ describe('health card leftovers, in French', () => {
       record({ id: 'hr-rage', type: 'vaccination', name: rage, date: '2026-07-01', boosterDate: '2027-07-01' }),
       record({ id: 'hr-dose', type: 'deworming', name: 'Credelio Plus', productName: 'Credelio Plus', date: '2026-09-20', boosterDate: '2026-10-20' }),
     ]);
-    await act(async () => container.querySelector<HTMLButtonElement>(`[aria-label="${fr.health.editVaccineEntry}"]`)!.click());
+    await act(async () => container.querySelector<HTMLButtonElement>(`[aria-label="Modifier ${rage} du 1 juil."]`)!.click());
     await setDate(container.querySelector<HTMLInputElement>('input[type="date"][value="2026-07-01"]')!, '2026-07-10');
-    await act(async () => container.querySelector<HTMLButtonElement>(`[aria-label="${fr.health.editDewormingEntry}"]`)!.click());
+    await act(async () => container.querySelector<HTMLButtonElement>('[aria-label="Modifier Credelio Plus du 20 sept."]')!.click());
     await setDate(container.querySelector<HTMLInputElement>('input[type="date"][value="2026-09-20"]')!, '2026-09-21');
 
-    expect(suggestionButtons(container)).toEqual(['Suggéré : 10 juil. 2027', 'Suggéré : 21 oct.']);
+    expect(suggestionButtons(container)).toEqual(['Suggéré\u00a0: 10 juil. 2027', 'Suggéré\u00a0: 21 oct.']);
   });
 
   it('the dashboard card\'s breed chip is light enough to read on the dark card', async () => {
@@ -305,5 +315,34 @@ describe('health card leftovers, in French', () => {
     const breedChip = [...container.querySelectorAll('.chip')].find((chip) => chip.textContent === 'Beagle')!;
 
     expect(breedChip.className.split(/\s+/)).toContain('text-blue-300');
+  });
+});
+
+// AGENTS.md: labels stay short enough for a 320 px phone. Measured there (review 2026-10-16): 'Petit-déjeuner', 'Déjeuner'
+// and 'Accident intérieur' were cut, 'Dernier enregistrement' overflowed its tile.
+describe('French labels in narrow tiles', () => {
+  it('meal tiles read "Matin", "Midi", "Goûter", "Soir", and the weight tile "Dernière pesée"', async () => {
+    const fourMeals = { ...puppy, targetMealsPerDay: 4 };
+    const container = await render(
+      <DogHealthSummary profile={fourMeals} activities={[]} healthRecords={[]} onOpenHealthPassport={vi.fn()}
+        predictions={calculatePredictions([], fourMeals, new Date(), 'Europe/Paris')}
+        weightActivities={[{ id: 'act-w1', puppyId: puppy.id, type: 'weight', timestamp: '2026-10-01T08:00:00.000Z', weightKg: 10, loggedBy: 'Owner' }]} />
+    );
+    const leaves = [...container.querySelectorAll('div, span')].filter((element) => !element.children.length).map((element) => element.textContent);
+
+    expect(leaves).toEqual(expect.arrayContaining(['Matin', 'Midi', 'Goûter', 'Soir', 'Dernière pesée']));
+    expect(container.textContent).not.toMatch(/Petit-déjeuner|Déjeuner|Dîner|Dernier enregistrement/);
+  });
+
+  it('the potty cards\' accident buttons read "Accident": the card already says pipi or caca', async () => {
+    const now = new Date();
+    const container = await render(
+      <PredictorWidget predictions={calculatePredictions([], puppy, now, 'Europe/Paris')} profile={puppy} activities={[]} todayFoodLoggedGrams={0}
+        todayMealsCount={0} nextMealPortionGrams={67} onQuickAction={vi.fn()} onOpenQuickLogModal={vi.fn()} referenceTime={now} />
+    );
+    const buttons = [...container.querySelectorAll('button')].map((button) => button.textContent!.trim());
+
+    expect(buttons.filter((text) => text === 'Accident')).toHaveLength(2);
+    expect(container.textContent).not.toContain('Accident intérieur');
   });
 });

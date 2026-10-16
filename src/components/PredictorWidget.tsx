@@ -4,7 +4,8 @@ import { Droplet, Utensils, CheckCircle2 } from 'lucide-react';
 import { PoopIcon } from './common/PoopIcon';
 import { Card } from '@heroui/react';
 import { useI18n } from '../i18n';
-import { formatMinutesToXhXX, isSameLogicalDate, parseIsoDate } from '../utils/date';
+import { formatDuration, isSameLogicalDate, parseIsoDate } from '../utils/date';
+import { formatGrams } from '../utils/weight';
 import { translatePredictionReason } from '../utils/predictionsTranslation';
 import { useMemo } from 'react';
 import { StatusBadge } from './common/StatusBadge';
@@ -106,20 +107,22 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = React.memo(({
 
     if (diffMins < 0) {
       const overdueMins = Math.abs(diffMins);
-      const formattedOverdue = overdueMins < 60
-        ? `${overdueMins}m`
-        : `${Math.floor(overdueMins / 60)}h ${overdueMins % 60 > 0 ? (overdueMins % 60) + 'm' : ''}`.trim();
-      return renderCountdown(`${t.dashboard.overduePrefix}${formattedOverdue}`, t.dashboard.overdueBy, overdueMins);
+      return renderCountdown(`${t.dashboard.overduePrefix}${formatDuration(overdueMins, lang)}`, t.dashboard.overdueBy, overdueMins);
     }
 
     if (diffMins === 0) return t.dashboard.dueNowCount;
-
-    if (diffMins < 60) return renderCountdown(`~${diffMins}m`, t.dashboard.dueIn, diffMins);
-    const hours = Math.floor(diffMins / 60);
-    const remMins = diffMins % 60;
-    const timeStr = remMins > 0 ? `${hours}h ${remMins}m` : `${hours}h`;
-    return renderCountdown(`~${timeStr}`, t.dashboard.dueIn, diffMins);
+    return renderCountdown(`~${formatDuration(diffMins, lang)}`, t.dashboard.dueIn, diffMins);
   };
+
+  // "il y a 2 h 56" / "2h 56m ago"; under a minute, "à l'instant"
+  const formatAgo = (minutes: number | null) => {
+    if (minutes === null) return t.dashboard.noneLoggedToday;
+    return minutes < 1 ? t.dashboard.justNow : t.dashboard.timeAgo.replace('{time}', formatDuration(minutes, lang));
+  };
+
+  // "15:50" in French, "3:50 PM" in English (not "03:50 PM")
+  const formatClock = (date: Date) =>
+    date.toLocaleTimeString(lang === 'fr' ? 'fr-FR' : 'en-US', { hour: lang === 'fr' ? '2-digit' : 'numeric', minute: '2-digit' });
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-stretch">
@@ -141,7 +144,7 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = React.memo(({
                 <div className="p-1.5 bg-sky-500/20 text-sky-400 rounded-lg shrink-0 border border-sky-500/30">
                   <Droplet className="w-4 h-4" />
                 </div>
-                <div className="text-xs font-bold text-slate-300">{t.potty.nextPee}</div>
+                <h2 className="text-xs font-bold text-slate-300">{t.potty.nextPee}</h2>
               </div>
               {getUrgencyBadge(predictions.peeUrgency)}
             </div>
@@ -154,22 +157,22 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = React.memo(({
                 </span>
                 {predictions.nextPeeExpectedAt && (
                   <span className="text-xs text-slate-400 ml-1">
-                    ({new Date(predictions.nextPeeExpectedAt).toLocaleTimeString(lang === 'fr' ? 'fr-FR' : 'en-US', { hour: '2-digit', minute: '2-digit' })})
+                    ({formatClock(new Date(predictions.nextPeeExpectedAt))})
                   </span>
                 )}
                 <span className="text-xs font-bold text-slate-300 bg-slate-950 border border-slate-700/80 px-2 py-0.5 rounded-lg shrink-0 shadow-sm">
-                  ±{predictions.peeDeltaMins || 20}m
+                  ±{formatDuration(predictions.peeDeltaMins || 20, lang)}
                 </span>
               </div>
               {predictions.peeMode === 'post_meal_override' && predictions.standardPeeExpectedAt && (
                 <div className="mt-1.5 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-sky-950/80 border border-sky-700/60 text-xs font-semibold text-sky-300">
-                  <span>{t.dashboard.withoutMeal}: {formatCountdown(predictions.standardPeeExpectedAt)}</span>
+                  <span>{t.dashboard.withoutMeal}{t.common.colon} {formatCountdown(predictions.standardPeeExpectedAt)}</span>
                 </div>
               )}
             </div>
 
             {/* FIRST: Pee Stats Summary (Records of the day) */}
-            <div className="bg-slate-950/60 p-2.5 rounded-xl border border-slate-800/80 text-[11px] space-y-1 text-slate-400">
+            <div className="bg-slate-950/60 p-2.5 rounded-xl border border-slate-800/80 text-xs space-y-1 text-slate-400">
               <div className="flex justify-between font-medium">
                 <span>{t.dashboard.peesToday}</span>
                 <span className="font-bold text-sky-300">{todayPeeCount}</span>
@@ -177,7 +180,7 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = React.memo(({
               <div className="flex justify-between font-medium">
                 <span>{t.dashboard.lastPee}</span>
                 <span className="font-bold text-slate-300">
-                  {lastPeeMinsAgo !== null ? `${formatMinutesToXhXX(lastPeeMinsAgo)} ${t.dashboard.agoText}` : t.dashboard.noneLoggedToday}
+                  {formatAgo(lastPeeMinsAgo)}
                 </span>
               </div>
             </div>
@@ -226,7 +229,7 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = React.memo(({
                 <div className="p-1.5 bg-amber-600/20 text-amber-400 rounded-lg shrink-0 border border-amber-500/30">
                   <PoopIcon className="w-4 h-4" />
                 </div>
-                <div className="text-xs font-bold text-slate-300">{t.potty.nextPoop}</div>
+                <h2 className="text-xs font-bold text-slate-300">{t.potty.nextPoop}</h2>
               </div>
               {getUrgencyBadge(predictions.poopUrgency)}
             </div>
@@ -239,22 +242,22 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = React.memo(({
                 </span>
                 {predictions.nextPoopExpectedAt && (
                   <span className="text-xs text-slate-400 ml-1">
-                    ({new Date(predictions.nextPoopExpectedAt).toLocaleTimeString(lang === 'fr' ? 'fr-FR' : 'en-US', { hour: '2-digit', minute: '2-digit' })})
+                    ({formatClock(new Date(predictions.nextPoopExpectedAt))})
                   </span>
                 )}
                 <span className="text-xs font-bold text-slate-300 bg-slate-950 border border-slate-700/80 px-2 py-0.5 rounded-lg shrink-0 shadow-sm">
-                  ±{predictions.poopDeltaMins || 25}m
+                  ±{formatDuration(predictions.poopDeltaMins || 25, lang)}
                 </span>
               </div>
               {predictions.poopMode === 'post_meal_override' && predictions.standardPoopExpectedAt && (
                 <div className="mt-1.5 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-950/80 border border-amber-700/60 text-xs font-semibold text-amber-300">
-                  <span>{t.dashboard.withoutMeal}: {formatCountdown(predictions.standardPoopExpectedAt)}</span>
+                  <span>{t.dashboard.withoutMeal}{t.common.colon} {formatCountdown(predictions.standardPoopExpectedAt)}</span>
                 </div>
               )}
             </div>
 
             {/* FIRST: Poop Stats Summary (Records of the day) */}
-            <div className="bg-slate-950/60 p-2.5 rounded-xl border border-slate-800/80 text-[11px] space-y-1 text-slate-400">
+            <div className="bg-slate-950/60 p-2.5 rounded-xl border border-slate-800/80 text-xs space-y-1 text-slate-400">
               <div className="flex justify-between font-medium">
                 <span>{t.dashboard.poopsToday}</span>
                 <span className="font-bold text-amber-300">{todayPoopCount}</span>
@@ -262,7 +265,7 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = React.memo(({
               <div className="flex justify-between font-medium">
                 <span>{t.dashboard.lastPoop}</span>
                 <span className="font-bold text-slate-300">
-                  {lastPoopMinsAgo !== null ? `${formatMinutesToXhXX(lastPoopMinsAgo)} ${t.dashboard.agoText}` : t.dashboard.noneLoggedToday}
+                  {formatAgo(lastPoopMinsAgo)}
                 </span>
               </div>
             </div>
@@ -316,7 +319,7 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = React.memo(({
                 <div className="p-1.5 bg-purple-500/20 text-purple-400 rounded-lg shrink-0 border border-purple-500/30">
                   <Utensils className="w-4 h-4" />
                 </div>
-                <div className="text-xs font-bold text-slate-300">{t.potty.nextMeal}</div>
+                <h2 className="text-xs font-bold text-slate-300">{t.potty.nextMeal}</h2>
               </div>
               {getUrgencyBadge(predictions.foodUrgency)}
             </div>
@@ -329,29 +332,29 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = React.memo(({
                 </span>
                 {predictions.nextFoodExpectedAt && (
                   <span className="text-xs text-slate-400 ml-1">
-                    ({new Date(predictions.nextFoodExpectedAt).toLocaleTimeString(lang === 'fr' ? 'fr-FR' : 'en-US', { hour: '2-digit', minute: '2-digit' })})
+                    ({formatClock(new Date(predictions.nextFoodExpectedAt))})
                   </span>
                 )}
                 <span className="text-xs font-bold text-slate-300 bg-slate-950 border border-slate-700/80 px-2 py-0.5 rounded-lg shrink-0 shadow-sm">
-                  ±{predictions.foodDeltaMins || 30}m
+                  ±{formatDuration(predictions.foodDeltaMins || 30, lang)}
                 </span>
               </div>
             </div>
 
             {/* FIRST: Food Stats Summary (Records of the day) */}
-            <div className="bg-slate-950/60 p-2.5 rounded-xl border border-slate-800/80 text-[11px] space-y-1 text-slate-400">
+            <div className="bg-slate-950/60 p-2.5 rounded-xl border border-slate-800/80 text-xs space-y-1 text-slate-400">
               <div className="flex justify-between font-medium">
                 <span>{t.dashboard.rationIntakeToday}</span>
                 <span className="font-bold text-purple-300">
                   {dailyGoal > 0
-                    ? `${todayFoodLoggedGrams}g / ${dailyGoal}g (${todayMealsCount}/${targetMeals})`
+                    ? `${formatGrams(todayFoodLoggedGrams, lang)} / ${formatGrams(dailyGoal, lang)} (${todayMealsCount}/${targetMeals})`
                     : `${todayMealsCount}/${targetMeals} ${targetMeals === 1 ? t.puppies.meal : t.puppies.meals}`}
                 </span>
               </div>
               <div className="flex justify-between font-medium">
                 <span>{t.dashboard.lastMeal}</span>
                 <span className="font-bold text-slate-300">
-                  {lastFoodMinsAgo !== null ? `${formatMinutesToXhXX(lastFoodMinsAgo)} ${t.dashboard.agoText}` : t.dashboard.noneLoggedToday}
+                  {formatAgo(lastFoodMinsAgo)}
                 </span>
               </div>
             </div>
@@ -370,7 +373,7 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = React.memo(({
             >
               <Utensils className="w-3.5 h-3.5 shrink-0" />
               <span className="truncate">
-                {nextMealPortionGrams === undefined ? t.dashboard.feedMealNow : `${t.dashboard.feedMealNow} (${nextMealPortionGrams}g)`}
+                {nextMealPortionGrams === undefined ? t.dashboard.feedMealNow : `${t.dashboard.feedMealNow} (${formatGrams(nextMealPortionGrams, lang)})`}
               </span>
             </button>
           </div>

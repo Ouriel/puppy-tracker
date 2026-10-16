@@ -245,8 +245,8 @@ describe('QuickLogModal weight box: last weigh-in hint and decimal check (Phase 
     await renderModal({ initialType: 'weight', lastWeighIn, profile });
     await typeKeys('quicklog-weight-kg', '1,005');
 
-    expect(weightBoxText()).toContain('Dernière pesée : 10,1 kg le 25/09');
-    expect(document.querySelector('[role="status"]')!.textContent).toBe('Vérifie la virgule : 1,005 kg ?');
+    expect(weightBoxText()).toContain('Dernière pesée\u00a0: 10,1 kg le 25/09');
+    expect(document.querySelector('[role="status"]')!.textContent).toBe('Vérifie la virgule\u00a0: 1,005\u00a0kg\u00a0?');
   });
 
   it('a small breed doubling in 8 weeks is growth: no warning (the raw ×2 rule warned)', async () => {
@@ -359,5 +359,19 @@ describe('QuickLogModal edit sheet', () => {
     localStorage.setItem('puppace_lang_v1', 'fr');
     await renderModal({ activityToEdit: peeLog });
     expect(document.querySelector('button[type="submit"]')!.textContent).toBe('Enregistrer');
+  });
+});
+
+describe('QuickLogModal stool options, in French', () => {
+  it('read as written, "Dures (constipation)": no CSS capitalize turning it into "Dures (Constipation)"', async () => {
+    localStorage.setItem('puppace_lang_v1', 'fr');
+    try {
+      await renderModal({ initialType: 'poop' });
+      const options = [...document.querySelectorAll<HTMLButtonElement>('[aria-labelledby="quicklog-stool-label"] [role="radio"]')];
+      expect(options.map((option) => option.textContent)).toEqual(['Dures (constipation)', 'Normales', 'Diarrhée']);
+      expect(options.filter((option) => option.classList.contains('capitalize'))).toEqual([]);
+    } finally {
+      localStorage.removeItem('puppace_lang_v1');
+    }
   });
 });

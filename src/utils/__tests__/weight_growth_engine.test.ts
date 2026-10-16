@@ -8,6 +8,7 @@ import {
   estimateCurrentWeightFromLastLog,
   getEffectivePuppyWeight,
   formatKg,
+  formatGrams,
   getMeasuredPace,
   isUnlikelyWeight,
   findUnlikelyWeighIns,
@@ -378,6 +379,18 @@ describe('Canine Weight Prediction & WALTHAM Growth Engine', () => {
       [4.075, 'en', '4.1 kg'],
     ] as const)('%s in %s reads "%s"', (kg, lang, text) => {
       expect(formatKg(kg, lang)).toBe(text);
+    });
+  });
+
+  describe('formatGrams: the number in the app language, a no-break space before "g"', () => {
+    it.each([
+      [240, 'fr', '240\u00a0g'],
+      [240, 'en', '240\u00a0g'],
+      [1200, 'fr', '1\u202f200\u00a0g'],
+      [1200, 'en', '1,200\u00a0g'],
+      [79.6, 'fr', '80\u00a0g'],
+    ] as const)('%s in %s reads "%s"', (grams, lang, text) => {
+      expect(formatGrams(grams, lang)).toBe(text);
     });
   });
 

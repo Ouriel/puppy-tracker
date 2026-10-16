@@ -306,7 +306,7 @@ describe('B11: decimal grams are rounded', () => {
     const result = predictAt(meals, profile, '2026-09-15', '19:00', NIGHT_22_TO_07);
 
     expect(result.foodReason).toBe('Daily goal reached (158g)');
-    expect(translatePredictionReason(result.foodReason, 'fr')).toBe('Objectif du jour atteint (158g)');
+    expect(translatePredictionReason(result.foodReason, 'fr')).toBe('Objectif du jour atteint (158\u00a0g)');
   });
 });
 
