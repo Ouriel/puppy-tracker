@@ -63,7 +63,7 @@ describe('Pistache Morning Awakening & Overnight Transition Dataset Test Suite',
     // Next poop is this morning's outing (07:34 pee + 15m learned offset), NOT the 03:46 AM standard expectation
     expect(predictions.nextPoopExpectedAt).not.toBeNull();
     expect(at(predictions.nextPoopExpectedAt!)).toBe('2026-08-28 07:49');
-    expect(predictions.poopReason).toContain('Morning outing');
+    expect(predictions.poopReason).toContain('First poop of the day');
     expect(predictions.poopUrgency).toBe('soon');
 
     // 3. Next Meal Prediction: learned 08:15 breakfast
@@ -73,7 +73,7 @@ describe('Pistache Morning Awakening & Overnight Transition Dataset Test Suite',
 
     // 4. French Translations match UI display
     const frPoopReason = translatePredictionReason(predictions.poopReason, 'fr');
-    expect(frPoopReason).toContain('Sortie du matin');
+    expect(frPoopReason).toContain('Premier caca du jour');
   });
 
   it('handles early morning check at 06:45 AM (during sleep before wakeup): predicts upcoming 07:xx AM morning potty', () => {

@@ -171,6 +171,6 @@ describe('Pistache Derived Variations Test Suite (5 Multi-Scenario Datasets)', (
     // Next poop expected for morning outing (~07:49 AM), NOT middle of the night (standard transit lands at 03:46 AM)
     expect(at(pred.nextPoopExpectedAt!, 'UTC')).toBe('2026-08-28 07:49');
     expect(pred.poopUrgency).toBe('soon');
-    expect(pred.poopReason).toBe('Morning outing (~07:49)');
+    expect(pred.poopReason).toBe('First poop of the day (~07:49)');
   });
 });

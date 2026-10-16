@@ -39,37 +39,44 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = React.memo(({
 
   const { todayPeeCount, lastPeeMinsAgo, todayPoopCount, lastPoopMinsAgo, lastFoodMinsAgo } = useMemo(() => {
     let todayPee = 0;
-    let lastPee: number | null = null;
+    let lastPee = Infinity;
     let todayPoop = 0;
-    let lastPoop: number | null = null;
-    let lastFood: number | null = null;
+    let lastPoop = Infinity;
+    let lastFood = Infinity;
     const nowTime = now.getTime();
 
     for (const activity of activities) {
       const actTime = parseIsoDate(activity.timestamp).getTime();
       const isToday = isSameLogicalDate(parseIsoDate(activity.timestamp), now);
+      // The newest log at most 1 min ahead, whatever the list order (a back-dated log is prepended, "Load more" appends)
+      const minsAgo = actTime <= nowTime + 60000 ? Math.max(0, Math.floor((nowTime - actTime) / 60000)) : Infinity;
 
       if (activity.type === 'pee') {
         if (isToday) todayPee++;
-        if (lastPee === null) lastPee = Math.max(0, Math.floor((nowTime - actTime) / 60000));
+        lastPee = Math.min(lastPee, minsAgo);
       } else if (activity.type === 'poop') {
         if (isToday) todayPoop++;
-        if (lastPoop === null) lastPoop = Math.max(0, Math.floor((nowTime - actTime) / 60000));
+        lastPoop = Math.min(lastPoop, minsAgo);
       } else if (activity.type === 'food') {
-        if (lastFood === null) lastFood = Math.max(0, Math.floor((nowTime - actTime) / 60000));
+        lastFood = Math.min(lastFood, minsAgo);
       }
     }
 
+    const orNone = (minutes: number) => (Number.isFinite(minutes) ? minutes : null);
     return {
       todayPeeCount: todayPee,
-      lastPeeMinsAgo: lastPee,
+      lastPeeMinsAgo: orNone(lastPee),
       todayPoopCount: todayPoop,
-      lastPoopMinsAgo: lastPoop,
-      lastFoodMinsAgo: lastFood,
+      lastPoopMinsAgo: orNone(lastPoop),
+      lastFoodMinsAgo: orNone(lastFood),
     };
   }, [activities, now]);
 
   const dailyGoal = profile.dailyFoodGramGoal; // 0: no gram goal, the card counts meals only
+  // When to call the vet, under the stool alerts
+  const poopVetAdvice = predictions.poopReason.startsWith('Digestive alert')
+    ? t.dashboard.vetDiarrhea
+    : predictions.poopReason.startsWith('Digestive recovery') ? t.dashboard.vetHardStool : null;
   const targetMeals = profile.targetMealsPerDay || 3;
 
   const getUrgencyBadge = (urgency: 'safe' | 'soon' | 'overdue') => {
@@ -264,6 +271,11 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = React.memo(({
             <p className="text-xs text-slate-300 bg-slate-950/60 p-2.5 rounded-xl border border-slate-800/80 leading-relaxed min-h-[52px] flex items-center">
               {translatePredictionReason(predictions.poopReason, lang)}
             </p>
+            {poopVetAdvice && (
+              <p className="text-xs text-amber-200 bg-amber-950/40 p-2.5 rounded-xl border border-amber-700/50 leading-relaxed">
+                {poopVetAdvice}
+              </p>
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-2.5 w-full pt-1">

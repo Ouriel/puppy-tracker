@@ -150,7 +150,7 @@ BEGIN
              CASE WHEN e.r2 < CASE WHEN e.age < 84 THEN 0.06 WHEN e.age < 140 THEN 0.03 WHEN e.age < 183 THEN 0.01 ELSE 0 END
                               * CASE WHEN e.type = 'poop' THEN 0.5 ELSE 1 END
                   THEN 'indoor_accident' ELSE 'outside' END END,
-           CASE WHEN e.type = 'poop' THEN CASE WHEN e.r4 < 0.06 THEN 'soft' WHEN e.r4 < 0.09 THEN 'hard' ELSE 'normal' END END,
+           CASE WHEN e.type = 'poop' THEN CASE WHEN e.r4 < 0.02 THEN 'diarrhea' WHEN e.r4 < 0.05 THEN 'hard' ELSE 'normal' END END,
            CASE WHEN e.type = 'food' THEN 'kibble' END,
            CASE WHEN e.type = 'food' THEN
              CASE WHEN d.goal > 0 THEN round(d.goal::numeric / d.meals * (0.9 + 0.2 * e.r2))
@@ -166,7 +166,7 @@ BEGIN
               FROM generate_series(v_start::timestamp, v_today::timestamp, interval '1 day') AS g) AS dd
         CROSS JOIN LATERAL (
           -- pee every 2 h under 12 weeks, 2.5 h under 20 weeks, 3 h under 1 year, 4.5 h after; under 20 weeks a night
-          -- pee at 04:05-04:55, after the app's 04:00 day cutoff (an earlier one is read as bedtime, predictions.ts)
+          -- pee at 04:05-04:55, after the app's 04:00 day cutoff (one before 02:00 is read as bedtime, predictions.ts)
           SELECT 'pee' AS type, slot, CASE WHEN slot < 420 THEN 0.3 ELSE 0.08 END AS skip
           FROM unnest(ARRAY(SELECT generate_series(420, 1350, CASE WHEN dd.age < 84 THEN 120 WHEN dd.age < 140 THEN 150
                                                                     WHEN dd.age < 365 THEN 180 ELSE 270 END))
@@ -206,6 +206,11 @@ BEGIN
     FROM health_records AS hr
     WHERE hr.puppy_id = d.id AND hr.type = 'vaccination' AND hr.name NOT LIKE 'Rage%' AND hr.date >= v_start;
   END LOOP;
+
+  -- Rocky's newest poop is a diarrhoea, so the preview shows the poop card's 12 h alert (he poops 4 times a
+  -- day, so that poop is almost always under 12 h old); the 2 % random ones above only fill the history
+  UPDATE activities SET stool_consistency = 'diarrhea'
+  WHERE id = (SELECT id FROM activities WHERE puppy_id = 'seed-dog-rocky' AND type = 'poop' ORDER BY timestamp DESC LIMIT 1);
 
   RAISE NOTICE 'preview-seed on %: % households, % users, % badges, % dogs, % logs, % health records', v_branch,
     (SELECT count(*) FROM households WHERE id LIKE 'seed-%'), (SELECT count(*) FROM users WHERE id LIKE 'seed-%'),

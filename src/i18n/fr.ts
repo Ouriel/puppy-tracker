@@ -47,6 +47,8 @@ export const fr: TranslationKeys = {
     agoText: 'il y a',
     noLogYet: 'Aucun enregistrement',
     withoutMeal: 'Repère',
+    vetDiarrhea: 'Laissez de l\'eau à disposition. Appelez le vétérinaire si cela dure plus de 24 h, ou tout de suite en cas de sang, de vomissements, de fatigue, ou si le chiot n\'a pas tous ses vaccins.',
+    vetHardStool: 'Laissez de l\'eau à disposition. Appelez le vétérinaire en l\'absence de selles pendant 48 h, ou en cas d\'efforts ou de vomissements.',
     feedMealNow: 'Donner Repas',
     remainingFoodToday: 'Ration Journalière Logguée',
     leftOf: 'restants sur',
