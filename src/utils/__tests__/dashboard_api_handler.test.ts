@@ -246,12 +246,12 @@ describe('Dashboard API Serverless Handler Unit Tests', () => {
     }
   });
 
-  it('two poops in the same minute: the one logged last comes first, so a soft stool logged after a normal one gives the digestive alert', async () => {
+  it('two poops in the same minute: the one logged last comes first, so a diarrhoea stool logged after a normal one gives the digestive alert', async () => {
     const sameMinute = new Date('2026-08-30T10:00:00.000Z');
     const poop = (id: string, stoolConsistency: string, createdAt: string) => ({
       id, householdId: 'hh-123', puppyId: 'pup-1', type: 'poop', timestamp: sameMinute, loggedBy: 'Sam', stoolConsistency, createdAt: new Date(createdAt),
     });
-    dbMock.activities = [poop('act-normal', 'normal', '2026-08-30T10:00:20.000Z'), poop('act-soft', 'soft', '2026-08-30T10:00:50.000Z')];
+    dbMock.activities = [poop('act-normal', 'normal', '2026-08-30T10:00:20.000Z'), poop('act-diarrhea', 'diarrhea', '2026-08-30T10:00:50.000Z')];
     const token = signAppSessionToken({ email: 'sam@example.com', name: 'Sam', householdId: 'hh-123', role: 'Husband' }, 30);
     const res = createMockResponse();
 
@@ -260,7 +260,7 @@ describe('Dashboard API Serverless Handler Unit Tests', () => {
     const puppy = { id: 'pup-1', name: 'Pistache', breed: 'Cocker', birthDate: '2026-04-03', targetMealsPerDay: 3, dailyFoodGramGoal: 200 };
     const predictions = calculatePredictions(res.body.activities, puppy, new Date('2026-08-30T10:30:00.000Z'), 'Europe/Paris');
     expect(predictions.poopReason).toBe('Digestive alert: frequent checks recommended');
-    expect(res.body.activities.map((activity: { id: string }) => activity.id)).toEqual(['act-soft', 'act-normal']);
+    expect(res.body.activities.map((activity: { id: string }) => activity.id)).toEqual(['act-diarrhea', 'act-normal']);
   });
 
   it('sorts by timestamp first: a back-dated log entered last still comes after newer logs', async () => {

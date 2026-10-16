@@ -7,10 +7,9 @@
  * (R1, R4, R5, R8 and the rest of R11 in .agents/plans/2026-10-13-remediation-plan.md; R3, R7, NEW-1 and the
  * R11 clock-time fix landed in Phase 3a). Example: on 2027-03-28 04:00 and 04:15 the food portion is 0 g because
  * the 04:00 logical-day cutoff is computed as now - 4 h, which is still the previous day after the spring-forward change.
- * Known issue R1 x R7 ('night: pre-bed walk at 23:17, 10 Sept'): the learned bedtime is 18:00, then 19:10 (R1/INV-1,
- * Phase 8), while the dog is logged until 23:17. The R7 cap (missed meal kept until bedtime + 1 h) therefore drops the
- * missed meal at 19:00: 10 Sept 20:00-23:30 show night 'Breakfast' with 100 of 240 g eaten, and 11 Sept goes safe at 20:00,
- * night at 22:00, then overdue 'Meal 3 of 3' at 23:30 once the 23:05 log moves bedtime to 23:05. Phase 8 should move these lines.
+ * Known issue R1 ('night: pre-bed walk at 23:17, 10 Sept'): the learned bedtime is 18:00, then 19:10, then 23:05, while
+ * the dog is logged until 23:17. A missed meal stops at the learned bedtime (owner decision 2026-10-16), so 10 and 11 Sept
+ * show the night 'Breakfast' (after the learned 08:30 wake-up) from 18:00 with meals still missing.
  *
  * A snapshot diff is EXPECTED when the model is changed on purpose (Phase 3a/3b engine fixes, Phase 8 refactor).
  * - Review the diff line by line in the PR and explain each moved value in the PR description.

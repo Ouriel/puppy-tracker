@@ -315,7 +315,7 @@ function App() {
   }, [activePuppyActivities, now]);
 
   const todayFoodLoggedGrams = useMemo(() => {
-    return todayMeals.reduce((sum, activity) => sum + (activity.quantityGrams || 0), 0);
+    return Math.round(todayMeals.reduce((sum, activity) => sum + (activity.quantityGrams || 0), 0));
   }, [todayMeals]);
 
   const todayMealsCount = todayMeals.length;

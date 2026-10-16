@@ -48,23 +48,23 @@ A one-tap log is timed at the tap and stored under your name. A second log of th
 
 ### How the guesses work
 
-Everything is learned from the dog's own logs; recent days count more than old ones.
+Everything is learned from the dog's own logs of the last 14 days; recent days count more than old ones. "Load more" in the history does not change the guesses.
 
 - **Pee**: the usual daytime gap between two pees (gaps of 45 min to 8 h on the same day), read at the 70th percentile so short "just in case" walks don't shorten it. Kept between 30 min and the dog's age in months + 1 h (3 h at 2 months), never above 8 h, a healthy adult's daytime maximum. Before there is enough history: 1 hour per month of age, from 1 h to 4 h.
-- **Poop**: the median gap between poops (1.5 h to 24 h), kept between 3 h and 24 h; 6 h before there is history. The first poop of the day is expected a learned delay after the first morning pee.
-- **After a meal**: puppies under 3.5 months always get a post-meal potty reminder. From 3.5 months they get it only if their logs show they usually go soon after eating (at least 40 % of meals, 50 % from 5 months); with fewer than 3 meals logged, the reminder stays on until 5 months. The card then also shows a "Baseline" line: the time without the meal. A dog that peed (or pooped) in the 30 min before eating gets no pee (or poop) reminder.
-- **Stool**: diarrhoea or soft stool (or a note saying liquid/diarrhoea) switches the poop card to hourly checks for 12 h, night included. A hard stool pauses the poop card (badge calm) for 8 h or more.
-- **Meals**: meals per day and the daily gram goal come from the dog's profile. Breakfast is the learned breakfast time (07:30 until 3 meals are logged), but not earlier than 15 min after the first morning pee. The next meals are spread over the hours left before bedtime, at least 2.5 h apart.
+- **Poop**: the median gap between poops (1.5 h to 24 h), kept between 3 h and 24 h; 6 h before there is history. The first poop of the day is expected a learned delay after the first morning pee (the first pee after 05:00; before one is logged, the wake-up time).
+- **After a meal**: puppies under 3.5 months always get a post-meal potty reminder. From 3.5 months they get it only if their logs show they usually go soon after eating (at least 40 % of meals, 50 % from 5 months); with fewer than 3 meals logged, the reminder stays on until 5 months. The card then also shows a "Baseline" line: the time without the meal. The reminder stays until 40 min (pee) or 45 min (poop) after its due time. A dog that peed (or pooped) in the 30 min before eating gets no pee (or poop) reminder.
+- **Stool**: a Diarrhoea stool switches the poop card to hourly checks for 12 h, night included, with a steady amber badge (notes do not count). A hard stool pauses the poop card (badge calm) for 8 h or more; when the pause ends, the card points to its end. Both say when to call the vet.
+- **Meals**: meals per day and the daily gram goal come from the dog's profile. Breakfast is the learned breakfast time (07:30 until 3 meals are logged), but not earlier than 15 min after the first morning pee, nor before the wake-up time. The next meals are spread over the hours left before bedtime, at least 2.5 h apart.
 - **Goal reached**: at 90 % of the gram goal (or, for a dog without a gram goal, once all meals are logged), the card says "Daily goal reached" and points to tomorrow's breakfast. If all meals are logged but grams are short, a "Remaining portion" reminder appears; it never turns red.
 - **Suggested grams**: what is left of today's goal divided by the meals left. Once the goal is reached, the button shows no grams.
 - A log dated more than one minute in the future is ignored by the guesses and by today's meal total (today's pee and poop counts still include it).
 
 ### Night mode and the 04:00 day
 
-- Bedtime and wake-up time are learned from the last 14 days (the last log of the evening, the first log after 05:00). Until there are 5 logs: 22:00 and 07:00.
-- Between bedtime and wake-up the cards point to the **morning outing** and never turn red (the pee card turns amber in the last 20 min), except for a pre-bed outing still on the card (below) or the hourly stool checks (above). A puppy under 2.5 months also gets one mid-night pee break, 4 h after its last pee.
-- Logging something after 04:00 (or after wake-up time minus 3 h, whichever is later) ends night mode early.
-- A pee due before bedtime + half the usual gap stays on the card as tonight's pre-bed outing until then, but no later than bedtime + 1 h 30; a poop until bedtime + 1 h. Later than that, the card moves to the morning. A post-meal pee reminder after bedtime follows the pee rule without the 1 h 30 limit: it can show until bedtime + half the usual gap. A missed meal stays on the card until bedtime + 1 h.
+- Bedtime and wake-up time are learned from the last 14 days (the last log of the evening, the first log after 05:00). A log between 02:00 and 05:00 is a night potty, not the bedtime. Until 3 days have 2 or more logs: 22:00 and 07:00.
+- Between bedtime and wake-up the cards point to the **morning outing** and never turn red (the pee card turns amber in the last 20 min), except for a pre-bed outing still on the card (below); the hourly stool checks (above) keep running. A puppy under 2.5 months also gets a pee break 4 h after its last pee, while that is 45 min or more before wake-up: the card shows it from the evening and keeps it 30 min as "due now".
+- Logging something after 05:00 (or after wake-up time minus 3 h, whichever is later) ends night mode early.
+- A pee due before bedtime + half the usual gap stays on the card as tonight's pre-bed outing until then, but no later than bedtime + 1 h 30; a poop until bedtime + 1 h. Later than that, the card moves to the morning. A post-meal pee reminder after bedtime follows the pee rule without the 1 h 30 limit: it can show until bedtime + half the usual gap. A missed meal stops at bedtime.
 - **A day runs from 04:00 to 04:00**, everywhere in the app: a pee at 01:30 counts for the evening before, in the cards, the totals and the history.
 
 ### Health summary
@@ -265,7 +265,6 @@ npm test
 ## Known limitations
 
 - **No offline queue**: logs need a connection. A one-tap log that fails stays marked "Not saved" until Retry or Discard, but only while the app stays open: closing it loses the log.
-- **Predictions use the logs loaded on the device**: the last 14 days at start, although the engine looks back up to 30 days. Pressing "Load more" in the history therefore feeds more days to the guesses and can shift them slightly.
 - **The day boundary is fixed at 04:00** (not learned), and on clock-change days it moves by an hour. A dog with an unusual night (e.g. awake at night) gets odd "morning" guesses.
 - **Past goals are not stored**: past days in the history show totals only.
 - **Medication list in the passport** shows the medication logs loaded in the history (14 days unless "Load more").

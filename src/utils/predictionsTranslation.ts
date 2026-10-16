@@ -3,12 +3,13 @@ import type { Language } from "../i18n";
 const EXACT_FR: Record<string, string> = {
   "No pee recorded yet": "Aucun pipi enregistré pour l'instant",
   "No poop recorded yet": "Aucun caca enregistré pour l'instant",
-  "No food logged yet today": "Aucun repas enregistré aujourd'hui",
   "Night mode: Young puppy mid-night potty break": "Mode nuit : Pause propreté nocturne",
 };
 
 const PATTERNS_FR: [RegExp, string][] = [
   [/Morning outing \(~(.+?)\)/, "Sortie du matin (~$1)"],
+  [/First pee of the day \(~(.+?)\)/, "Premier pipi du jour (~$1)"],
+  [/First poop of the day \(~(.+?)\)/, "Premier caca du jour (~$1)"],
   [/Post-meal (?:potty|poop) break \(~(\d+)m after food\)/, "Sortie post-repas (~$1m après repas)"],
   [/Learned average: ~([0-9h]+(?:[0-9m]+)?) (?:bladder|digestive) interval/, "Moyenne apprise : intervalle d'env. ~$1"],
   [/Standard (?:bladder|digestive) interval \(~(.+?)\)/, "Intervalle standard (~$1)"],

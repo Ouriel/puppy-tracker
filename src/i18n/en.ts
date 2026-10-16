@@ -45,6 +45,8 @@ export const en = {
     agoText: 'ago',
     noLogYet: 'No log yet',
     withoutMeal: 'Baseline',
+    vetDiarrhea: 'Keep water available. Call your vet if it lasts more than 24 h, or now if there is blood, vomiting, tiredness, or the puppy is not fully vaccinated.',
+    vetHardStool: 'Keep water available. Call your vet if there is no stool for 48 h, or if there is straining or vomiting.',
     feedMealNow: 'Feed Meal Now',
     remainingFoodToday: 'Food Intake Progress',
     leftOf: 'left of',

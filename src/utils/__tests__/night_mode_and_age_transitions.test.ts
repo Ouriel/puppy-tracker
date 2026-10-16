@@ -512,7 +512,7 @@ describe('Night Mode, Evening Outings, and Age Transitions Comprehensive Test Su
     expect(pred.peeReason).toContain('Morning outing');
 
     expect(pred.poopMode).toBe('night_sleep');
-    expect(at(pred.nextPoopExpectedAt!)).toBe('2026-09-11 08:45'); // Wakeup + 7m morning offset (00:10 pee -> 00:17 poop)
+    expect(at(pred.nextPoopExpectedAt!)).toBe('2026-09-11 08:48'); // Wakeup + default 10m offset: the 00:10 pee is a night pee, not a morning one
     expect(pred.poopReason).toContain('Morning outing');
   });
 
