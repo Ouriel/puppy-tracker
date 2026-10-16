@@ -335,7 +335,7 @@ describe('Weight timeline (Phase 5c, prod-shaped)', () => {
     await openPassport();
     await click(rowButton('vaccine', 'edit'));
     const editCard = buttonWithText(en.potty.saveChanges).closest('.space-y-3')!;
-    const [clinic, lot] = editCard.querySelectorAll<HTMLInputElement>('input[type="text"]');
+    const [clinic, lot] = ['#vaccine-edit-clinic', '#vaccine-edit-batch'].map((selector) => editCard.querySelector<HTMLInputElement>(selector)!);
 
     await setValue(clinic, '');
     await setValue(lot, '');
@@ -517,8 +517,9 @@ describe('Carnet add and edit forms (pre-fill review items 11, 12, 23, 35-38)', 
     expect(posts('/api/health-records')[0].body.name).toBe(vaccination.name);
   });
 
-  it('item 23: when the last vaccine is no longer in the list, CHPPi + L4 from the list is shown and saved', async () => {
-    vaccinationRecords = [{ ...vaccination, id: 'hr-old', name: 'CHPPi + L4 (old spelling)', date: '2026-07-01' }];
+  it('item 23: when the last vaccine is stored under an earlier spelling, CHPPi + L4 from the list is shown and saved', async () => {
+    // A name the list never had is one typed for "Autre…": that one is offered as itself (vetPrint.test.tsx)
+    vaccinationRecords = [{ ...vaccination, id: 'hr-old', name: 'CHPPi + L4 (Eurican / Nobivac / Versican)', date: '2026-07-01' }];
     const form = await openVaccineAddForm();
 
     expect(shownVaccine(form)).toBe(chppiL4);

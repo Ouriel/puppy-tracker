@@ -124,8 +124,8 @@ Open it from the health summary, or at `/health-passport`. Under its title, one 
 **Dewormings.** The add form starts on the last product given (or Credelio Plus). Monthly products (Credelio Plus, Nexgard Spectra, Simparica Trio, Advocate, Stronghold) suggest +1 month; Bravecto +3 months. Age-based wormers (Milbemax, Drontal, Panacur...) use the age **on the dose day**: every 2 weeks under 12 weeks, monthly until 6 months, then every 3 months.
 
 **Rules for both:**
-- An entry still open shows in full. A renewed one (see Status) is one grey line, "Aug 12 · CHPPi + L4 · Lot B456": the latest 3, then "History (n)" shows the rest; tap a line to edit or delete it. Every entry can be edited or deleted.
-- Vaccines show a short name in the app's language ("CHPPi + L4", "Rabies" / "Rage"), also for an entry saved under an older name of the same vaccine; the vaccine list, the edit form and the printed passport keep the full brand names.
+- An entry still open shows in full. A renewed one (see Status) is one grey line, "Aug 12 · CHPPi + L4 · Nobivac DHPPi+L4 · lot B456": the latest 3, then "History (n)" shows the rest; tap a line to edit or delete it. Every entry can be edited or deleted.
+- Vaccines show a short name in the app's language ("CHPPi + L4", "Rabies" / "Rage"), also for an entry saved under an older name of the same vaccine; the vaccine list and the edit form keep the full brand names, and the printed summary shows the short name with the product and lot typed from the vet's sticker.
 - Dates: not after today; the next date not before the given date. Months land on the same day, capped at the end of the month (31 Jan + 1 month = 28 Feb).
 - An optional weight box saves a separate weigh-in (12:00 Paris time on that date, or now if noon is still ahead).
 - Editing keeps the stored next date (often set by the vet). If you change the date or the product, the form offers "Suggested: date", one tap to apply.
@@ -134,7 +134,7 @@ Open it from the health summary, or at `/health-passport`. Under its title, one 
 
 **Medication.** Every medication log, whatever its date, with add, edit (the log form) and delete buttons.
 
-**Export.** A printable passport (vaccines, dewormings, weigh-ins; print it to PDF) or the same as CSV, in the app's language. Medication logs are not exported.
+**Export.** A one-page A4 summary for a vet, marked unofficial (print it to PDF): the dog (sex, breed, birth date and age, latest weight, its notes), To do, 6 vaccines (every open one first, then the latest renewed), the antiparasitics of the last 12 months (latest 8) and the treatments of the last 90 days (latest 8), older ones counted as "n earlier", the weight curve and the last 6 weigh-ins, every date as DD/MM/YYYY. Or a CSV of every vaccine, antiparasitic, weigh-in and treatment, with who logged each weigh-in and treatment. Both in the app's language.
 
 ## Settings
 

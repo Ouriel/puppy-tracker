@@ -1,9 +1,12 @@
 import type { Activity, PuppyProfile, Caretaker, HealthRecord } from '../types';
 import type { TranslationKeys } from '../i18n/types';
-import { formatLocalDate, parseIsoDate, formatLogicalDate, getUserTimezone } from './date';
+import { formatLocalDate, formatLocalTime, parseIsoDate, formatLogicalDate, getUserTimezone } from './date';
 import { resolveCaretakerName } from './caretakers';
 import { formatBreedName } from '../data/breedsCatalog';
-import { findUnlikelyWeighIns, formatGrams, formatKg, getUnifiedWeightEntries } from './weight';
+import { formatGrams, formatKg } from './weight';
+import { buildDogWeightChart, getWeightChartModel, type WeightChartGeometry } from './weightChartGeometry';
+import { formatProductAndLot, getHealthRecordStatus, getNextDue, getRecordShortName } from './health';
+import { getPuppyAge } from './predictions';
 import { en } from '../i18n/en';
 import { fr } from '../i18n/fr';
 
@@ -55,15 +58,15 @@ export function exportActivitiesToCSV(
     ? [
         'Date',
         'Heure',
-        'Type d\'Activité',
-        'Lieu Besoins',
-        'Consistance Selles',
+        'Type d\'activité',
+        'Lieu besoins',
+        'Consistance selles',
         'Quantité (g)',
-        'Quantité (cups)',
+        'Quantité (verres)',
         'Durée (min)',
         'Poids (kg)',
         'Médicament',
-        'Enregistré Par',
+        'Enregistré par',
         'Notes',
       ]
     : [
@@ -88,7 +91,7 @@ export function exportActivitiesToCSV(
   const formatLocation = (location?: string) => {
     if (!location) return '';
     if (location === 'outside') return isFrench ? 'Dehors' : 'Outside';
-    if (location === 'indoor_accident') return isFrench ? 'Accident Intérieur' : 'Indoor Accident';
+    if (location === 'indoor_accident') return isFrench ? 'Accident intérieur' : 'Indoor Accident';
     return location;
   };
 
@@ -217,7 +220,7 @@ export function printActivitiesReport(
     <html lang="${lang}">
       <head>
         <meta charset="utf-8" />
-        <title>${esc(profile.name)} - ${isFrench ? "Rapport d'Activités & Propreté" : 'Activity & Potty Report'}</title>
+        <title>${esc(profile.name)} - ${isFrench ? "Rapport d'activités & propreté" : 'Activity & Potty Report'}</title>
         <style>
           @page { size: A4; margin: 12mm 15mm; }
           * { box-sizing: border-box; }
@@ -389,7 +392,7 @@ export function printActivitiesReport(
       <body>
         <div class="header">
           <div class="title-area">
-            <h1>🐾 ${esc(profile.name)} — ${isFrench ? "Rapport d'Activités & Propreté" : 'Activity & Potty Report'}</h1>
+            <h1>🐾 ${esc(profile.name)} — ${isFrench ? "Rapport d'activités & propreté" : 'Activity & Potty Report'}</h1>
             <p><strong>${esc(periodLabel)}</strong></p>
             <p>${isFrench ? 'Édité le' : 'Generated on'} ${generatedDate}</p>
           </div>
@@ -424,7 +427,7 @@ export function printActivitiesReport(
             <div class="card-sub">${totalFoodGrams > 0 ? `${formatGrams(totalFoodGrams, lang)} ${isFrench ? 'total' : 'logged'}` : ''}</div>
           </div>
           <div class="card">
-            <div class="card-label">${isFrench ? 'Taux Réussite' : 'Potty Rate'}</div>
+            <div class="card-label">${isFrench ? 'Taux de réussite' : 'Potty Rate'}</div>
             <div class="card-value" style="color: #4f46e5;">
               ${(outsideCount + accidentCount) > 0 ? Math.round((outsideCount / (outsideCount + accidentCount)) * 100) : 100}%
             </div>
@@ -433,7 +436,7 @@ export function printActivitiesReport(
         </div>
 
         <h2>
-          <span>${isFrench ? 'Historique Détaillé des Événements' : 'Detailed Activity Log'}</span>
+          <span>${isFrench ? 'Historique détaillé des événements' : 'Detailed Activity Log'}</span>
           <span style="font-size: 11px; font-weight: normal; color: #64748b;">${totalLogs} ${isFrench ? 'entrées' : 'entries'}</span>
         </h2>
 
@@ -443,7 +446,7 @@ export function printActivitiesReport(
           <table>
             <thead>
               <tr>
-                <th style="width: 130px;">${isFrench ? 'Date & Heure' : 'Date & Time'}</th>
+                <th style="width: 130px;">${isFrench ? 'Date et heure' : 'Date & Time'}</th>
                 <th style="width: 85px;">${isFrench ? 'Type' : 'Type'}</th>
                 <th>${isFrench ? 'Détails' : 'Details'}</th>
                 <th style="width: 100px;">${isFrench ? 'Membre' : 'Logged By'}</th>
@@ -464,7 +467,7 @@ export function printActivitiesReport(
                 if (activity.pottyLocation === 'outside') {
                   details.push(`<span class="pill-loc loc-outside">🌳 ${isFrench ? 'Dehors' : 'Outside'}</span>`);
                 } else if (activity.pottyLocation === 'indoor_accident') {
-                  details.push(`<span class="pill-loc loc-accident">⚠️ ${isFrench ? 'Accident Intérieur' : 'Indoor Accident'}</span>`);
+                  details.push(`<span class="pill-loc loc-accident">⚠️ ${isFrench ? 'Accident intérieur' : 'Indoor Accident'}</span>`);
                 }
 
                 if (activity.stoolConsistency) {
@@ -504,7 +507,7 @@ export function printActivitiesReport(
 
         <div class="footer">
           ${isFrench
-            ? 'Document généré via PupPace — Suivi Intelligent des Besoins & Carnet Familial du Chiot.'
+            ? 'Document généré avec PupPace — suivi des besoins et carnet de santé du chiot.'
             : 'Document generated with PupPace — Smart Puppy Care & Potty Predictor.'}
         </div>
       </body>
@@ -516,12 +519,13 @@ export function printActivitiesReport(
 }
 
 /**
- * Exports puppy veterinary and health passport records to a formatted CSV file with UTF-8 BOM.
+ * Exports the health passport to a CSV file with UTF-8 BOM: vaccines, dewormings, weigh-ins and treatments, each its own row.
  */
 export function exportHealthPassportToCSV(
   profile: PuppyProfile,
   vaccinations: HealthRecord[],
   dewormings: HealthRecord[],
+  /** The dog's weight and medication events */
   activities: Activity[] = [],
   lang: 'en' | 'fr' = 'fr',
   caretakers: Caretaker[] = []
@@ -535,85 +539,90 @@ export function exportHealthPassportToCSV(
     ? [
         'Catégorie',
         'Date',
-        'Protocole / Produit / Mesure',
-        'Prochain Rappel / Échéance',
+        'Heure',
+        'Protocole / produit / mesure',
+        'Prochain rappel / échéance',
         'Poids (kg)',
-        'Clinique Vétérinaire',
-        'N° Lot / Flacon',
-        'Enregistré Par',
+        'Clinique vétérinaire',
+        'Produit (vignette)',
+        'N° lot / flacon',
+        'Enregistré par',
         'Notes',
       ]
     : [
         'Category',
         'Date',
+        'Time',
         'Protocol / Product / Measurement',
         'Next Due / Booster Date',
         'Weight (kg)',
         'Veterinary Clinic',
+        'Product (Sticker)',
         'Batch / Lot Number',
         'Logged By',
         'Notes',
       ];
 
   const rows: string[] = [];
+  const byDateDesc = (recordA: HealthRecord, recordB: HealthRecord) => new Date(recordB.date).getTime() - new Date(recordA.date).getTime();
 
-  // 1. Vaccinations
-  const sortedVaccines = [...vaccinations].sort(
-    (vaccineA, vaccineB) => new Date(vaccineB.date).getTime() - new Date(vaccineA.date).getTime()
-  );
-  sortedVaccines.forEach((vaccine) => {
+  // 1. Vaccinations: the product typed from the vet's sticker has its own column
+  [...vaccinations].sort(byDateDesc).forEach((vaccine) => {
     rows.push([
-      escapeCsvField(isFrench ? 'Vaccination' : 'Vaccination'),
+      escapeCsvField('Vaccination'),
       escapeCsvField(vaccine.date),
+      escapeCsvField(''),
       escapeCsvField(vaccine.name),
       escapeCsvField(vaccine.boosterDate || ''),
       // A weigh-in is its own weight event, listed below: a record never holds a weight
       escapeCsvField(''),
       escapeCsvField(vaccine.vetClinic || ''),
+      escapeCsvField(vaccine.productName || ''),
       escapeCsvField(vaccine.batchNumber || ''),
       escapeCsvField(''),
       escapeCsvField(vaccine.notes || ''),
     ].join(','));
   });
 
-  // 2. Deworming & Antiparasitics
-  const sortedDewormings = [...dewormings].sort(
-    (dewormingA, dewormingB) => new Date(dewormingB.date).getTime() - new Date(dewormingA.date).getTime()
-  );
-  sortedDewormings.forEach((deworming) => {
+  // 2. Deworming & Antiparasitics: the product is the record's name
+  [...dewormings].sort(byDateDesc).forEach((deworming) => {
     rows.push([
-      escapeCsvField(isFrench ? 'Vermifuge / Antiparasitaire' : 'Deworming / Antiparasitic'),
+      escapeCsvField(isFrench ? 'Vermifuge / antiparasitaire' : 'Deworming / Antiparasitic'),
       escapeCsvField(deworming.date),
+      escapeCsvField(''),
       escapeCsvField(deworming.productName || deworming.name),
       escapeCsvField(deworming.boosterDate || ''),
       escapeCsvField(''),
       escapeCsvField(deworming.vetClinic || ''),
+      escapeCsvField(''),
       escapeCsvField(deworming.batchNumber || ''),
       escapeCsvField(''),
       escapeCsvField(deworming.notes || ''),
     ].join(','));
   });
 
-  // 3. Weight Records
-  const weightLogs = activities
-    .filter((activity) => activity.type === 'weight' && activity.weightKg && activity.weightKg > 0)
-    .sort((activityA, activityB) => new Date(activityB.timestamp).getTime() - new Date(activityA.timestamp).getTime());
+  // 3. Weigh-ins, then treatments, newest first, on their calendar day as on screen and in the print (a 01:30 dose is not the day before's)
+  const events = [...activities].sort((activityA, activityB) => new Date(activityB.timestamp).getTime() - new Date(activityA.timestamp).getTime());
+  const eventRow = (activity: Activity, category: string, label: string, weightKg: number | string) => [
+    escapeCsvField(category),
+    escapeCsvField(formatLocalDate(new Date(activity.timestamp), tz)),
+    escapeCsvField(formatLocalTime(new Date(activity.timestamp), tz)),
+    escapeCsvField(label),
+    escapeCsvField(''),
+    escapeCsvField(weightKg),
+    escapeCsvField(''),
+    escapeCsvField(''),
+    escapeCsvField(''),
+    escapeCsvField(resolveCaretakerName(activity.loggedBy, caretakers)),
+    escapeCsvField(activity.notes || ''),
+  ].join(',');
 
-  weightLogs.forEach((weightItem) => {
-    const formattedDate = formatLogicalDate(weightItem.timestamp, tz);
-    const resolvedCaretaker = resolveCaretakerName(weightItem.loggedBy, caretakers);
-    rows.push([
-      escapeCsvField(isFrench ? 'Pesée & Croissance' : 'Weight & Growth'),
-      escapeCsvField(formattedDate),
-      escapeCsvField(isFrench ? 'Contrôle du Poids' : 'Weight Measurement'),
-      escapeCsvField(''),
-      escapeCsvField(weightItem.weightKg ?? ''),
-      escapeCsvField(''),
-      escapeCsvField(''),
-      escapeCsvField(resolvedCaretaker),
-      escapeCsvField(weightItem.notes || ''),
-    ].join(','));
-  });
+  events
+    .filter((activity) => activity.type === 'weight' && activity.weightKg && activity.weightKg > 0)
+    .forEach((weightItem) => rows.push(eventRow(weightItem, isFrench ? 'Pesée & croissance' : 'Weight & Growth', isFrench ? 'Contrôle du poids' : 'Weight Measurement', weightItem.weightKg ?? '')));
+  events
+    .filter((activity) => activity.type === 'medication')
+    .forEach((medication) => rows.push(eventRow(medication, isFrench ? 'Traitement' : 'Treatment', medication.medicationName || '', '')));
 
   const escapedHeaders = headers.map(escapeCsvField).join(',');
   const csvContent = '\uFEFF' + [escapedHeaders, ...rows].join('\r\n');
@@ -623,16 +632,63 @@ export function exportHealthPassportToCSV(
   return true;
 }
 
+/** The printed passport fits one A4 page: each section keeps its latest rows (vaccines: the open ones first), the rest is counted as "n antérieurs". */
+const PRINT_CAPS = { toDo: 6, vaccines: 6, dewormings: 8, treatments: 8, weighIns: 6 } as const;
+const PRINT_CHART_WIDTH = 420;
+const NINETY_DAYS_MS = 90 * 24 * 60 * 60 * 1000;
+
+/** Long notes are cut, with an ellipsis, so they never push the page past one sheet. */
+function cutText(text: string | null | undefined, maxLength: number): string {
+  const trimmed = (text ?? '').trim();
+  return trimmed.length > maxLength ? `${trimmed.slice(0, maxLength - 1).trimEnd()}…` : trimmed;
+}
+
+/** DD/MM/YYYY: a calendar date ('2026-09-27') as it is, a timestamp on this device's day. */
+function formatDayMonthYear(date: string): string {
+  const [year, month, day] = (date.length === 10 ? date : formatLocalDate(new Date(date))).split('-');
+  return `${day}/${month}/${year}`;
+}
+
+/** The passport's weight curve as an SVG string: the screen chart's geometry, in print colours. */
+function weightChartSvg(geometry: WeightChartGeometry, adultLabel: string, t: TranslationKeys): string {
+  const { plot, height } = geometry;
+  const yTicks = geometry.yTicks.map((tick, index) =>
+    `<line x1="${plot.left}" x2="${plot.right}" y1="${tick.y}" y2="${tick.y}" stroke="#e2e8f0"/>`
+    + `<text x="${plot.left - 6}" y="${tick.y + 4}" text-anchor="end">${index === geometry.yTicks.length - 1 ? `${tick.kg} kg` : tick.kg}</text>`).join('');
+  const xTicks = geometry.xTicks.map((tick, index) =>
+    `<text x="${tick.x}" y="${height - 8}" text-anchor="${tick.anchor}">${index === geometry.xTicks.length - 1 ? t.weightChart.monthsOld.replace('{months}', String(tick.months)) : tick.months}</text>`).join('');
+  const points = geometry.points.map((point) => (point.isUnlikely
+    ? `<circle data-weigh-in cx="${point.x}" cy="${point.y}" r="5" fill="#ffffff" stroke="#d97706" stroke-width="2"/><text x="${point.x}" y="${point.y + 4}" text-anchor="middle" fill="#d97706" font-weight="800" font-size="10">!</text>`
+    : `<circle data-weigh-in cx="${point.x}" cy="${point.y}" r="3" fill="#db2777" stroke="#ffffff" stroke-width="1"/>`)).join('');
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${PRINT_CHART_WIDTH}" height="${height}" font-size="11" fill="#475569">
+    <defs><clipPath id="plot"><rect x="${plot.left}" y="0" width="${plot.right - plot.left}" height="${plot.bottom + 2}"/></clipPath></defs>
+    ${yTicks}${xTicks}
+    <g clip-path="url(#plot)">
+      ${geometry.bandPath ? `<path d="${geometry.bandPath}" fill="#94a3b8" fill-opacity="0.25"/>` : ''}
+      ${geometry.bandMidPath ? `<path d="${geometry.bandMidPath}" fill="none" stroke="#94a3b8"/>` : ''}
+      ${geometry.projectionPath ? `<path d="${geometry.projectionPath}" fill="none" stroke="#db2777" stroke-opacity="0.6" stroke-width="2" stroke-dasharray="5 4"/>` : ''}
+      ${geometry.linePath ? `<path data-line d="${geometry.linePath}" fill="none" stroke="#db2777" stroke-width="2" stroke-linejoin="round"/>` : ''}
+    </g>
+    <line x1="${geometry.today.x}" x2="${geometry.today.x}" y1="${plot.top}" y2="${plot.bottom}" stroke="#cbd5e1"/>
+    <text x="${geometry.today.x}" y="${plot.top - 3}" text-anchor="middle">${t.weightChart.todayShort}</text>
+    ${geometry.projectionEnd ? `<text x="${plot.right}" y="${geometry.projectionEnd.labelY}" text-anchor="end">${adultLabel}</text>` : ''}
+    ${geometry.today.estimateY !== null ? `<circle cx="${geometry.today.x}" cy="${geometry.today.estimateY}" r="4" fill="#ffffff" stroke="#db2777" stroke-width="2"/>` : ''}
+    ${points}
+  </svg>`;
+}
+
 /**
- * Opens a print-optimized window for the Veterinary Health Passport.
+ * Opens a one-page A4 summary of the health passport for a vet, a pension or a sitter (carnet review phase 4):
+ * the dog, what is due, vaccines, the last 12 months of dewormings, the last 90 days of treatments and the weight curve.
+ * Marked unofficial: it never replaces the vet's own record.
  */
 export function printHealthPassportReport(
   profile: PuppyProfile,
   vaccinations: HealthRecord[],
   dewormings: HealthRecord[],
+  /** The dog's weight and medication events */
   activities: Activity[] = [],
-  lang: 'en' | 'fr' = 'fr',
-  _t?: TranslationKeys
+  lang: 'en' | 'fr' = 'fr'
 ): boolean {
   if (typeof window === 'undefined') return false;
 
@@ -640,248 +696,183 @@ export function printHealthPassportReport(
   if (!windowPrint) return false;
 
   const isFrench = lang === 'fr';
-  const locale = isFrench ? 'fr-FR' : 'en-US';
-  const generatedDate = new Date().toLocaleDateString(locale, {
-    weekday: 'long',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  });
+  const t = isFrench ? fr : en;
+  const today = formatLocalDate();
+  const title = isFrench ? 'Carnet de santé — résumé (document non officiel)' : 'Health record — summary (unofficial document)';
+  const earlierLine = (count: number) => (count === 0 ? '' : `<p class="earlier">${isFrench ? `${count} antérieur${count > 1 ? 's' : ''}` : `${count} earlier`}</p>`);
+  // Every cell holds one line, cut with an ellipsis, and notes one line under their row: no row grows with what was typed
+  const noteRow = (notes: string | null | undefined, columns: number) =>
+    (notes?.trim() ? `<tr class="note"><td colspan="${columns}">${esc(cutText(notes, 140))}</td></tr>` : '');
+  const byDateDesc = (recordA: HealthRecord, recordB: HealthRecord) => recordB.date.localeCompare(recordA.date);
 
-  const sortedVaccines = [...vaccinations].sort(
-    (vaccineA, vaccineB) => new Date(vaccineB.date).getTime() - new Date(vaccineA.date).getTime()
-  );
-  const sortedDewormings = [...dewormings].sort(
-    (dewormingA, dewormingB) => new Date(dewormingB.date).getTime() - new Date(dewormingA.date).getTime()
-  );
-  // One that looks like a typo is listed, marked, and left out of the latest weight, as on screen
-  const weightEntries = getUnifiedWeightEntries(activities);
-  const unlikelyIds = findUnlikelyWeighIns(weightEntries, profile);
-  const weightLogs = [...weightEntries].reverse();
-  const latestTrusted = weightLogs.find((weightItem) => !unlikelyIds.has(weightItem.id));
+  // Header: the dog, its age today, its latest weight (never the profile weight: legacy, an older dog's is a made-up 4.5 kg)
+  const age = getPuppyAge(profile.birthDate);
+  const ageText = age.weeks < 16 ? t.weightChart.weeksOld.replace('{weeks}', String(age.weeks)) : t.weightChart.monthsOld.replace('{months}', String(Math.floor(age.months)));
+  const weightModel = getWeightChartModel(activities, profile);
+  const latestTrusted = weightModel.trusted.at(-1);
+  const identity = [
+    `<strong>${esc(profile.name)}</strong>`,
+    profile.gender && (profile.gender === 'female' ? t.puppies.female : t.puppies.male),
+    esc(formatBreedName(profile.breed || 'Puppy', lang)),
+    `${isFrench ? 'Naissance' : 'Born'}${t.common.colon} ${esc(formatDayMonthYear(profile.birthDate))} (${ageText})`,
+    latestTrusted && `${t.weightChart.title}${t.common.colon} ${formatKg(latestTrusted.weightKg, lang)} (${formatDayMonthYear(latestTrusted.timestamp)})`,
+  ].filter(Boolean).join(' · ');
+  const dogNotes = cutText(profile.notes, 300);
 
-  // Never the profile weight: legacy, an older dog's is a made-up 4.5 kg (a new dog has none)
-  const latestWeight = latestTrusted ? formatKg(latestTrusted.weightKg, lang) : '-';
-  const breedLabel = formatBreedName(profile?.breed || 'Puppy', lang);
+  // "À faire": every open next date, overdue first, as on screen
+  const dueItems = getNextDue([...vaccinations, ...dewormings]);
+  const urgencyText: Record<string, string> = isFrench ? { overdue: 'en retard', soon: 'bientôt' } : { overdue: 'overdue', soon: 'soon' };
+  const moreToDo = dueItems.length - PRINT_CAPS.toDo;
+  const toDoRows = dueItems.slice(0, PRINT_CAPS.toDo).map(({ record, urgency }) => `
+    <tr data-row><td>${esc(getRecordShortName(record, lang))}</td><td>${formatDayMonthYear(record.boosterDate!)}</td><td class="${urgency}">${urgencyText[urgency] ?? ''}</td></tr>`).join('');
+
+  // Every open shot first (a rabies shot good for 3 years is what a kennel reads this page for), then the latest renewed ones
+  const sortedVaccines = [...vaccinations].sort(byDateDesc);
+  const isRenewed = (vaccine: HealthRecord) => getHealthRecordStatus(vaccine, vaccinations) === 'fulfilled';
+  const shownVaccines = [...sortedVaccines.filter((vaccine) => !isRenewed(vaccine)), ...sortedVaccines.filter(isRenewed)]
+    .slice(0, PRINT_CAPS.vaccines)
+    .sort(byDateDesc);
+  const vaccineRows = shownVaccines.map((vaccine) => `
+    <tr data-row><td>${formatDayMonthYear(vaccine.date)}</td><td>${esc(getRecordShortName(vaccine, lang))}</td><td>${esc(formatProductAndLot(vaccine) || '-')}</td><td>${esc(vaccine.vetClinic?.trim() || '-')}</td><td>${vaccine.boosterDate ? formatDayMonthYear(vaccine.boosterDate) : '-'}</td></tr>${noteRow(vaccine.notes, 5)}`).join('');
+
+  // The last 12 months
+  const yearAgo = `${Number(today.slice(0, 4)) - 1}${today.slice(4)}`;
+  const sortedDewormings = [...dewormings].sort(byDateDesc);
+  const shownDewormings = sortedDewormings.filter((deworming) => deworming.date >= yearAgo).slice(0, PRINT_CAPS.dewormings);
+  const dewormingRows = shownDewormings.map((deworming) => `
+    <tr data-row><td>${formatDayMonthYear(deworming.date)}</td><td>${esc(deworming.productName || deworming.name)}</td><td>${deworming.boosterDate ? formatDayMonthYear(deworming.boosterDate) : '-'}</td></tr>${noteRow(deworming.notes, 3)}`).join('');
+
+  // The last 90 days
+  const medications = activities
+    .filter((activity) => activity.type === 'medication')
+    .sort((activityA, activityB) => Date.parse(activityB.timestamp) - Date.parse(activityA.timestamp));
+  const shownMedications = medications.filter((medication) => Date.parse(medication.timestamp) >= Date.now() - NINETY_DAYS_MS).slice(0, PRINT_CAPS.treatments);
+  const medicationRows = shownMedications.map((medication) => `
+    <tr data-row><td>${formatDayMonthYear(medication.timestamp)}</td><td>${esc(medication.medicationName || t.potty.medication)}</td></tr>${noteRow(medication.notes, 2)}`).join('');
+
+  // The curve, as on screen, and the last weigh-ins; one that looks like a typo is marked
+  const { entries, unlikelyIds, projection } = weightModel;
+  const geometry = buildDogWeightChart(weightModel, profile.birthDate, PRINT_CHART_WIDTH, false);
+  const adultLabel = t.weightChart.adultEnd.replace('{weight}', formatKg(projection.projectedAdultKg, lang));
+  // What the line and dots, the grey band and the dashed line are, shown as on screen: the band is only a rough guide
+  const legendItem = (swatch: string, label: string) => `<span><svg width="14" height="8">${swatch}</svg>${label}</span>`;
+  const legend = [
+    legendItem('<line x1="0" x2="14" y1="4" y2="4" stroke="#db2777" stroke-width="2"/><circle cx="7" cy="4" r="2.5" fill="#db2777"/>', t.weightChart.legendWeighIns),
+    geometry.bandPath && legendItem('<rect width="14" height="8" fill="#94a3b8" fill-opacity="0.25"/><line x1="0" x2="14" y1="4" y2="4" stroke="#94a3b8"/>', t.weightChart.legendZone),
+    geometry.projectionPath && legendItem('<line x1="0" x2="14" y1="4" y2="4" stroke="#db2777" stroke-opacity="0.6" stroke-width="2" stroke-dasharray="4 3"/>', t.weightChart.legendProjection),
+  ].filter(Boolean).join('');
+  const weighInRows = [...entries].reverse().slice(0, PRINT_CAPS.weighIns).map((entry) => `
+    <tr data-row><td>${formatDayMonthYear(entry.timestamp)}</td><td>${formatKg(entry.weightKg, lang)}${unlikelyIds.has(entry.id) ? ` (${t.weightChart.checkBadge})` : ''}</td></tr>`).join('');
 
   const html = `
     <!DOCTYPE html>
     <html lang="${lang}">
       <head>
         <meta charset="utf-8" />
-        <title>${esc(profile.name)} - ${isFrench ? 'Carnet de Santé Vétérinaire' : 'Veterinary Health Passport'}</title>
+        <title>${esc(profile.name)} — ${title}</title>
         <style>
-          @page { size: A4; margin: 15mm; }
+          @page { size: A4; margin: 12mm; }
           * { box-sizing: border-box; }
           body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            padding: 20px;
+            font-size: 11px;
+            line-height: 1.35;
             color: #0f172a;
-            line-height: 1.4;
             background: #ffffff;
             margin: 0;
           }
-          .header {
-            border-bottom: 2px solid #0284c7;
-            padding-bottom: 14px;
-            margin-bottom: 18px;
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-          }
-          .title-area h1 {
-            margin: 0 0 4px 0;
-            font-size: 22px;
-            font-weight: 800;
-            color: #0f172a;
-          }
-          .title-area p {
-            margin: 0;
-            font-size: 13px;
-            color: #64748b;
-          }
-          .badge {
-            display: inline-block;
-            padding: 4px 10px;
-            border-radius: 8px;
-            font-size: 11px;
-            font-weight: bold;
-            background: #e0f2fe;
-            color: #0369a1;
-            border: 1px solid #bae6fd;
-          }
-          .grid-summary {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 12px;
-            margin-bottom: 20px;
-          }
-          .card {
-            background: #f8fafc;
-            border: 1px solid #e2e8f0;
-            border-radius: 8px;
-            padding: 10px 14px;
-          }
-          .card-label {
-            font-size: 11px;
-            text-transform: uppercase;
-            color: #64748b;
-            font-weight: 600;
-            letter-spacing: 0.5px;
-          }
-          .card-value {
-            font-size: 16px;
-            font-weight: bold;
-            color: #0f172a;
-            margin-top: 2px;
-          }
-          h2 {
-            font-size: 15px;
-            color: #0369a1;
-            border-bottom: 1px solid #e2e8f0;
-            padding-bottom: 6px;
-            margin: 20px 0 10px 0;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-          }
-          table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 8px;
-            font-size: 12px;
-          }
-          th, td {
-            border: 1px solid #cbd5e1;
-            padding: 7px 10px;
-            text-align: left;
-            vertical-align: top;
-          }
-          th {
-            background: #f1f5f9;
-            font-weight: 600;
-            color: #334155;
-            font-size: 11px;
-            text-transform: uppercase;
-          }
-          tr:nth-child(even) {
-            background: #f8fafc;
-          }
-          .footer {
-            margin-top: 28px;
-            padding-top: 12px;
-            border-top: 1px solid #e2e8f0;
-            font-size: 11px;
-            color: #94a3b8;
-            text-align: center;
-          }
+          @media screen { body { max-width: 186mm; margin: 12mm auto; } }
+          h1 { font-size: 16px; margin: 0 0 4px; }
+          h2 { font-size: 12px; color: #0f766e; margin: 8px 0 2px; padding-bottom: 2px; border-bottom: 1px solid #e2e8f0; }
+          p { margin: 2px 0; }
+          .meta, .earlier { font-size: 10px; color: #64748b; }
+          .dog-notes { overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+          table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 10px; line-height: 1.25; }
+          th, td { text-align: left; vertical-align: top; padding: 1px 6px 1px 0; border-bottom: 1px solid #e2e8f0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+          th { font-weight: 600; color: #475569; }
+          col.date { width: 68px; }
+          col.status { width: 64px; }
+          tr[data-row]:has(+ tr.note) td { border-bottom: 0; }
+          tr.note td { padding-left: 68px; font-style: italic; color: #475569; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+          .overdue { color: #b91c1c; font-weight: 700; }
+          .soon { color: #b45309; font-weight: 700; }
+          #to-do { margin-top: 6px; padding: 2px 8px 4px; border: 1.5px solid #0f766e; border-radius: 6px; }
+          #to-do h2 { margin-top: 0; border: 0; }
+          .columns { display: flex; gap: 16px; }
+          .columns > section { flex: 1; min-width: 0; }
+          .weight { display: flex; gap: 12px; align-items: flex-start; }
+          .weight .chart { flex: none; }
+          .legend { display: flex; flex-wrap: wrap; gap: 0 10px; margin: 0; font-size: 9.5px; color: #475569; }
+          .legend span { display: inline-flex; align-items: center; gap: 4px; }
+          .weight table { flex: 1; }
         </style>
       </head>
       <body>
-        <div class="header">
-          <div class="title-area">
-            <h1>🐾 ${isFrench ? 'Carnet de Santé & Passeport Vaccinal' : 'Health Passport & Vaccine Record'} — ${esc(profile.name)}</h1>
-            <p>${isFrench ? 'Dossier Médical Vétérinaire' : 'Veterinary Medical File'} &bull; ${esc(breedLabel)} &bull; ${isFrench ? 'Édité le' : 'Generated on'} ${generatedDate}</p>
-          </div>
-          <span class="badge">PupPace Health Passport</span>
+        <section id="identity">
+          <h1>${title}</h1>
+          <p>${identity}</p>
+          ${dogNotes ? `<p class="dog-notes">Notes${t.common.colon} ${esc(dogNotes)}</p>` : ''}
+          <p class="meta">${isFrench
+            ? `Édité le ${formatDayMonthYear(today)} avec PupPace. Il ne remplace pas le carnet de santé officiel.`
+            : `Printed on ${formatDayMonthYear(today)} with PupPace. It does not replace the official health record.`}</p>
+        </section>
+
+        <section id="to-do">
+          <h2>${t.health.toDo}</h2>
+          ${toDoRows ? `<table><colgroup><col><col class="date"><col class="status"></colgroup><tbody>${toDoRows}</tbody></table>` : `<p>${t.health.nothingDue}</p>`}
+          ${moreToDo > 0 ? `<p class="earlier">${isFrench ? `+ ${moreToDo} autre${moreToDo > 1 ? 's' : ''}` : `+ ${moreToDo} more`}</p>` : ''}
+        </section>
+
+        <section id="vaccines">
+          <h2>${t.health.vaccinations}</h2>
+          ${shownVaccines.length === 0 ? `<p>${t.health.noVaccineRecords}</p>` : `
+          <table>
+            <colgroup><col class="date"><col style="width: 24%"><col><col style="width: 26%"><col class="date"></colgroup>
+            <thead><tr><th>Date</th><th>${isFrench ? 'Vaccin' : 'Vaccine'}</th><th>${isFrench ? 'Produit · lot' : 'Product · lot'}</th><th>${isFrench ? 'Clinique' : 'Clinic'}</th><th>${isFrench ? 'Rappel' : 'Booster'}</th></tr></thead>
+            <tbody>${vaccineRows}</tbody>
+          </table>`}
+          ${earlierLine(sortedVaccines.length - shownVaccines.length)}
+        </section>
+
+        <div class="columns">
+          <section id="dewormings">
+            <h2>${t.health.deworming} (${isFrench ? '12 derniers mois' : 'last 12 months'})</h2>
+            ${shownDewormings.length === 0 ? `<p>${t.health.noDewormingRecords}</p>` : `
+            <table>
+              <colgroup><col class="date"><col><col class="date"></colgroup>
+              <thead><tr><th>Date</th><th>${isFrench ? 'Produit' : 'Product'}</th><th>${isFrench ? 'Prochaine' : 'Next'}</th></tr></thead>
+              <tbody>${dewormingRows}</tbody>
+            </table>`}
+            ${earlierLine(sortedDewormings.length - shownDewormings.length)}
+          </section>
+
+          <section id="treatments">
+            <h2>${t.health.medicationHistory} (${isFrench ? '90 derniers jours' : 'last 90 days'})</h2>
+            ${shownMedications.length === 0 ? `<p>${t.health.noMedicationRecords}</p>` : `
+            <table>
+              <colgroup><col class="date"><col></colgroup>
+              <thead><tr><th>Date</th><th>${isFrench ? 'Traitement' : 'Treatment'}</th></tr></thead>
+              <tbody>${medicationRows}</tbody>
+            </table>`}
+            ${earlierLine(medications.length - shownMedications.length)}
+          </section>
         </div>
 
-        <div class="grid-summary">
-          <div class="card">
-            <div class="card-label">${isFrench ? 'Nom du Chien' : 'Dog Name'}</div>
-            <div class="card-value">${esc(profile.name)}</div>
-          </div>
-          <div class="card">
-            <div class="card-label">${isFrench ? 'Race' : 'Breed'}</div>
-            <div class="card-value">${esc(breedLabel)}</div>
-          </div>
-          <div class="card">
-            <div class="card-label">${isFrench ? 'Date de Naissance' : 'Birth Date'}</div>
-            <div class="card-value">${esc(profile.birthDate || '-')}</div>
-          </div>
-          <div class="card">
-            <div class="card-label">${isFrench ? 'Dernier Poids Connu' : 'Latest Known Weight'}</div>
-            <div class="card-value">${esc(latestWeight)}</div>
-          </div>
-        </div>
-
-        <h2>💉 ${isFrench ? 'Historique des Vaccinations & Rappels WSAVA' : 'Vaccination History & WSAVA Boosters'}</h2>
-        ${sortedVaccines.length === 0 ? `<p style="font-size:12px;color:#64748b;">${isFrench ? 'Aucun vaccin enregistré.' : 'No vaccine records logged.'}</p>` : `
-        <table>
-          <thead>
-            <tr>
-              <th>${isFrench ? 'Date Injection' : 'Injection Date'}</th>
-              <th>${isFrench ? 'Protocole Vaccinal' : 'Vaccine Protocol'}</th>
-              <th>${isFrench ? 'Prochain Rappel' : 'Next Booster'}</th>
-              <th>${isFrench ? 'Clinique Vétérinaire' : 'Veterinary Clinic'}</th>
-              <th>${isFrench ? 'N° Lot / Flacon' : 'Batch / Lot #'}</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${sortedVaccines.map((vaccine) => `
-              <tr>
-                <td><strong>${esc(vaccine.date)}</strong></td>
-                <td>${esc(vaccine.name)}</td>
-                <td>${esc(vaccine.boosterDate || '-')}</td>
-                <td>${esc(vaccine.vetClinic || '-')}</td>
-                <td>${esc(vaccine.batchNumber || '-')}</td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
-        `}
-
-        <h2>💊 ${isFrench ? 'Historique Vermifuge & Parasitologie (Protocole ESCCAP)' : 'Deworming & Parasitology History (ESCCAP Protocol)'}</h2>
-        ${sortedDewormings.length === 0 ? `<p style="font-size:12px;color:#64748b;">${isFrench ? 'Aucun traitement vermifuge enregistré.' : 'No deworming treatments logged.'}</p>` : `
-        <table>
-          <thead>
-            <tr>
-              <th>${isFrench ? 'Date Administration' : 'Date Given'}</th>
-              <th>${isFrench ? 'Produit Antiparasitaire' : 'Product Name'}</th>
-              <th>${isFrench ? 'Prochain Traitement Dû' : 'Next Due Date'}</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${sortedDewormings.map((deworming) => `
-              <tr>
-                <td><strong>${esc(deworming.date)}</strong></td>
-                <td>${esc(deworming.productName || deworming.name)}</td>
-                <td>${esc(deworming.boosterDate || '-')}</td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
-        `}
-
-        <h2>⚖️ ${isFrench ? 'Historique des Pesées & Croissance' : 'Weight History & Growth Curve'}</h2>
-        ${weightLogs.length === 0 ? `<p style="font-size:12px;color:#64748b;">${isFrench ? 'Aucune pesée enregistrée.' : 'No weight entries logged.'}</p>` : `
-        <table>
-          <thead>
-            <tr>
-              <th>${isFrench ? 'Date & Heure' : 'Date & Time'}</th>
-              <th>${isFrench ? 'Poids (kg)' : 'Weight (kg)'}</th>
-              <th>${isFrench ? 'Enregistré Par' : 'Logged By'}</th>
-              <th>${isFrench ? 'Notes / Remarques' : 'Notes'}</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${weightLogs.map((weightItem) => `
-              <tr>
-                <td>${new Date(weightItem.timestamp).toLocaleDateString(locale)}</td>
-                <td><strong>${esc(formatKg(weightItem.weightKg, lang))}</strong>${unlikelyIds.has(weightItem.id) ? ` (${isFrench ? 'À vérifier' : 'Check'})` : ''}</td>
-                <td>${esc(weightItem.loggedBy)}</td>
-                <td>${esc(weightItem.notes || '-')}</td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
-        `}
-
-        <div class="footer">
-          ${isFrench
-            ? 'Document généré via PupPace — Application de Suivi & Carnet de Santé Familial du Chiot.'
-            : 'Document generated with PupPace — Family Puppy Care & Health Passport.'}
-        </div>
+        <section id="weight">
+          <h2>${t.weightChart.title}</h2>
+          ${entries.length === 0 ? `<p>${isFrench ? 'Aucune pesée enregistrée.' : 'No weigh-ins yet.'}</p>` : `
+          <div class="weight">
+            <div class="chart">
+              ${weightChartSvg(geometry, adultLabel, t)}
+              <p class="legend">${legend}</p>
+            </div>
+            <table>
+              <colgroup><col class="date"><col></colgroup>
+              <thead><tr><th>Date</th><th>${t.weightChart.title}</th></tr></thead>
+              <tbody>${weighInRows}</tbody>
+            </table>
+          </div>`}
+        </section>
       </body>
     </html>
   `;
@@ -889,5 +880,3 @@ export function printHealthPassportReport(
   writeAndPrint(windowPrint, html);
   return true;
 }
-
-

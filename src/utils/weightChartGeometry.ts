@@ -1,4 +1,18 @@
-import { getWalthamAdultWeeks, getWalthamGrowthFraction, type WalthamCategory } from './weight';
+import type { Activity, PuppyProfile } from '../types';
+import {
+  calculateProjectedAdultWeightRange,
+  findUnlikelyWeighIns,
+  getAgeInWeeks,
+  getEffectivePuppyWeight,
+  getExpectedAdultWeight,
+  getKnownAdultWeight,
+  getMeasuredPace,
+  getUnifiedWeightEntries,
+  getWalthamAdultWeeks,
+  getWalthamCategory,
+  getWalthamGrowthFraction,
+  type WalthamCategory,
+} from './weight';
 
 export interface ChartWeighIn {
   id: string;
@@ -164,6 +178,47 @@ export function buildWeightChartGeometry(input: WeightChartInput) {
 }
 
 export type WeightChartGeometry = ReturnType<typeof buildWeightChartGeometry>;
+
+/**
+ * What the weight chart shows for a dog, on screen and in the printed passport: every weight event; one that looks like
+ * a typo is drawn and listed, but left out of the line, scale, estimates and pace.
+ */
+export function getWeightChartModel(activities: Activity[], profile: PuppyProfile) {
+  const entries = getUnifiedWeightEntries(activities);
+  const unlikelyIds = findUnlikelyWeighIns(entries, profile);
+  const trusted = entries.filter((entry) => !unlikelyIds.has(entry.id));
+  return {
+    entries,
+    unlikelyIds,
+    trusted,
+    projection: calculateProjectedAdultWeightRange(profile.breed, trusted, profile.birthDate, profile.gender, profile.expectedAdultWeightKg),
+    effective: getEffectivePuppyWeight(profile, activities),
+    pace: getMeasuredPace(trusted),
+    bandAdultKg: getKnownAdultWeight(profile),
+    category: getWalthamCategory(getExpectedAdultWeight(profile.breed, profile.gender, profile.expectedAdultWeightKg)),
+    todayWeeks: getAgeInWeeks(profile.birthDate),
+  };
+}
+
+export type WeightChartModel = ReturnType<typeof getWeightChartModel>;
+
+/** A dog's weight chart drawn at a width. */
+export function buildDogWeightChart(model: WeightChartModel, birthDate: string, width: number, isZoomed: boolean): WeightChartGeometry {
+  return buildWeightChartGeometry({
+    width,
+    weighIns: model.entries.map((entry) => ({
+      id: entry.id,
+      ageWeeks: getAgeInWeeks(birthDate, entry.timestamp),
+      weightKg: entry.weightKg,
+      isUnlikely: model.unlikelyIds.has(entry.id),
+    })),
+    todayWeeks: model.todayWeeks,
+    category: model.category,
+    bandAdultKg: model.bandAdultKg,
+    projection: model.trusted.length > 0 ? { adultKg: model.projection.projectedAdultKg, todayKg: model.effective.estimatedCurrentWeight } : null,
+    isZoomed,
+  });
+}
 
 /** The index of the point nearest to (x, y), height counting half as much: two weigh-ins on one day can both be picked. -1 when there is none. */
 export function findNearestPoint(points: Array<{ x: number; y: number }>, x: number, y: number): number {

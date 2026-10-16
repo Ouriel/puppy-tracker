@@ -142,7 +142,7 @@ describe('Vaccins and Antiparasitaires: open records in full, renewed ones as on
     await renderPassport();
     const vaccines = section(fr.health.vaccinations);
 
-    expect(historyLines(fr.health.vaccinations)).toEqual(['1 juin · CHPPi + L4 · Lot B123']);
+    expect(historyLines(fr.health.vaccinations)).toEqual(['1 juin · CHPPi + L4 · lot B123']);
     expect(vaccines.textContent).not.toContain('5 juil.'); // the renewed shot's own next date
     expect(vaccines.querySelectorAll('.chip')).toHaveLength(2); // Rage (overdue) and the July CHPPi + L4
     expect(vaccines.querySelectorAll(`button[aria-label^="${fr.health.addToCalendar}"]`)).toHaveLength(1); // the July CHPPi + L4

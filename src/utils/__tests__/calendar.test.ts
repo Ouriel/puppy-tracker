@@ -93,6 +93,13 @@ describe('buildDueDateIcs: one all-day event on the next date', () => {
     expect(property(content, 'DESCRIPTION')).toBe('DESCRIPTION:Donné le 1 juillet 2026\\nClinique\u00a0: Clinique des Lilas');
   });
 
+  // Carnet review phase 4: a vaccine's productName is the product typed from the vet's sticker, never the event's title
+  it('names a vaccine after the vaccine, not the product typed from its sticker', () => {
+    const { content, filename } = buildDueDateIcs({ ...vaccine, productName: 'Nobivac DHPPi+L4' }, 'Rex', fr, 'fr');
+    expect(property(content, 'SUMMARY')).toBe(`SUMMARY:Rex\u00a0: ${chppiL4} à faire`);
+    expect(filename).toContain('rex-chppi-dappi');
+  });
+
   it('escapes backslashes, commas, semicolons and newlines (RFC 5545 TEXT)', () => {
     const { content } = buildDueDateIcs({ ...vaccine, name: 'Rage; L4', vetClinic: 'Vet A, B\\C\nRue 2' }, 'Rex, Jr', en, 'en');
 

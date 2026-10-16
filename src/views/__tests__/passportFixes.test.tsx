@@ -200,14 +200,14 @@ describe('the antiparasitic forms speak of doses, not injections', () => {
 });
 
 describe('vaccine add form', () => {
-  it('every field is named: the vaccine, its dates, clinic and lot', async () => {
+  it('every field is named: the vaccine, its dates, clinic, the sticker\'s product and lot', async () => {
     await renderPassport();
     await act(async () => buttonWithText('Ajouter un vaccin')!.click());
     const card = section('Vaccins');
     const fields = [...card.querySelectorAll('input:not([type="hidden"]):not([aria-hidden="true"]), button[aria-haspopup="listbox"]')];
     // The vaccine list is named by its label and the vaccine shown
     expect(fieldName(fields[0])).toMatch(/ Vaccin$/);
-    expect(fields.slice(1).map(fieldName)).toEqual(["Date d'injection", 'Date du prochain rappel', 'Clinique vétérinaire', 'Numéro de lot', 'Poids (kg)']);
+    expect(fields.slice(1).map(fieldName)).toEqual(["Date d'injection", 'Date du prochain rappel', 'Clinique vétérinaire', 'Produit (vignette)', 'Numéro de lot', 'Poids (kg)']);
     expect(fields.every((field) => fieldName(field))).toBe(true);
   });
 });

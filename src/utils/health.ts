@@ -36,16 +36,26 @@ export function getHealthProtocols(): HealthProtocolData {
   } as HealthProtocolData;
 }
 
+// A brand makes many vaccines ('Eurican Herpes 205', 'Versican Plus Pi'): alone it means CHPPi + L4, within a longer name nothing
+const BRAND_ALIASES = new Set(['eurican', 'nobivac', 'versican', 'canigen']);
+
+/** `words` in `text` as whole words: 'l4' in 'Lepto L4', not 'can' in 'Eurican'. */
+function containsWords(text: string, words: string): boolean {
+  return new RegExp(`(^|[^\\p{L}\\p{N}])${words.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}([^\\p{L}\\p{N}]|$)`, 'u').test(text);
+}
+
 /**
- * Protocol vaccine for a record name: by id, exact alias, name, then partial alias.
+ * Protocol vaccine for a record name: by id, exact alias, words of a protocol name, then partial alias.
  * Partial alias: the longest matching alias wins ('chppi sans l4' is CHPPi sans L4, not the first 'chppi'),
- * and short aliases (r, l4, kc) only match as whole words ('Herpès' is not a rabies shot).
+ * short aliases (r, l4, kc) only match as whole words ('Herpès' is not a rabies shot), and a bare brand never does.
+ * A name typed under "Autre…" matching none of them is a vaccine of its own: 12 months, its own renewal key.
  */
 function findVaccineProtocol(vaccineType: string) {
   const typeLower = vaccineType.toLowerCase();
   const matchesPartially = (alias: string) => {
     const aliasLower = alias.toLowerCase();
-    if (aliasLower.length < 3) return new RegExp(`(^|[^\\p{L}\\p{N}])${aliasLower}([^\\p{L}\\p{N}]|$)`, 'u').test(typeLower);
+    if (BRAND_ALIASES.has(aliasLower)) return false;
+    if (aliasLower.length < 3) return containsWords(typeLower, aliasLower);
     return typeLower.includes(aliasLower) || (typeLower.length >= 3 && aliasLower.includes(typeLower));
   };
   const bestPartialMatch = healthProtocols.vaccines
@@ -54,7 +64,7 @@ function findVaccineProtocol(vaccineType: string) {
   return (
     healthProtocols.vaccines.find((vaccine) => vaccine.id === typeLower) ||
     healthProtocols.vaccines.find((vaccine) => vaccine.aliases && vaccine.aliases.some((alias) => alias.toLowerCase() === typeLower)) ||
-    healthProtocols.vaccines.find((vaccine) => vaccine.name.toLowerCase().includes(typeLower)) ||
+    (typeLower.length >= 3 && healthProtocols.vaccines.find((vaccine) => containsWords(vaccine.name.toLowerCase(), typeLower))) ||
     bestPartialMatch?.vaccine
   );
 }
@@ -174,6 +184,11 @@ export function getRecordShortName(record: Pick<HealthRecord, 'type' | 'name' | 
   const vaccine = healthProtocols.vaccines.find((protocol) => protocol.name === record.name || protocol.formerNames?.includes(record.name));
   if (!vaccine) return record.name;
   return lang === 'en' ? vaccine.shortNameEn : vaccine.shortName;
+}
+
+/** A vaccine's sticker as typed: 'Nobivac DHPPi+L4 · lot B456', 'lot B456', or '' ("lot" in English and French alike). */
+export function formatProductAndLot(record: Pick<HealthRecord, 'productName' | 'batchNumber'>): string {
+  return [record.productName?.trim(), record.batchNumber?.trim() && `lot ${record.batchNumber.trim()}`].filter(Boolean).join(' · ');
 }
 
 /** "À faire": every record no later one renews that has a next date, with its status; overdue first, then the soonest. */
