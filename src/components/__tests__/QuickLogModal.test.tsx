@@ -4,6 +4,7 @@ import { act, type ComponentProps } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { QuickLogModal } from '../QuickLogModal';
 import { getLocalDatetimeString } from '../../utils/date';
+import { en } from '../../i18n/en';
 
 let root: Root | null = null;
 
@@ -287,5 +288,42 @@ describe('QuickLogModal save that fails', () => {
     const saveButton = document.querySelector('button[type="submit"]')!;
     expect(saveButton.textContent).toBe('Saving…');
     expect(saveButton.getAttribute('aria-busy')).toBe('true');
+  });
+});
+
+describe('QuickLogModal layout on a short phone', () => {
+  it('is a dialog named by its title, with the fields in a scrolling body and Save in a footer outside it', async () => {
+    await renderModal({ initialType: 'poop' });
+
+    const dialog = document.querySelector('[role="dialog"]')!;
+    const titleId = dialog.getAttribute('aria-labelledby');
+    expect(titleId && document.getElementById(titleId)?.textContent).toBe(en.potty.logActivity);
+    // HeroUI's scroll="inside" makes the body the part that scrolls: every field must be in it
+    const body = dialog.querySelector('[data-slot="modal-body"]')!;
+    expect(body.classList.contains('modal__body--scroll-inside')).toBe(true);
+    expect(body.contains(field('quicklog-notes'))).toBe(true);
+    expect(body.contains(field('quicklog-timestamp'))).toBe(true);
+    const footer = dialog.querySelector('[data-slot="modal-footer"]')!;
+    expect(footer.querySelector('button[type="submit"]')?.textContent).toBe(en.potty.saveLog);
+    expect(body.contains(footer)).toBe(false);
+  });
+});
+
+describe('QuickLogModal edit sheet', () => {
+  const peeLog = { id: 'act-1', puppyId: 'pup-1', type: 'pee' as const, timestamp: '2026-10-13T08:15:00.000Z', loggedBy: 'Sam' };
+
+  afterEach(() => localStorage.clear());
+
+  it('has its own subtitle, not the one of a new log', async () => {
+    await renderModal({ activityToEdit: peeLog });
+    const dialogText = document.querySelector('[role="dialog"]')!.textContent;
+    expect(dialogText).toContain(en.potty.editCareEvent);
+    expect(dialogText).not.toContain(en.potty.recordCareEvent);
+  });
+
+  it('in French, Save reads "Enregistrer", short enough for one line on a 375 px phone', async () => {
+    localStorage.setItem('puppace_lang_v1', 'fr');
+    await renderModal({ activityToEdit: peeLog });
+    expect(document.querySelector('button[type="submit"]')!.textContent).toBe('Enregistrer');
   });
 });

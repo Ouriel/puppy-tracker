@@ -9,8 +9,9 @@ import { getRecommendedMealsPerDay } from '../utils/predictions';
 import { getExpectedAdultWeight } from '../utils/weight';
 import { Card, Button, Input, Select, ListBox, ListBoxItem, Chip } from '@heroui/react';
 import { ConfirmationModal } from '../components/common/ConfirmationModal';
+import { PageHeader } from '../components/common/PageHeader';
 
-const inputErrorClass = 'mt-1.5 text-xs font-semibold text-rose-400';
+const inputErrorClass = 'mt-1.5 text-xs font-semibold text-red-400';
 
 interface PuppiesViewProps {
   puppies: PuppyProfile[];
@@ -312,29 +313,22 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
   return (
     <div className="space-y-6 w-full">
       {/* Header */}
-      <Card className="bg-slate-900 border-slate-800 text-slate-100 shadow-xl">
-        <Card.Content className="flex flex-wrap items-center justify-between gap-3 p-3.5 sm:p-5">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="p-2.5 sm:p-3 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl shadow-md shrink-0">
-              <Dog className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
-            </div>
-            <div className="min-w-0">
-              <h2 className="text-base sm:text-lg font-black text-slate-100 truncate">{t.puppies.title}</h2>
-              <p className="text-xs text-slate-400 truncate">{t.puppies.subtitle}</p>
-            </div>
-          </div>
-
+      <PageHeader
+        icon={Dog}
+        title={t.puppies.title}
+        subtitle={t.puppies.subtitle}
+        action={
           <Button
             variant="primary"
             size="sm"
             onPress={isAdding ? resetForm : handleStartAdd}
-            className="bg-indigo-600 hover:bg-indigo-500 font-bold text-xs shadow-sm"
+            className="font-bold text-xs shadow-sm"
           >
             <Plus className="w-4 h-4 mr-1 inline" />
             {isAdding ? t.potty.cancel : t.puppies.addDog}
           </Button>
-        </Card.Content>
-      </Card>
+        }
+      />
 
       {/* Add Dog Form */}
       {isAdding && (

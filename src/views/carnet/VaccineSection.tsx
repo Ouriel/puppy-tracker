@@ -216,7 +216,7 @@ export const VaccineSection: React.FC<VaccineSectionProps> = ({
                       }}
                       required
                     />
-                    {addDateError && addDateError !== 'boosterBeforeDate' && <p role="alert" className="mt-1.5 text-xs font-semibold text-rose-400">{t.health[addDateError]}</p>}
+                    {addDateError && addDateError !== 'boosterBeforeDate' && <p role="alert" className="mt-1.5 text-xs font-semibold text-red-400">{t.health[addDateError]}</p>}
                   </div>
 
                   <div className="sm:col-span-1 min-w-0">
@@ -229,7 +229,7 @@ export const VaccineSection: React.FC<VaccineSectionProps> = ({
                       onChange={(event) => setCustomNextDueDate(event.target.value)}
                       required
                     />
-                    {addDateError === 'boosterBeforeDate' && <p role="alert" className="mt-1.5 text-xs font-semibold text-rose-400">{t.health.boosterBeforeDate}</p>}
+                    {addDateError === 'boosterBeforeDate' && <p role="alert" className="mt-1.5 text-xs font-semibold text-red-400">{t.health.boosterBeforeDate}</p>}
                   </div>
                 </div>
 
@@ -327,7 +327,7 @@ export const VaccineSection: React.FC<VaccineSectionProps> = ({
                           max={today}
                           onChange={(event) => setEditVaccineDate(event.target.value)}
                         />
-                        {editDateError && editDateError !== 'boosterBeforeDate' && <p role="alert" className="mt-1.5 text-xs font-semibold text-rose-400">{t.health[editDateError]}</p>}
+                        {editDateError && editDateError !== 'boosterBeforeDate' && <p role="alert" className="mt-1.5 text-xs font-semibold text-red-400">{t.health[editDateError]}</p>}
                       </div>
                       <div className="sm:col-span-1 min-w-0">
                         <label className="block text-[10px] text-slate-400 font-semibold mb-1">{t.health.boosterDue}</label>
@@ -338,7 +338,7 @@ export const VaccineSection: React.FC<VaccineSectionProps> = ({
                           min={editVaccineDate}
                           onChange={(event) => setEditVaccineBoosterDate(event.target.value)}
                         />
-                        {editDateError === 'boosterBeforeDate' && <p role="alert" className="mt-1.5 text-xs font-semibold text-rose-400">{t.health.boosterBeforeDate}</p>}
+                        {editDateError === 'boosterBeforeDate' && <p role="alert" className="mt-1.5 text-xs font-semibold text-red-400">{t.health.boosterBeforeDate}</p>}
                         {suggestedEditBoosterDate && suggestedEditBoosterDate !== editVaccineBoosterDate && (
                           <button
                             type="button"

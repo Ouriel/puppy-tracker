@@ -436,11 +436,11 @@ function App() {
         <main className="flex-1 max-w-6xl w-full mx-auto px-4 py-6 space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {[1, 2, 3].map((index) => (
-              <div key={index} className="h-48 rounded-2xl bg-slate-900 border border-slate-800 motion-safe:animate-pulse" />
+              <div key={index} className="h-48 rounded-3xl bg-slate-900 border border-slate-800 motion-safe:animate-pulse" />
             ))}
           </div>
           {/* Skeleton Health Summary */}
-          <div className="h-32 rounded-2xl bg-slate-900 border border-slate-800 motion-safe:animate-pulse" />
+          <div className="h-32 rounded-3xl bg-slate-900 border border-slate-800 motion-safe:animate-pulse" />
           {/* Skeleton Timeline */}
           <div className="space-y-3">
             {[1, 2, 3].map((index) => (
@@ -531,7 +531,7 @@ function App() {
           </Suspense>
         ) : puppyState.puppies.length === 0 ? (
           <Card className="p-10 text-center max-w-lg mx-auto my-12 bg-slate-900 border border-slate-800">
-            <Card.Content className="space-y-4">
+            <Card.Content className="items-center space-y-4">
               <div className="p-4 bg-indigo-950 text-indigo-400 rounded-2xl inline-block border border-indigo-800/50">
                 <Dog className="w-12 h-12" />
               </div>
@@ -539,7 +539,7 @@ function App() {
               <p className="text-xs text-slate-400 max-w-sm mx-auto leading-relaxed">
                 {t.dashboard.welcomeSubtitle}
               </p>
-              <Button variant="primary" size="lg" onPress={() => handleNavigate('settings')} className="inline-flex items-center gap-2 font-bold bg-indigo-600 hover:bg-indigo-500 text-white">
+              <Button variant="primary" size="lg" onPress={() => handleNavigate('settings')} className="inline-flex items-center gap-2 font-bold">
                 <Plus className="w-4 h-4" />
                 <span>{t.dashboard.registerDog}</span>
               </Button>

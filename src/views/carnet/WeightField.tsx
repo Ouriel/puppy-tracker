@@ -30,7 +30,7 @@ export const WeightField: React.FC<WeightFieldProps> = ({ id, value, error, last
         onFocus={(event) => event.target.select()}
         onChange={(event) => onChange(event.target.value)}
       />
-      {error && <p id={`${id}-error`} role="alert" className="mt-1.5 text-xs font-semibold text-rose-400">{t.potty[error]}</p>}
+      {error && <p id={`${id}-error`} role="alert" className="mt-1.5 text-xs font-semibold text-red-400">{t.potty[error]}</p>}
       <WeightHint lastWeighIn={lastWeighIn} typedText={value} />
     </div>
   );

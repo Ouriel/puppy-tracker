@@ -358,7 +358,7 @@ export const DogHealthSummary: React.FC<DogHealthSummaryProps> = React.memo(({
           variant="primary"
           size="sm"
           onPress={onOpenHealthPassport}
-          className="w-full font-bold text-xs py-2 shadow bg-indigo-600 hover:bg-indigo-500 text-white border-0"
+          className="w-full font-bold text-xs py-2 shadow"
         >
           <ExternalLink className="w-3.5 h-3.5 mr-1.5 inline" />
           <span>{t.health.viewFullHealthPassport}</span>

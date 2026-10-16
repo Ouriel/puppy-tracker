@@ -69,7 +69,7 @@ PupPace — Smart Household Puppy Activity Tracker & Potty Predictor. React 19 +
 
 ### UI & Aesthetics
 
-- Modern, rich design aesthetics (dark mode, HSL gradients, glassmorphism, micro-animations).
+- Modern, rich design aesthetics (HSL gradients, glassmorphism, micro-animations), dark only: `index.html` sets `class="dark" data-theme="dark"` (HeroUI's dark theme) and `color-scheme: dark`; there is no light mode. HeroUI's colour tokens are mapped once, in the `.dark` block of `src/index.css`: indigo-600 is the one primary (a HeroUI `variant="primary"` Button needs no `bg-indigo-*`), red the one danger. The same file outlines every HeroUI card (`.card`: a border and no padding of its own, so its content pads itself), gives buttons 12 px corners and makes inputs full width.
 - Scalable dropdowns for multi-language selection (`en`, `fr`).
 - Clean English technical URL routing (`/`, `/health-passport`, `/settings`).
 
