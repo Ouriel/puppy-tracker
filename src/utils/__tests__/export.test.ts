@@ -413,10 +413,12 @@ describe('export utilities — CSV and PDF export test suite', () => {
     };
     const rowCount = (html: string) => (html.match(/<tr data-row>/g) ?? []).length;
 
-    it('opens a print window with one A4 page: its margins set by @page', () => {
+    // 10 mm, not 12: with every section at its cap, a dog name of 20 or more letters wraps the French identity line and pushed the page to 2
+    it('opens a print window with one A4 page: its margins set by @page, the screen view as wide as the printed one', () => {
       const html = printed();
       expect(window.open).toHaveBeenCalledWith('', '', 'width=900,height=1000');
-      expect(html).toMatch(/@page \{ size: A4; margin: 12mm; \}/);
+      expect(html).toMatch(/@page \{ size: A4; margin: 10mm; \}/);
+      expect(html).toMatch(/@media screen \{ body \{ max-width: 190mm; margin: 10mm auto; \} \}/);
     });
 
     it('its title says it is a summary and not an official document; no "Enregistré par", WSAVA or "Passeport vaccinal"', () => {
@@ -525,17 +527,22 @@ describe('export utilities — CSV and PDF export test suite', () => {
       expect(section).toContain('1 antérieur');
     });
 
-    it('weight: the curve as an inline SVG drawn by the chart\'s geometry, and the last 6 weigh-ins', () => {
-      // 4 kg to 13 kg, every 3 weeks
-      const weighIns = Array.from({ length: 10 }, (_, index) => weighIn(`w-${index}`, addDays('2026-03-15', index * 21), 4 + index));
+    it('weight: the curve as an inline SVG drawn by the chart\'s geometry, and the last 12 weigh-ins; older ones as "n antérieurs"', () => {
+      // 4 kg to 17 kg, every 2 weeks
+      const weighIns = Array.from({ length: 14 }, (_, index) => weighIn(`w-${index}`, addDays('2026-03-15', index * 14), 4 + index));
       const section = sectionOf(printed({ activities: weighIns }), 'weight');
       expect(section).toMatch(/<svg [^>]*width="\d+" height="200"/);
       expect(section).toMatch(/<path data-line d="M[-\d.,L]+"/);
-      expect((section.match(/<circle data-weigh-in/g) ?? []).length).toBe(10);
-      expect(rowCount(section)).toBe(6);
-      expect(section).toContain('13 kg'); // the latest
-      expect(section).toContain('<td>8 kg</td>'); // the 6th latest
-      expect(section).not.toContain('<td>7 kg</td>'); // the 7th latest is out of the list
+      expect((section.match(/<circle data-weigh-in/g) ?? []).length).toBe(14);
+      expect(rowCount(section)).toBe(12);
+      expect(section).toContain('17 kg'); // the latest
+      expect(section).toContain('<td>6 kg</td>'); // the 12th latest
+      expect(section).not.toContain('<td>5 kg</td>'); // the 13th latest is out of the list
+      expect(section).toContain('<p class="earlier">2 antérieurs</p>');
+      expect(sectionOf(printed({ activities: weighIns, lang: 'en' }), 'weight')).toContain('<p class="earlier">2 earlier</p>');
+      // 12 or fewer: every one listed, nothing said
+      expect(sectionOf(printed({ activities: weighIns.slice(2) }), 'weight')).not.toContain('class="earlier"');
+      expect(sectionOf(printed({ activities: weighIns.slice(10) }), 'weight')).not.toContain('class="earlier"');
     });
 
     it('weight: a legend says what the line and dots, the grey band and the dashed line are, as on screen', () => {
@@ -575,7 +582,7 @@ describe('export utilities — CSV and PDF export test suite', () => {
       const manyVaccines = Array.from({ length: 20 }, (_, index) => record({ id: `v-${index}`, type: 'vaccination', name: `Vaccin ${index}`, date: `${2000 + index}-01-01`, boosterDate: '2027-06-01', notes: 'x'.repeat(2000) }));
       const manyDoses = Array.from({ length: 30 }, (_, index) => dose(`d-${index}`, addDays('2026-10-14', -index * 11), '2026-11-14'));
       const manyActivities = [
-        ...Array.from({ length: 20 }, (_, index) => weighIn(`w-${index}`, addDays('2026-10-14', -index * 7), 20 - index / 2)),
+        ...Array.from({ length: 30 }, (_, index) => weighIn(`w-${index}`, addDays('2026-10-14', -index * 7), 20 - index / 2)),
         ...Array.from({ length: 20 }, (_, index) => medication(`m-${index}`, addDays('2026-10-14', -index * 4), `Traitement ${index}`, 'y'.repeat(2000))),
       ];
       const html = printed({ profile: { ...dog, notes: 'z'.repeat(2000) }, vaccines: manyVaccines, doses: manyDoses, activities: manyActivities });
@@ -587,7 +594,8 @@ describe('export utilities — CSV and PDF export test suite', () => {
       expect(rowCount(sectionOf(html, 'dewormings'))).toBe(8);
       expect(sectionOf(html, 'dewormings')).toContain('22 antérieurs');
       expect(rowCount(sectionOf(html, 'treatments'))).toBe(8);
-      expect(rowCount(sectionOf(html, 'weight'))).toBe(6);
+      expect(rowCount(sectionOf(html, 'weight'))).toBe(12);
+      expect(sectionOf(html, 'weight')).toContain('18 antérieurs');
       // Notes are cut, with an ellipsis, and print on one line (the dog's on two)
       expect(html).not.toMatch(/x{200}|y{200}|z{400}/);
       expect(html).toMatch(/tr\.note td \{[^}]*white-space: nowrap;[^}]*text-overflow: ellipsis;/);

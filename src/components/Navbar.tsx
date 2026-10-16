@@ -22,6 +22,15 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenSettings,
 }) => {
   const { t, lang, changeLanguage } = useI18n();
+  /** "8 sem." under 16 weeks, then "7 mois"; none without a birth date. The bar and the list both show it. */
+  const ageLabel = (puppy: PuppyProfile) => {
+    if (!puppy.birthDate) return '';
+    const age = getPuppyAge(puppy.birthDate);
+    return age.weeks < 16
+      ? t.weightChart.weeksOld.replace('{weeks}', String(age.weeks))
+      : t.weightChart.monthsOld.replace('{months}', String(Math.floor(age.months)));
+  };
+  const activeAge = activePuppy ? ageLabel(activePuppy) : '';
   return (
     <header className="relative z-30 bg-slate-900/95 backdrop-blur-md border-b border-slate-800 text-slate-100 shadow-xl w-full">
       <div className="max-w-6xl mx-auto px-3 sm:px-4 py-2.5 flex items-center justify-between gap-1.5 sm:gap-3">
@@ -50,22 +59,20 @@ export const Navbar: React.FC<NavbarProps> = ({
                 onChange={(val) => onSelectPuppy(val as string)}
                 aria-label={t.nav.selectDog}
               >
-                <Select.Trigger className="bg-slate-950/80 border-slate-700/80 min-h-0 h-11 items-center font-bold text-xs text-slate-100 ps-2 sm:ps-3 pe-7">
-                  {/* The name alone: the age is in the list */}
-                  <Select.Value className="truncate text-xs">{activePuppy.name}</Select.Value>
+                <Select.Trigger className="bg-slate-950/80 border-slate-700/80 min-h-0 h-11 py-0 items-center font-bold text-xs text-slate-100 ps-2 sm:ps-3 pe-7">
+                  {/* The name, the age on a second line: each one cut rather than wrapped at 320 px or with large text.
+                      The space between them is what a screen reader hears between the name and the age. */}
+                  <Select.Value className="min-w-0 text-xs leading-tight">
+                    <span className="block truncate">{activePuppy.name}</span>
+                    {activeAge && <>{' '}<span data-dog-age className="block truncate text-[0.6875rem] font-medium text-slate-400">{activeAge}</span></>}
+                  </Select.Value>
                   <Select.Indicator />
                 </Select.Trigger>
                 <Select.Popover className="bg-slate-900 border-slate-800 text-slate-100">
                   <ListBox>
                     {puppies.map((puppy) => {
-                      let ageLabel = '';
-                      if (puppy.birthDate) {
-                        const age = getPuppyAge(puppy.birthDate);
-                        ageLabel = age.weeks < 16
-                          ? t.weightChart.weeksOld.replace('{weeks}', String(age.weeks))
-                          : t.weightChart.monthsOld.replace('{months}', String(Math.floor(age.months)));
-                      }
-                      const displayName = ageLabel ? `${puppy.name} (${ageLabel})` : puppy.name;
+                      const age = ageLabel(puppy);
+                      const displayName = age ? `${puppy.name} (${age})` : puppy.name;
 
                       return (
                         <ListBoxItem key={puppy.id} id={puppy.id} textValue={displayName}>
