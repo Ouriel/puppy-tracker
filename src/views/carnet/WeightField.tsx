@@ -2,7 +2,7 @@ import React from 'react';
 import { Input } from '@heroui/react';
 import { useI18n } from '../../i18n';
 import { WeightHint } from '../../components/common/WeightHint';
-import type { UnifiedWeightEntry } from '../../utils/weight';
+import type { GrowthProfile, UnifiedWeightEntry } from '../../utils/weight';
 
 interface WeightFieldProps {
   id: string;
@@ -10,11 +10,14 @@ interface WeightFieldProps {
   /** Shown under the box; set, the save is blocked. */
   error?: 'weightInvalid' | 'dateTimeInFuture';
   lastWeighIn?: UnifiedWeightEntry;
+  /** The record date: the weight check moves the last weigh-in along the dog's growth curve to it. */
+  date: string;
+  profile: GrowthProfile;
   onChange: (value: string) => void;
 }
 
 /** Optional weight box of the vaccine and deworming forms: empty by default; filled, it saves a weight event of its own. */
-export const WeightField: React.FC<WeightFieldProps> = ({ id, value, error, lastWeighIn, onChange }) => {
+export const WeightField: React.FC<WeightFieldProps> = ({ id, value, error, lastWeighIn, date, profile, onChange }) => {
   const { t } = useI18n();
   return (
     <div className="sm:col-span-2 min-w-0">
@@ -31,7 +34,7 @@ export const WeightField: React.FC<WeightFieldProps> = ({ id, value, error, last
         onChange={(event) => onChange(event.target.value)}
       />
       {error && <p id={`${id}-error`} role="alert" className="mt-1.5 text-xs font-semibold text-red-400">{t.potty[error]}</p>}
-      <WeightHint lastWeighIn={lastWeighIn} typedText={value} />
+      <WeightHint lastWeighIn={lastWeighIn} typedText={value} typedAt={date} profile={profile} />
     </div>
   );
 };

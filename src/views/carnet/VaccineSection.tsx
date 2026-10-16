@@ -80,7 +80,7 @@ export const VaccineSection: React.FC<VaccineSectionProps> = ({
     event.preventDefault();
     if (addDateError || !nextDueDate) return;
     // Optional: empty saves no weight; typed, it is checked before anything is saved
-    const weighIn = buildVetWeighIn({ puppyId: activePuppy.id, date: administeredDate, weightText, productName: vaccineType, loggedBy: currentUser });
+    const weighIn = buildVetWeighIn({ puppyId: activePuppy.id, date: administeredDate, weightText, loggedBy: currentUser });
     if (weighIn.error) {
       setWeightError(weighIn.error);
       return;
@@ -263,6 +263,8 @@ export const VaccineSection: React.FC<VaccineSectionProps> = ({
                     value={weightText}
                     error={weightError}
                     lastWeighIn={lastWeighIn}
+                    date={administeredDate}
+                    profile={activePuppy}
                     onChange={(value) => {
                       setWeightText(value);
                       setWeightError(undefined);

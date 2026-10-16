@@ -6,7 +6,7 @@ import { Modal } from '@heroui/react';
 import { useI18n } from '../i18n';
 import { getLocalDatetimeString } from '../utils/date';
 import { buildQuickLogActivity, validateQuickLogForm, type QuickLogFormError } from '../utils/activityPayloads';
-import type { UnifiedWeightEntry } from '../utils/weight';
+import type { GrowthProfile, UnifiedWeightEntry } from '../utils/weight';
 import { WeightHint } from './common/WeightHint';
 
 interface QuickLogModalProps {
@@ -18,6 +18,10 @@ interface QuickLogModalProps {
   dailyFoodGramGoal?: number;
   // Shown as a hint under the weight box, which always starts empty
   lastWeighIn?: UnifiedWeightEntry;
+  // An edited weigh-in: the weigh-ins either side of it, the typed weight is checked against them
+  weighInNeighbours?: UnifiedWeightEntry[];
+  // The dog, for the weight check along its growth curve
+  profile?: GrowthProfile;
   onClose: () => void;
   /**
    * Resolves to whether the form may close (saved), else it stays open with what was typed.
@@ -39,6 +43,8 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
   defaultMealPortionGrams,
   dailyFoodGramGoal,
   lastWeighIn,
+  weighInNeighbours,
+  profile,
   onClose,
   onSave,
   currentUser,
@@ -360,7 +366,7 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
                       }}
                     />
                     {weightError && <p id="quicklog-weight-kg-error" role="alert" className={inputErrorClass}>{weightError}</p>}
-                    <WeightHint lastWeighIn={lastWeighIn} typedText={weightKg} />
+                    <WeightHint lastWeighIn={lastWeighIn} neighbours={weighInNeighbours} typedText={weightKg} typedAt={timestamp} profile={profile} />
                   </div>
                 )}
 

@@ -376,9 +376,10 @@ describe('App log state', () => {
     window.history.pushState({}, '', '/health-passport');
 
     await renderApp();
-    await settleUntil(() => document.body.textContent!.includes(en.weightChart.title));
+    // The weight card's chart: its title is now a plain "Weight", found elsewhere on the page too
+    await settleUntil(() => document.querySelector('svg[role="img"]') !== null);
 
-    expect(document.body.textContent).toContain(en.weightChart.title);
+    expect(document.querySelector('svg[role="img"] title')!.textContent).toContain(en.weightChart.chartTitle.replace('{name}', puppy.name));
     expect(document.body.textContent).not.toContain('33.3 kg');
   });
 

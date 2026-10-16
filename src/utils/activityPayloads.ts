@@ -129,14 +129,13 @@ export function parisNoonISO(date: string): string {
 
 /**
  * The optional weigh-in of a vaccine or deworming form: none when the box is empty, else a weight event at 12:00 Paris
- * on the record date (now, on that day before noon: a weigh-in is never in the future), its note the product name.
+ * on the record date (now, on that day before noon: a weigh-in is never in the future), like any weigh-in: no note.
  * `error` blocks the save: the server refuses a weigh-in dated after today. `now`: when Save is pressed.
  */
 export function buildVetWeighIn(options: {
   puppyId: string;
   date: string;
   weightText: string;
-  productName: string;
   loggedBy: string;
 }, now: Date = new Date()): { activity?: Omit<Activity, 'id'>; error?: 'weightInvalid' | 'dateTimeInFuture' } {
   if (!options.weightText.trim()) return {};
@@ -150,7 +149,6 @@ export function buildVetWeighIn(options: {
       type: 'weight',
       timestamp: Date.parse(noon) > now.getTime() ? now.toISOString() : noon,
       weightKg,
-      notes: options.productName,
       loggedBy: options.loggedBy,
     },
   };

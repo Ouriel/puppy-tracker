@@ -72,7 +72,7 @@ export const DewormingSection: React.FC<DewormingSectionProps> = ({
 
     const name = productName.trim() || 'Credelio Plus';
     // Optional: empty saves no weight; typed, it is checked before anything is saved
-    const weighIn = buildVetWeighIn({ puppyId: activePuppy.id, date: dewormAdminDate, weightText, productName: name, loggedBy: currentUser });
+    const weighIn = buildVetWeighIn({ puppyId: activePuppy.id, date: dewormAdminDate, weightText, loggedBy: currentUser });
     if (weighIn.error) {
       setWeightError(weighIn.error);
       return;
@@ -224,6 +224,8 @@ export const DewormingSection: React.FC<DewormingSectionProps> = ({
                     value={weightText}
                     error={weightError}
                     lastWeighIn={lastWeighIn}
+                    date={dewormAdminDate}
+                    profile={activePuppy}
                     onChange={(value) => {
                       setWeightText(value);
                       setWeightError(undefined);

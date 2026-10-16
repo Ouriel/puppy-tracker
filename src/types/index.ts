@@ -166,7 +166,6 @@ export interface EffectiveWeightInfo {
   estimatedCurrentWeight: number;
   daysSinceLastLog: number;
   isEstimated: boolean;
-  dailyGainGrams?: number;
   centileDescription?: string;
 }
 

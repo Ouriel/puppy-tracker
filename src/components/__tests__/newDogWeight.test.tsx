@@ -40,9 +40,7 @@ const newChihuahuaWithoutWeight = { ...newChihuahua, weightKg: null };
 describe('a new dog before its first weigh-in: breed baseline, never the made-up profile weight', () => {
   it.each([
     ['health summary', () => <DogHealthSummary profile={newChihuahua} activities={[]} weightActivities={[]} onOpenHealthPassport={vi.fn()} />],
-    ['weight chart', () => <WeightGrowthChart profile={newChihuahua} activities={[]} onOpenQuickLogModal={vi.fn()} />],
     ['health summary, no profile weight', () => <DogHealthSummary profile={newChihuahuaWithoutWeight} activities={[]} weightActivities={[]} onOpenHealthPassport={vi.fn()} />],
-    ['weight chart, no profile weight', () => <WeightGrowthChart profile={newChihuahuaWithoutWeight} activities={[]} onOpenQuickLogModal={vi.fn()} />],
   ])('%s: adult range and current weight from the breed, no logged weight', async (_name, element) => {
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(new Date('2026-09-10T12:00:00+02:00')); // 12 weeks old
@@ -50,9 +48,24 @@ describe('a new dog before its first weigh-in: breed baseline, never the made-up
     const container = await render(element());
 
     expect(container.textContent).toContain('2.2–2.9 kg'); // 2.5 kg -12 % / +15 %
-    expect(container.textContent).toContain('~1.25 kg'); // 50 % of 2.5 kg at 12 weeks
+    expect(container.textContent).toContain('~1.3 kg'); // 50 % of 2.5 kg at 12 weeks (1.25), at most 1 decimal (formatKg)
     expect(container.textContent).not.toContain('4.5 kg');
     expect(container.textContent).toContain('—'); // no logged weight yet
+    expect(container.textContent).not.toContain('undefined');
+  });
+
+  it.each([
+    ['weight chart', () => <WeightGrowthChart profile={newChihuahua} activities={[]} onOpenQuickLogModal={vi.fn()} />],
+    ['weight chart, no profile weight', () => <WeightGrowthChart profile={newChihuahuaWithoutWeight} activities={[]} onOpenQuickLogModal={vi.fn()} />],
+  ])('%s: the adult range from the breed, no weight and no estimate before the first weigh-in', async (_name, element) => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-09-10T12:00:00+02:00')); // 12 weeks old
+
+    const container = await render(element());
+
+    expect(container.textContent).toContain('2.2–2.9 kg'); // 2.5 kg -12 % / +15 %
+    expect(container.textContent).not.toContain('4.5');
+    expect(container.querySelector('[data-tile="weight"]')!.textContent).toContain('—'); // no logged weight yet
     expect(container.textContent).not.toContain('undefined');
   });
 });
