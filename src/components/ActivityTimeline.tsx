@@ -472,10 +472,10 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
                       {/* Accidents Warning Chip (if any) */}
                       {group.accidentCount > 0 && (
                         <div
-                          className="inline-flex items-center gap-1 px-2 py-1 rounded-xl text-xs font-bold bg-rose-950/80 border border-rose-700 text-rose-300 motion-safe:animate-pulse"
+                          className="inline-flex items-center gap-1 px-2 py-1 rounded-xl text-xs font-bold bg-red-950/80 border border-red-700 text-red-300 motion-safe:animate-pulse"
                           title={formatCount(t.dashboard.accidentsCount, group.accidentCount, lang)}
                         >
-                          <AlertTriangle className="w-3.5 h-3.5 text-rose-400 shrink-0" />
+                          <AlertTriangle className="w-3.5 h-3.5 text-red-400 shrink-0" />
                           <span>{group.accidentCount}</span>
                         </div>
                       )}
@@ -530,8 +530,8 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
                                         </span>
                                       )}
                                       {item.pottyLocation === 'indoor_accident' && (
-                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold bg-rose-950/80 border border-rose-700/80 text-rose-300 whitespace-nowrap">
-                                          <AlertTriangle className="w-3 h-3 text-rose-400 shrink-0" />
+                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold bg-red-950/80 border border-red-700/80 text-red-300 whitespace-nowrap">
+                                          <AlertTriangle className="w-3 h-3 text-red-400 shrink-0" />
                                           <span>{t.potty.accident}</span>
                                         </span>
                                       )}

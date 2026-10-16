@@ -200,7 +200,7 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = React.memo(({
             <button
               type="button"
               onClick={() => onQuickAction('pee', 'indoor_accident')}
-              className="w-full h-11 flex items-center justify-center gap-1.5 bg-rose-950/70 border border-rose-700/70 text-rose-300 hover:bg-rose-900/80 active:scale-[0.98] font-bold text-xs rounded-xl transition-all px-2 cursor-pointer"
+              className="w-full h-11 flex items-center justify-center gap-1.5 bg-red-950/70 border border-red-700/70 text-red-300 hover:bg-red-900/80 active:scale-[0.98] font-bold text-xs rounded-xl transition-all px-2 cursor-pointer"
             >
               <span className="truncate">{t.potty.accident}</span>
             </button>
@@ -290,7 +290,7 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = React.memo(({
             <button
               type="button"
               onClick={() => onQuickAction('poop', 'indoor_accident')}
-              className="w-full h-11 flex items-center justify-center gap-1.5 bg-rose-950/70 border border-rose-700/70 text-rose-300 hover:bg-rose-900/80 active:scale-[0.98] font-bold text-xs rounded-xl transition-all px-2 cursor-pointer"
+              className="w-full h-11 flex items-center justify-center gap-1.5 bg-red-950/70 border border-red-700/70 text-red-300 hover:bg-red-900/80 active:scale-[0.98] font-bold text-xs rounded-xl transition-all px-2 cursor-pointer"
             >
               <span className="truncate">{t.potty.accident}</span>
             </button>

@@ -23,11 +23,12 @@ export const Navbar: React.FC<NavbarProps> = ({
 }) => {
   const { t, lang, changeLanguage } = useI18n();
   return (
-    <header className="sticky top-0 z-30 bg-slate-900/95 backdrop-blur-md border-b border-slate-800 text-slate-100 shadow-xl w-full">
+    <header className="relative z-30 bg-slate-900/95 backdrop-blur-md border-b border-slate-800 text-slate-100 shadow-xl w-full">
       <div className="max-w-6xl mx-auto px-3 sm:px-4 py-2.5 flex items-center justify-between gap-1.5 sm:gap-3">
         {/* Brand Logo & Clean Dog Selector */}
-        <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
-          <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 sm:gap-3 flex-1 min-w-0">
+          {/* No logo on phones: its room goes to the dog's name, still readable with large text at 320 px */}
+          <div className="hidden sm:flex items-center gap-2 shrink-0">
             <img
               src="/puppace_logo.webp"
               alt="PupPace Logo"
@@ -43,14 +44,14 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           {/* Simple Active Dog Dropdown */}
           {puppies.length > 0 && activePuppy && (
-            <div className="w-32 sm:w-48 shrink-0">
+            <div className="flex-1 min-w-0 max-w-48">
               <Select
                 value={activePuppy.id}
                 onChange={(val) => onSelectPuppy(val as string)}
                 aria-label={t.nav.selectDog}
               >
-                <Select.Trigger className="bg-slate-950/80 border-slate-700/80 min-h-0 h-9 font-bold text-xs text-slate-100 px-2 sm:px-3">
-                  <Select.Value />
+                <Select.Trigger className="bg-slate-950/80 border-slate-700/80 min-h-0 h-9 font-bold text-xs text-slate-100 ps-2 sm:ps-3 pe-7">
+                  <Select.Value className="truncate text-xs" />
                   <Select.Indicator />
                 </Select.Trigger>
                 <Select.Popover className="bg-slate-900 border-slate-800 text-slate-100">
@@ -83,10 +84,14 @@ export const Navbar: React.FC<NavbarProps> = ({
             type="button"
             onClick={() => changeLanguage(lang === 'en' ? 'fr' : 'en')}
             aria-label={t.nav.changeLanguage}
-            className="h-11 min-h-[44px] px-3 flex items-center justify-center gap-1.5 rounded-xl bg-slate-950/80 border border-slate-800 text-slate-300 hover:text-white hover:bg-slate-800 transition-colors shrink-0 text-xs font-bold"
+            className="h-11 min-h-[44px] min-w-11 px-2.5 sm:px-3 flex items-center justify-center gap-1.5 rounded-xl bg-slate-950/80 border border-slate-800 text-slate-300 hover:text-white hover:bg-slate-800 transition-colors shrink-0 text-xs font-bold"
           >
-            <Globe className="w-4 h-4 text-indigo-400 shrink-0" />
-            <span>{lang === 'en' ? '🇬🇧 EN' : '🇫🇷 FR'}</span>
+            {/* Below sm only "FR" / "EN", so the "+" button always fits */}
+            <Globe className="w-4 h-4 text-indigo-400 shrink-0 hidden sm:block" />
+            <span>
+              <span className="hidden sm:inline">{lang === 'en' ? '🇬🇧 ' : '🇫🇷 '}</span>
+              {lang === 'en' ? 'EN' : 'FR'}
+            </span>
           </button>
 
           {/* Settings & Admin Gear Icon Button */}
@@ -106,7 +111,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               size="sm"
               onPress={onOpenQuickLog}
               aria-label={t.nav.logEvent}
-              className="font-bold text-xs h-11 min-h-[44px] px-3 sm:px-4 shadow-md shrink-0"
+              className="font-bold text-xs h-11 min-h-[44px] min-w-11 px-3 sm:px-4 shadow-md shrink-0"
             >
               <Plus className="w-4 h-4 stroke-[3] sm:mr-1 inline" />
               <span className="hidden sm:inline">{t.nav.logEvent}</span>

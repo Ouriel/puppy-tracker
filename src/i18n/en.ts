@@ -147,6 +147,7 @@ export const en = {
     poop: 'Poop',
     food: 'Food',
     recordCareEvent: 'Record care event for your puppy',
+    editCareEvent: 'Correct a logged care event',
     close: 'Close',
     saveChanges: 'Save Changes',
     stoolConsistencyPrefix: 'Stool',

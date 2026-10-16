@@ -1,9 +1,32 @@
 @import "tailwindcss";
 @import "@heroui/styles";
 
+/* HeroUI's dark theme (index.html sets class="dark") mapped to the app's Tailwind slate and indigo: one primary, one danger */
+.dark {
+  --background: var(--color-slate-950); --foreground: var(--color-slate-100);
+  --surface: var(--color-slate-900); --overlay: var(--color-slate-900);
+  --default: var(--color-slate-800); --default-foreground: var(--color-slate-200);
+  --field-background: var(--color-slate-950); --field-foreground: var(--color-slate-100);
+  --field-border: var(--color-slate-800); --field-border-width: 1px;
+  --muted: var(--color-slate-400); --border: var(--color-slate-800); --separator: var(--color-slate-800);
+  --accent: var(--color-indigo-600); --accent-foreground: #fff; --focus: var(--color-indigo-500);
+  --danger: var(--color-red-600); --danger-foreground: #fff;
+}
+
+/* Google's sign-in iframes declare no color scheme: on a dark page Chromium would paint them white instead of transparent */
+iframe[src*="accounts.google.com"] { color-scheme: light; }
+
 @layer base {
   body {
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
     @apply bg-slate-950 text-slate-100 min-h-screen antialiased selection:bg-indigo-500 selection:text-white;
   }
+}
+
+/* HeroUI defaults the app overrides: a card is padded by its content and outlined; 12 px buttons; full-width inputs */
+@layer components {
+  .card { padding: 0; border: 1px solid var(--border); }
+  .button { @apply rounded-xl; }
+  .chip { @apply rounded-lg; }
+  .input { @apply w-full; }
 }
