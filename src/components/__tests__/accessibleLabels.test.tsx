@@ -334,7 +334,7 @@ describe('health passport (French)', () => {
       { id: 'hr-dose', householdId: 'hh-1', puppyId: PISTACHE.id, type: 'deworming' as const, name: 'Credelio Plus', productName: 'Credelio Plus', date: '2026-09-10', boosterDate: '2026-10-10' },
     ];
     await render(
-      <CarnetDeSanteView activePuppy={PISTACHE} activities={[medication]} weightActivities={[weighIn]} healthRecords={records} setHealthRecords={vi.fn()} isDashboardDown={false}
+      <CarnetDeSanteView activePuppy={PISTACHE} medicationActivities={[medication]} weightActivities={[weighIn]} healthRecords={records} setHealthRecords={vi.fn()} isDashboardDown={false}
         currentUser="Sam" onAddActivity={vi.fn()} onUpdateActivity={vi.fn()} onOpenQuickLogModal={vi.fn()} onDeleteActivity={vi.fn()} />,
       'fr'
     );

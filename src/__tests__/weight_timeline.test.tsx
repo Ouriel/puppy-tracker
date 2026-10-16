@@ -133,6 +133,8 @@ async function click(element: HTMLElement) {
 }
 
 const buttonWithText = (text: string) => [...document.querySelectorAll<HTMLButtonElement>('button')].find((button) => button.textContent!.trim() === text)!;
+/** The text of the dashboard card's "To do" list (the passport opens on the same list). */
+const toDoText = () => [...document.querySelectorAll('h3')].find((heading) => heading.textContent === en.health.toDo)!.closest('section')!.textContent;
 
 beforeAll(() => {
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -604,7 +606,7 @@ describe('Carnet add and edit forms (pre-fill review items 11, 12, 23, 35-38)', 
     expect(put.body).toMatchObject({ productName: 'Drontal Chiot (Sirop / Comprimés)', date: '2026-09-21', boosterDate: '2026-12-21' });
   });
 
-  it('the dashboard summary, for a last record with no next date, shows an em dash, never a date the rules make up (backlog item 1)', async () => {
+  it('the dashboard summary lists no record with no next date, and never a date the rules make up (backlog item 1)', async () => {
     const backLogged = { householdId: 'hh-1', puppyId: puppy.id, boosterDate: null };
     answerDashboard = () => respond({
       ...prodShapedDashboard(),
@@ -618,8 +620,7 @@ describe('Carnet add and edit forms (pre-fill review items 11, 12, 23, 35-38)', 
     await settleUntil(() => document.body.textContent!.includes(en.health.summaryTitle));
 
     // The rules would give 26 May (+1 month at 8 weeks) and 17 May (+14 days at 9 weeks)
-    expect(document.body.textContent).toContain(`${en.health.booster}${en.common.colon} —`);
-    expect(document.body.textContent).toContain(`${en.health.nextDeworming}${en.common.colon} —`);
+    expect(toDoText()).toContain(en.health.nothingDue);
     expect(document.body.textContent).not.toMatch(/2026-05-26|2026-05-17|May 26|May 17/);
   });
 
@@ -635,7 +636,8 @@ describe('Carnet add and edit forms (pre-fill review items 11, 12, 23, 35-38)', 
 
   it('item 12: a Drontal edit moved to 11 weeks suggests +14 days, from her age on the dose day, applied in one tap', async () => {
     await openPassport();
-    // Newest first: the last one is the Drontal dose
+    // Newest first: the last one is the Drontal dose, renewed, in the folded history
+    await click(buttonWithText(en.health.history.replace('{count}', '4')));
     await click([...document.querySelectorAll<HTMLButtonElement>('[id^="deworming-pencil-"]')].at(-1)!);
     const editCard = buttonWithText(en.potty.saveChanges).closest('.space-y-3')!;
     const [given, next] = dateInputs(editCard);
@@ -751,7 +753,7 @@ describe('one copy of the health records (backlog item 2)', () => {
     await click(buttonWithText(en.nav.backToDashboard));
     await settleUntil(() => document.body.textContent!.includes(en.health.summaryTitle));
 
-    expect(document.body.textContent).toContain(`${en.health.nextDeworming}${en.common.colon} ${formatShortDate('2026-10-28', 'en')}`);
+    expect(toDoText()).toContain(`Credelio Plus${formatShortDate('2026-10-28', 'en')}`);
     expect(healthRecordGets()).toEqual([]);
   });
 
@@ -817,15 +819,15 @@ describe('one copy of the health records (backlog item 2)', () => {
     await click(buttonWithText(en.nav.backToDashboard));
     await settleUntil(() => document.body.textContent!.includes(en.health.summaryTitle));
 
-    expect(document.body.textContent).toContain(`${en.health.booster}${en.common.colon} ${formatShortDate('2026-11-05', 'en')}`);
+    expect(toDoText()).toContain(`Rabies${formatShortDate('2026-11-05', 'en')}`);
     expect(healthRecordGets()).toEqual([]);
   });
 
   describe.each([
-    // The newest deworming (21 Sep) is the one the card shows; once deleted, the 21 Aug dose is
-    { form: 'deworming' as const, nextLabel: en.health.nextDeworming, newNextDate: '2026-11-21', afterDelete: `${en.health.givenOn} ${formatShortDate('2026-08-21', 'en')}` },
-    { form: 'vaccine' as const, nextLabel: en.health.booster, newNextDate: '2027-08-01', afterDelete: en.health.noVaccineRecords },
-  ])('the $form list writes its changes to the dashboard card', ({ form, nextLabel, newNextDate, afterDelete }) => {
+    // The newest deworming (21 Sep) is the one the card lists; once deleted, the 21 Aug dose is no longer renewed
+    { form: 'deworming' as const, name: 'Credelio Plus', newNextDate: '2026-11-21', afterDelete: `Credelio Plus${formatShortDate('2026-08-21', 'en')}` },
+    { form: 'vaccine' as const, name: 'Rabies', newNextDate: '2027-08-01', afterDelete: null },
+  ])('the $form list writes its changes to the dashboard card', ({ form, name, newNextDate, afterDelete }) => {
     async function backToDashboard() {
       await click(buttonWithText(en.nav.backToDashboard));
       await settleUntil(() => document.body.textContent!.includes(en.health.summaryTitle));
@@ -840,7 +842,7 @@ describe('one copy of the health records (backlog item 2)', () => {
 
       await backToDashboard();
 
-      expect(document.body.textContent).toContain(`${nextLabel}${en.common.colon} ${formatShortDate(newNextDate, 'en')}`);
+      expect(toDoText()).toContain(`${name}${formatShortDate(newNextDate, 'en')}`);
       expect(healthRecordGets()).toEqual([]);
     });
 
@@ -851,27 +853,24 @@ describe('one copy of the health records (backlog item 2)', () => {
 
       await backToDashboard();
 
-      expect(document.body.textContent).toContain(afterDelete);
+      if (afterDelete) expect(toDoText()).toContain(afterDelete);
+      else expect(toDoText()).not.toContain(name);
       expect(healthRecordGets()).toEqual([]);
     });
   });
 
-  it('booted on the passport, a dose saved before the first dashboard answer keeps every record that answer brings', async () => {
+  // Carnet review phase 3: skeletons until the first answer, so no dose can be added before it (a refresh in flight is covered above)
+  it('booted on the passport, nothing can be added before the first dashboard answer; then every record it brings shows', async () => {
     let answerBoot: (response: Response) => void = () => {};
     answerDashboard = () => new Promise<Response>((resolve) => { answerBoot = resolve; });
     await renderAppAt('/health-passport');
-    await settleUntil(() => document.body.textContent!.includes(en.health.addDeworming));
-    await click(buttonWithText(en.health.addDeworming));
-    const form = document.getElementById('deworming-weight-kg')!.closest('form')!;
-    await setValue(form.querySelector<HTMLInputElement>('input[type="date"]')!, '2026-09-28');
-    await click(form.querySelector<HTMLButtonElement>('button[type="submit"]')!);
-    expect(document.body.textContent).toContain(`${en.health.deworming} (1)`);
+    await settleUntil(() => document.querySelector('[aria-busy="true"]') !== null);
+    expect(buttonWithText(en.health.addDeworming)).toBeUndefined();
 
-    // The answer was read before the dose was saved
     answerBoot(new Response(JSON.stringify(prodShapedDashboard())));
-    await settle();
+    await settleUntil(() => document.body.textContent!.includes(en.health.addDeworming));
 
-    expect(document.body.textContent).toContain(`${en.health.deworming} (6)`);
+    expect(document.body.textContent).toContain(`${en.health.deworming} (5)`);
     expect(document.body.textContent).toContain(`${en.health.vaccinations} (1)`);
   });
 
@@ -908,7 +907,7 @@ describe('one copy of the health records (backlog item 2)', () => {
     await click(buttonWithText(en.nav.backToDashboard));
     await settleUntil(() => document.body.textContent!.includes(en.health.summaryTitle));
 
-    expect(document.body.textContent).toContain(`${en.health.nextDeworming}${en.common.colon} ${formatShortDate('2026-09-21', 'en')}`);
+    expect(toDoText()).toContain(`Credelio Plus${formatShortDate('2026-09-21', 'en')}${en.potty.overdue}`);
     expect(document.body.textContent).not.toContain(formatShortDate('2026-11-01', 'en'));
   });
 
@@ -920,5 +919,31 @@ describe('one copy of the health records (backlog item 2)', () => {
 
     expect(document.body.textContent).toContain('Credelio Plus');
     expect(healthRecordGets()).toHaveLength(1);
+  });
+});
+
+// Owner decision C9 (carnet review 2026-10-16): the passport lists every medication; the feed keeps its recent window
+describe('medications', () => {
+  const medication = (id: string, timestamp: string, medicationName: string): Activity =>
+    ({ id, puppyId: puppy.id, type: 'medication', timestamp, medicationName, loggedBy: 'Owner' });
+  const occurrences = (text: string) => document.body.textContent!.split(text).length - 1;
+
+  it('the passport lists an old one from the all-time list; a recent one shows once there and once in the feed', async () => {
+    const recent = medication('act-med-recent', new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), 'Recent-Med');
+    const old = medication('act-med-old', '2026-06-01T08:00:00.000Z', 'Old-Med');
+    // /api/dashboard sends the recent one twice: in the recent window and in the all-time list
+    answerDashboard = () => respond({ ...prodShapedDashboard(), activities: [recent], weightActivities: [...homeWeighIns, ...migratedWeighIns, recent, old] });
+
+    await openPassport();
+
+    expect(document.body.textContent).toContain(`${en.health.medicationHistory} (2)`);
+    expect([occurrences('Recent-Med'), occurrences('Old-Med')]).toEqual([1, 1]);
+
+    await click(buttonWithText(en.nav.backToDashboard));
+    await settleUntil(() => document.body.textContent!.includes(en.health.summaryTitle));
+    const expandAll = document.querySelector<HTMLButtonElement>(`button[title="${en.dashboard.expandAll}"]`);
+    if (expandAll) await click(expandAll);
+
+    expect([occurrences('Recent-Med'), occurrences('Old-Med')]).toEqual([1, 0]);
   });
 });

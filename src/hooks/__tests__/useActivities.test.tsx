@@ -338,8 +338,8 @@ describe('useActivities: a dog switch fetches the same recent window as the dash
     await switchTo(puppy);
     await switchTo({ ...puppy, id: 'pup-2', name: 'Second' });
 
-    // The recent window, not the weigh-ins fetched with it
-    const switchRequest = new URL(sent.filter((request) => !request.url.includes('type=weight')).at(-1)!.url, 'http://localhost');
+    // The recent window, not the weigh-ins and medications fetched with it
+    const switchRequest = new URL(sent.filter((request) => !request.url.includes('type=')).at(-1)!.url, 'http://localhost');
     expect(switchRequest.searchParams.get('puppyId')).toBe('pup-2');
     expect(switchRequest.searchParams.get('limit')).toBe('300');
     expect(hook.hasMoreRemoteActivities).toBe(false);
@@ -450,7 +450,7 @@ describe('useActivities: double-log guard (owner decision 2026-10-13)', () => {
 
 describe('useActivities: every weight event of the dog, whatever its date (Phase 5c)', () => {
   const weighIn = (id: string, daysAgo: number, weightKg: number): Activity => ({ ...log(id, daysAgo * 24, 'weight'), weightKg });
-  const weightIds = () => hook.weightActivities.map((activity) => activity.id);
+  const weightIds = () => hook.allTimeActivities.map((activity) => activity.id);
 
   it('a weigh-in older than the recent window can be edited and deleted', async () => {
     await act(async () => hook.setActivitiesForPuppy([log('act-pee', 1)], puppy.id, hook.getMutationVersion(), [weighIn('act-w-old', 40, 6.1)]));
@@ -459,7 +459,7 @@ describe('useActivities: every weight event of the dog, whatever its date (Phase
     await start(() => hook.updateActivity({ id: 'act-w-old', weightKg: 6.2 }));
     expect(requestFor('act-w-old').method).toBe('PUT');
     await requestFor('act-w-old').answer(200, { ...weighIn('act-w-old', 40, 6.2) });
-    expect(hook.weightActivities.map((activity) => activity.weightKg)).toEqual([6.2]);
+    expect(hook.allTimeActivities.map((activity) => activity.weightKg)).toEqual([6.2]);
 
     sent = [];
     await start(() => hook.deleteActivity('act-w-old'));
@@ -483,10 +483,10 @@ describe('useActivities: every weight event of the dog, whatever its date (Phase
     await act(async () => hook.setActivitiesForPuppy([], puppy.id, hook.getMutationVersion(), [weighIn('act-w-old', 40, 6.1)]));
 
     await start(() => hook.updateActivity({ id: 'act-w-old', weightKg: 6.2 }));
-    expect(hook.weightActivities.map((activity) => activity.weightKg)).toEqual([6.2]);
+    expect(hook.allTimeActivities.map((activity) => activity.weightKg)).toEqual([6.2]);
     await requestFor('act-w-old').answer(500, { error: 'Internal server error' });
 
-    expect(hook.weightActivities.map((activity) => [activity.id, activity.weightKg])).toEqual([['act-w-old', 6.1]]);
+    expect(hook.allTimeActivities.map((activity) => [activity.id, activity.weightKg])).toEqual([['act-w-old', 6.1]]);
   });
 
   it('a refused delete of a weigh-in older than the recent window puts it back', async () => {
@@ -496,7 +496,7 @@ describe('useActivities: every weight event of the dog, whatever its date (Phase
     expect(weightIds()).toEqual([]);
     await requestFor('act-w-old').answer(500, { error: 'Internal server error' });
 
-    expect(hook.weightActivities.map((activity) => [activity.id, activity.weightKg])).toEqual([['act-w-old', 6.1]]);
+    expect(hook.allTimeActivities.map((activity) => [activity.id, activity.weightKg])).toEqual([['act-w-old', 6.1]]);
   });
 
   it('a saved weigh-in takes the server\'s answer', async () => {
@@ -504,7 +504,7 @@ describe('useActivities: every weight event of the dog, whatever its date (Phase
 
     await posts()[0].answer(201, { ...posts()[0].body, loggedBy: 'Signed-in Owner' });
 
-    expect(hook.weightActivities.map((activity) => [activity.weightKg, activity.loggedBy])).toEqual([[8.4, 'Signed-in Owner']]);
+    expect(hook.allTimeActivities.map((activity) => [activity.weightKg, activity.loggedBy])).toEqual([[8.4, 'Signed-in Owner']]);
   });
 
   it('a recent window sent without the weight list keeps it', async () => {
@@ -528,9 +528,9 @@ describe('useActivities: every weight event of the dog, whatever its date (Phase
 
   it('a dog switch also loads every weigh-in of that dog', async () => {
     const secondDog: PuppyProfile = { ...puppy, id: 'pup-2', name: 'Second' };
-    answerGet = (url) => (url.searchParams.get('type') === 'weight'
-      ? [{ ...weighIn('act-w-2', 60, 3.3), puppyId: 'pup-2' }]
-      : [{ ...log('act-pee-2', 1), puppyId: 'pup-2' }]);
+    // Like the server: a type query gets only that type (no medication here)
+    answerGet = (url) => ({ weight: [{ ...weighIn('act-w-2', 60, 3.3), puppyId: 'pup-2' }], medication: [] })[url.searchParams.get('type') ?? '']
+      ?? [{ ...log('act-pee-2', 1), puppyId: 'pup-2' }];
 
     await act(async () => root!.render(<DogProbe dog={secondDog} onRender={(state) => { hook = state; }} />));
     await settle();
@@ -539,6 +539,51 @@ describe('useActivities: every weight event of the dog, whatever its date (Phase
     expect(new URL(weightRequest.url, 'http://localhost').searchParams.get('puppyId')).toBe('pup-2');
     expect(new URL(weightRequest.url, 'http://localhost').searchParams.get('days')).toBeNull();
     expect(weightIds()).toEqual(['act-w-2']);
+    expect(ids()).toEqual(['act-pee-2']);
+  });
+});
+
+// Owner decision C9 (carnet review 2026-10-16): the passport lists every medication, whatever its date
+describe('useActivities: every medication of the dog too, whatever its date', () => {
+  const medication = (id: string, daysAgo: number, medicationName: string): Activity => ({ ...log(id, daysAgo * 24, 'medication'), medicationName });
+  const allTimeIds = () => hook.allTimeActivities.map((activity) => activity.id);
+
+  it('a medication older than the recent window can be edited and stays in the list; deleted, it leaves', async () => {
+    await act(async () => hook.setActivitiesForPuppy([log('act-pee', 1)], puppy.id, hook.getMutationVersion(), [medication('act-med-old', 40, 'Old-Med')]));
+
+    await start(() => hook.updateActivity({ id: 'act-med-old', medicationName: 'Renamed-Med' }));
+    expect(hook.allTimeActivities.map((activity) => activity.medicationName)).toEqual(['Renamed-Med']);
+    await requestFor('act-med-old').answer(200, medication('act-med-old', 40, 'Renamed-Med'));
+    expect(hook.allTimeActivities.map((activity) => activity.medicationName)).toEqual(['Renamed-Med']);
+    expect(ids()).toEqual(['act-pee']);
+
+    sent = [];
+    await start(() => hook.deleteActivity('act-med-old'));
+    await requestFor('act-med-old').answer(200, { success: true, deletedId: 'act-med-old' });
+    expect(allTimeIds()).toEqual([]);
+  });
+
+  it('a medication saved from the log form joins the list', async () => {
+    await start(() => hook.addActivity({ ...newLog('medication'), medicationName: 'New-Med' }));
+    await posts()[0].answer(201, posts()[0].body);
+
+    expect(hook.allTimeActivities.map((activity) => activity.medicationName)).toEqual(['New-Med']);
+  });
+
+  it('a dog switch also loads every medication of that dog', async () => {
+    const secondDog: PuppyProfile = { ...puppy, id: 'pup-2', name: 'Second' };
+    answerGet = (url) => ({
+      weight: [{ ...log('act-w-2', 60 * 24, 'weight'), weightKg: 3.3, puppyId: 'pup-2' }],
+      medication: [{ ...medication('act-med-2', 90, 'Old-Med'), puppyId: 'pup-2' }],
+    })[url.searchParams.get('type') ?? ''] ?? [{ ...log('act-pee-2', 1), puppyId: 'pup-2' }];
+
+    await act(async () => root!.render(<DogProbe dog={secondDog} onRender={(state) => { hook = state; }} />));
+    await settle();
+
+    const medicationRequest = new URL(sent.find((request) => request.url.includes('type=medication'))!.url, 'http://localhost');
+    expect(medicationRequest.searchParams.get('puppyId')).toBe('pup-2');
+    expect(medicationRequest.searchParams.get('days')).toBeNull();
+    expect(allTimeIds().sort()).toEqual(['act-med-2', 'act-w-2']);
     expect(ids()).toEqual(['act-pee-2']);
   });
 });

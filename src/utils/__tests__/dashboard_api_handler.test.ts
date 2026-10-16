@@ -77,8 +77,8 @@ vi.mock('drizzle-orm/neon-http', async () => {
           const tableName = getTableName(table);
           let orderClauses: SQL[] = [];
           let whereParams: unknown[] = [];
-          // Like the WHERE clause: a query for type 'weight' gets only the weight rows
-          const matchesType = (row: any) => !whereParams.includes('weight') || row.type === 'weight';
+          // Like the WHERE clause: a query for types ('weight', 'medication') gets only rows of those types
+          const matchesType = (row: any) => !whereParams.includes('weight') || whereParams.includes(row.type);
           const rows = () => sortRows(table, rowsByTable()[tableName].filter(matchesType), orderClauses);
           const queryChain: any = {
             where: vi.fn((condition: SQL) => {
@@ -279,7 +279,8 @@ describe('Dashboard API Serverless Handler Unit Tests', () => {
     expect(res.body.activities.map((activity: { id: string }) => activity.id)).toEqual(['act-new', 'act-backdated']);
   });
 
-  it('sends every weight event of the dog, whatever its date, in the same single batch (Phase 5c)', async () => {
+  // Owner decision C9 (carnet review 2026-10-16): medications too, so the passport lists them all
+  it('sends every weight and medication event of the dog, whatever its date, in the same single batch (Phase 5c)', async () => {
     const event = (id: string, type: string, timestamp: string, weightKg?: number) => ({
       id, householdId: 'hh-123', puppyId: 'pup-1', type, timestamp: new Date(timestamp), loggedBy: 'Sam', weightKg, createdAt: new Date(timestamp),
     });
@@ -287,6 +288,7 @@ describe('Dashboard API Serverless Handler Unit Tests', () => {
       event('act-pee', 'pee', '2026-08-30T10:00:00.000Z'),
       event('act-weight-old', 'weight', '2026-05-10T10:00:00.000Z', 4.4),
       event('act-weight-new', 'weight', '2026-08-20T10:00:00.000Z', 9.1),
+      event('act-medication-old', 'medication', '2026-06-01T10:00:00.000Z'),
     ];
     const token = signAppSessionToken({ email: 'sam@example.com', name: 'Sam', householdId: 'hh-123', role: 'Husband' }, 30);
     const res = createMockResponse();
@@ -297,13 +299,14 @@ describe('Dashboard API Serverless Handler Unit Tests', () => {
     expect(dbMock.batchSizes).toEqual([5]);
     expect(res.body.weightActivities.map((activity: { id: string; timestamp: string }) => [activity.id, activity.timestamp])).toEqual([
       ['act-weight-new', '2026-08-20T10:00:00.000Z'],
+      ['act-medication-old', '2026-06-01T10:00:00.000Z'],
       ['act-weight-old', '2026-05-10T10:00:00.000Z'],
     ]);
-    // The weight query: this household and dog, type 'weight', no date bound
+    // The all-time query: this household and dog, types weight and medication, no date bound
     const weightQuery = dbMock.wheres.map((condition) => new PgDialect().sqlToQuery(condition)).find((query) => query.params.includes('weight'))!;
     expect(weightQuery.sql).toContain('"activities"."household_id" = $1');
     expect(weightQuery.sql).toContain('"activities"."puppy_id"');
     expect(weightQuery.sql).not.toContain('"activities"."timestamp"');
-    expect(weightQuery.params).toEqual(['hh-123', 'weight', 'pup-1']);
+    expect(weightQuery.params).toEqual(['hh-123', 'weight', 'medication', 'pup-1']);
   });
 });

@@ -1,9 +1,9 @@
 import React, { useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import type { PuppyProfile, HealthRecord, Activity } from '../../types';
-import { Syringe, ShieldCheck, Plus, Trash2, Pencil, Check, X } from 'lucide-react';
+import { Syringe, ShieldCheck, Plus, Trash2, Pencil, Check, X, ChevronDown } from 'lucide-react';
 import { Card, Button, Input, Select, ListBox, ListBoxItem, Chip, toast } from '@heroui/react';
-import { calculateNextVaccineBooster, getHealthProtocols, getHealthRecordDateError, getHealthRecordStatus } from '../../utils/health';
+import { calculateNextVaccineBooster, getHealthProtocols, getHealthRecordDateError, getHealthRecordStatus, getRecordShortName } from '../../utils/health';
 import { StatusBadge } from '../../components/common/StatusBadge';
 import { AddToCalendarButton } from '../../components/common/AddToCalendarButton';
 import { formatLocalDate, formatShortDate } from '../../utils/date';
@@ -28,6 +28,8 @@ interface VaccineSectionProps {
 const labelClass = 'block text-xs font-semibold text-slate-400 mb-1';
 const errorClass = 'mt-1.5 text-xs font-semibold text-red-400';
 const iconButtonClass = 'min-h-11 min-w-11 flex items-center justify-center text-slate-400 hover:bg-slate-800 rounded-lg border border-slate-800 bg-slate-950 transition-colors';
+// Renewed shots shown before "Historique (n)"
+const HISTORY_SHOWN = 3;
 
 export const VaccineSection: React.FC<VaccineSectionProps> = ({
   activePuppy,
@@ -48,6 +50,7 @@ export const VaccineSection: React.FC<VaccineSectionProps> = ({
   const [weightText, setWeightText] = useState('');
   const [weightError, setWeightError] = useState<'weightInvalid' | 'dateTimeInFuture' | undefined>();
   const [confirmDelete, setConfirmDelete] = useState<{id: string; type: string} | null>(null);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
 
   // Edit Vaccine state
   const [editingVaccineId, setEditingVaccineId] = useState<string | null>(null);
@@ -82,7 +85,14 @@ export const VaccineSection: React.FC<VaccineSectionProps> = ({
     ? calculateNextVaccineBooster(editVaccineDate, editVaccineName, activePuppy.birthDate)
     : '';
   // 'Rage du 1 juil.': names a row's buttons
-  const rowName = (vaccine: HealthRecord) => t.health.recordOn.replace('{name}', vaccine.name).replace('{date}', formatShortDate(vaccine.date, lang));
+  const rowName = (vaccine: HealthRecord) => t.health.recordOn.replace('{name}', getRecordShortName(vaccine, lang)).replace('{date}', formatShortDate(vaccine.date, lang));
+  // Open shots in full; renewed ones after them as grey lines, the latest 3 until "Historique (n)" opens the rest
+  const statusById = new Map(vaccinations.map((vaccine) => [vaccine.id, getHealthRecordStatus(vaccine, vaccinations)]));
+  const renewedVaccines = vaccinations.filter((vaccine) => statusById.get(vaccine.id) === 'fulfilled');
+  const shownVaccines = [
+    ...vaccinations.filter((vaccine) => statusById.get(vaccine.id) !== 'fulfilled'),
+    ...(isHistoryOpen ? renewedVaccines : renewedVaccines.slice(0, HISTORY_SHOWN)),
+  ];
 
   const handleAddVaccineSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -308,8 +318,8 @@ export const VaccineSection: React.FC<VaccineSectionProps> = ({
 
         {vaccinations.length === 0 && <p className="text-xs text-slate-400">{t.health.noVaccineRecords}</p>}
 
-        <div className="space-y-2">
-          {vaccinations.map((vaccine) => {
+        <div id="vaccine-list" className="space-y-2">
+          {shownVaccines.map((vaccine) => {
             const isEditing = editingVaccineId === vaccine.id;
 
             if (isEditing) {
@@ -399,7 +409,15 @@ export const VaccineSection: React.FC<VaccineSectionProps> = ({
                       />
                     </div>
                   </div>
-                  <div className="flex justify-end gap-2 pt-1">
+                  <div className="flex flex-wrap justify-end gap-2 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => setConfirmDelete({ id: vaccine.id, type: 'vaccine' })}
+                      aria-label={t.common.deleteItem.replace('{item}', rowName(vaccine))}
+                      className={`${iconButtonClass} hover:text-red-400 mr-auto`}
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
                     <Button
                       size="sm"
                       onPress={() => closeEditVaccine(vaccine.id)}
@@ -416,7 +434,27 @@ export const VaccineSection: React.FC<VaccineSectionProps> = ({
               );
             }
 
-            const status = getHealthRecordStatus(vaccine, vaccinations);
+            const status = statusById.get(vaccine.id)!;
+
+            // Renewed: one grey line, no next date, status or calendar button; a tap opens its edit form (Delete included)
+            if (status === 'fulfilled') {
+              return (
+                <button
+                  key={vaccine.id}
+                  id={`vaccine-pencil-${vaccine.id}`}
+                  data-history
+                  type="button"
+                  onClick={() => startEditVaccine(vaccine)}
+                  aria-label={t.common.editItem.replace('{item}', rowName(vaccine))}
+                  className="w-full min-h-11 flex items-center gap-2 px-3.5 rounded-xl text-left text-xs text-slate-400 hover:bg-slate-950/70 transition-colors"
+                >
+                  <span className="flex-1 min-w-0 line-clamp-2 break-words">
+                    {[formatShortDate(vaccine.date, lang), getRecordShortName(vaccine, lang), vaccine.batchNumber && `${t.health.lotPrefix} ${vaccine.batchNumber}`].filter(Boolean).join(' · ')}
+                  </span>
+                  <Pencil className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
+                </button>
+              );
+            }
 
             return (
               <div
@@ -430,7 +468,7 @@ export const VaccineSection: React.FC<VaccineSectionProps> = ({
                   </div>
                   <div className="space-y-0.5 min-w-0 flex-1">
                     <div className="text-xs font-bold text-white flex items-center gap-2 flex-wrap">
-                      <span className="line-clamp-2 break-words">{vaccine.name}</span>
+                      <span className="line-clamp-2 break-words">{getRecordShortName(vaccine, lang)}</span>
                       {vaccine.batchNumber && (
                         <Chip size="sm" variant="soft">
                           {t.health.lotPrefix}{t.common.colon} {vaccine.batchNumber}
@@ -475,6 +513,19 @@ export const VaccineSection: React.FC<VaccineSectionProps> = ({
             );
           })}
         </div>
+
+        {renewedVaccines.length > HISTORY_SHOWN && (
+          <button
+            type="button"
+            aria-expanded={isHistoryOpen}
+            aria-controls="vaccine-list"
+            onClick={() => setIsHistoryOpen((previous) => !previous)}
+            className="min-h-11 w-full flex items-center justify-center gap-1.5 rounded-xl border border-slate-800 bg-slate-950/60 text-xs font-bold text-slate-300 hover:bg-slate-800"
+          >
+            {t.health.history.replace('{count}', String(renewedVaccines.length))}
+            <ChevronDown className={`w-3.5 h-3.5 transition-transform ${isHistoryOpen ? 'rotate-180' : ''}`} aria-hidden="true" />
+          </button>
+        )}
 
         {/* Collapsible Vaccine Recommendation Drawer */}
         <details className="mt-4 pt-3 border-t border-slate-800/80 text-xs text-slate-400 group">

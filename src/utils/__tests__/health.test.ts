@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { calculateNextVaccineBooster, calculateNextAntiparasiticDate, getHealthRecordDateError, getHealthRecordStatus } from '../health';
+import { calculateNextVaccineBooster, calculateNextAntiparasiticDate, getHealthProtocols, getHealthRecordDateError, getHealthRecordStatus, getNextDue, getRecordShortName } from '../health';
 import type { HealthRecord } from '../../types';
 
 describe('Health Passport — French Veterinary Protocol & Dataset Test Suite', () => {
@@ -407,5 +407,81 @@ describe('getHealthRecordDateError (pre-fill review items 37, 38)', () => {
     expect(getHealthRecordDateError('2026-10-15', '2026-10-14', '2026-10-15')).toBe('boosterBeforeDate');
     expect(getHealthRecordDateError('2026-10-15', '2026-10-15', '2026-10-15')).toBeNull();
     expect(getHealthRecordDateError('2026-10-15', '', '2026-10-15')).toBeNull(); // no next date: allowed in an edit
+  });
+});
+
+// Carnet review 2026-10-16, owner decisions C6 and C8. Today: 15 Oct 2026, Paris.
+describe('"À faire": every open next date, overdue first (C6); short vaccine names (C8)', () => {
+  const record = (overrides: Partial<HealthRecord> & Pick<HealthRecord, 'id' | 'type' | 'name' | 'date'>): HealthRecord =>
+    ({ householdId: 'hh-1', puppyId: 'pup-1', ...overrides });
+  const chppiL4 = 'CHPPi / DAPPi + L4 (Eurican / Nobivac / Versican / Canigen)';
+  const rage = 'Rage (Eurican LR / Nobivac Rabies / Versiguard / Rabisin)';
+
+  it('lists every record not renewed that has a next date, overdue first, then the soonest', () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-15T10:00:00+02:00'));
+    try {
+      const records = [
+        record({ id: 'chppi-1', type: 'vaccination', name: chppiL4, date: '2026-05-01', boosterDate: '2026-06-01' }),
+        record({ id: 'chppi-2', type: 'vaccination', name: chppiL4, date: '2026-06-01', boosterDate: '2026-10-20' }),
+        record({ id: 'leish', type: 'vaccination', name: 'Leishmaniose (LetiFend / CaniLeish)', date: '2026-05-01', boosterDate: '2027-05-01' }),
+        record({ id: 'rage', type: 'vaccination', name: rage, date: '2025-10-01', boosterDate: '2026-10-01' }),
+        record({ id: 'dose-1', type: 'deworming', name: 'Credelio Plus', productName: 'Credelio Plus', date: '2026-08-20', boosterDate: '2026-09-20' }),
+        record({ id: 'dose-2', type: 'deworming', name: 'Credelio Plus', productName: 'Credelio Plus', date: '2026-09-20', boosterDate: '2026-11-20' }),
+        record({ id: 'kc', type: 'vaccination', name: 'Toux de Chenil (Nobivac KC / Bronchi-Shield)', date: '2026-09-01', boosterDate: null }),
+      ];
+
+      expect(getNextDue(records).map(({ record: due, urgency }) => [due.id, urgency])).toEqual([
+        ['rage', 'overdue'],
+        ['chppi-2', 'soon'],
+        ['dose-2', 'upToDate'],
+        ['leish', 'upToDate'],
+      ]);
+      expect(getNextDue([])).toEqual([]);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('records due the same day come in the same order whatever the input order, so the passport and the dashboard card agree', () => {
+    const vaccine = record({ id: 'v4', type: 'vaccination', name: chppiL4, date: '2026-09-21', boosterDate: '2026-10-21' });
+    const dose = record({ id: 'd7', type: 'deworming', name: 'Credelio Plus', productName: 'Credelio Plus', date: '2026-09-21', boosterDate: '2026-10-21' });
+
+    expect(getNextDue([dose, vaccine]).map(({ record: due }) => due.id)).toEqual(getNextDue([vaccine, dose]).map(({ record: due }) => due.id));
+  });
+
+  it('a protocol vaccine shows its short name; a hand-typed name or a product shows as stored', () => {
+    expect(getRecordShortName({ type: 'vaccination', name: chppiL4 }, 'fr')).toBe('CHPPi + L4');
+    expect(getRecordShortName({ type: 'vaccination', name: 'CHPPi / DAPPi (sans L4)' }, 'fr')).toBe('CHPPi sans L4');
+    expect(getRecordShortName({ type: 'vaccination', name: rage }, 'fr')).toBe('Rage');
+    expect(getRecordShortName({ type: 'vaccination', name: 'Parvovirose Précoce (CPV / Vanguard / Nobivac Parvo)' }, 'fr')).toBe('Parvovirose précoce');
+    // Only an exact protocol name: 'CHPPi' alone could be either CHPPi vaccine
+    expect(getRecordShortName({ type: 'vaccination', name: 'CHPPi + L4 (Rappel 1 - 12 sem)' }, 'fr')).toBe('CHPPi + L4 (Rappel 1 - 12 sem)');
+    expect(getRecordShortName({ type: 'deworming', name: 'Credelio Plus', productName: 'Credelio Plus' }, 'fr')).toBe('Credelio Plus');
+    expect(getRecordShortName({ type: 'deworming', name: 'Old name', productName: 'Bravecto' }, 'fr')).toBe('Bravecto');
+  });
+
+  it('in English, the English short name: never the French "Rage" (a word with another meaning in English)', () => {
+    expect(getRecordShortName({ type: 'vaccination', name: rage }, 'en')).toBe('Rabies');
+    expect(getRecordShortName({ type: 'vaccination', name: 'Toux de Chenil (Nobivac KC / Bronchi-Shield)' }, 'en')).toBe('Kennel cough');
+    expect(getRecordShortName({ type: 'vaccination', name: chppiL4 }, 'en')).toBe('CHPPi + L4');
+    expect(getRecordShortName({ type: 'vaccination', name: 'Hand-typed' }, 'en')).toBe('Hand-typed');
+  });
+
+  it('a vaccine stored under a former protocol name gets its short name too', () => {
+    // The CHPPi + L4 protocol name until 2026-08-12, still stored on older records
+    const formerName = 'CHPPi + L4 (Eurican / Nobivac / Versican)';
+    expect(getRecordShortName({ type: 'vaccination', name: formerName }, 'fr')).toBe('CHPPi + L4');
+    expect(getRecordShortName({ type: 'vaccination', name: formerName }, 'en')).toBe('CHPPi + L4');
+  });
+
+  it('every protocol vaccine has a short name in French and in English, with no brand list in parentheses', () => {
+    for (const vaccine of getHealthProtocols().vaccines) {
+      for (const shortName of [vaccine.shortName, vaccine.shortNameEn]) {
+        expect(shortName).toBeTruthy();
+        expect(shortName).not.toMatch(/[()]/);
+        expect(shortName.length).toBeLessThan(vaccine.name.length);
+      }
+    }
   });
 });
