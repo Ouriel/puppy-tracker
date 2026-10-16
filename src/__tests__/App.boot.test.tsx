@@ -1384,9 +1384,10 @@ describe('the first load\'s skeleton', () => {
 describe('adding a dog', () => {
   const settingsButton = (text: string) => [...document.querySelectorAll('button')].find((button) => button.textContent?.trim() === text);
 
-  async function addDog(name: string) {
-    await settleUntil(() => settingsButton('Add Dog') !== undefined);
-    await act(async () => settingsButton('Add Dog')!.click());
+  /** Fills and saves the add form; `isFormOpen`: it opened by itself (no dog yet), so "Add Dog" is not pressed. */
+  async function addDog(name: string, isFormOpen = false) {
+    await settleUntil(() => (isFormOpen ? document.getElementById('dog-name') !== null : settingsButton('Add Dog') !== undefined));
+    if (!isFormOpen) await act(async () => settingsButton('Add Dog')!.click());
     const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!;
     const type = async (id: string, value: string) => act(async () => {
       setter.call(document.getElementById(id), value);
@@ -1413,14 +1414,15 @@ describe('adding a dog', () => {
     });
   }
 
-  it('the first dog saved opens the dashboard, with its cards', async () => {
+  // App review 2026-10-16, Settings: Dogs and the first day: the welcome button opened a list, not the form
+  it('the welcome button opens the add form at once; the first dog saved opens the dashboard, with its cards', async () => {
     setAuthToken('app-session');
     setStoredAuthUser(owner);
     stubDogs([]);
     await renderApp();
     await act(async () => settingsButton(en.dashboard.registerDog)!.click());
 
-    await addDog('Biscuit');
+    await addDog('Biscuit', true);
 
     expect(window.location.pathname).toBe('/');
     expect(document.querySelector('h1')?.textContent).toBe('Biscuit');

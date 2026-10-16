@@ -1,10 +1,31 @@
 import React, { useState, useEffect, useEffectEvent, useRef } from 'react';
-import { Lock, ShieldCheck, CheckCircle2, FileText, Shield, Sparkles, ChevronDown, ChevronUp } from 'lucide-react';
-import { Card, Button, Link } from '@heroui/react';
+import { Lock, ShieldCheck, CheckCircle2, FileText, Shield, Sparkles, ChevronDown, ChevronUp, Clock } from 'lucide-react';
+import { Card, Button } from '@heroui/react';
 import { PrivacyPolicyModal } from './PrivacyPolicyModal';
 import { TermsOfServiceModal } from './TermsOfServiceModal';
 import { useI18n } from '../i18n';
 import type { SignInOutcome } from '../types';
+
+// The account waiting for approval on this device, so the note is still there after a reload (app review decision 14)
+const PENDING_EMAIL_KEY = 'puppace_pending_email';
+
+function readPendingEmail(): string {
+  try {
+    return localStorage.getItem(PENDING_EMAIL_KEY) ?? '';
+  } catch {
+    return '';
+  }
+}
+
+/** '' forgets it. */
+function storePendingEmail(email: string) {
+  try {
+    if (email) localStorage.setItem(PENDING_EMAIL_KEY, email);
+    else localStorage.removeItem(PENDING_EMAIL_KEY);
+  } catch {
+    // Private mode: the note lasts until the page closes
+  }
+}
 
 interface AuthLockScreenProps {
   onUnlockWithSSO: (email: string, name: string, token: string) => Promise<SignInOutcome>;
@@ -15,7 +36,8 @@ export const AuthLockScreen: React.FC<AuthLockScreenProps> = ({
 }) => {
   const { t } = useI18n();
   // A key of t.auth, so the message follows the language
-  const [error, setError] = useState<'' | 'pendingActivation' | 'ssoFailed' | 'googleScriptFailed'>('');
+  const [error, setError] = useState<'' | 'ssoFailed' | 'googleScriptFailed'>('');
+  const [pendingEmail, setPendingEmail] = useState(readPendingEmail);
   const [success] = useState('');
   const [isSigningIn, setIsSigningIn] = useState(false);
   const [showAboutDetails, setShowAboutDetails] = useState(false);
@@ -30,6 +52,7 @@ export const AuthLockScreen: React.FC<AuthLockScreenProps> = ({
     setError('');
     setIsSigningIn(true);
     let outcome: SignInOutcome = 'failed';
+    let email = '';
     try {
       const base64Url = credential.split('.')[1];
       const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
@@ -42,13 +65,28 @@ export const AuthLockScreen: React.FC<AuthLockScreenProps> = ({
       );
       const decoded = JSON.parse(jsonPayload);
 
+      email = decoded.email;
       outcome = await onUnlockWithSSO(decoded.email, decoded.name, credential);
     } catch {
       // An unreadable credential or a thrown error is a failed sign-in
     }
     setIsSigningIn(false);
-    if (outcome !== 'signedIn') setError(outcome === 'pending' ? 'pendingActivation' : 'ssoFailed');
+    if (outcome === 'failed') {
+      setError('ssoFailed');
+      return;
+    }
+    // Waiting for approval: noted for the next visit. Signed in: approved, so nothing waits any more.
+    const waitingEmail = outcome === 'pending' ? email : '';
+    setPendingEmail(waitingEmail);
+    storePendingEmail(waitingEmail);
   });
+
+  // Google stops signing in the waiting account by itself (One Tap's auto-select), so another can be picked
+  const handleUseAnotherAccount = () => {
+    setPendingEmail('');
+    storePendingEmail('');
+    window.google?.accounts?.id?.disableAutoSelect?.();
+  };
 
   // Google OAuth Client ID — environment variable with default project fallback
   const googleClientId =
@@ -143,6 +181,23 @@ export const AuthLockScreen: React.FC<AuthLockScreenProps> = ({
             </p>
           </div>
 
+          {pendingEmail && (
+            <div role="status" className="relative z-10 bg-indigo-950/40 border border-indigo-800/50 text-indigo-200 p-3.5 rounded-xl text-xs leading-relaxed flex items-start gap-2.5">
+              <Clock className="w-5 h-5 text-indigo-400 shrink-0 mt-0.5" aria-hidden="true" />
+              <div className="min-w-0 space-y-1">
+                <p className="font-semibold">{t.auth.pendingActivation}</p>
+                <p className="text-indigo-300/90 break-all">{pendingEmail}</p>
+                <button
+                  type="button"
+                  onClick={handleUseAnotherAccount}
+                  className="min-h-11 text-left font-bold text-indigo-300 hover:text-white underline underline-offset-2"
+                >
+                  {t.auth.useAnotherAccount}
+                </button>
+              </div>
+            </div>
+          )}
+
           {error && (
             <div role="alert" className="bg-red-950/40 border border-red-800/50 text-red-300 p-3 rounded-xl text-xs font-medium text-center">
               ⚠️ {t.auth[error]}
@@ -204,36 +259,40 @@ export const AuthLockScreen: React.FC<AuthLockScreenProps> = ({
             {showAboutDetails ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
           </Button>
 
-          {/* Rendered in HTML for Google OAuth Verification Crawlers */}
+          {/* Rendered in HTML for Google OAuth Verification Crawlers; in the app's language, so English for an English browser */}
           <div className={`${showAboutDetails ? 'block' : 'hidden'} px-4 pb-4 space-y-2 text-xs text-slate-400 leading-relaxed border-t border-slate-800/60 pt-2.5`}>
+            <p>{t.auth.aboutDescription}</p>
             <p>
-              <strong>PupPace</strong> is a smart puppy activity & potty tracking application designed for dog owners and family caretakers. It records potty times, meals, walks, and health metrics, computing adaptive predictive schedules for your puppy.
-            </p>
-            <p>
-              <strong>Google SSO Disclosure:</strong> Google Sign-In is used strictly to authenticate household members and sync puppy activity logs seamlessly across family caretakers.
+              <strong>{t.auth.googleDisclosureTitle}</strong> {t.auth.googleDisclosure}
             </p>
           </div>
         </Card>
 
-        {/* Public Legal Links */}
+        {/* Legal links: the translated popups in the app; the href to the static English pages stays for Google's crawler */}
         <div className="flex items-center justify-center gap-4 text-xs text-slate-400 font-medium">
-          <Link
+          <a
             href="/privacy"
-            onPress={() => setIsPrivacyOpen(true)}
-            className="min-h-11 hover:text-indigo-300 flex items-center gap-1 cursor-pointer"
+            onClick={(event) => {
+              event.preventDefault();
+              setIsPrivacyOpen(true);
+            }}
+            className="min-h-11 hover:text-indigo-300 flex items-center gap-1"
           >
-            <Shield className="w-3.5 h-3.5 text-slate-400" />
+            <Shield className="w-3.5 h-3.5 text-slate-400" aria-hidden="true" />
             <span>{t.auth.privacyPolicy}</span>
-          </Link>
-          <span>•</span>
-          <Link
+          </a>
+          <span aria-hidden="true">•</span>
+          <a
             href="/terms"
-            onPress={() => setIsTermsOpen(true)}
-            className="min-h-11 hover:text-indigo-300 flex items-center gap-1 cursor-pointer"
+            onClick={(event) => {
+              event.preventDefault();
+              setIsTermsOpen(true);
+            }}
+            className="min-h-11 hover:text-indigo-300 flex items-center gap-1"
           >
-            <FileText className="w-3.5 h-3.5 text-slate-400" />
+            <FileText className="w-3.5 h-3.5 text-slate-400" aria-hidden="true" />
             <span>{t.auth.termsOfService}</span>
-          </Link>
+          </a>
         </div>
       </div>
 

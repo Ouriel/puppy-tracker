@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import type { PuppyProfile } from '../types';
-import { Dog, Plus, Trash2, Pencil, Utensils, Calendar, RotateCcw } from 'lucide-react';
+import { Dog, Plus, Trash2, Pencil, Utensils, Calendar, RotateCcw, X } from 'lucide-react';
 import { useI18n } from '../i18n';
 import { formatBreedName, DOG_BREEDS } from '../data/breedsCatalog';
 import { BREEDS_WITH_TYPED_ADULT_WEIGHT, NEW_DOG_FORM, buildDogPayload, dogFormFromProfile, validateDogForm, type DogForm, type DogFormError } from '../utils/dogForm';
@@ -12,6 +12,15 @@ import { ConfirmationModal } from '../components/common/ConfirmationModal';
 import { PageHeader } from '../components/common/PageHeader';
 
 const inputErrorClass = 'mt-1.5 text-xs font-semibold text-red-400';
+
+// The box each error is about, focused when it is the first one left
+const FIELD_IDS: Record<DogFormError['field'], string> = {
+  name: 'dog-name',
+  breed: 'dog-breed',
+  birthDate: 'dog-birth-date',
+  dailyFoodGramGoal: 'dog-food-goal',
+  targetMealsPerDay: 'dog-meals-per-day',
+};
 
 interface PuppiesViewProps {
   puppies: PuppyProfile[];
@@ -102,17 +111,19 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
   onRestorePuppy,
 }) => {
   const { t, lang } = useI18n();
-  const [isAdding, setIsAdding] = useState(false);
+  // No dog yet (the first day): the add form is open at once
+  const [isAdding, setIsAdding] = useState(puppies.length === 0);
   const [editingPuppy, setEditingPuppy] = useState<PuppyProfile | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<{id: string; type: string} | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
   const [formData, setFormData] = useState<DogForm>(NEW_DOG_FORM);
-  const [formError, setFormError] = useState<DogFormError | null>(null);
+  // Errors show from the first Save on, then follow what is typed (a fixed box loses its error at once)
+  const [hasTriedSave, setHasTriedSave] = useState(false);
 
   const resetForm = () => {
     setFormData(NEW_DOG_FORM);
-    setFormError(null);
+    setHasTriedSave(false);
     setIsAdding(false);
     setEditingPuppy(null);
   };
@@ -120,7 +131,7 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
   // Always blank, even when pressed while a dog is being edited
   const handleStartAdd = () => {
     setFormData(NEW_DOG_FORM);
-    setFormError(null);
+    setHasTriedSave(false);
     setEditingPuppy(null);
     setIsAdding(true);
   };
@@ -129,7 +140,7 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
     setIsAdding(false);
     setEditingPuppy(pup);
     setFormData(dogFormFromProfile(pup));
-    setFormError(null);
+    setHasTriedSave(false);
   };
 
   // A new dog's meals per day follow its age (4 / 3 / 2, as the engine assumes), still editable; a stored dog keeps its own.
@@ -143,10 +154,13 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
-    // Checked before sending, so a refusal never costs what was typed
-    const error = validateDogForm(formData, formatLocalDate());
-    setFormError(error);
-    if (error) return;
+    // Checked before sending, so a refusal never costs what was typed; every error at once, the focus on the first
+    const errors = validateDogForm(formData, formatLocalDate());
+    setHasTriedSave(true);
+    if (errors.length > 0) {
+      document.getElementById(FIELD_IDS[errors[0].field])?.focus();
+      return;
+    }
 
     const puppyData = buildDogPayload(formData, editingPuppy ?? undefined);
     setIsSaving(true);
@@ -158,13 +172,15 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
     if (isSaved) resetForm();
   };
 
-  const errorFor = (field: DogFormError['field']) =>
-    formError?.field === field ? t.puppies[formError.messageKey] : null;
+  const formErrors = hasTriedSave ? validateDogForm(formData, formatLocalDate()) : [];
+  const errorFor = (field: DogFormError['field']) => {
+    const error = formErrors.find((item) => item.field === field);
+    return error ? t.puppies[error.messageKey] : null;
+  };
   const nameError = errorFor('name');
   const breedError = errorFor('breed');
   const birthDateError = errorFor('birthDate');
-  // Not once "No gram goal" is ticked: the box it was about is gone
-  const goalError = formData.hasGramGoal ? errorFor('dailyFoodGramGoal') : null;
+  const goalError = errorFor('dailyFoodGramGoal');
   const mealsError = errorFor('targetMealsPerDay');
   const mealsText = (count: number) => `${count} ${count === 1 ? t.puppies.meal : t.puppies.meals}`;
 
@@ -198,7 +214,7 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
           isInvalid={!!breedError}
           aria-describedby={breedError ? 'dog-breed-error' : undefined}
         >
-          <Select.Trigger className="bg-slate-950 border-slate-800 text-slate-100">
+          <Select.Trigger id={FIELD_IDS.breed} className="bg-slate-950 border-slate-800 text-slate-100">
             <Select.Value />
             <Select.Indicator />
           </Select.Trigger>
@@ -326,7 +342,7 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
             onPress={isAdding ? resetForm : handleStartAdd}
             className="font-bold text-xs shadow-sm"
           >
-            <Plus className="w-4 h-4 mr-1 inline" />
+            {isAdding ? <X className="w-4 h-4 mr-1 inline" /> : <Plus className="w-4 h-4 mr-1 inline" />}
             {isAdding ? t.potty.cancel : t.puppies.addDog}
           </Button>
         }
@@ -366,17 +382,20 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
 
       {/* Puppies Grid */}
       {puppies.length === 0 ? (
-        <Card className="bg-slate-900 border-slate-800 border-dashed p-10 text-center text-slate-100">
-          <Card.Content className="space-y-3">
-            <Dog className="w-12 h-12 text-slate-600 mx-auto" />
-            <h3 className="text-base font-bold text-slate-200">
-              {t.puppies.noDogsInHousehold}
-            </h3>
-            <p className="text-xs text-slate-400 max-w-sm mx-auto">
-              {t.puppies.clickAddDogAbove}
-            </p>
-          </Card.Content>
-        </Card>
+        // The add form, open at once with no dog, replaces this card
+        !isAdding && (
+          <Card className="bg-slate-900 border-slate-800 border-dashed p-10 text-center text-slate-100">
+            <Card.Content className="space-y-3">
+              <Dog className="w-12 h-12 text-slate-600 mx-auto" />
+              <h3 className="text-base font-bold text-slate-200">
+                {t.puppies.noDogsInHousehold}
+              </h3>
+              <p className="text-xs text-slate-400 max-w-sm mx-auto">
+                {t.puppies.clickAddDogAbove}
+              </p>
+            </Card.Content>
+          </Card>
+        )
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {puppies.map((pup) => {
@@ -548,7 +567,7 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
                 <li key={puppy.id} className="flex items-center justify-between gap-3 p-2.5 rounded-xl border border-slate-800 bg-slate-950/60">
                   <div className="min-w-0">
                     <p className="text-sm font-bold text-slate-200 truncate">{puppy.name}</p>
-                    <p className="text-xs text-slate-500 truncate">{formatBreedName(puppy.breed, lang)}</p>
+                    <p className="text-xs text-slate-400 truncate">{formatBreedName(puppy.breed, lang)}</p>
                   </div>
                   <Button
                     size="sm"

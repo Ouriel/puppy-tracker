@@ -21,6 +21,7 @@ function stubGoogle() {
     // Google draws its button once, into the element it is given
     renderButton: vi.fn((element: HTMLElement) => { element.innerHTML = '<div role="button" id="gsi-btn"></div>'; }),
     prompt: vi.fn(),
+    disableAutoSelect: vi.fn(),
   };
   window.google = { accounts: { id: googleId } };
   return googleId;
@@ -65,6 +66,9 @@ const pageText = () => document.body.textContent ?? '';
 const gsiScript = () => document.getElementById('google-gsi-script')!;
 /** The message a screen reader announces as it appears. */
 const alertText = () => document.querySelector('[role="alert"]')?.textContent ?? '';
+/** The calm "waiting for approval" note (a status, not an alert). */
+const pendingNote = () => [...document.querySelectorAll('[role="status"]')].find((element) => element.querySelector('.lucide-clock'));
+const PENDING_FR = "Demande envoyée. L'admin de ta famille doit valider ton compte\u00a0; reviens te connecter ensuite.";
 const googleButton = () => document.getElementById('gsi-btn');
 
 /** Google's button is still on the page and visible, so a refused sign-in can be retried without a reload. */
@@ -131,7 +135,7 @@ describe('Sign-in screen', () => {
     await settle();
     await act(async () => vi.advanceTimersByTime(5 * 60_000));
 
-    expect(alertText()).toContain(fr.auth.pendingActivation);
+    expect(pendingNote()?.textContent).toContain(fr.auth.pendingActivation);
     expect(pageText()).not.toContain('Account pending activation by Super Admin.');
     expect(pageText()).not.toContain(fr.auth.signingIn);
     expectGoogleButtonUsable(googleId);
@@ -141,6 +145,124 @@ describe('Sign-in screen', () => {
     expect(getAuthToken()).toBeNull();
     expect(getStoredAuthUser()).toBeNull();
     expect(vi.mocked(fetch).mock.calls.map(([url]) => url)).toEqual(['/api/auth/session']);
+  });
+
+  // App review 2026-10-16, Sign-in, and owner decision 14: a new member waiting for approval saw a red ⚠️ box, gone after a reload
+  describe('waiting for approval', () => {
+    async function signInPending(googleId: ReturnType<typeof stubGoogle>) {
+      stubSession(() => Promise.resolve(new Response(JSON.stringify({ error: 'pending' }), { status: 403 })));
+      await signInWithGoogle(googleId);
+      await settle();
+    }
+
+    async function reload() {
+      await act(async () => root?.unmount());
+      document.body.innerHTML = '';
+      await renderApp();
+    }
+
+    it("is a calm note, not an error: it says the family's admin approves, what to do next, and which account waits", async () => {
+      localStorage.setItem('puppace_lang_v1', 'fr');
+      const googleId = stubGoogle();
+      await renderApp();
+      await signInPending(googleId);
+
+      expect(pendingNote()?.textContent).toContain(PENDING_FR);
+      expect(pendingNote()?.textContent).toContain('sitter@example.com');
+      expect(document.querySelector('[role="alert"]')).toBeNull();
+      expect(pageText()).not.toContain('⚠️');
+    });
+
+    it('is still there after a reload, with no sign-in and no request', async () => {
+      localStorage.setItem('puppace_lang_v1', 'fr');
+      const googleId = stubGoogle();
+      await renderApp();
+      await signInPending(googleId);
+      vi.mocked(fetch).mockClear();
+
+      await reload();
+
+      expect(pendingNote()?.textContent).toContain(PENDING_FR);
+      expect(pendingNote()?.textContent).toContain('sitter@example.com');
+      expect(fetch).not.toHaveBeenCalled();
+    });
+
+    it('"Utiliser un autre compte Google" removes it for good and stops Google picking the same account by itself', async () => {
+      localStorage.setItem('puppace_lang_v1', 'fr');
+      const googleId = stubGoogle();
+      await renderApp();
+      await signInPending(googleId);
+
+      const otherAccount = [...document.querySelectorAll('button')].find((button) => button.textContent === 'Utiliser un autre compte Google')!;
+      expect(otherAccount.classList).toContain('min-h-11');
+      await act(async () => otherAccount.click());
+
+      expect(pendingNote()).toBeUndefined();
+      expect(googleId.disableAutoSelect).toHaveBeenCalledTimes(1);
+      expectGoogleButtonUsable(googleId);
+      await reload();
+      expect(pendingNote()).toBeUndefined();
+    });
+
+    it('is gone once the account, approved, signs in: a later visit to the sign-in screen does not show it', async () => {
+      const googleId = stubGoogle();
+      await renderApp();
+      await signInPending(googleId);
+      expect(pendingNote()).toBeDefined();
+
+      const session = { user: { email: 'sitter@example.com', name: 'Sitter', householdId: 'hh-1', role: 'Member' }, sessionToken: 'session-token', expiresInDays: 90 };
+      stubSession(() => Promise.resolve(new Response(JSON.stringify(session), { status: 200 })));
+      await signInWithGoogle(googleId);
+      await settle();
+      expect(getAuthToken()).toBe('session-token');
+
+      // The session ends (401 from the API): back to the sign-in screen
+      await act(async () => window.dispatchEvent(new Event('puppace:unauthorized')));
+      for (let round = 0; round < 50 && !document.querySelector('img[alt="PupPace Logo"]'); round += 1) await settle();
+      expect(pendingNote()).toBeUndefined();
+    });
+  });
+
+  // App review 2026-10-16, Sign-in, and owner decision 14: the legal links left the app for English pages; jargon on the screen
+  describe('legal links and wording', () => {
+    const link = (text: string) => [...document.querySelectorAll('a')].find((anchor) => anchor.textContent === text)!;
+
+    it.each([
+      ['Politique de confidentialité', '/privacy'],
+      ["Conditions générales d'utilisation", '/terms'],
+    ])('"%s" opens the translated page in the app, and keeps its link to the static page for Google', async (text, href) => {
+      localStorage.setItem('puppace_lang_v1', 'fr');
+      stubGoogle();
+      await renderApp();
+
+      expect(link(text).getAttribute('href')).toBe(href);
+      const click = new MouseEvent('click', { bubbles: true, cancelable: true });
+      await act(async () => link(text).dispatchEvent(click));
+
+      expect(click.defaultPrevented).toBe(true);
+      expect(document.querySelector('[role="dialog"]')?.textContent).toContain(text);
+    });
+
+    it('"À propos" reads in French', async () => {
+      localStorage.setItem('puppace_lang_v1', 'fr');
+      stubGoogle();
+      await renderApp();
+
+      const about = [...document.querySelectorAll('button')].find((button) => button.getAttribute('aria-expanded') !== null)!;
+      await act(async () => about.click());
+
+      expect(pageText()).toContain('PupPace est une application');
+      expect(pageText()).not.toMatch(/is a smart puppy|Disclosure/);
+    });
+
+    it.each(['en', 'fr'])('the sign-in screen says "Google", never "OAuth", "Super Admin" or a person (%s)', async (lang) => {
+      localStorage.setItem('puppace_lang_v1', lang);
+      stubGoogle();
+      await renderApp();
+
+      expect(pageText()).toContain(lang === 'fr' ? 'Se connecter avec Google' : 'Sign in with Google');
+      expect(pageText()).not.toMatch(/OAuth|super.?admin|Matthieu/i);
+    });
   });
 
   it.each([
