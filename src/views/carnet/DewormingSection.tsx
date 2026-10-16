@@ -1,7 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import type { PuppyProfile, HealthRecord, Activity } from '../../types';
-import { Pill, Plus, Trash2, Pencil, Check, X } from 'lucide-react';
+import { Pill, Plus, Trash2, Pencil, Check, X, ChevronDown } from 'lucide-react';
 import { Card, Button, Input, Select, ListBox, ListBoxItem, toast } from '@heroui/react';
 import { calculateNextAntiparasiticDate, getHealthProtocols, getHealthRecordDateError, getHealthRecordStatus } from '../../utils/health';
 import { StatusBadge } from '../../components/common/StatusBadge';
@@ -28,6 +28,8 @@ interface DewormingSectionProps {
 const labelClass = 'block text-xs font-semibold text-slate-400 mb-1';
 const errorClass = 'mt-1.5 text-xs font-semibold text-red-400';
 const iconButtonClass = 'min-h-11 min-w-11 flex items-center justify-center text-slate-400 hover:bg-slate-800 rounded-lg border border-slate-800 bg-slate-950 transition-colors';
+// Renewed doses shown before "Historique (n)"
+const HISTORY_SHOWN = 3;
 
 export const DewormingSection: React.FC<DewormingSectionProps> = ({
   activePuppy,
@@ -46,6 +48,7 @@ export const DewormingSection: React.FC<DewormingSectionProps> = ({
   const [weightText, setWeightText] = useState('');
   const [weightError, setWeightError] = useState<'weightInvalid' | 'dateTimeInFuture' | undefined>();
   const [confirmDelete, setConfirmDelete] = useState<{id: string; type: string} | null>(null);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
 
   // Edit Deworming state
   const [editingDewormingId, setEditingDewormingId] = useState<string | null>(null);
@@ -85,6 +88,13 @@ export const DewormingSection: React.FC<DewormingSectionProps> = ({
   // 'Credelio Plus du 10 sept.': names a row's buttons
   const rowName = (deworming: HealthRecord) =>
     t.health.recordOn.replace('{name}', deworming.productName || deworming.name).replace('{date}', formatShortDate(deworming.date, lang));
+  // Open doses in full; renewed ones after them as grey lines, the latest 3 until "Historique (n)" opens the rest
+  const statusById = new Map(dewormingLogs.map((deworming) => [deworming.id, getHealthRecordStatus(deworming, dewormingLogs)]));
+  const renewedDewormings = dewormingLogs.filter((deworming) => statusById.get(deworming.id) === 'fulfilled');
+  const shownDewormings = [
+    ...dewormingLogs.filter((deworming) => statusById.get(deworming.id) !== 'fulfilled'),
+    ...(isHistoryOpen ? renewedDewormings : renewedDewormings.slice(0, HISTORY_SHOWN)),
+  ];
 
   const handleAddDewormingSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -280,8 +290,8 @@ export const DewormingSection: React.FC<DewormingSectionProps> = ({
 
         {dewormingLogs.length === 0 && <p className="text-xs text-slate-400">{t.health.noDewormingRecords}</p>}
 
-        <div className="space-y-2">
-          {dewormingLogs.map((deworming) => {
+        <div id="deworming-list" className="space-y-2">
+          {shownDewormings.map((deworming) => {
             const isEditing = editingDewormingId === deworming.id;
 
             if (isEditing) {
@@ -351,7 +361,15 @@ export const DewormingSection: React.FC<DewormingSectionProps> = ({
                       )}
                     </div>
                   </div>
-                  <div className="flex justify-end gap-2 pt-1">
+                  <div className="flex flex-wrap justify-end gap-2 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => setConfirmDelete({ id: deworming.id, type: 'deworming' })}
+                      aria-label={t.common.deleteItem.replace('{item}', rowName(deworming))}
+                      className={`${iconButtonClass} hover:text-red-400 mr-auto`}
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
                     <Button
                       size="sm"
                       onPress={() => closeEditDeworming(deworming.id)}
@@ -368,7 +386,27 @@ export const DewormingSection: React.FC<DewormingSectionProps> = ({
               );
             }
 
-            const status = getHealthRecordStatus(deworming, dewormingLogs);
+            const status = statusById.get(deworming.id)!;
+
+            // Renewed: one grey line, no next date, status or calendar button; a tap opens its edit form (Delete included)
+            if (status === 'fulfilled') {
+              return (
+                <button
+                  key={deworming.id}
+                  id={`deworming-pencil-${deworming.id}`}
+                  data-history
+                  type="button"
+                  onClick={() => startEditDeworming(deworming)}
+                  aria-label={t.common.editItem.replace('{item}', rowName(deworming))}
+                  className="w-full min-h-11 flex items-center gap-2 px-3.5 rounded-xl text-left text-xs text-slate-400 hover:bg-slate-950/70 transition-colors"
+                >
+                  <span className="flex-1 min-w-0 line-clamp-2 break-words">
+                    {`${formatShortDate(deworming.date, lang)} · ${deworming.productName || deworming.name}`}
+                  </span>
+                  <Pencil className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
+                </button>
+              );
+            }
 
             return (
               <div
@@ -420,6 +458,19 @@ export const DewormingSection: React.FC<DewormingSectionProps> = ({
             );
           })}
         </div>
+
+        {renewedDewormings.length > HISTORY_SHOWN && (
+          <button
+            type="button"
+            aria-expanded={isHistoryOpen}
+            aria-controls="deworming-list"
+            onClick={() => setIsHistoryOpen((previous) => !previous)}
+            className="min-h-11 w-full flex items-center justify-center gap-1.5 rounded-xl border border-slate-800 bg-slate-950/60 text-xs font-bold text-slate-300 hover:bg-slate-800"
+          >
+            {t.health.history.replace('{count}', String(renewedDewormings.length))}
+            <ChevronDown className={`w-3.5 h-3.5 transition-transform ${isHistoryOpen ? 'rotate-180' : ''}`} aria-hidden="true" />
+          </button>
+        )}
 
         {/* Collapsible Deworming Recommendation Drawer */}
         <details className="mt-4 pt-3 border-t border-slate-800/80 text-xs text-slate-400 group">

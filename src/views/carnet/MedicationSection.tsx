@@ -1,30 +1,39 @@
-import React, { useState, useMemo } from "react";
+import React, { lazy, Suspense, useState, useMemo } from "react";
 import type { Activity } from "../../types";
-import { PillBottle, Plus, Trash2, Calendar, User } from "lucide-react";
+import { PillBottle, Plus, Trash2, Pencil, Calendar, User } from "lucide-react";
 import { Card, Button } from "@heroui/react";
 import { ConfirmationModal } from "../../components/common/ConfirmationModal";
 import { useI18n } from "../../i18n";
 import { formatShortDate } from "../../utils/date";
 
+const QuickLogModal = lazy(() => import("../../components/QuickLogModal").then((module) => ({ default: module.QuickLogModal })));
+
 interface MedicationSectionProps {
   activities: Activity[];
   onOpenQuickLogModal?: (type: "medication") => void;
   onDeleteActivity?: (id: string) => void;
+  onUpdateActivity?: (updated: Partial<Activity> & { id: string }) => Promise<boolean>;
 }
 
 export const MedicationSection: React.FC<MedicationSectionProps> = ({
   activities,
   onOpenQuickLogModal,
   onDeleteActivity,
+  onUpdateActivity,
 }) => {
-  const { t, lang } = useI18n();
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [editingMedication, setEditingMedication] = useState<Activity | null>(null);
+  const { t, lang } = useI18n();
 
   const medicationLogs = useMemo(() => {
     return activities
       .filter((act) => act.type === "medication")
       .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
   }, [activities]);
+
+  // 'Doliprane du 1 juin': names a row's buttons
+  const rowName = (log: Activity) =>
+    t.health.recordOn.replace("{name}", log.medicationName || t.potty.medication).replace("{date}", formatShortDate(log.timestamp, lang));
 
   const formatLogDate = (isoString: string) => {
     try {
@@ -95,22 +104,47 @@ export const MedicationSection: React.FC<MedicationSectionProps> = ({
                   </div>
                 </div>
 
-                {onDeleteActivity && (
-                  <div className="flex items-center justify-end shrink-0">
-                    <button
-                      type="button"
-                      onClick={() => setConfirmDeleteId(log.id)}
-                      aria-label={t.common.deleteItem.replace("{item}", t.health.recordOn.replace("{name}", log.medicationName || t.potty.medication).replace("{date}", formatShortDate(log.timestamp, lang)))}
-                      className="min-h-11 min-w-11 flex items-center justify-center text-slate-500 hover:text-red-400 hover:bg-red-950/40 rounded-lg transition-colors"
-                      title={t.health.deleteMedicationConfirm}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                {(onUpdateActivity || onDeleteActivity) && (
+                  <div className="flex items-center justify-end gap-1.5 shrink-0">
+                    {onUpdateActivity && (
+                      <button
+                        type="button"
+                        onClick={() => setEditingMedication(log)}
+                        aria-label={t.common.editItem.replace("{item}", rowName(log))}
+                        className="min-h-11 min-w-11 flex items-center justify-center text-slate-500 hover:text-indigo-300 hover:bg-slate-800 rounded-lg transition-colors"
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </button>
+                    )}
+                    {onDeleteActivity && (
+                      <button
+                        type="button"
+                        onClick={() => setConfirmDeleteId(log.id)}
+                        aria-label={t.common.deleteItem.replace("{item}", rowName(log))}
+                        className="min-h-11 min-w-11 flex items-center justify-center text-slate-500 hover:text-red-400 hover:bg-red-950/40 rounded-lg transition-colors"
+                        title={t.health.deleteMedicationConfirm}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
             ))}
           </div>
+        )}
+
+        {editingMedication && onUpdateActivity && (
+          <Suspense fallback={null}>
+            <QuickLogModal
+              key={`edit-${editingMedication.id}`}
+              isOpen={true}
+              activityToEdit={editingMedication}
+              currentUser={editingMedication.loggedBy}
+              onClose={() => setEditingMedication(null)}
+              onSave={(activityData) => onUpdateActivity({ id: editingMedication.id, ...activityData })}
+            />
+          </Suspense>
         )}
 
         <ConfirmationModal

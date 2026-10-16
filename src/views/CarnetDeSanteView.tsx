@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import type { PuppyProfile, Activity, HealthRecord, ActivityType } from '../types';
+import type { PuppyProfile, Activity, HealthRecord, HealthRecordsLoadState, ActivityType } from '../types';
 import { Syringe, ArrowLeft, Printer, Download, FileSpreadsheet, ChevronDown } from 'lucide-react';
 import { useI18n } from '../i18n';
 import { formatBreedName } from '../data/breedsCatalog';
@@ -7,19 +7,22 @@ import { Card } from '@heroui/react';
 import { PageHeader } from '../components/common/PageHeader';
 import { fetchHealthRecords } from '../services/api';
 import { WeightGrowthChart } from '../components/WeightGrowthChart';
+import { HealthDueList } from '../components/HealthDueList';
 import { VaccineSection } from './carnet/VaccineSection';
 import { DewormingSection } from './carnet/DewormingSection';
 import { MedicationSection } from './carnet/MedicationSection';
 import { printHealthPassportReport, exportHealthPassportToCSV } from '../utils/export';
 import { getUnifiedWeightEntries } from '../utils/weight';
+import { getPuppyAge } from '../utils/predictions';
 
 interface CarnetDeSanteViewProps {
   activePuppy: PuppyProfile | null;
-  activities?: Activity[];
+  medicationActivities?: Activity[]; // every medication of the dog, whatever its date
   weightActivities: Activity[]; // every weigh-in of the dog, whatever its date
   healthRecords: HealthRecord[]; // every dog's, from /api/dashboard: the dashboard card reads the same list
   setHealthRecords: React.Dispatch<React.SetStateAction<HealthRecord[]>>;
   isDashboardDown: boolean;
+  healthRecordsState?: HealthRecordsLoadState; // until known: skeletons or one "unavailable" line, never "nothing recorded" or a made-up weight
   currentUser: string;
   onAddActivity: (activity: Omit<Activity, 'id'>) => void;
   onUpdateActivity: (updated: Partial<Activity> & { id: string }) => Promise<boolean>;
@@ -36,11 +39,12 @@ const sortByDateDesc = (records: HealthRecord[]): HealthRecord[] => {
 
 export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({
   activePuppy,
-  activities = [],
+  medicationActivities = [],
   weightActivities,
   healthRecords,
   setHealthRecords,
   isDashboardDown,
+  healthRecordsState = 'loaded',
   currentUser,
   onAddActivity,
   onUpdateActivity,
@@ -51,8 +55,25 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({
   const { t, lang } = useI18n();
 
   const [isExportMenuOpen, setIsExportMenuOpen] = useState<boolean>(false);
+  // The fallback load's answer, while /api/dashboard fails
+  const [fallbackAnswer, setFallbackAnswer] = useState<{ puppyId: string; ok: boolean } | null>(null);
 
   const exportMenuRef = useRef<HTMLDivElement>(null);
+
+  const age = activePuppy ? getPuppyAge(activePuppy.birthDate) : null;
+  const identity = activePuppy && age
+    ? [
+      activePuppy.name,
+      activePuppy.gender && (activePuppy.gender === 'female' ? t.puppies.female : t.puppies.male),
+      formatBreedName(activePuppy.breed, lang),
+      age.weeks < 16 ? t.weightChart.weeksOld.replace('{weeks}', String(age.weeks)) : t.weightChart.monthsOld.replace('{months}', String(Math.floor(age.months))),
+    ].filter(Boolean).join(' · ')
+    : '';
+
+  // While /api/dashboard fails, this dog's own load decides: loading until it answers
+  const fallbackForDog = fallbackAnswer?.puppyId === activePuppy?.id ? fallbackAnswer : null;
+  const recordsState: HealthRecordsLoadState = healthRecordsState !== 'failed' ? healthRecordsState
+    : !fallbackForDog ? 'loading' : fallbackForDog.ok ? 'loaded' : 'failed';
 
   const lastWeighIn = useMemo(() => getUnifiedWeightEntries(weightActivities).at(-1), [weightActivities]);
 
@@ -81,9 +102,9 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({
     if (!isDashboardDown || !puppyId) return;
     let isMounted = true;
     void fetchHealthRecords(puppyId).then((response) => {
-      if (isMounted && response.ok) {
-        setHealthRecords((previous) => [...previous.filter((record) => record.puppyId !== puppyId), ...response.data]);
-      }
+      if (!isMounted) return;
+      if (response.ok) setHealthRecords((previous) => [...previous.filter((record) => record.puppyId !== puppyId), ...response.data]);
+      setFallbackAnswer({ puppyId, ok: response.ok });
     });
     return () => {
       isMounted = false;
@@ -204,64 +225,67 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({
         </div>
       </div>
 
-      {/* Header Card with Passport Details */}
-      <PageHeader
-        icon={Syringe}
-        iconClassName="from-teal-500 to-emerald-600"
-        title={
-          <>
-            {t.health.healthPassportFor.replace('{name}', activePuppy.name)}
-            {activePuppy.gender && (
-              <span className={`ml-1.5 text-sm font-bold ${activePuppy.gender === 'female' ? 'text-pink-400' : 'text-blue-400'}`}>
-                {activePuppy.gender === 'female' ? '♀' : '♂'}
-              </span>
-            )}
-          </>
-        }
-        subtitle={
-          <>
-            {t.health.carnetSubtitle} &bull; <span className="text-slate-300 font-semibold">{activePuppy.name}</span> ({formatBreedName(activePuppy.breed, lang)})
-          </>
-        }
-      />
+      {/* The heading, then one identity line: name · sex · breed · age today */}
+      <PageHeader icon={Syringe} iconClassName="from-teal-500 to-emerald-600" title={t.nav.carnetDeSante} subtitle={identity} />
 
-      {/* Weight & Growth Trajectory Chart */}
-      <WeightGrowthChart
-        activities={weightActivities}
-        profile={activePuppy}
-        onOpenQuickLogModal={onOpenQuickLogModal || (() => {})}
-        onDeleteActivity={onDeleteActivity}
-        onUpdateActivity={onUpdateActivity}
-      />
+      {recordsState === 'loading' ? (
+        <div aria-busy="true" className="space-y-4 sm:space-y-6">
+          <span className="sr-only">{t.common.loading}</span>
+          {['h-28', 'h-72', 'h-36', 'h-36'].map((height, index) => (
+            <div key={index} className={`${height} rounded-3xl bg-slate-900 border border-slate-800 motion-safe:animate-pulse`} />
+          ))}
+        </div>
+      ) : recordsState === 'failed' ? (
+        <p role="status" className="text-xs font-semibold text-amber-300">{t.health.recordsUnavailable}</p>
+      ) : (
+        <>
+          {/* What is due, first: the dashboard card shows the same list */}
+          <Card className="bg-slate-900 border border-slate-800 text-slate-100 shadow-xl">
+            <Card.Content className="p-4 sm:p-6">
+              <HealthDueList records={puppyRecords} dogName={activePuppy.name} />
+            </Card.Content>
+          </Card>
 
-      {/* Modular Vaccinations Section */}
-      <VaccineSection
-        activePuppy={activePuppy}
-        vaccinations={vaccinations}
-        setHealthRecords={setHealthRecords}
-        lastWeighIn={lastWeighIn}
-        currentUser={currentUser}
-        onAddActivity={onAddActivity}
-        t={t}
-      />
+          {/* Weight & Growth Trajectory Chart */}
+          <WeightGrowthChart
+            activities={weightActivities}
+            profile={activePuppy}
+            onOpenQuickLogModal={onOpenQuickLogModal || (() => {})}
+            onDeleteActivity={onDeleteActivity}
+            onUpdateActivity={onUpdateActivity}
+          />
 
-      {/* Modular Deworming / Parasitology Section */}
-      <DewormingSection
-        activePuppy={activePuppy}
-        dewormingLogs={dewormingLogs}
-        setHealthRecords={setHealthRecords}
-        lastWeighIn={lastWeighIn}
-        currentUser={currentUser}
-        onAddActivity={onAddActivity}
-        t={t}
-      />
+          {/* Modular Vaccinations Section */}
+          <VaccineSection
+            activePuppy={activePuppy}
+            vaccinations={vaccinations}
+            setHealthRecords={setHealthRecords}
+            lastWeighIn={lastWeighIn}
+            currentUser={currentUser}
+            onAddActivity={onAddActivity}
+            t={t}
+          />
 
-      {/* Modular Medication & Treatments History Section */}
-      <MedicationSection
-        activities={activities}
-        onOpenQuickLogModal={onOpenQuickLogModal}
-        onDeleteActivity={onDeleteActivity}
-      />
+          {/* Modular Deworming / Parasitology Section */}
+          <DewormingSection
+            activePuppy={activePuppy}
+            dewormingLogs={dewormingLogs}
+            setHealthRecords={setHealthRecords}
+            lastWeighIn={lastWeighIn}
+            currentUser={currentUser}
+            onAddActivity={onAddActivity}
+            t={t}
+          />
+
+          {/* Modular Medication & Treatments History Section */}
+          <MedicationSection
+            activities={medicationActivities}
+            onOpenQuickLogModal={onOpenQuickLogModal}
+            onDeleteActivity={onDeleteActivity}
+            onUpdateActivity={onUpdateActivity}
+          />
+        </>
+      )}
     </div>
   );
 };

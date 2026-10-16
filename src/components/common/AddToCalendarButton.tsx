@@ -1,7 +1,7 @@
 import React from 'react';
 import { CalendarPlus } from 'lucide-react';
 import type { HealthRecord } from '../../types';
-import type { HealthUrgency } from '../../utils/health';
+import { getRecordShortName, type HealthUrgency } from '../../utils/health';
 import { buildGoogleCalendarUrl, downloadDueDateIcs, isAndroid } from '../../utils/calendar';
 import { useI18n } from '../../i18n';
 import { formatShortDate } from '../../utils/date';
@@ -22,7 +22,7 @@ export const AddToCalendarButton: React.FC<AddToCalendarButtonProps> = ({ record
 
   if (!boosterDate || status === 'fulfilled' || status === 'overdue') return null;
   // Named after its row, like the row's pencil: 'Ajouter au calendrier : Credelio Plus du 10 sept.'
-  const rowName = t.health.recordOn.replace('{name}', record.productName || record.name).replace('{date}', formatShortDate(record.date, lang));
+  const rowName = t.health.recordOn.replace('{name}', getRecordShortName(record, lang)).replace('{date}', formatShortDate(record.date, lang));
 
   return (
     <button

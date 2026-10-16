@@ -87,10 +87,11 @@ describe('health passport', () => {
       />
     );
 
-  it('one button per next date still due: none for a renewed dose or an entry with no next date', async () => {
+  // Carnet review 2026-10-16: each open next date is in "À faire" and keeps its full row in its section
+  it('one button per next date still due, in "À faire" and on its row: none for a renewed dose or an entry with no next date', async () => {
     const container = await renderPassport([renewedDose, dueDose, noNextDate, dueDeworming]);
 
-    expect(calendarButtons(container)).toHaveLength(2);
+    expect(calendarButtons(container)).toHaveLength(4);
   });
 
   it('the booster\'s button downloads a text/calendar file for that booster, in French', async () => {
@@ -107,25 +108,25 @@ describe('health passport', () => {
   });
 
   // Like the row's pencil and trash ('Modifier Credelio Plus du 1 oct.'): a screen reader's button list tells them apart
-  it('each button names its record and date: "Ajouter au calendrier : Credelio Plus du 1 oct."', async () => {
+  // Short names on screen (C8): 'CHPPi + L4', not the brand list
+  it('each button names its record and date: "Ajouter au calendrier : CHPPi + L4 du 1 juin"', async () => {
     const container = await renderPassport([dueDose, dueDeworming]);
+    const labels = ['Ajouter au calendrier\u00a0: CHPPi + L4 du 1 juin', 'Ajouter au calendrier\u00a0: Credelio Plus du 1 oct.'];
 
-    expect(calendarButtons(container).map((button) => button.getAttribute('aria-label'))).toEqual([
-      `Ajouter au calendrier\u00a0: ${chppiL4} du 1 juin`,
-      'Ajouter au calendrier\u00a0: Credelio Plus du 1 oct.',
-    ]);
+    expect(calendarButtons(container).map((button) => button.getAttribute('aria-label'))).toEqual([...labels, ...labels]);
   });
 
   it('no button on an overdue entry: an event in the past would never remind anyone', async () => {
     const container = await renderPassport([overdueDeworming, dueDose]);
 
-    expect(calendarButtons(container)).toHaveLength(1);
+    // The booster's two: in "À faire" and on its row
+    expect(calendarButtons(container).map((button) => button.getAttribute('aria-label'))).toEqual(Array(2).fill('Ajouter au calendrier\u00a0: CHPPi + L4 du 1 juin'));
   });
 
   it('the deworming\'s button downloads the deworming\'s next date: none for a renewed deworming or one with no next date', async () => {
     const container = await renderPassport([noNextDate, renewedDeworming, dueDeworming]);
 
-    expect(calendarButtons(container)).toHaveLength(1);
+    expect(calendarButtons(container)).toHaveLength(2);
     await act(async () => calendarButtons(container)[0].click());
 
     expect(await blobs[0].text()).toContain('SUMMARY:Rex\u00a0: Credelio Plus à faire');
@@ -146,10 +147,10 @@ describe('dashboard health card', () => {
     expect(downloads).toEqual(['rex-chppi-dappi-l4-eurican-nobivac-versican-2026-10-20.ics', 'rex-credelio-plus-2026-11-01.ics']);
   });
 
-  it('no button when the line shows no next date', async () => {
+  it('a record with no next date gets no line and no button', async () => {
     const container = await renderCard([noNextDate]);
 
-    expect(container.textContent).toContain('Milbemax');
+    expect(container.textContent).not.toContain('Milbemax');
     expect(calendarButtons(container)).toHaveLength(0);
   });
 });

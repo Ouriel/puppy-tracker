@@ -6,7 +6,7 @@ import { toast } from '@heroui/react';
 import App from '../App';
 import { en } from '../i18n/en';
 import { setAuthToken, clearAuthToken, setStoredAuthUser } from '../utils/auth';
-import { setStoredPuppies, setActivePuppyId, getActivePuppyId, getStoredPuppies } from '../utils/storage';
+import { setStoredPuppies, setActivePuppyId, getActivePuppyId, getStoredPuppies, setStoredRecentActivities } from '../utils/storage';
 import { clearApiCache } from '../services/api';
 import type { Activity, HealthRecord, PuppyProfile, UserAccount } from '../types';
 
@@ -353,7 +353,8 @@ describe('App boot and sign-in data loading', () => {
 });
 
 describe('App log state', () => {
-  const testRecord: HealthRecord = { id: 'hr-1', householdId: 'hh-1', puppyId: puppy.id, type: 'vaccination', name: 'Vaccine-T1', date: '2026-09-01' };
+  // With a next date: the health summary lists only open next dates
+  const testRecord: HealthRecord = { id: 'hr-1', householdId: 'hh-1', puppyId: puppy.id, type: 'vaccination', name: 'Vaccine-T1', date: '2026-09-01', boosterDate: '2030-09-01' };
 
   it('F4: a refresh after the last health record was deleted removes it from the health summary', async () => {
     signedInWithCachedDogOnly();
@@ -965,6 +966,153 @@ describe('a dashboard that cannot be reached', () => {
   });
 });
 
+
+// Carnet review 2026-10-16, phase 3: the passport never reads "nothing recorded" while it waits, and says when it is offline
+describe('the health passport while its data loads', () => {
+  const isPassportBusy = () => document.querySelector('[aria-busy="true"]')?.textContent === en.common.loading;
+
+  it('shows skeletons until the first dashboard answer, then the records', async () => {
+    signedInWithCachedDogOnly();
+    let answerDashboard: (response: Response) => void = () => {};
+    stubApi({
+      '/api/dashboard': () => new Promise<Response>((resolve) => {
+        answerDashboard = resolve;
+        heldResponses.push(() => resolve(new Response('{}', { status: 503 })));
+      }),
+    });
+    window.history.pushState({}, '', '/health-passport');
+
+    await renderApp();
+    await settleUntil(isPassportBusy);
+    expect(isPassportBusy()).toBe(true);
+    expect(document.body.textContent).not.toMatch(/\(0\)/);
+
+    answerDashboard(new Response(JSON.stringify(dashboardPayload())));
+    await settleUntil(() => !isPassportBusy());
+    expect(document.body.textContent).toContain(`${en.health.vaccinations} (0)`);
+  });
+
+  // Health records are never kept on the phone: with no answer, the passport cannot know what is due
+  const expectNoMadeUpState = () => {
+    const text = document.body.textContent!;
+    expect(text).not.toContain(en.health.nothingDue);
+    expect(text).not.toMatch(/\(0\)/);
+    expect(text).not.toContain('No weigh-in yet');
+  };
+  const overdueRabies: HealthRecord = {
+    id: 'hr-rabies', householdId: 'hh-1', puppyId: puppy.id, type: 'vaccination',
+    name: 'Rage (Eurican LR / Nobivac Rabies / Versiguard / Rabisin)', date: '2025-01-10', boosterDate: '2026-01-10',
+  };
+
+  it('offline: "Offline, data from HH:mm", then one line saying the health book is unavailable', async () => {
+    vi.useFakeTimers({ toFake: ['Date', 'setTimeout', 'clearTimeout', 'setInterval', 'clearInterval'] });
+    // The last load that worked, at 09:15 in Paris; opened again at 11:40 with no signal
+    vi.setSystemTime(new Date('2026-10-14T07:15:00.000Z'));
+    signedInWithCachedDogOnly();
+    setStoredRecentActivities(puppy.id, [recentPee()]);
+    vi.setSystemTime(new Date('2026-10-14T09:40:00.000Z'));
+    const offline = () => Promise.reject(new TypeError('Load failed'));
+    stubApi({ '/api/dashboard': offline, '/api/health-records': offline, '/api/dogs': offline, '/api/households': offline });
+    window.history.pushState({}, '', '/health-passport');
+
+    await renderApp();
+    await settleUntil(() => document.body.textContent!.includes(en.health.recordsUnavailable));
+
+    expect(document.body.textContent).toContain('Offline, data from 09:15');
+    expect(document.body.textContent).toContain(en.health.recordsUnavailable);
+    expectNoMadeUpState();
+  });
+
+  it('a dashboard 500: skeletons while the passport loads its records itself, then the records', async () => {
+    signedInWithCachedDogOnly();
+    let answerRecords: (response: Response) => void = () => {};
+    stubApi({
+      '/api/dashboard': () => respond({ error: 'Failed to fetch dashboard payload' }, 500),
+      '/api/health-records': () => new Promise<Response>((resolve) => {
+        answerRecords = resolve;
+        heldResponses.push(() => resolve(new Response('{}', { status: 503 })));
+      }),
+    });
+    window.history.pushState({}, '', '/health-passport');
+
+    await renderApp();
+    await settleUntil(() => requestedUrls.includes('/api/health-records?puppyId=pup-1') && document.body.textContent!.includes(en.nav.carnetDeSante));
+    expect(isPassportBusy()).toBe(true);
+    expectNoMadeUpState();
+
+    answerRecords(new Response(JSON.stringify([overdueRabies])));
+    await settleUntil(() => !isPassportBusy());
+    const toDoLine = [...document.querySelectorAll('h3')].find((title) => title.textContent === en.health.toDo)!.closest('section')!.querySelector('li')!;
+    expect(toDoLine.textContent).toMatch(new RegExp(`^Rabies.*${en.potty.overdue}$`));
+  });
+
+  it('a dashboard 500 and no records either: the line says so, with no offline line to explain it', async () => {
+    signedInWithCachedDogOnly();
+    stubApi({
+      '/api/dashboard': () => respond({ error: 'Failed to fetch dashboard payload' }, 500),
+      '/api/health-records': () => respond({ error: 'Internal server error' }, 500),
+    });
+    window.history.pushState({}, '', '/health-passport');
+
+    await renderApp();
+    await settleUntil(() => document.body.textContent!.includes(en.health.recordsUnavailable));
+
+    expect(document.body.textContent).toContain(en.health.recordsUnavailable);
+    expect(document.body.textContent).not.toContain('Offline');
+    expectNoMadeUpState();
+  });
+
+  it('a stored dog that is gone: skeletons until the answer for the first dog, which carries the records', async () => {
+    const removedPuppy: PuppyProfile = { ...puppy, id: 'pup-removed', name: 'Gone' };
+    signedInWithCachedDogOnly();
+    setStoredPuppies([removedPuppy]);
+    setActivePuppyId(removedPuppy.id);
+    // Its logs kept on the phone: the app opens on the passport at once, before any answer
+    setStoredRecentActivities(removedPuppy.id, [{ ...recentPee(), puppyId: removedPuppy.id }]);
+    let answerSecond: (response: Response) => void = () => {};
+    stubApi({
+      '/api/dashboard': (url) => (url.includes('pup-removed')
+        ? respond(dashboardPayload())
+        : new Promise<Response>((resolve) => {
+          answerSecond = resolve;
+          heldResponses.push(() => resolve(new Response('{}', { status: 503 })));
+        })),
+    });
+    window.history.pushState({}, '', '/health-passport');
+
+    await renderApp();
+    await settleUntil(() => requestedUrls.includes(dashboardUrl) && document.body.textContent!.includes(en.nav.carnetDeSante));
+    expect(isPassportBusy()).toBe(true);
+    expectNoMadeUpState();
+
+    answerSecond(new Response(JSON.stringify({ ...dashboardPayload(), healthRecords: [overdueRabies] })));
+    await settleUntil(() => !isPassportBusy());
+    expect(document.body.textContent).toContain(`${en.health.vaccinations} (1)`);
+  });
+
+  it('the dashboard card\'s "To do": busy until the first answer, then unavailable offline, never "nothing due"', async () => {
+    signedInWithCachedDogOnly();
+    setStoredRecentActivities(puppy.id, [recentPee()]);
+    let failDashboard: () => void = () => {};
+    stubApi({
+      '/api/dashboard': () => new Promise<Response>((resolve, reject) => {
+        failDashboard = () => reject(new TypeError('Load failed'));
+        heldResponses.push(() => resolve(new Response('{}', { status: 503 })));
+      }),
+    });
+
+    await renderApp();
+    const toDo = () => [...document.querySelectorAll('h3')].find((title) => title.textContent === en.health.toDo)!.closest('section')!;
+    expect(toDo().getAttribute('aria-busy')).toBe('true');
+    expect(toDo().textContent).not.toContain(en.health.nothingDue);
+
+    failDashboard();
+    await settle();
+    expect(toDo().getAttribute('aria-busy')).toBeNull();
+    expect(toDo().textContent).toContain(en.health.recordsUnavailable);
+    expect(toDo().textContent).not.toContain(en.health.nothingDue);
+  });
+});
 
 // Backlog item 15 (owner default: yes, only while visible)
 describe('a screen left open, like a tablet in the kitchen', () => {

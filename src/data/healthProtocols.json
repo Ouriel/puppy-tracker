@@ -3,6 +3,9 @@
     {
       "id": "chppi_l4",
       "name": "CHPPi / DAPPi + L4 (Eurican / Nobivac / Versican / Canigen)",
+      "shortName": "CHPPi + L4",
+      "shortNameEn": "CHPPi + L4",
+      "formerNames": ["CHPPi + L4 (Eurican / Nobivac / Versican)"],
       "fullName": "CHPPi / DAPPi + L4 (Eurican / Nobivac / Versican / Canigen)",
       "aliases": ["chppi", "dappi", "dhppi", "chppi + l4", "dappi + l4", "eurican", "nobivac", "versican", "canigen"],
       "defaultBoosterMonths": 1,
@@ -11,6 +14,8 @@
     {
       "id": "chppi_sans_l4",
       "name": "CHPPi / DAPPi (sans L4)",
+      "shortName": "CHPPi sans L4",
+      "shortNameEn": "CHPPi without L4",
       "fullName": "CHPPi / DAPPi - sans L4 (Eurican / Nobivac / Versican)",
       "aliases": ["chppi", "dappi", "dhppi", "eurican dappi", "nobivac dhppi", "sans l4"],
       "defaultBoosterMonths": 1,
@@ -19,6 +24,8 @@
     {
       "id": "l4",
       "name": "L4 (Leptospirose 4 souches)",
+      "shortName": "L4",
+      "shortNameEn": "L4",
       "fullName": "L4 (Leptospirose 4 souches - Eurican L4 / Nobivac L4 / Versican L4)",
       "aliases": ["leptospirose", "l4", "eurican l4", "nobivac l4"],
       "defaultBoosterMonths": 12,
@@ -27,6 +34,8 @@
     {
       "id": "rage",
       "name": "Rage (Eurican LR / Nobivac Rabies / Versiguard / Rabisin)",
+      "shortName": "Rage",
+      "shortNameEn": "Rabies",
       "fullName": "Rage (Eurican LR / Nobivac Rabies / Versiguard / Rabisin)",
       "aliases": ["rage", "rabies", "r", "rabisin", "versiguard"],
       "defaultBoosterMonths": 12,
@@ -35,6 +44,8 @@
     {
       "id": "vanguard_cpv",
       "name": "Parvovirose Précoce (CPV / Vanguard / Nobivac Parvo)",
+      "shortName": "Parvovirose précoce",
+      "shortNameEn": "Early parvo",
       "fullName": "Parvovirose précoce (CPV – Vanguard / Nobivac Parvo dès 6\u00a0sem.)",
       "aliases": ["vanguard", "cpv", "parvo", "parvovirose"],
       "defaultBoosterMonths": 1,
@@ -43,6 +54,8 @@
     {
       "id": "kc",
       "name": "Toux de Chenil (Nobivac KC / Bronchi-Shield)",
+      "shortName": "Toux de chenil",
+      "shortNameEn": "Kennel cough",
       "fullName": "Toux de chenil (Nobivac KC / Bronchi-Shield – Bordetella + Pi)",
       "aliases": ["toux de chenil", "kc", "nobivac kc", "bronchi-shield", "bordetella"],
       "defaultBoosterMonths": 12,
@@ -51,6 +64,8 @@
     {
       "id": "piroplasmose",
       "name": "Piroplasmose (Eurican Piro / Nobivac Piro)",
+      "shortName": "Piroplasmose",
+      "shortNameEn": "Piroplasmosis",
       "fullName": "Piroplasmose (Eurican Piro / Nobivac Piro - Babésiose tiques)",
       "aliases": ["piroplasmose", "piro", "eurican piro", "nobivac piro"],
       "defaultBoosterMonths": 12,
@@ -59,6 +74,8 @@
     {
       "id": "leishmaniose",
       "name": "Leishmaniose (LetiFend / CaniLeish)",
+      "shortName": "Leishmaniose",
+      "shortNameEn": "Leishmaniasis",
       "fullName": "Leishmaniose (LetiFend / CaniLeish - Phlébotomes)",
       "aliases": ["leishmaniose", "letifend", "canileish"],
       "defaultBoosterMonths": 12,
