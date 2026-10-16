@@ -77,12 +77,36 @@ describe('screen readers hear the app language (French)', () => {
     expect(ariaLabels()).toEqual(expect.arrayContaining(['Choisir le chien', 'Changer de langue', 'Gestion du foyer']));
   });
 
-  it('dog picker: the name alone in the bar, the age in the list, in French ("6 mois", never "6m")', async () => {
+  it('dog picker: the name, the age under it in the bar, the same age in the list, in French ("6 mois", never "6m")', async () => {
     await render(<Navbar puppies={[PISTACHE]} activePuppy={PISTACHE} onSelectPuppy={vi.fn()} onOpenQuickLog={vi.fn()} onOpenSettings={vi.fn()} />, 'fr');
     const trigger = document.querySelector<HTMLButtonElement>('header button[aria-haspopup="listbox"]')!;
-    expect(trigger.textContent).toBe('Pistache');
+    // A space between the two lines: a screen reader hears "Pistache 6 mois", never "Pistache6 mois"
+    expect(trigger.textContent).toBe('Pistache 6\u00a0mois');
+    expect(trigger.querySelector('[data-dog-age]')!.textContent).toBe('6\u00a0mois');
+    // Muted but readable (slate-400 on the dark bar, about 7:1), each line cut rather than wrapped
+    expect([...trigger.querySelector('[data-dog-age]')!.classList]).toEqual(expect.arrayContaining(['text-slate-400', 'truncate']));
+    expect(trigger.querySelector('[data-dog-age]')!.previousElementSibling!.classList).toContain('truncate');
     await act(async () => trigger.click());
     expect([...document.querySelectorAll('[role="option"]')].map((option) => option.textContent)).toEqual(['Pistache (6\u00a0mois)']);
+  });
+
+  it('dog picker: weeks under 16 weeks, in English too; no age line without a birth date', async () => {
+    const youngDog = { ...PISTACHE, birthDate: '2026-08-27' }; // 8 weeks on the fixed day
+    await render(<Navbar puppies={[youngDog]} activePuppy={youngDog} onSelectPuppy={vi.fn()} onOpenQuickLog={vi.fn()} onOpenSettings={vi.fn()} />, 'fr');
+    expect(document.querySelector('header button[aria-haspopup="listbox"]')!.textContent).toBe('Pistache 8\u00a0sem.');
+    await act(async () => root?.unmount());
+    document.body.innerHTML = '';
+
+    await render(<Navbar puppies={[PISTACHE]} activePuppy={PISTACHE} onSelectPuppy={vi.fn()} onOpenQuickLog={vi.fn()} onOpenSettings={vi.fn()} />, 'en');
+    expect(document.querySelector('header button[aria-haspopup="listbox"]')!.textContent).toBe('Pistache 6 mo');
+    await act(async () => root?.unmount());
+    document.body.innerHTML = '';
+
+    const noBirthDate = { ...PISTACHE, birthDate: '' };
+    await render(<Navbar puppies={[noBirthDate]} activePuppy={noBirthDate} onSelectPuppy={vi.fn()} onOpenQuickLog={vi.fn()} onOpenSettings={vi.fn()} />, 'fr');
+    const trigger = document.querySelector<HTMLButtonElement>('header button[aria-haspopup="listbox"]')!;
+    expect(trigger.textContent).toBe('Pistache');
+    expect(trigger.querySelector('[data-dog-age]')).toBeNull();
   });
 
   // The 44 px trigger is a flex row: without items-center the name sat 5.5 px above the chevron (measured at 320 px)

@@ -633,7 +633,7 @@ export function exportHealthPassportToCSV(
 }
 
 /** The printed passport fits one A4 page: each section keeps its latest rows (vaccines: the open ones first), the rest is counted as "n antérieurs". */
-const PRINT_CAPS = { toDo: 6, vaccines: 6, dewormings: 8, treatments: 8, weighIns: 6 } as const;
+const PRINT_CAPS = { toDo: 6, vaccines: 6, dewormings: 8, treatments: 8, weighIns: 12 } as const;
 const PRINT_CHART_WIDTH = 420;
 const NINETY_DAYS_MS = 90 * 24 * 60 * 60 * 1000;
 
@@ -761,7 +761,8 @@ export function printHealthPassportReport(
     geometry.bandPath && legendItem('<rect width="14" height="8" fill="#94a3b8" fill-opacity="0.25"/><line x1="0" x2="14" y1="4" y2="4" stroke="#94a3b8"/>', t.weightChart.legendZone),
     geometry.projectionPath && legendItem('<line x1="0" x2="14" y1="4" y2="4" stroke="#db2777" stroke-opacity="0.6" stroke-width="2" stroke-dasharray="4 3"/>', t.weightChart.legendProjection),
   ].filter(Boolean).join('');
-  const weighInRows = [...entries].reverse().slice(0, PRINT_CAPS.weighIns).map((entry) => `
+  const shownWeighIns = [...entries].reverse().slice(0, PRINT_CAPS.weighIns);
+  const weighInRows = shownWeighIns.map((entry) => `
     <tr data-row><td>${formatDayMonthYear(entry.timestamp)}</td><td>${formatKg(entry.weightKg, lang)}${unlikelyIds.has(entry.id) ? ` (${t.weightChart.checkBadge})` : ''}</td></tr>`).join('');
 
   const html = `
@@ -771,7 +772,7 @@ export function printHealthPassportReport(
         <meta charset="utf-8" />
         <title>${esc(profile.name)} — ${title}</title>
         <style>
-          @page { size: A4; margin: 12mm; }
+          @page { size: A4; margin: 10mm; }
           * { box-sizing: border-box; }
           body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
@@ -781,7 +782,7 @@ export function printHealthPassportReport(
             background: #ffffff;
             margin: 0;
           }
-          @media screen { body { max-width: 186mm; margin: 12mm auto; } }
+          @media screen { body { max-width: 190mm; margin: 10mm auto; } }
           h1 { font-size: 16px; margin: 0 0 4px; }
           h2 { font-size: 12px; color: #0f766e; margin: 8px 0 2px; padding-bottom: 2px; border-bottom: 1px solid #e2e8f0; }
           p { margin: 2px 0; }
@@ -804,7 +805,7 @@ export function printHealthPassportReport(
           .weight .chart { flex: none; }
           .legend { display: flex; flex-wrap: wrap; gap: 0 10px; margin: 0; font-size: 9.5px; color: #475569; }
           .legend span { display: inline-flex; align-items: center; gap: 4px; }
-          .weight table { flex: 1; }
+          .weight .list { flex: 1; min-width: 0; }
         </style>
       </head>
       <body>
@@ -866,11 +867,14 @@ export function printHealthPassportReport(
               ${weightChartSvg(geometry, adultLabel, t)}
               <p class="legend">${legend}</p>
             </div>
-            <table>
-              <colgroup><col class="date"><col></colgroup>
-              <thead><tr><th>Date</th><th>${t.weightChart.title}</th></tr></thead>
-              <tbody>${weighInRows}</tbody>
-            </table>
+            <div class="list">
+              <table>
+                <colgroup><col class="date"><col></colgroup>
+                <thead><tr><th>Date</th><th>${t.weightChart.title}</th></tr></thead>
+                <tbody>${weighInRows}</tbody>
+              </table>
+              ${earlierLine(entries.length - shownWeighIns.length)}
+            </div>
           </div>`}
         </section>
       </body>

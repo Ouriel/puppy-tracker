@@ -134,7 +134,7 @@ Open it from the health summary, or at `/health-passport`. Under its title, one 
 
 **Medication.** Every medication log, whatever its date, with add, edit (the log form) and delete buttons.
 
-**Export.** A one-page A4 summary for a vet, marked unofficial (print it to PDF): the dog (sex, breed, birth date and age, latest weight, its notes), To do, 6 vaccines (every open one first, then the latest renewed), the antiparasitics of the last 12 months (latest 8) and the treatments of the last 90 days (latest 8), older ones counted as "n earlier", the weight curve and the last 6 weigh-ins, every date as DD/MM/YYYY. Or a CSV of every vaccine, antiparasitic, weigh-in and treatment, with who logged each weigh-in and treatment. Both in the app's language.
+**Export.** A one-page A4 summary for a vet, marked unofficial (print it to PDF): the dog (sex, breed, birth date and age, latest weight, its notes), To do, 6 vaccines (every open one first, then the latest renewed), the antiparasitics of the last 12 months (latest 8) and the treatments of the last 90 days (latest 8), the weight curve and the last 12 weigh-ins, older ones counted as "n earlier", every date as DD/MM/YYYY. Or a CSV of every vaccine, antiparasitic, weigh-in and treatment, with who logged each weigh-in and treatment. Both in the app's language.
 
 ## Settings
 
