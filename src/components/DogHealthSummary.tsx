@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
-import type { PuppyProfile, Activity, HealthRecord, PredictionResult } from '../types';
-import { Syringe, Pill, Dog, Scale, ExternalLink, Moon, Sunrise, Utensils, Clock, Sparkles } from 'lucide-react';
+import type { PuppyProfile, Activity, HealthRecord, HealthRecordsLoadState, PredictionResult } from '../types';
+import { Dog, Scale, ExternalLink, Moon, Sunrise, Utensils, Clock, Sparkles } from 'lucide-react';
 import { Card, Button, Chip } from '@heroui/react';
 import { useI18n, type Language } from '../i18n';
 import { formatBreedName } from '../data/breedsCatalog';
@@ -15,10 +15,8 @@ import {
   getTrustedWeightEntries,
 } from '../utils/weight';
 import { getPuppyAge } from '../utils/predictions';
-import { getHealthRecordStatus } from '../utils/health';
 import { formatDuration, formatShortDate } from '../utils/date';
-import { StatusBadge } from './common/StatusBadge';
-import { AddToCalendarButton } from './common/AddToCalendarButton';
+import { HealthDueList } from './HealthDueList';
 
 interface DogHealthSummaryProps {
   profile: PuppyProfile;
@@ -26,21 +24,8 @@ interface DogHealthSummaryProps {
   weightActivities: Activity[]; // every weigh-in of the dog, whatever its date
   predictions?: PredictionResult | null;
   healthRecords?: HealthRecord[];
+  healthRecordsState?: HealthRecordsLoadState;
   onOpenHealthPassport: () => void;
-}
-
-/**
- * The record to show for one type: among those no later record renews, the one due first
- * (with no next date anywhere: the latest one), with its status.
- */
-function getNextDue(records: HealthRecord[]) {
-  const openRecords = records
-    .map((record) => ({ record, urgency: getHealthRecordStatus(record, records) }))
-    .filter((item) => item.urgency !== 'fulfilled');
-  const byBoosterDate = openRecords
-    .filter((item) => item.record.boosterDate)
-    .sort((first, second) => first.record.boosterDate!.localeCompare(second.record.boosterDate!));
-  return byBoosterDate[0] ?? openRecords.sort((first, second) => second.record.date.localeCompare(first.record.date))[0];
 }
 
 export const DogHealthSummary: React.FC<DogHealthSummaryProps> = React.memo(({
@@ -49,18 +34,15 @@ export const DogHealthSummary: React.FC<DogHealthSummaryProps> = React.memo(({
   weightActivities,
   predictions,
   healthRecords = [],
+  healthRecordsState = 'loaded',
   onOpenHealthPassport,
 }) => {
   const { t, lang } = useI18n();
 
-  // Derive the next vaccine and deworming due from BFF-provided health records (no secondary fetch needed)
+  // The dog's health records, from /api/dashboard (no secondary fetch needed)
   const puppyRecords = useMemo(() => {
     return healthRecords.filter((record) => record.puppyId === profile.id);
   }, [healthRecords, profile.id]);
-
-  const nextVaccine = useMemo(() => getNextDue(puppyRecords.filter((record) => record.type === 'vaccination')), [puppyRecords]);
-
-  const nextDeworming = useMemo(() => getNextDue(puppyRecords.filter((record) => record.type === 'deworming')), [puppyRecords]);
 
   // Calculate puppy age in weeks & months
   const ageInfo = useMemo(() => {
@@ -300,61 +282,9 @@ export const DogHealthSummary: React.FC<DogHealthSummaryProps> = React.memo(({
           </div>
         )}
 
-        {/* Dynamic Health Overview (Vaccine & Deworming) */}
-        <div className="space-y-2.5">
-          {/* Last Vaccine. On a narrow phone the date line breaks at the bullet, never inside a date */}
-          <div className="bg-slate-950/60 p-3 sm:p-3.5 rounded-xl border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3">
-            <div className="flex items-start sm:items-center gap-3">
-              <div className="p-2 bg-teal-500/20 text-teal-400 rounded-lg shrink-0 mt-0.5 sm:mt-0">
-                <Syringe className="w-4 h-4" />
-              </div>
-              <div className="space-y-0.5">
-                <div className="text-xs font-bold text-slate-200">
-                  {nextVaccine ? nextVaccine.record.name : t.health.lastVaccination}
-                </div>
-                <div className="text-xs text-slate-400">
-                  {nextVaccine ? (
-                    <><span className="whitespace-nowrap">{t.health.injectedOn} {formatShortDate(nextVaccine.record.date, lang)}</span> &bull; <span className="whitespace-nowrap">{t.health.booster}{t.common.colon} <strong className="text-teal-300">{nextVaccine.record.boosterDate ? formatShortDate(nextVaccine.record.boosterDate, lang) : '—'}</strong></span></>
-                  ) : (
-                    t.health.noVaccineRecords
-                  )}
-                </div>
-              </div>
-            </div>
-            {nextVaccine?.record.boosterDate && (
-              <div className="flex items-center gap-1.5 self-start sm:self-auto shrink-0">
-                <StatusBadge status={nextVaccine.urgency} />
-                <AddToCalendarButton record={nextVaccine.record} status={nextVaccine.urgency} dogName={profile.name} />
-              </div>
-            )}
-          </div>
-
-          {/* Last Deworming */}
-          <div className="bg-slate-950/60 p-3 sm:p-3.5 rounded-xl border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3">
-            <div className="flex items-start sm:items-center gap-3">
-              <div className="p-2 bg-amber-500/20 text-amber-400 rounded-lg shrink-0 mt-0.5 sm:mt-0">
-                <Pill className="w-4 h-4" />
-              </div>
-              <div className="space-y-0.5">
-                <div className="text-xs font-bold text-slate-200">
-                  {nextDeworming ? (nextDeworming.record.productName || nextDeworming.record.name) : t.health.lastDeworming}
-                </div>
-                <div className="text-xs text-slate-400">
-                  {nextDeworming ? (
-                    <><span className="whitespace-nowrap">{t.health.givenOn} {formatShortDate(nextDeworming.record.date, lang)}</span> &bull; <span className="whitespace-nowrap">{t.health.nextDeworming}{t.common.colon} <strong className="text-amber-300">{nextDeworming.record.boosterDate ? formatShortDate(nextDeworming.record.boosterDate, lang) : '—'}</strong></span></>
-                  ) : (
-                    t.health.noDewormingRecords
-                  )}
-                </div>
-              </div>
-            </div>
-            {nextDeworming?.record.boosterDate && (
-              <div className="flex items-center gap-1.5 self-start sm:self-auto shrink-0">
-                <StatusBadge status={nextDeworming.urgency} />
-                <AddToCalendarButton record={nextDeworming.record} status={nextDeworming.urgency} dogName={profile.name} />
-              </div>
-            )}
-          </div>
+        {/* Every open next date, overdue first: the passport opens on the same list */}
+        <div className="bg-slate-950/60 p-3 sm:p-4 rounded-xl border border-slate-800">
+          <HealthDueList records={puppyRecords} dogName={profile.name} state={healthRecordsState} />
         </div>
 
         {/* Button: View Full Health Passport */}

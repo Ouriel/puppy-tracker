@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { neon } from '@neondatabase/serverless';
 import { drizzle } from 'drizzle-orm/neon-http';
-import { eq, and, desc, gte } from 'drizzle-orm';
+import { eq, and, desc, gte, inArray } from 'drizzle-orm';
 import { activitiesTable, caretakersTable, puppiesTable, healthRecordsTable } from '../src/db/schema.js';
 import { DashboardQuerySchema } from '../src/utils/schemas.js';
 import { verifyAuth, sendAuthError, setCorsHeaders, canDeleteHouseholdData } from './_auth.js';
@@ -45,16 +45,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       gte(activitiesTable.timestamp, cutoffDate)
     );
 
-    // Every weight event, whatever its date: weigh-ins come weeks apart, so the recent window often holds none
-    let weightActivitiesWhere = and(eq(activitiesTable.householdId, householdId), eq(activitiesTable.type, 'weight'));
+    // Every weight and medication event, whatever its date: weigh-ins come weeks apart, so the recent window often holds
+    // none, and the passport lists every medication (owner decision C9). The client splits them.
+    let allTimeActivitiesWhere = and(eq(activitiesTable.householdId, householdId), inArray(activitiesTable.type, ['weight', 'medication']));
 
     if (puppyId) {
       activitiesWhere = and(activitiesWhere, eq(activitiesTable.puppyId, puppyId));
-      weightActivitiesWhere = and(weightActivitiesWhere, eq(activitiesTable.puppyId, puppyId));
+      allTimeActivitiesWhere = and(allTimeActivitiesWhere, eq(activitiesTable.puppyId, puppyId));
     }
 
     // Execute all 5 dashboard queries concurrently in a single HTTP batch pipe to Neon
-    const [householdPuppies, caretakers, rawActivities, healthRecords, rawWeightActivities] = await db.batch([
+    const [householdPuppies, caretakers, rawActivities, healthRecords, rawAllTimeActivities] = await db.batch([
       db.select().from(puppiesTable).where(eq(puppiesTable.householdId, householdId)),
       db.select().from(caretakersTable).where(eq(caretakersTable.householdId, householdId)),
       db
@@ -72,7 +73,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       db
         .select()
         .from(activitiesTable)
-        .where(weightActivitiesWhere)
+        .where(allTimeActivitiesWhere)
         .orderBy(desc(activitiesTable.timestamp), desc(activitiesTable.createdAt)),
     ]);
 
@@ -91,7 +92,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       caretakers,
       activities: rawActivities.map(formatActivity),
       healthRecords,
-      weightActivities: rawWeightActivities.map(formatActivity),
+      // Weight and medication events. The key predates medications: an app not updated yet keeps only the weight rows
+      weightActivities: rawAllTimeActivities.map(formatActivity),
     });
   } catch (err) {
     console.error('Error fetching dashboard payload:', err);

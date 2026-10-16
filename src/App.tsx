@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef, lazy, Suspense, type SetStateAction } from 'react';
-import type { Activity, UserAccount, ActivityType, PottyLocation, FamilyRole, HealthRecord, SignInOutcome } from './types';
+import type { Activity, UserAccount, ActivityType, PottyLocation, FamilyRole, HealthRecord, HealthRecordsLoadState, SignInOutcome } from './types';
 import { getAuthToken, setAuthToken, getStoredAuthUser, setStoredAuthUser } from './utils/auth';
 import { isSuperAdminEmail } from './utils/auth';
 import {
@@ -54,6 +54,8 @@ function App() {
   const [now, setNow] = useState<Date>(() => new Date());
   // The dashboard could not be reached: when the data shown was loaded (ms); null otherwise
   const [offlineDataTime, setOfflineDataTime] = useState<number | null>(null);
+  // The health records came with a dashboard answer: until then the passport and the health summary never say "nothing recorded"
+  const [areHealthRecordsLoaded, setAreHealthRecordsLoaded] = useState<boolean>(false);
 
   const [isLoading, setIsLoading] = useState<boolean>(() => {
     if (!getAuthToken()) return false;
@@ -161,6 +163,7 @@ function App() {
         const keptIds = new Set(previous.map((record) => record.id));
         return [...previous, ...records.filter((record) => !keptIds.has(record.id) && !deletedHealthRecordIdsRef.current.has(record.id))];
       });
+      setAreHealthRecordsLoaded(true);
     }
     return true;
   }, [activePuppyId, getMutationVersion, setPuppies, setDeletedPuppies, selectPuppy, setCaretakers, setActivitiesForPuppy]);
@@ -297,14 +300,17 @@ function App() {
     return activityState.activities.filter((act) => act.puppyId === puppyState.activePuppy!.id);
   }, [activityState.activities, puppyState.activePuppy]);
 
-  // Every weigh-in of the dog, whatever its date: weigh-ins come weeks apart, so the recent window often holds none.
-  // The recent window stands in until the full list has loaded.
-  const activePuppyWeights = useMemo(() => {
+  // Every weigh-in and medication of the dog, whatever its date: weigh-ins come weeks apart, so the recent window often holds
+  // none, and the passport lists every medication. The recent window stands in until the full list has loaded; the feed keeps its own.
+  const activePuppyAllTime = useMemo(() => {
     if (!puppyState.activePuppy) return [];
     const puppyId = puppyState.activePuppy.id;
-    return mergeOlderActivities(activityState.weightActivities, activePuppyActivities)
-      .filter((activity) => activity.type === 'weight' && activity.puppyId === puppyId);
-  }, [activityState.weightActivities, activePuppyActivities, puppyState.activePuppy]);
+    return mergeOlderActivities(activityState.allTimeActivities, activePuppyActivities).filter((activity) => activity.puppyId === puppyId);
+  }, [activityState.allTimeActivities, activePuppyActivities, puppyState.activePuppy]);
+
+  const activePuppyWeights = useMemo(() => activePuppyAllTime.filter((activity) => activity.type === 'weight'), [activePuppyAllTime]);
+
+  const activePuppyMedications = useMemo(() => activePuppyAllTime.filter((activity) => activity.type === 'medication'), [activePuppyAllTime]);
 
   const lastWeighIn = useMemo(() => getUnifiedWeightEntries(activePuppyWeights).at(-1), [activePuppyWeights]);
 
@@ -420,6 +426,16 @@ function App() {
     return !sessionRes.ok && sessionRes.status === 403 ? 'pending' : 'failed';
   };
 
+  // Skeletons while the first dashboard answer is awaited; "unavailable" once it failed with no records known (the passport tries its own load first)
+  const healthRecordsState: HealthRecordsLoadState = areHealthRecordsLoaded ? 'loaded' : isDashboardDown ? 'failed' : 'loading';
+
+  // Shown on the dashboard and the passport: the data on screen is from the last load that worked
+  const offlineLine = offlineDataTime !== null && (
+    <p role="status" className="text-xs font-semibold text-amber-300">
+      {t.dashboard.offlineDataFrom.replace('{time}', formatLocalTime(new Date(offlineDataTime)))}
+    </p>
+  );
+
   if (isLoading || (currentView === 'dashboard' && user && activityState.isLoadingActivities && puppyState.puppies.length > 0)) {
     return (
       <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans antialiased">
@@ -487,28 +503,32 @@ function App() {
       <main className="flex-1 max-w-6xl w-full mx-auto px-4 py-6">
         {currentView === 'carnetdesante' ? (
           /* Full Page View for Health Passport */
-          <Suspense
-            fallback={
-              <div className="py-20 text-center">
-                <div className="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto" />
-              </div>
-            }
-          >
-            <CarnetDeSanteView
-              activePuppy={puppyState.activePuppy}
-              activities={activePuppyActivities}
-              weightActivities={activePuppyWeights}
-              healthRecords={healthRecords}
-              setHealthRecords={updateHealthRecords}
-              isDashboardDown={isDashboardDown}
-              currentUser={caretakerState.currentUser}
-              onAddActivity={logActivity}
-              onUpdateActivity={activityState.updateActivity}
-              onOpenQuickLogModal={handleOpenQuickLogModal}
-              onBackToDashboard={() => handleNavigate('dashboard')}
-              onDeleteActivity={activityState.deleteActivity}
-            />
-          </Suspense>
+          <div className="space-y-4">
+            {offlineLine}
+            <Suspense
+              fallback={
+                <div className="py-20 text-center">
+                  <div className="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto" />
+                </div>
+              }
+            >
+              <CarnetDeSanteView
+                activePuppy={puppyState.activePuppy}
+                medicationActivities={activePuppyMedications}
+                weightActivities={activePuppyWeights}
+                healthRecords={healthRecords}
+                setHealthRecords={updateHealthRecords}
+                isDashboardDown={isDashboardDown}
+                healthRecordsState={healthRecordsState}
+                currentUser={caretakerState.currentUser}
+                onAddActivity={logActivity}
+                onUpdateActivity={activityState.updateActivity}
+                onOpenQuickLogModal={handleOpenQuickLogModal}
+                onBackToDashboard={() => handleNavigate('dashboard')}
+                onDeleteActivity={activityState.deleteActivity}
+              />
+            </Suspense>
+          </div>
         ) : currentView === 'settings' ? (
           /* Full Page View for Settings & Administration */
           <Suspense
@@ -554,11 +574,7 @@ function App() {
         ) : (
           <div className="space-y-6">
             <h1 className="sr-only">{puppyState.activePuppy?.name}</h1>
-            {offlineDataTime !== null && (
-              <p role="status" className="text-xs font-semibold text-amber-300">
-                {t.dashboard.offlineDataFrom.replace('{time}', formatLocalTime(new Date(offlineDataTime)))}
-              </p>
-            )}
+            {offlineLine}
 
             {/* Active Puppy Predictor Hero Bar (3 Cards: Next Pee, Next Poop, Next Meal) */}
             {predictions && puppyState.activePuppy && (
@@ -583,6 +599,7 @@ function App() {
                 weightActivities={activePuppyWeights}
                 predictions={predictions}
                 healthRecords={healthRecords}
+                healthRecordsState={healthRecordsState}
                 onOpenHealthPassport={handleOpenHealthPassport}
               />
             )}

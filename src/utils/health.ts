@@ -4,7 +4,11 @@ import { getPuppyAge } from './predictions';
 import { formatLocalDate } from './date';
 
 export interface HealthProtocolData {
-  vaccines: Array<{ id: string; name: string; fullName: string; defaultBoosterMonths: number; description: string; aliases?: string[] }>;
+  // shortName / shortNameEn: display only (the stored `name` stays the renewal key); formerNames: earlier protocol names still
+  // stored on older records, for the short name only; fullName: the picker's brand list
+  vaccines: Array<{
+    id: string; name: string; shortName: string; shortNameEn: string; formerNames?: string[]; fullName: string; defaultBoosterMonths: number; description: string; aliases?: string[];
+  }>;
   antiparasitics: Array<{
     id: string;
     name: string;
@@ -159,6 +163,27 @@ export function getHealthRecordStatus(record: HealthStatusRecord, allRecords: He
   if (daysUntilDue < 0) return 'overdue';
   if (daysUntilDue <= 14) return 'soon';
   return 'upToDate';
+}
+
+/**
+ * The name shown on screen: a protocol vaccine's short name in the app's language ("CHPPi + L4", "Rage" / "Rabies"), else the
+ * name as stored. Exact names only (a current or former protocol name): a hand-typed "CHPPi + L4 (Rappel 1)" keeps its words.
+ */
+export function getRecordShortName(record: Pick<HealthRecord, 'type' | 'name' | 'productName'>, lang: 'en' | 'fr'): string {
+  if (record.type === 'deworming') return record.productName || record.name;
+  const vaccine = healthProtocols.vaccines.find((protocol) => protocol.name === record.name || protocol.formerNames?.includes(record.name));
+  if (!vaccine) return record.name;
+  return lang === 'en' ? vaccine.shortNameEn : vaccine.shortName;
+}
+
+/** "À faire": every record no later one renews that has a next date, with its status; overdue first, then the soonest. */
+export function getNextDue(records: HealthRecord[]): Array<{ record: HealthRecord; urgency: HealthUrgency }> {
+  return records
+    .filter((record) => record.boosterDate)
+    .map((record) => ({ record, urgency: getHealthRecordStatus(record, records) }))
+    .filter((item) => item.urgency !== 'fulfilled')
+    // Same day: by id, so every caller gets the same order whatever the order it passes
+    .sort((first, second) => first.record.boosterDate!.localeCompare(second.record.boosterDate!) || first.record.id.localeCompare(second.record.id));
 }
 
 /**

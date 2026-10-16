@@ -75,8 +75,8 @@ describe('row buttons and targets', () => {
     await renderPassport();
     expect(is44(button('Modifier Bravecto du 10 sept.'))).toBe(true);
     expect(is44(button('Supprimer Bravecto du 10 sept.'))).toBe(true);
-    expect(is44(button(`Modifier ${shot.name} du 1 juil.`))).toBe(true);
-    expect(is44(button(`Supprimer ${shot.name} du 1 juil.`))).toBe(true);
+    expect(is44(button('Modifier Rage du 1 juil.'))).toBe(true);
+    expect(is44(button('Supprimer Rage du 1 juil.'))).toBe(true);
   });
 
   it('every passport section button is 44 px tall, the weight card\'s "Peser le chiot" too', async () => {
@@ -94,7 +94,8 @@ describe('row buttons and targets', () => {
 
   it('a row: the name wraps to 2 lines rather than being cut; the decorative icon is hidden on phones', async () => {
     const container = await renderPassport();
-    const name = [...container.querySelectorAll('span')].find((span) => span.textContent === shot.name)!;
+    // The short name on screen (carnet review C8)
+    const name = [...container.querySelectorAll('span')].find((span) => span.textContent === 'Rage')!;
     expect(name.classList).toContain('line-clamp-2');
     expect(name.classList).not.toContain('truncate');
     const rowIcon = name.closest('.rounded-xl')!.querySelector('.lucide-syringe')!.closest('div')!;
@@ -102,8 +103,10 @@ describe('row buttons and targets', () => {
   });
 
   it('the status chip has one icon, no extra ✅', async () => {
-    const container = await renderPassport([record({ id: 'hr-old', type: 'deworming', name: 'Bravecto', productName: 'Bravecto', date: '2026-06-10', boosterDate: '2026-09-10' }), dose]);
-    expect(container.textContent).toContain('Effectué');
+    const container = await renderPassport();
+    const chips = [...container.querySelectorAll('.chip')];
+    expect(chips.map((chip) => chip.textContent)).toContain('À jour');
+    expect(chips.every((chip) => chip.querySelectorAll('svg').length === 1)).toBe(true);
     expect(container.textContent).not.toContain('✅');
   });
 });
@@ -135,7 +138,7 @@ describe('the antiparasitic forms speak of doses, not injections', () => {
     await act(async () => buttonWithText('Ajouter un antiparasitaire')!.click());
     await act(async () => buttonWithText('Ajouter un vaccin')!.click());
     await act(async () => button('Modifier Bravecto du 10 sept.')!.click());
-    await act(async () => button(`Modifier ${shot.name} du 1 juil.`)!.click());
+    await act(async () => button('Modifier Rage du 1 juil.')!.click());
     const restingShade = (element: Element) => element.className.split(' ').find((name) => /^bg-(amber|teal)-\d+$/.test(name));
     const coloured = [...document.querySelectorAll('button')].filter(restingShade);
 
@@ -183,16 +186,16 @@ describe('the antiparasitic forms speak of doses, not injections', () => {
 
   it('the vaccine edit form also starts on its first field, the vaccine list, not the date', async () => {
     await renderPassport();
-    await act(async () => button(`Modifier ${shot.name} du 1 juil.`)!.click());
+    await act(async () => button('Modifier Rage du 1 juil.')!.click());
     const form = section('Vaccins').querySelector('form')!;
     expect(document.activeElement).toBe(form.querySelector('button[aria-haspopup="listbox"]'));
   });
 
   it('Cancel on the edit form puts focus back on the row\'s pencil', async () => {
     await renderPassport();
-    await act(async () => button(`Modifier ${shot.name} du 1 juil.`)!.click());
+    await act(async () => button('Modifier Rage du 1 juil.')!.click());
     await act(async () => buttonWithText('Annuler')!.click());
-    expect(document.activeElement).toBe(button(`Modifier ${shot.name} du 1 juil.`));
+    expect(document.activeElement).toBe(button('Modifier Rage du 1 juil.'));
   });
 });
 

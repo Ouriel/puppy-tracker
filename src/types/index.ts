@@ -151,13 +151,16 @@ export interface HealthRecord {
   notes?: string;
 }
 
+// The dog's health records: not answered yet, known, or no load worked (they are never kept on the phone)
+export type HealthRecordsLoadState = 'loading' | 'loaded' | 'failed';
+
 export interface DashboardPayload {
   puppies: PuppyProfile[];
   deletedPuppies?: PuppyProfile[]; // the owner only: dogs deleted, which they can restore
   caretakers: Caretaker[];
   activities: Activity[];
   healthRecords?: HealthRecord[];
-  weightActivities?: Activity[]; // every weight event, whatever its date
+  weightActivities?: Activity[]; // every weight and medication event, whatever its date (the key predates medications)
 }
 
 export interface EffectiveWeightInfo {

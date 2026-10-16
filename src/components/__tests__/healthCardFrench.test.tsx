@@ -56,27 +56,28 @@ async function render(element: ReactElement) {
 const renderCard = (healthRecords: HealthRecord[]) =>
   render(<DogHealthSummary profile={puppy} activities={[]} weightActivities={[]} healthRecords={healthRecords} onOpenHealthPassport={vi.fn()} />);
 
+/** The card's "À faire" lines: name, next date and status. */
+const dueLines = (container: HTMLElement) =>
+  [...[...container.querySelectorAll('h3')].find((heading) => heading.textContent === fr.health.toDo)!.closest('section')!.querySelectorAll('li')].map((line) => line.textContent);
+
+// Carnet review 2026-10-16 (C6): the card lists every open next date, overdue first, like the passport
 describe('dashboard health card, in French (backlog item 1)', () => {
-  it('a later Rage shot does not hide the CHPPi + L4 booster due first: that one is shown, named, with its chip', async () => {
+  it('a later Rage shot does not hide the CHPPi + L4 booster due first: both are listed, the sooner first, with short names', async () => {
     const container = await renderCard([
       record({ id: 'hr-chppi', type: 'vaccination', name: chppiL4, date: '2026-07-01', boosterDate: '2026-10-20' }),
       record({ id: 'hr-rage', type: 'vaccination', name: rage, date: '2026-09-01', boosterDate: '2027-09-01' }),
     ]);
 
-    expect(container.textContent).toContain(chppiL4);
-    expect(container.textContent).not.toContain(rage);
-    // The passport's words for a vaccine: 'Injecté le', 'Rappel'
-    expect(container.textContent).toContain('Injecté le 1 juil. • Rappel\u00a0: 20 oct.');
-    expect(container.textContent).toContain(fr.potty.dueSoon);
+    expect(dueLines(container)).toEqual([`CHPPi + L420 oct.${fr.potty.dueSoon}`, `Rage1 sept. 2027${fr.health.statusUpToDate}`]);
   });
 
-  it('a vaccine renewed by a later shot of the same vaccine is not the one shown', async () => {
+  it('a vaccine renewed by a later shot of the same vaccine is not listed', async () => {
     const container = await renderCard([
       record({ id: 'hr-chppi-1', type: 'vaccination', name: chppiL4, date: '2026-05-01', boosterDate: '2026-06-01' }),
       record({ id: 'hr-chppi-2', type: 'vaccination', name: chppiL4, date: '2026-06-01', boosterDate: '2027-03-01' }),
     ]);
 
-    expect(container.textContent).toContain('Injecté le 1 juin');
+    expect(dueLines(container)).toEqual([`CHPPi + L41 mars 2027${fr.health.statusUpToDate}`]);
     expect(container.textContent).not.toContain(fr.potty.overdue);
   });
 
@@ -85,9 +86,7 @@ describe('dashboard health card, in French (backlog item 1)', () => {
       record({ id: 'hr-dose', type: 'deworming', name: 'Credelio Plus', productName: 'Credelio Plus', date: '2026-09-10', boosterDate: '2026-10-10' }),
     ]);
 
-    // The passport's words for a dose: 'Donné le', 'Prochaine prise'
-    expect(container.textContent).toContain('Donné le 10 sept. • Prochaine prise\u00a0: 10 oct.');
-    expect(container.textContent).toContain(fr.potty.overdue);
+    expect(dueLines(container)).toEqual([`Credelio Plus10 oct.${fr.potty.overdue}`]);
   });
 
   it('on the due day the dose is due soon, not overdue', async () => {
@@ -99,20 +98,20 @@ describe('dashboard health card, in French (backlog item 1)', () => {
     expect(container.textContent).not.toContain(fr.potty.overdue);
   });
 
-  it('with no records, the antiparasitic line is titled "Dernier antiparasitaire", like its empty text', async () => {
+  it('with no records, one line says nothing is due', async () => {
     const container = await renderCard([]);
 
-    expect(container.textContent).toContain('Dernier antiparasitaire');
-    expect(container.textContent).toContain('Aucun antiparasitaire enregistré.');
+    expect(dueLines(container)).toEqual([]);
+    expect(container.textContent).toContain(fr.health.nothingDue);
     expect(container.textContent).not.toContain('vermifuge');
   });
 
-  it('a record with no next date shows an em dash and no chip, never a made-up date', async () => {
+  it('a record with no next date is not listed, and no date is made up for it', async () => {
     const container = await renderCard([
       record({ id: 'hr-dose', type: 'deworming', name: 'Milbemax', productName: 'Milbemax', date: '2026-10-01', boosterDate: null }),
     ]);
 
-    expect(container.textContent).toContain('Prochaine prise\u00a0: —');
+    expect(dueLines(container)).toEqual([]);
     expect(container.textContent).not.toMatch(new RegExp(`${fr.potty.overdue}|${fr.potty.dueSoon}|${fr.health.statusUpToDate}`));
   });
 });
@@ -144,7 +143,8 @@ describe('health passport, in French (backlog item 3)', () => {
     const container = await renderPassport(passportRecords);
     const chips = [...container.querySelectorAll('.chip')].map((chip) => chip.textContent);
 
-    expect(chips).toEqual(expect.arrayContaining([fr.potty.overdue, fr.health.statusUpToDate, fr.health.statusFulfilled, fr.potty.dueSoon]));
+    // A renewed dose is a grey history line, with no chip (carnet review C7)
+    expect(chips).toEqual(expect.arrayContaining([fr.potty.overdue, fr.health.statusUpToDate, fr.potty.dueSoon]));
     expect(container.textContent).not.toMatch(/Overdue|Due Soon/);
   });
 
@@ -266,7 +266,6 @@ describe('status chips on the dark cards (accessibility)', () => {
     expect(chipClasses(fr.potty.overdue)).not.toContain('animate-pulse');
     expect(chipClasses(fr.potty.dueSoon)).toContain('text-amber-300');
     expect(chipClasses(fr.health.statusUpToDate)).toContain('text-emerald-300');
-    expect(chipClasses(fr.health.statusFulfilled)).toContain('text-emerald-300');
   });
 });
 
@@ -302,7 +301,7 @@ describe('health card leftovers, in French', () => {
       record({ id: 'hr-rage', type: 'vaccination', name: rage, date: '2026-07-01', boosterDate: '2027-07-01' }),
       record({ id: 'hr-dose', type: 'deworming', name: 'Credelio Plus', productName: 'Credelio Plus', date: '2026-09-20', boosterDate: '2026-10-20' }),
     ]);
-    await act(async () => container.querySelector<HTMLButtonElement>(`[aria-label="Modifier ${rage} du 1 juil."]`)!.click());
+    await act(async () => container.querySelector<HTMLButtonElement>('[aria-label="Modifier Rage du 1 juil."]')!.click());
     await setDate(container.querySelector<HTMLInputElement>('input[type="date"][value="2026-07-01"]')!, '2026-07-10');
     await act(async () => container.querySelector<HTMLButtonElement>('[aria-label="Modifier Credelio Plus du 20 sept."]')!.click());
     await setDate(container.querySelector<HTMLInputElement>('input[type="date"][value="2026-09-20"]')!, '2026-09-21');
