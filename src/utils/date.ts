@@ -281,3 +281,19 @@ export function formatMinutesToXhXX(minutes: number): string {
   const mins = m % 60;
   return m < 60 ? `${m}m` : `${Math.floor(m / 60)}h${mins ? String(mins).padStart(2, '0') : ''}`;
 }
+
+/**
+ * A duration as the app shows it. French: '25 min', '1 h 05', '6 h', with no-break spaces so it never wraps
+ * (never 'm', which reads as metres). English: '25m', '1h 5m', '6h'.
+ */
+export function formatDuration(minutes: number, lang: 'en' | 'fr'): string {
+  const total = Math.round(minutes);
+  const hours = Math.floor(total / 60);
+  const rest = total % 60;
+  if (lang === 'fr') {
+    if (hours === 0) return `${rest}\u00a0min`;
+    return rest ? `${hours}\u00a0h\u00a0${String(rest).padStart(2, '0')}` : `${hours}\u00a0h`;
+  }
+  if (hours === 0) return `${rest}m`;
+  return rest ? `${hours}h ${rest}m` : `${hours}h`;
+}

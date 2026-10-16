@@ -40,7 +40,7 @@ function dueDateEvent(record: DueHealthRecord, dogName: string, t: TranslationKe
   const productName = record.productName || record.name;
   const title = t.health.calendarEventTitle.replace('{dog}', () => dogName).replace('{name}', () => productName);
   const givenOn = new Date(`${record.date.slice(0, 10)}T00:00:00Z`).toLocaleDateString(lang === 'fr' ? 'fr-FR' : 'en-US', { dateStyle: 'long', timeZone: 'UTC' });
-  const description = [`${t.health.givenOn} ${givenOn}`, record.vetClinic?.trim() && `${t.health.clinic}: ${record.vetClinic.trim()}`].filter(Boolean).join('\n');
+  const description = [`${t.health.givenOn} ${givenOn}`, record.vetClinic?.trim() && `${t.health.clinic}${t.common.colon} ${record.vetClinic.trim()}`].filter(Boolean).join('\n');
   // All day: the end date is exclusive
   return { dueDate, productName, title, description, start: dueDate.replace(/-/g, ''), end: addDays(dueDate, 1).replace(/-/g, '') };
 }

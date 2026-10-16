@@ -1,12 +1,12 @@
 import { StrictMode, Component } from 'react';
 import type { ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { ToastProvider } from '@heroui/react';
 import { SpeedInsights } from '@vercel/speed-insights/react';
 import { Analytics } from '@vercel/analytics/react';
 import './index.css';
 import App from './App.tsx';
 import { I18nProvider } from './i18n';
+import { AppToastProvider } from './components/common/AppToastProvider';
 import { registerServiceWorker } from './registerServiceWorker';
 
 registerServiceWorker();
@@ -64,7 +64,7 @@ createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ErrorBoundary>
       <I18nProvider>
-        <ToastProvider placement="bottom" />
+        <AppToastProvider />
         <App />
       </I18nProvider>
       <SpeedInsights

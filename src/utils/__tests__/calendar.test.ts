@@ -89,8 +89,8 @@ describe('buildDueDateIcs: one all-day event on the next date', () => {
 
   it('in French: the title, the given date and the clinic', () => {
     const { content } = buildDueDateIcs(vaccine, 'Rex', fr, 'fr');
-    expect(property(content, 'SUMMARY')).toBe(`SUMMARY:Rex : ${chppiL4} à faire`);
-    expect(property(content, 'DESCRIPTION')).toBe('DESCRIPTION:Donné le 1 juillet 2026\\nClinique: Clinique des Lilas');
+    expect(property(content, 'SUMMARY')).toBe(`SUMMARY:Rex\u00a0: ${chppiL4} à faire`);
+    expect(property(content, 'DESCRIPTION')).toBe('DESCRIPTION:Donné le 1 juillet 2026\\nClinique\u00a0: Clinique des Lilas');
   });
 
   it('escapes backslashes, commas, semicolons and newlines (RFC 5545 TEXT)', () => {
@@ -122,7 +122,7 @@ describe('buildDueDateIcs: one all-day event on the next date', () => {
     for (const line of lines) expect(octets(line)).toBeLessThanOrEqual(75);
     // A split 🐶 (two UTF-16 units, four octets) would come out as a replacement character
     for (const line of lines) expect(new TextDecoder().decode(new TextEncoder().encode(line))).not.toContain('�');
-    expect(property(content, 'SUMMARY')).toBe(`SUMMARY:Rex : ${longName} à faire`);
+    expect(property(content, 'SUMMARY')).toBe(`SUMMARY:Rex\u00a0: ${longName} à faire`);
   });
 
   it('names the file <dog>-<product>-<date>.ics with safe characters only', () => {
@@ -181,8 +181,8 @@ describe('buildGoogleCalendarUrl: the same event as a Google Calendar template l
   it('in French: the title, the given date and the clinic, URL-encoded', () => {
     const url = buildGoogleCalendarUrl(vaccine, 'Rex', fr, 'fr');
 
-    expect(params(url).get('text')).toBe(`Rex : ${chppiL4} à faire`);
-    expect(params(url).get('details')).toBe('Donné le 1 juillet 2026\nClinique: Clinique des Lilas');
+    expect(params(url).get('text')).toBe(`Rex\u00a0: ${chppiL4} à faire`);
+    expect(params(url).get('details')).toBe('Donné le 1 juillet 2026\nClinique\u00a0: Clinique des Lilas');
     expect(url).not.toMatch(/[\s àé]/);
     expect(url).toContain('%C3%A0+faire');
     expect(url).toContain('%0A');

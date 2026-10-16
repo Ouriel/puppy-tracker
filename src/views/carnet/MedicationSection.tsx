@@ -1,9 +1,10 @@
 import React, { useState, useMemo } from "react";
 import type { Activity } from "../../types";
-import { Pill, Plus, Trash2, Calendar, User } from "lucide-react";
+import { PillBottle, Plus, Trash2, Calendar, User } from "lucide-react";
 import { Card, Button } from "@heroui/react";
 import { ConfirmationModal } from "../../components/common/ConfirmationModal";
 import { useI18n } from "../../i18n";
+import { formatShortDate } from "../../utils/date";
 
 interface MedicationSectionProps {
   activities: Activity[];
@@ -45,7 +46,7 @@ export const MedicationSection: React.FC<MedicationSectionProps> = ({
       <Card.Content className="p-4 sm:p-6 space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h3 className="text-sm sm:text-base font-bold text-slate-100 flex items-center gap-2 min-w-0">
-            <Pill className="w-4 h-4 sm:w-5 sm:h-5 text-teal-400 shrink-0" />
+            <PillBottle className="w-4 h-4 sm:w-5 sm:h-5 text-teal-400 shrink-0" />
             <span className="break-words">{t.health.medicationHistory} ({medicationLogs.length})</span>
           </h3>
           {onOpenQuickLogModal && (
@@ -53,7 +54,7 @@ export const MedicationSection: React.FC<MedicationSectionProps> = ({
               variant="primary"
               size="sm"
               onPress={() => onOpenQuickLogModal("medication")}
-              className="bg-teal-600 hover:bg-teal-500 text-white font-bold text-xs shadow-sm shrink-0"
+              className="min-h-11 bg-teal-700 hover:bg-teal-600 text-white font-bold text-xs shadow-sm shrink-0"
             >
               <Plus className="w-4 h-4 mr-1 inline" />
               {t.health.addMedication}
@@ -62,12 +63,7 @@ export const MedicationSection: React.FC<MedicationSectionProps> = ({
         </div>
 
         {medicationLogs.length === 0 ? (
-          <div className="text-center py-8 text-slate-400 bg-slate-950/60 rounded-xl border border-dashed border-slate-800 space-y-2">
-            <Pill className="w-8 h-8 text-slate-600 mx-auto" />
-            <p className="text-xs sm:text-sm font-semibold text-slate-300">
-              {t.health.noMedicationRecords}
-            </p>
-          </div>
+          <p className="text-xs text-slate-400">{t.health.noMedicationRecords}</p>
         ) : (
           <div className="space-y-2.5">
             {medicationLogs.map((log) => (
@@ -78,10 +74,10 @@ export const MedicationSection: React.FC<MedicationSectionProps> = ({
                 <div className="space-y-1.5 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="text-xs sm:text-sm font-bold text-teal-300 flex items-center gap-1.5">
-                      <Pill className="w-3.5 h-3.5 text-teal-400 shrink-0" />
+                      <PillBottle className="w-3.5 h-3.5 text-teal-400 shrink-0" aria-hidden="true" />
                       <span>{log.medicationName || t.potty.medication}</span>
                     </span>
-                    <span className="text-[11px] text-slate-400 bg-slate-900 border border-slate-800 px-2 py-0.5 rounded-md flex items-center gap-1">
+                    <span className="text-xs text-slate-400 bg-slate-900 border border-slate-800 px-2 py-0.5 rounded-md flex items-center gap-1">
                       <Calendar className="w-3 h-3 text-slate-400" />
                       <span>{formatLogDate(log.timestamp)}</span>
                     </span>
@@ -93,7 +89,7 @@ export const MedicationSection: React.FC<MedicationSectionProps> = ({
                     </p>
                   )}
 
-                  <div className="flex items-center gap-1.5 text-[11px] text-slate-400">
+                  <div className="flex items-center gap-1.5 text-xs text-slate-400">
                     <User className="w-3 h-3 text-slate-500" />
                     <span>{log.loggedBy}</span>
                   </div>
@@ -104,8 +100,8 @@ export const MedicationSection: React.FC<MedicationSectionProps> = ({
                     <button
                       type="button"
                       onClick={() => setConfirmDeleteId(log.id)}
-                      aria-label={t.health.deleteMedicationTitle}
-                      className="p-1.5 text-slate-500 hover:text-red-400 hover:bg-red-950/40 rounded-lg transition-colors"
+                      aria-label={t.common.deleteItem.replace("{item}", t.health.recordOn.replace("{name}", log.medicationName || t.potty.medication).replace("{date}", formatShortDate(log.timestamp, lang)))}
+                      className="min-h-11 min-w-11 flex items-center justify-center text-slate-500 hover:text-red-400 hover:bg-red-950/40 rounded-lg transition-colors"
                       title={t.health.deleteMedicationConfirm}
                     >
                       <Trash2 className="w-4 h-4" />

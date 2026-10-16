@@ -186,7 +186,7 @@ describe('export utilities — CSV and PDF export test suite', () => {
       const htmlContent = mockWindow?.document.write.mock.calls[0][0] as string;
       expect(htmlContent).toContain('Pistache');
       expect(htmlContent).toContain("Rapport d'Activités & Propreté");
-      expect(htmlContent).toContain('Berger Australien');
+      expect(htmlContent).toContain('Berger australien');
       // The period printed; no goal: today's goal is not the goal of past days (history display decision (a))
       expect(htmlContent).toContain('Du 14 août 2026 au 20 août 2026');
       expect(htmlContent).not.toContain('240g /');

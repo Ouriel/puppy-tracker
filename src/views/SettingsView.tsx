@@ -53,7 +53,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           <button
             type="button"
             onClick={onBackToDashboard}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-white text-xs font-bold transition-all shadow-sm group"
+            className="inline-flex items-center gap-1.5 min-h-11 px-3 sm:px-3.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-white text-xs font-bold transition-all shadow-sm group"
           >
             <ArrowLeft className="w-4 h-4 text-indigo-400 group-hover:-translate-x-0.5 transition-transform" />
             <span>{t.nav.backToDashboard}</span>
@@ -64,8 +64,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       {/* Header Banner */}
       <PageHeader
         icon={Settings}
-        title={`${t.nav.settings} & Administration`}
-        subtitle={t.household.manageSettingsSubtitle || 'Manage household dog profiles, family caretakers, and access approvals'}
+        title={t.nav.settings}
+        subtitle={t.household.manageSettingsSubtitle}
       />
 
       {/* Full Page Navigation Tabs */}
@@ -73,7 +73,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         <button
           type="button"
           onClick={() => setSelectedTab('dogs')}
-          className={`flex items-center justify-center sm:justify-start gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl font-bold text-xs transition-all ${
+          aria-pressed={selectedTab === 'dogs'}
+          className={`flex items-center justify-center sm:justify-start gap-2 min-h-11 px-3 sm:px-4 rounded-xl font-bold text-xs transition-all ${
             selectedTab === 'dogs'
               ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30'
               : 'bg-slate-900 border border-slate-800 text-slate-400 hover:text-white hover:bg-slate-800'
@@ -86,7 +87,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         <button
           type="button"
           onClick={() => setSelectedTab('household')}
-          className={`flex items-center justify-center sm:justify-start gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl font-bold text-xs transition-all ${
+          aria-pressed={selectedTab === 'household'}
+          className={`flex items-center justify-center sm:justify-start gap-2 min-h-11 px-3 sm:px-4 rounded-xl font-bold text-xs transition-all ${
             selectedTab === 'household'
               ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30'
               : 'bg-slate-900 border border-slate-800 text-slate-400 hover:text-white hover:bg-slate-800'
@@ -100,7 +102,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           <button
             type="button"
             onClick={() => setSelectedTab('admin')}
-            className={`col-span-2 sm:col-span-1 flex items-center justify-center sm:justify-start gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl font-bold text-xs transition-all ${
+            aria-pressed={selectedTab === 'admin'}
+            className={`col-span-2 sm:col-span-1 flex items-center justify-center sm:justify-start gap-2 min-h-11 px-3 sm:px-4 rounded-xl font-bold text-xs transition-all ${
               selectedTab === 'admin'
                 ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30'
                 : 'bg-slate-900 border border-slate-800 text-slate-400 hover:text-white hover:bg-slate-800'

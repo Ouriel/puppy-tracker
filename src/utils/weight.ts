@@ -23,6 +23,11 @@ export function formatKg(kg: number, lang: 'en' | 'fr'): string {
   return `${formatKgNumber(kg, lang)} kg`;
 }
 
+/** Food grams, a whole number in the app language and a no-break space before the unit: '240 g', '1 200 g'. */
+export function formatGrams(grams: number, lang: 'en' | 'fr'): string {
+  return `${formatKgNumber(grams, lang, 0)}\u00a0g`;
+}
+
 /** An estimated adult range: whole kilos from 10 kg ('13–15 kg'), else at most 1 decimal ('2,2–2,9 kg'). */
 export function formatKgRange(minKg: number, maxKg: number, lang: 'en' | 'fr'): string {
   const digits = maxKg >= 10 ? 0 : 1;

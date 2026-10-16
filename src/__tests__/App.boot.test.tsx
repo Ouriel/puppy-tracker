@@ -497,7 +497,7 @@ describe('App log state', () => {
 
     await renderApp();
 
-    expect(document.body.textContent).toContain('0g / 200g (0/3)');
+    expect(document.body.textContent).toContain('0\u00a0g / 200\u00a0g (0/3)');
   });
 
   // Owner decision 2026-10-15: the server gives an account without a linked badge one on its first log
@@ -662,7 +662,7 @@ describe('a quick log that could not be saved', () => {
     await act(async () => answerRetry(new Response(JSON.stringify(posted[1]), { status: 201 })));
     await settle();
     expect(isMarkedNotSaved()).toBe(false);
-    expect(document.querySelector(`[aria-label="${en.potty.deleteActivityTitle}"]`)).not.toBeNull();
+    expect(document.querySelector('[aria-label^="Delete pee "]')).not.toBeNull();
   });
 
   it('the red message carries Retry too, since the marked row may be off screen', async () => {
@@ -805,7 +805,7 @@ describe('a log form whose save fails', () => {
     });
     await renderApp();
     await act(async () => document.querySelector<HTMLButtonElement>(`button[title="${en.dashboard.expandAll}"]`)!.click());
-    await act(async () => document.querySelector<HTMLElement>(`[aria-label="${en.potty.editActivity}"]`)!.click());
+    await act(async () => document.querySelector<HTMLElement>('[aria-label^="Edit "]')!.click());
     await settleUntil(() => notesBox() !== null);
     await typeNotes('edited');
 
@@ -987,5 +987,62 @@ describe('restorable dog delete', () => {
 
     expect(getStoredPuppies()).toEqual([]);
     expect(document.body.textContent).toContain(en.dashboard.welcomeTitle);
+  });
+});
+
+// App review 2026-10-16, 5.3: the tab title names the screen, in the app language
+describe('page title', () => {
+  it('follows the screen and the language: "Tableau de bord — PupPace", then "Gestion du foyer — PupPace"', async () => {
+    signedInWithCachedDogOnly();
+    localStorage.setItem('puppace_lang_v1', 'fr');
+    stubApi({ '/api/dashboard': () => respond(dashboardPayload()) });
+
+    await renderApp();
+    expect(document.title).toBe('Tableau de bord — PupPace');
+
+    await act(async () => {
+      window.history.pushState({}, '', '/settings');
+      window.dispatchEvent(new PopStateEvent('popstate'));
+    });
+    expect(document.title).toBe('Gestion du foyer — PupPace');
+  });
+
+  // AGENTS.md concise labels: 'Profils des chiens (1)' and 'Membres du foyer (3)' were cut at 320 px
+  it('in French, the Settings tabs read "Chiens (1)" and "Membres (…)"', async () => {
+    signedInWithCachedDogOnly();
+    localStorage.setItem('puppace_lang_v1', 'fr');
+    stubApi({ '/api/dashboard': () => respond(dashboardPayload()) });
+    window.history.pushState({}, '', '/settings');
+
+    await renderApp();
+    await settleUntil(() => document.querySelector('button[aria-pressed]') !== null);
+    const tabs = [...document.querySelectorAll('button[aria-pressed]')].map((tab) => tab.textContent);
+    expect(tabs[0]).toBe('Chiens (1)');
+    expect(tabs[1]).toMatch(/^Membres \(\d+\)$/);
+  });
+
+  it('in English, the health passport reads "Health Book — PupPace"', async () => {
+    signedInWithCachedDogOnly();
+    localStorage.setItem('puppace_lang_v1', 'en');
+    stubApi({ '/api/dashboard': () => respond(dashboardPayload()) });
+    window.history.pushState({}, '', '/health-passport');
+
+    await renderApp();
+    expect(document.title).toBe('Health Book — PupPace');
+  });
+});
+
+// App review 2026-10-16, 5.7: a screen reader's heading list starts with the dog's name
+describe('dashboard headings', () => {
+  it('one page heading, the dog\'s name, hidden on screen; the cards are headings under it', async () => {
+    signedInWithCachedDogOnly();
+    stubApi({ '/api/dashboard': () => respond(dashboardPayload()) });
+
+    await renderApp();
+    const pageHeadings = [...document.querySelectorAll('h1')];
+    expect(pageHeadings.map((heading) => [heading.textContent, heading.className])).toEqual([['Rex', 'sr-only']]);
+    expect([...document.querySelectorAll('h2')].map((heading) => heading.textContent)).toEqual(
+      expect.arrayContaining([en.potty.nextPee, en.potty.nextPoop, en.potty.nextMeal])
+    );
   });
 });

@@ -38,13 +38,13 @@ afterEach(async () => {
 });
 
 /** Renders the feed in `lang` with every day open. */
-async function renderFeed(lang: 'en' | 'fr') {
+async function renderFeed(lang: 'en' | 'fr', list: Activity[] = activities) {
   localStorage.setItem('puppace_lang_v1', lang);
   const container = document.createElement('div');
   document.body.appendChild(container);
   root = createRoot(container);
   await act(async () => root!.render(
-    <ActivityTimeline activities={activities} caretakers={[]} activePuppy={puppy} onDeleteActivity={vi.fn()} referenceTime={new Date()} />
+    <ActivityTimeline activities={list} caretakers={[]} activePuppy={puppy} onDeleteActivity={vi.fn()} referenceTime={new Date()} />
   ));
   const expandAll = [...container.querySelectorAll('button')].find((button) => button.textContent === (lang === 'fr' ? 'Tout déplier' : 'Expand All'))!;
   await act(async () => expandAll.click());
@@ -65,7 +65,7 @@ describe('activity feed day groups (backlog item 26)', () => {
     expect(rowTimes(container)).toEqual(['08:15', '00:30', '20:00']);
     expect(eventBadges(container)).toEqual(['1 événement', '2 événements']);
     expect(titles(container)).toEqual(expect.arrayContaining(['0 pipi', '1 caca', '2 pipis', '0 caca', '1 accident']));
-    expect(container.textContent).toContain('0g · 0 repas');
+    expect(container.textContent).toContain('0\u00a0g · 0 repas');
     expect(container.textContent).not.toContain('(s)');
   });
 
@@ -75,7 +75,20 @@ describe('activity feed day groups (backlog item 26)', () => {
     expect(rowTimes(container)).toEqual(['08:15', '00:30', '20:00']);
     expect(eventBadges(container)).toEqual(['1 event', '2 events']);
     expect(titles(container)).toEqual(expect.arrayContaining(['0 pees', '1 poop', '2 pees', '0 poops', '1 accident']));
-    expect(container.textContent).toContain('0g · 0 meals');
+    expect(container.textContent).toContain('0\u00a0g · 0 meals');
     expect(container.textContent).not.toContain('(s)');
+  });
+
+  // The chip sits next to the row title "Caca": its word agrees with it, unlike the form's "Selles molles"
+  it('in French, the stool chip agrees with "Caca": "Mou", "Dur (constipation)", never "Molles" or "Dures"', async () => {
+    const container = await renderFeed('fr', [
+      log('act-soft', 'poop', '2026-10-15T09:00:00+02:00', { pottyLocation: 'outside', stoolConsistency: 'soft' }),
+      log('act-hard', 'poop', '2026-10-15T10:00:00+02:00', { stoolConsistency: 'hard' }),
+      log('act-normal', 'poop', '2026-10-15T11:00:00+02:00', { stoolConsistency: 'normal' }),
+    ]);
+    const spans = [...container.querySelectorAll('span')].map((span) => span.textContent);
+
+    expect(spans).toEqual(expect.arrayContaining(['Mou', 'Dur (constipation)', 'Normal']));
+    expect(container.textContent).not.toMatch(/Molles|Dures|Normales/);
   });
 });

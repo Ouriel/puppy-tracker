@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useCallback, useMemo, useEffect } from 'react';
+import { I18nProvider as AriaI18nProvider, type I18nProviderProps as AriaI18nProviderProps } from 'react-aria-components';
 import { en } from './en';
 import { fr } from './fr';
 
@@ -60,7 +61,13 @@ export const I18nProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return { lang, changeLanguage, t };
   }, [lang, changeLanguage]);
 
-  return React.createElement(I18nContext.Provider, { value }, children);
+  // react-aria's own words (a dialog's hidden Dismiss button) follow the app language, not the phone's.
+  // HeroUI's close buttons say "Close" whatever the locale: the app names them (AppToastProvider, Modal.CloseTrigger).
+  return React.createElement(
+    I18nContext.Provider,
+    { value },
+    React.createElement(AriaI18nProvider, { locale: lang === 'fr' ? 'fr-FR' : 'en-US' } as AriaI18nProviderProps, children)
+  );
 };
 
 /** '{count} event' or '{count} events', by the language's plural rule: French says "0 pipi", English "0 pees". */

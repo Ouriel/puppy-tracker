@@ -6,6 +6,7 @@ import { PredictorWidget } from '../PredictorWidget';
 import { calculatePredictions } from '../../utils/predictions';
 import { act as log, PISTACHE } from '../../utils/__tests__/fixtures';
 import type { Activity } from '../../types';
+import { fr } from '../../i18n/fr';
 
 // The dashboard cards (prediction review 2026-10-16: B13 and the vet lines), on made-up logs.
 
@@ -85,12 +86,44 @@ describe('vet lines on the stool alerts', () => {
     localStorage.setItem('puppace_lang_v1', 'fr');
     const diarrhoea = await renderCards(poopAt11('diarrhea'));
     expect(diarrhoea.textContent).toContain(
-      "Laissez de l'eau à disposition. Appelez le vétérinaire si cela dure plus de 24 h, ou tout de suite en cas de sang, de vomissements, de fatigue, ou si le chiot n'a pas tous ses vaccins."
+      "Laisse de l'eau à disposition. Appelle le vétérinaire si cela dure plus de 24\u00a0h, ou tout de suite en cas de sang, de vomissements, de fatigue, ou si le chiot n'a pas tous ses vaccins."
     );
     await act(async () => root?.unmount());
     const hardStool = await renderCards(poopAt11('hard'));
     expect(hardStool.textContent).toContain(
-      "Laissez de l'eau à disposition. Appelez le vétérinaire en l'absence de selles pendant 48 h, ou en cas d'efforts ou de vomissements."
+      "Laisse de l'eau à disposition. Appelle le vétérinaire en l'absence de selles pendant 48\u00a0h, ou en cas d'efforts ou de vomissements."
     );
+  });
+});
+
+// App review 2026-10-16, S6: one duration style per language, "il y a" before the time, grams with a space
+describe('durations, "ago" and grams in the app language', () => {
+  const recentPee = log('pee', '2026-09-15T11:50:00+02:00');
+
+  it('French: "il y a 10 min", "±… min", never "m" (metres), "0 g / 240 g" and "(80 g)"', async () => {
+    localStorage.setItem('puppace_lang_v1', 'fr');
+    const container = await renderCards([recentPee]);
+    const text = container.textContent!;
+    expect(text).toContain(`${fr.dashboard.lastPee}il y a 10\u00a0min`);
+    expect(text).toMatch(/±\d+\u00a0min/);
+    expect(text).not.toMatch(/\d+m(?!in)/);
+    expect(text).not.toContain('il y a il');
+    expect(text).toContain('0\u00a0g / 240\u00a0g (0/3)');
+    expect(text).toContain('(80\u00a0g)');
+  });
+
+  it('French: a log under a minute old reads "à l\'instant"', async () => {
+    localStorage.setItem('puppace_lang_v1', 'fr');
+    const container = await renderCards([log('pee', '2026-09-15T12:00:00+02:00')]);
+    expect(container.textContent).toContain(`${fr.dashboard.lastPee}à l'instant`);
+  });
+
+  it('English: "10m ago", and clock times "1:30 PM", never "01:30 PM"', async () => {
+    const container = await renderCards([recentPee]);
+    const text = container.textContent!;
+    expect(text).toContain('Last pee:10m ago');
+    expect(text).toMatch(/\(\d{1,2}:\d\d [AP]M\)/);
+    expect(text).not.toMatch(/\(0\d:\d\d [AP]M\)/);
+    expect(text).toContain('(80\u00a0g)');
   });
 });

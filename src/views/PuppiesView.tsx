@@ -4,9 +4,9 @@ import { Dog, Plus, Trash2, Pencil, Utensils, Calendar, RotateCcw } from 'lucide
 import { useI18n } from '../i18n';
 import { formatBreedName, DOG_BREEDS } from '../data/breedsCatalog';
 import { BREEDS_WITH_TYPED_ADULT_WEIGHT, NEW_DOG_FORM, buildDogPayload, dogFormFromProfile, validateDogForm, type DogForm, type DogFormError } from '../utils/dogForm';
-import { formatLocalDate } from '../utils/date';
+import { formatLocalDate, formatShortDate } from '../utils/date';
 import { getRecommendedMealsPerDay } from '../utils/predictions';
-import { getExpectedAdultWeight } from '../utils/weight';
+import { formatGrams, formatKg, getExpectedAdultWeight } from '../utils/weight';
 import { Card, Button, Input, Select, ListBox, ListBoxItem, Chip } from '@heroui/react';
 import { ConfirmationModal } from '../components/common/ConfirmationModal';
 import { PageHeader } from '../components/common/PageHeader';
@@ -31,6 +31,7 @@ const DogGenderAndWeightFields: React.FC<{
   onChange: (patch: { gender?: 'female' | 'male'; expectedAdultWeightKg?: number }) => void;
   t: ReturnType<typeof useI18n>['t'];
 }> = ({ breed, gender, expectedWeightKg, onChange, t }) => {
+  const { lang } = useI18n();
   const isCustomOrMixed = BREEDS_WITH_TYPED_ADULT_WEIGHT.includes(breed);
 
   const standardWeight = getExpectedAdultWeight(breed, gender);
@@ -44,8 +45,9 @@ const DogGenderAndWeightFields: React.FC<{
             <button
               key={s}
               type="button"
+              aria-pressed={gender === s}
               onClick={() => onChange({ gender: gender === s ? undefined : s })}
-              className={`py-2 px-3 rounded-xl text-xs font-bold border transition-colors flex items-center justify-center gap-1.5 ${
+              className={`min-h-11 px-3 rounded-xl text-xs font-bold border transition-colors flex items-center justify-center gap-1.5 ${
                 gender === s
                   ? s === 'female'
                     ? 'bg-pink-950/60 border-pink-500 text-pink-300 ring-2 ring-pink-500/20'
@@ -59,9 +61,9 @@ const DogGenderAndWeightFields: React.FC<{
           ))}
         </div>
         {!isCustomOrMixed && breed && (
-          <p className="text-[11px] text-slate-400 mt-1.5 flex items-center gap-1">
-            <span>{t.puppies.standardAdultWeight}:</span>
-            <span className="font-semibold text-slate-200">~{standardWeight} kg</span>
+          <p className="text-xs text-slate-400 mt-1.5 flex items-center gap-1">
+            <span>{t.puppies.standardAdultWeight}{t.common.colon}</span>
+            <span className="font-semibold text-slate-200">~{formatKg(standardWeight, lang)}</span>
           </p>
         )}
       </div>
@@ -77,12 +79,12 @@ const DogGenderAndWeightFields: React.FC<{
             step="0.5"
             min="1"
             max="100"
-            placeholder="ex: 14"
+            placeholder={t.puppies.adultWeightPlaceholder}
             className="bg-slate-950 border-slate-800 text-slate-100"
             value={expectedWeightKg ?? ''}
             onChange={(event) => onChange({ expectedAdultWeightKg: event.target.valueAsNumber || undefined })}
           />
-          <p className="text-[10px] text-slate-400 mt-1">{t.puppies.expectedWeightHint}</p>
+          <p className="text-xs text-slate-400 mt-1">{t.puppies.expectedWeightHint}</p>
         </div>
       )}
     </>
@@ -480,8 +482,8 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
                       <button
                         type="button"
                         onClick={() => handleStartEdit(pup)}
-                        aria-label={t.puppies.editProfileBtn}
-                        className="p-2 min-h-[38px] min-w-[38px] flex items-center justify-center text-slate-400 hover:text-indigo-300 hover:bg-slate-800 rounded-xl border border-slate-800 bg-slate-950 transition-colors"
+                        aria-label={t.common.editItem.replace('{item}', pup.name)}
+                        className="p-2 min-h-11 min-w-11 flex items-center justify-center text-slate-400 hover:text-indigo-300 hover:bg-slate-800 rounded-xl border border-slate-800 bg-slate-950 transition-colors"
                       >
                         <Pencil className="w-4 h-4" />
                       </button>
@@ -489,8 +491,8 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
                       <button
                         type="button"
                         onClick={() => setConfirmDelete({ id: pup.id, type: 'dog' })}
-                        aria-label={t.puppies.deleteDogBtn}
-                        className="p-2 min-h-[38px] min-w-[38px] flex items-center justify-center text-slate-400 hover:text-red-400 hover:bg-slate-800 rounded-xl border border-slate-800 bg-slate-950 transition-colors"
+                        aria-label={t.common.deleteItem.replace('{item}', pup.name)}
+                        className="p-2 min-h-11 min-w-11 flex items-center justify-center text-slate-400 hover:text-red-400 hover:bg-slate-800 rounded-xl border border-slate-800 bg-slate-950 transition-colors"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -501,12 +503,12 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
                     <div className="flex items-center gap-2">
                       <Utensils className="w-4 h-4 text-purple-400 shrink-0" />
                       <div>
-                        <div className="text-[10px] text-slate-400 font-semibold">
+                        <div className="text-xs text-slate-400 font-semibold">
                           {pup.dailyFoodGramGoal > 0 ? t.puppies.foodGramGoal : t.puppies.mealsPerDay}
                         </div>
                         <div className="font-bold text-slate-200">
                           {pup.dailyFoodGramGoal > 0
-                            ? `${pup.dailyFoodGramGoal}${t.units.grams} (${mealsText(pup.targetMealsPerDay || 3)})`
+                            ? `${formatGrams(pup.dailyFoodGramGoal, lang)} (${mealsText(pup.targetMealsPerDay || 3)})`
                             : mealsText(pup.targetMealsPerDay || 3)}
                         </div>
                       </div>
@@ -515,8 +517,8 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
                     <div className="flex items-center gap-2">
                       <Calendar className="w-4 h-4 text-indigo-400 shrink-0" />
                       <div>
-                        <div className="text-[10px] text-slate-400 font-semibold">{t.puppies.birthDate}</div>
-                        <div className="font-bold text-slate-200">{pup.birthDate || t.puppies.unknownDate}</div>
+                        <div className="text-xs text-slate-400 font-semibold">{t.puppies.birthDate}</div>
+                        <div className="font-bold text-slate-200">{pup.birthDate ? formatShortDate(pup.birthDate, lang) : t.puppies.unknownDate}</div>
                       </div>
                     </div>
                   </div>

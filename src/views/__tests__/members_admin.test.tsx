@@ -197,13 +197,13 @@ describe('Members tab identity (22)', () => {
     await renderMembers({ ...member, email: 'alex@example.com', name: 'Alex' }, twins);
 
     expect(document.body.textContent?.match(/Active/g)).toHaveLength(1);
-    expect(document.querySelectorAll('[aria-label="Delete Member"]')).toHaveLength(1);
+    expect(document.querySelectorAll('[aria-label="Delete Alex"]')).toHaveLength(1);
   });
 
   it('"This is me" links my unlinked badge to my login, and is not offered on a badge linked to someone else', async () => {
     const caretakers: Caretaker[] = [{ id: 'c-guest', name: 'Guest', role: 'Member', color: '#F59E0B' }, ...badges];
     const { onUpdateCaretaker } = await renderMembers(member, caretakers);
-    const pencils = () => document.querySelectorAll<HTMLButtonElement>('[aria-label="Edit Member Name & Color"]');
+    const pencils = () => document.querySelectorAll<HTMLButtonElement>('[aria-label^="Edit "]');
 
     await click(pencils()[2]);
     expect(document.body.textContent).not.toContain('This is me');
@@ -218,7 +218,7 @@ describe('Members tab identity (22)', () => {
     expect(onUpdateCaretaker).toHaveBeenCalledWith('c-guest', expect.objectContaining({ name: 'Guest', email: 'member@example.com' }));
   });
 
-  const pencils = () => document.querySelectorAll<HTMLButtonElement>('[aria-label="Edit Member Name & Color"]');
+  const pencils = () => document.querySelectorAll<HTMLButtonElement>('[aria-label^="Edit "]');
 
   it('"This is me" starts ticked on my own badge, and renaming it keeps the link (sends no email)', async () => {
     const { onUpdateCaretaker } = await renderMembers(owner);
@@ -262,14 +262,14 @@ describe('Members tab identity (22)', () => {
     try {
       apiMock.createUser.mockResolvedValueOnce({ ok: false, status: 409, error: 'exists' });
       await renderMembers(owner, [{ id: 'c-guest', name: 'Guest', role: 'Member', color: '#F59E0B' }]);
-      await click(document.querySelector<HTMLButtonElement>('[aria-label="Modifier Nom & Couleur"]')!);
+      await click(document.querySelector<HTMLButtonElement>('[aria-label="Modifier Guest"]')!);
       expect(document.body.textContent).toContain("C'est moi");
 
-      await click([...document.querySelectorAll('button')].find((button) => /Autoriser un E-mail/.test(button.textContent ?? ''))!);
+      await click([...document.querySelectorAll('button')].find((button) => /Autoriser un e-mail/.test(button.textContent ?? ''))!);
       await setValue(document.querySelector<HTMLInputElement>('form input[type="email"]')!, 'x@example.com');
       await act(async () => document.querySelector<HTMLFormElement>('form:has(input[type="email"])')!.requestSubmit());
 
-      expect(document.body.textContent).toContain("Cette personne a déjà un compte. L'ajouter à ta famille ?");
+      expect(document.body.textContent).toContain("Cette personne a déjà un compte. L'ajouter à ta famille\u00a0?");
       expect(buttons('Ajouter')).toHaveLength(1);
     } finally {
       localStorage.removeItem('puppace_lang_v1');
@@ -282,7 +282,7 @@ describe('Members tab name limits', () => {
   it('the new badge and badge rename boxes stop at the length the server accepts', async () => {
     await renderMembers(owner);
     await click(buttons('Add Member')[0]);
-    await click(document.querySelector<HTMLButtonElement>('[aria-label="Edit Member Name & Color"]')!);
+    await click(document.querySelector<HTMLButtonElement>('[aria-label^="Edit "]')!);
 
     const nameBoxes = [...document.querySelectorAll<HTMLInputElement>('input[type="text"]')];
     expect(nameBoxes).toHaveLength(2);
@@ -482,13 +482,82 @@ describe('Admin panel (27, 28)', () => {
       localStorage.setItem('puppace_lang_v1', 'fr');
       try {
         await renderAdmin();
-        await setValue(document.querySelector<HTMLSelectElement>('select[aria-label="Foyer pour Bob Smith"]')!, 'FAMILY-COCKER-2026');
+        await setValue(document.querySelector<HTMLSelectElement>('select[aria-label="Foyer de Bob Smith"]')!, 'FAMILY-COCKER-2026');
 
-        expect(document.body.textContent).toContain('Déplacer bob.smith@example.com vers Family Pack (Main) ?');
+        expect(document.body.textContent).toContain('Déplacer bob.smith@example.com vers Family Pack (Main)\u00a0?');
         expect(buttons('Déplacer')).toHaveLength(1);
       } finally {
         localStorage.removeItem('puppace_lang_v1');
       }
     });
+  });
+});
+
+// App review 2026-10-16, 5.3: no English left on the French screens of Members and Admin
+describe('Members and Admin in French: no English left', () => {
+  it('Members: the invite success reads in French', async () => {
+    localStorage.setItem('puppace_lang_v1', 'fr');
+    try {
+      await renderMembers(owner);
+      await click([...document.querySelectorAll('button')].find((button) => /Autoriser un e-mail/.test(button.textContent ?? ''))!);
+      await setValue(document.querySelector<HTMLInputElement>('form input[type="email"]')!, 'jane.doe@example.com');
+      await act(async () => document.querySelector<HTMLFormElement>('form:has(input[type="email"])')!.requestSubmit());
+
+      expect(document.body.textContent).toContain('jane.doe@example.com peut maintenant se connecter.');
+      expect(document.body.textContent).not.toContain('authorized');
+    } finally {
+      localStorage.removeItem('puppace_lang_v1');
+    }
+  });
+
+  it('Admin: roles, the e-mail placeholder and the status messages read in French', async () => {
+    localStorage.setItem('puppace_lang_v1', 'fr');
+    try {
+      apiMock.fetchUsers.mockResolvedValue({ ok: true, data: [
+        { id: 'usr-owner', email: SUPER_ADMIN_EMAIL, name: 'Owner Fullname', householdId: 'FAMILY-COCKER-2026', role: 'SuperAdmin', status: 'ACTIVE' },
+        { id: 'usr-bob', email: 'bob.smith@example.com', name: 'Bob Smith', householdId: 'hh-other', role: 'Member', status: 'ACTIVE' },
+      ] });
+      apiMock.fetchAllHouseholds.mockResolvedValue({ ok: true, data: [{ id: 'FAMILY-COCKER-2026', name: 'Family Pack (Main)' }, { id: 'hh-other', name: 'Other Family' }] });
+      await render(<AdminView currentUserEmail={SUPER_ADMIN_EMAIL} caretakers={badges} onAddCaretaker={vi.fn()} />);
+
+      const chips = [...document.querySelectorAll('.chip')].map((chip) => chip.textContent);
+      expect(chips).toEqual(expect.arrayContaining(['Super-admin', 'Membre']));
+      expect(chips).not.toContain('Member');
+      const form = [...document.querySelectorAll('form')].at(-1)!;
+      const email = form.querySelector<HTMLInputElement>('input[type="email"]')!;
+      expect(email.placeholder).toBe('ex.\u00a0: conjoint@famille.com');
+
+      await setValue(email, 'new.person@example.com');
+      await click(buttons('Pré-autoriser')[0]);
+      expect(document.body.textContent).toContain('new.person@example.com pré-autorisé dans «\u00a0Family Pack (Main)\u00a0»');
+      expect(document.body.textContent).not.toMatch(/Pre-approved|Activated|Moved/);
+      // Each trash says whose account, 44 px; each select is named
+      const trash = document.querySelector<HTMLButtonElement>('button[aria-label="Supprimer bob.smith@example.com"]')!;
+      expect(['min-h-11', 'min-w-11'].every((name) => trash.classList.contains(name))).toBe(true);
+      expect(form.querySelector('select')!.getAttribute('aria-label')).toBe('Foyer');
+      expect(email.getAttribute('aria-label')).toBe('Pré-autoriser un e-mail');
+    } finally {
+      localStorage.removeItem('puppace_lang_v1');
+    }
+  });
+
+  // A sign-up's own household has no households row: the message names it as the select does, never by its id
+  it('Admin: approving a sign-up in its own household reads "activé dans « Son propre foyer »", not the household id', async () => {
+    localStorage.setItem('puppace_lang_v1', 'fr');
+    try {
+      apiMock.fetchUsers.mockResolvedValue({ ok: true, data: [
+        { id: 'usr-owner', email: SUPER_ADMIN_EMAIL, name: 'Owner Fullname', householdId: 'FAMILY-COCKER-2026', role: 'SuperAdmin', status: 'ACTIVE' },
+        { id: 'usr-jane', email: 'jane.doe@example.com', name: 'Jane Doe', householdId: 'house-stranger', role: 'Member', status: 'PENDING_APPROVAL' },
+      ] });
+      apiMock.fetchAllHouseholds.mockResolvedValue({ ok: true, data: [{ id: 'FAMILY-COCKER-2026', name: 'Family Pack (Main)' }] });
+      await render(<AdminView currentUserEmail={SUPER_ADMIN_EMAIL} caretakers={badges} onAddCaretaker={vi.fn()} />);
+
+      await click(buttons('Approuver et assigner')[0]);
+      expect(document.body.textContent).toContain('jane.doe@example.com activé dans «\u00a0Son propre foyer\u00a0».');
+      // (The pending row still shows the id on its "ID" line, on purpose)
+      expect(document.body.textContent).not.toContain('activé dans «\u00a0house-stranger');
+    } finally {
+      localStorage.removeItem('puppace_lang_v1');
+    }
   });
 });

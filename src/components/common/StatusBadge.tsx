@@ -41,7 +41,7 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({
     return (
       <Chip color="success" variant="soft" size={size} className={`font-bold text-emerald-300 inline-flex items-center gap-1.5 ${className}`}>
         <ShieldCheck className="w-3 h-3" />
-        <span>✅ {t.health.statusUpToDate}</span>
+        <span>{t.health.statusUpToDate}</span>
       </Chip>
     );
   }
@@ -49,7 +49,7 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({
   return (
     <Chip color="success" variant="soft" size={size} className={`font-semibold text-emerald-300 inline-flex items-center gap-1.5 ${className}`}>
       <CheckCircle2 className="w-3 h-3" />
-      <span>{norm === 'fulfilled' ? `✅ ${t.health.statusFulfilled}` : t.potty.allGood}</span>
+      <span>{norm === 'fulfilled' ? t.health.statusFulfilled : t.potty.allGood}</span>
     </Chip>
   );
 };

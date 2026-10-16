@@ -141,7 +141,7 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({
           <button
             type="button"
             onClick={onBackToDashboard}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-white text-xs font-bold transition-all shadow-sm group"
+            className="inline-flex items-center gap-1.5 min-h-11 px-3 sm:px-3.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-white text-xs font-bold transition-all shadow-sm group"
           >
             <ArrowLeft className="w-4 h-4 text-indigo-400 group-hover:-translate-x-0.5 transition-transform" />
             <span>{t.nav.backToDashboard}</span>
@@ -153,9 +153,8 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({
           <button
             type="button"
             onClick={() => setIsExportMenuOpen((previous) => !previous)}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-white text-xs font-bold transition-all shadow-sm shrink-0"
+            className="inline-flex items-center gap-1.5 min-h-11 px-3 sm:px-3.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-white text-xs font-bold transition-all shadow-sm shrink-0"
             aria-expanded={isExportMenuOpen}
-            aria-haspopup="true"
             title={t.dashboard.export}
           >
             <Download className="w-3.5 h-3.5 text-teal-400 shrink-0" />
@@ -177,7 +176,7 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({
                   <div className="text-xs font-bold text-slate-100 group-hover:text-teal-300 transition-colors">
                     {t.health.exportHealthPdf}
                   </div>
-                  <div className="text-[11px] text-slate-400 leading-tight mt-0.5">
+                  <div className="text-xs text-slate-400 leading-tight mt-0.5">
                     {t.health.exportHealthPdfDesc}
                   </div>
                 </div>
@@ -195,7 +194,7 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({
                   <div className="text-xs font-bold text-slate-100 group-hover:text-emerald-300 transition-colors">
                     {t.health.exportHealthCsv}
                   </div>
-                  <div className="text-[11px] text-slate-400 leading-tight mt-0.5">
+                  <div className="text-xs text-slate-400 leading-tight mt-0.5">
                     {t.health.exportHealthCsvDesc}
                   </div>
                 </div>

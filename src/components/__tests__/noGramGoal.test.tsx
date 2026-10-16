@@ -7,7 +7,6 @@ import { DogHealthSummary } from '../DogHealthSummary';
 import { ActivityTimeline } from '../ActivityTimeline';
 import { calculatePredictions } from '../../utils/predictions';
 import { act as log, PISTACHE } from '../../utils/__tests__/fixtures';
-import { en } from '../../i18n/en';
 
 let root: Root | null = null;
 
@@ -60,14 +59,14 @@ describe('a dog with no gram goal: no goal in grams on any screen', () => {
   it('meal card: meals only, and the feed button offers no grams', async () => {
     const container = await renderMealCard(noGoal);
     expect(container.textContent).toContain('Ration intake today:1/3 meals');
-    expect(container.textContent).not.toMatch(/\d+g \/ \d+g/);
+    expect(container.textContent).not.toMatch(/\d+\s?g \/ \d+\s?g/);
     expect(container.textContent).not.toMatch(/Feed Meal Now \(/);
   });
 
   it('meal card of a dog with a goal is unchanged', async () => {
     const container = await renderMealCard(withGoal);
-    expect(container.textContent).toContain('Ration intake today:80g / 240g (1/3)');
-    expect(container.textContent).toContain('Feed Meal Now (80g)');
+    expect(container.textContent).toContain('Ration intake today:80\u00a0g / 240\u00a0g (1/3)');
+    expect(container.textContent).toContain('Feed Meal Now (80\u00a0g)');
   });
 
   it('health summary: meal schedule without grams', async () => {
@@ -76,15 +75,15 @@ describe('a dog with no gram goal: no goal in grams on any screen', () => {
     );
     expect(container.textContent).toContain('3 meals / day');
     // No word boundary: per-meal grams render glued to the next label ('~80gLunch')
-    expect(container.textContent).not.toMatch(/\d+g/);
+    expect(container.textContent).not.toMatch(/\d+\s?g/);
   });
 
   it('timeline: today shows the grams eaten and the meal count, with no gram goal', async () => {
     const container = await render(
       <ActivityTimeline activities={meals} caretakers={[]} activePuppy={noGoal} onDeleteActivity={vi.fn()} referenceTime={now} />
     );
-    expect(container.textContent).toContain('80g');
-    expect(container.textContent).not.toMatch(/\d+g \/ \d+g/);
+    expect(container.textContent).toContain('80\u00a0g');
+    expect(container.textContent).not.toMatch(/\d+\s?g \/ \d+\s?g/);
   });
 
   it('timeline: a meal saved without grams shows the meal count, no "0g"', async () => {
@@ -107,9 +106,9 @@ describe('a dog with no gram goal: no goal in grams on any screen', () => {
     await render(
       <ActivityTimeline activities={meals} caretakers={[]} activePuppy={noGoal} onDeleteActivity={vi.fn()} onUpdateActivity={onUpdateActivity} referenceTime={now} />
     );
-    const dayHeader = [...document.querySelectorAll<HTMLButtonElement>('button[aria-expanded]')].find((button) => button.textContent?.includes('80g'))!;
+    const dayHeader = [...document.querySelectorAll<HTMLButtonElement>('button[aria-expanded]')].find((button) => button.textContent?.includes('80\u00a0g'))!;
     await act(async () => dayHeader.click());
-    await act(async () => document.querySelector<HTMLButtonElement>(`button[aria-label="${en.potty.editActivity}"]`)!.click());
+    await act(async () => document.querySelector<HTMLButtonElement>('button[aria-label^="Edit food "]')!.click());
     // The edit form is a lazy chunk
     await act(async () => { await import('../QuickLogModal'); });
     const grams = document.getElementById('quicklog-quantity-grams') as HTMLInputElement;

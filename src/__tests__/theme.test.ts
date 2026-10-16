@@ -46,3 +46,21 @@ describe('index.css', () => {
     expect(declarations('iframe[src*="accounts.google.com"]')['color-scheme']).toBe('light');
   });
 });
+
+// App review 2026-10-16, 5.6: a keyboard user always sees where the focus is
+describe('index.css focus', () => {
+  it('draws an indigo outline on whatever has keyboard focus (HeroUI parts keep their own ring)', () => {
+    const focus = declarations(':focus-visible');
+    expect(focus.outline).toBe('2px solid var(--color-indigo-400)');
+    expect(focus['outline-offset']).toBe('2px');
+  });
+});
+
+// App review 2026-10-16, 5.10: Safari on iPhone zooms into any field under 16 px when it gets focus
+describe('index.css touch fields', () => {
+  it('fields are 16 px on touch screens, outside any layer so no utility class makes them smaller', () => {
+    expect(indexCss).toMatch(/@media \(pointer: coarse\) \{\s*input, select, textarea \{ font-size: 16px; \}/);
+    expect(indexCss.indexOf('@media (pointer: coarse)')).toBeGreaterThan(indexCss.lastIndexOf('@layer'));
+    expect(indexHtml).not.toContain('maximum-scale');
+  });
+});

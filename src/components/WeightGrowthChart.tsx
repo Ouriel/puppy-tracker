@@ -143,7 +143,7 @@ export const WeightGrowthChart: React.FC<WeightGrowthChartProps> = ({
       .replace('{first}', formatKg(trusted[0].weightKg, lang))
       .replace('{last}', formatKg(lastTrusted.weightKg, lang))
       .replace('{adult}', formatKgRange(projection.minAdultKg, projection.maxAdultKg, lang))
-    : t.weightChart.empty.replace('{name}', profile.name);
+    : t.weightChart.empty.replace('{button}', t.weightChart.logWeight).replace('{name}', profile.name);
 
   const pickNearest = (event: React.PointerEvent<SVGRectElement>) => {
     // A tap, a click or a drag; never a mouse just passing over (on its way to the readout's buttons, it picked another weigh-in)
@@ -172,15 +172,18 @@ export const WeightGrowthChart: React.FC<WeightGrowthChartProps> = ({
     </span>
   );
 
+  // 'la pesée du 3 sept.': names this weigh-in's buttons
+  const weighInName = (entry: UnifiedWeightEntry) => t.weightChart.weighInOn.replace('{date}', formatShortDate(entry.timestamp, lang));
+
   const actionButtons = (entry: UnifiedWeightEntry) => (
     <>
       {onUpdateActivity && (
-        <button type="button" onClick={() => setEditingWeight(entry)} aria-label={t.weightChart.editWeightEntry} className={`${iconButtonClass} hover:text-indigo-300`}>
+        <button type="button" onClick={() => setEditingWeight(entry)} aria-label={t.common.editItem.replace('{item}', weighInName(entry))} className={`${iconButtonClass} hover:text-indigo-300`}>
           <Pencil className="w-4 h-4" />
         </button>
       )}
       {onDeleteActivity && (
-        <button type="button" onClick={() => setConfirmDeleteId(entry.id)} aria-label={t.weightChart.deleteWeightEntry} className={`${iconButtonClass} hover:text-red-400`}>
+        <button type="button" onClick={() => setConfirmDeleteId(entry.id)} aria-label={t.common.deleteItem.replace('{item}', weighInName(entry))} className={`${iconButtonClass} hover:text-red-400`}>
           <Trash2 className="w-4 h-4" />
         </button>
       )}
@@ -237,7 +240,7 @@ export const WeightGrowthChart: React.FC<WeightGrowthChartProps> = ({
             variant="primary"
             size="sm"
             onPress={() => onOpenQuickLogModal('weight')}
-            className="bg-pink-600 hover:bg-pink-500 text-white font-bold text-xs shadow-sm"
+            className="min-h-11 bg-pink-600 hover:bg-pink-500 text-white font-bold text-xs shadow-sm"
           >
             <Plus className="w-4 h-4 mr-1 inline" />
             {t.weightChart.logWeight}
@@ -395,7 +398,7 @@ export const WeightGrowthChart: React.FC<WeightGrowthChartProps> = ({
               <div className="flex shrink-0 gap-1.5">{actionButtons(selected)}</div>
             </>
           ) : (
-            <p className="text-sm text-slate-300">{t.weightChart.empty.replace('{name}', profile.name)}</p>
+            <p className="text-sm text-slate-300">{t.weightChart.empty.replace('{button}', t.weightChart.logWeight).replace('{name}', profile.name)}</p>
           )}
         </div>
 

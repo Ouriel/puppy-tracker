@@ -16,7 +16,7 @@ export const PrivacyPolicyModal: React.FC<PrivacyPolicyModalProps> = ({ isOpen, 
       <Modal.Backdrop>
         <Modal.Container size="lg" scroll="inside">
           <Modal.Dialog className="bg-slate-900 border border-slate-800 text-slate-100 shadow-2xl">
-            <Modal.CloseTrigger />
+            <Modal.CloseTrigger aria-label={t.privacy.close} />
             <Modal.Header>
               <Modal.Heading className="flex items-center gap-2 text-indigo-400">
                 <Shield className="w-5 h-5" />
