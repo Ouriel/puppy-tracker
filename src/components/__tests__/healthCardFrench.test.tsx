@@ -191,8 +191,30 @@ describe('weight card units (backlog item 3)', () => {
 
     expect(container.textContent).toContain('(30 sem.)'); // the last weigh-in, at 30 weeks
     expect(container.textContent).toContain(`${fr.dashboard.today} (32 sem.)`);
-    expect(container.textContent).toMatch(/\+\d+g\/j/);
+    // The measured pace, not the model's: 9 kg on 1 Sep, 10 kg on 1 Oct
+    expect(container.textContent).toContain('+33 g/j');
     expect(container.textContent).not.toMatch(/\d+w\)/);
+  });
+
+  it('in French, weights read "10,4 kg", never "10.4 kg", and the adult range in whole kilos (formatKg)', async () => {
+    const container = await render(
+      <DogHealthSummary profile={puppy} activities={[]} weightActivities={[weighIns[0], weighIn('act-w3', '2026-10-01T08:00:00.000Z', 10.4)]} healthRecords={[]} onOpenHealthPassport={vi.fn()} />
+    );
+
+    expect(container.textContent).toContain(`${fr.health.lastLogged}10,4 kg`);
+    expect(container.textContent).toMatch(new RegExp(`${fr.health.estAdult} \\d+–\\d+ kg`));
+    expect(container.textContent).toMatch(/~\d+,\d kg/); // today's estimate
+    expect(container.textContent).not.toMatch(/\d\.\d/);
+  });
+
+  it('a weigh-in that looks like a typo (104 for 10,4) stays out of the card until edited', async () => {
+    const container = await render(
+      <DogHealthSummary profile={puppy} activities={[]} weightActivities={[...weighIns, weighIn('act-typo', '2026-10-08T08:00:00.000Z', 104)]} healthRecords={[]} onOpenHealthPassport={vi.fn()} />
+    );
+
+    expect(container.textContent).toContain(`${fr.health.lastLogged}10 kg`);
+    expect(container.textContent).toContain('+33 g/j');
+    expect(container.textContent).not.toContain('104');
   });
 
   it('in English, the daily gain reads "g/day", not the French "g/j"', async () => {
@@ -200,27 +222,27 @@ describe('weight card units (backlog item 3)', () => {
     const container = await renderWeightCard();
 
     expect(container.textContent).toContain(`${en.dashboard.today} (32w)`);
-    expect(container.textContent).toMatch(/\+\d+g\/day/);
+    expect(container.textContent).toContain('+33 g/day');
     expect(container.textContent).not.toContain('g/j');
   });
 
   const renderGrowthCard = () =>
     render(<CarnetDeSanteView activePuppy={puppy} weightActivities={weighIns} healthRecords={[]} setHealthRecords={vi.fn()} isDashboardDown={false} currentUser="Owner" onAddActivity={vi.fn()} onUpdateActivity={vi.fn()} />);
 
-  it('the passport\'s growth card, in French: ages read "sem." and the daily gain "g/j"', async () => {
+  it('the passport\'s weight card, in French: ages read "mois" and the measured pace "g/j"', async () => {
     const container = await renderGrowthCard();
 
-    expect(container.textContent).toContain('30 sem.'); // the 1 Oct weigh-in, at 30 weeks
-    expect(container.textContent).toMatch(/\+\d+g\/j/);
+    expect(container.textContent).toContain('1 oct. · 7 mois'); // the 1 Oct weigh-in, at 30 weeks
+    expect(container.querySelector('[data-tile="pace"]')!.textContent).toContain('+33 g/j');
     expect(container.textContent).not.toMatch(/\d+w /);
   });
 
-  it('the passport\'s growth card, in English: the daily gain reads "g/day", not the French "g/j"', async () => {
+  it('the passport\'s weight card, in English: the pace reads "g/day", not the French "g/j"', async () => {
     localStorage.setItem('puppace_lang_v1', 'en');
     const container = await renderGrowthCard();
 
-    expect(container.textContent).toContain('30w old');
-    expect(container.textContent).toMatch(/\+\d+g\/day/);
+    expect(container.textContent).toContain('Oct 1 · 7 mo');
+    expect(container.querySelector('[data-tile="pace"]')!.textContent).toContain('+33 g/day');
     expect(container.textContent).not.toContain('g/j');
   });
 });
@@ -249,7 +271,7 @@ describe('health card leftovers, in French', () => {
   const suggestionButtons = (container: HTMLElement) =>
     [...container.querySelectorAll('button')].map((button) => button.textContent!.trim()).filter((text) => text.startsWith('Suggéré'));
 
-  it('the growth card names the WALTHAM category and milestones (8s, not 8w) in French, and weigh-in dates read "Hier 18:00", "1 oct. 10:00"', async () => {
+  it('the weight card shows no WALTHAM label or category, and weigh-in dates without the time: "14 oct.", "1 oct."', async () => {
     const weighIns: Activity[] = [
       { id: 'act-w1', puppyId: puppy.id, type: 'weight', timestamp: '2026-10-01T08:00:00.000Z', weightKg: 10, loggedBy: 'Owner' },
       { id: 'act-w2', puppyId: puppy.id, type: 'weight', timestamp: '2026-10-14T16:00:00.000Z', weightKg: 10.4, loggedBy: 'Owner' },
@@ -257,15 +279,12 @@ describe('health card leftovers, in French', () => {
     const container = await render(
       <CarnetDeSanteView activePuppy={puppy} weightActivities={weighIns} healthRecords={[]} setHealthRecords={vi.fn()} isDashboardDown={false} currentUser="Owner" onAddActivity={vi.fn()} onUpdateActivity={vi.fn()} />
     );
+    const rows = [...container.querySelectorAll('tbody tr')].map((row) => row.textContent);
 
-    expect(container.textContent).toMatch(/Catégorie WALTHAM™ [IV]+/);
-    expect(container.textContent).not.toContain('WALTHAM™ Category');
-    expect(container.textContent).toContain('Hier 18:00');
-    expect(container.textContent).toContain('1 oct. 10:00');
-    expect(container.textContent).not.toMatch(/Yesterday|Oct 1/);
-    const leafTexts = [...container.querySelectorAll('*')].filter((element) => element.children.length === 0).map((element) => element.textContent);
-    expect(leafTexts).toEqual(expect.arrayContaining(['8s', '12s', '16s', '6m', '12m']));
-    expect(leafTexts).not.toContain('8w');
+    expect(container.textContent).not.toMatch(/WALTHAM|Catégorie|Cat\. /);
+    expect(rows[0]).toMatch(/^14 oct\./);
+    expect(rows[1]).toMatch(/^1 oct\./);
+    expect(container.textContent).not.toMatch(/Hier 18:00|10:00|Yesterday|Oct 1/);
   });
 
   it('the edit forms offer "Suggéré : 10 juil. 2027" and "Suggéré : 21 oct.", never an ISO date', async () => {

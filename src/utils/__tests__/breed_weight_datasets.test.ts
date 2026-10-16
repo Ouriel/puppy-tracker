@@ -5,6 +5,8 @@ import {
   getWalthamCategory,
 } from '../weight';
 
+// Pins changed on purpose with the monotone growth curve (PCHIP): these weigh-ins fall just after an anchor week, where
+// smoothstep was still flat (too low a fraction, so too high an implied adult weight); category I stays 3.2
 describe('Multi-Breed Weight Trajectory & Custom Weight Dataset Tests', () => {
   it('calibrates Category I for miniature breeds (Chihuahua)', () => {
     const birthDate = '2026-01-01T00:00:00.000Z';
@@ -29,7 +31,7 @@ describe('Multi-Breed Weight Trajectory & Custom Weight Dataset Tests', () => {
     const result = calculateProjectedAdultWeightRange('Jack Russell Terrier', logs, birthDate, 'female');
     expect(result.isTrajectoryBased).toBe(true);
     expect(result.walthamCategory).toBe('II');
-    expect(result.projectedAdultKg).toBeCloseTo(7.2);
+    expect(result.projectedAdultKg).toBeCloseTo(7.0); // was 7.2
   });
 
   it('calibrates Category III for medium breeds (English Cocker Spaniel with gender)', () => {
@@ -44,7 +46,7 @@ describe('Multi-Breed Weight Trajectory & Custom Weight Dataset Tests', () => {
     const femaleRes = calculateProjectedAdultWeightRange('English Cocker Spaniel', logs, birthDate, 'female');
     expect(femaleRes.isTrajectoryBased).toBe(true);
     expect(femaleRes.walthamCategory).toBe('III');
-    expect(femaleRes.projectedAdultKg).toBeCloseTo(14.0);
+    expect(femaleRes.projectedAdultKg).toBeCloseTo(13.7); // was 14.0
   });
 
   it('calibrates Category IV for large breeds (Border Collie / Australian Shepherd)', () => {
@@ -58,7 +60,7 @@ describe('Multi-Breed Weight Trajectory & Custom Weight Dataset Tests', () => {
     const result = calculateProjectedAdultWeightRange('Australian Shepherd', logs, birthDate, 'male');
     expect(result.isTrajectoryBased).toBe(true);
     expect(result.walthamCategory).toBe('IV');
-    expect(result.projectedAdultKg).toBeCloseTo(28.0);
+    expect(result.projectedAdultKg).toBeCloseTo(27.5); // was 28.0
   });
 
   it('calibrates Category V for large breeds (male Golden Retriever)', () => {
@@ -72,7 +74,7 @@ describe('Multi-Breed Weight Trajectory & Custom Weight Dataset Tests', () => {
     const result = calculateProjectedAdultWeightRange('Golden Retriever', logs, birthDate, 'male');
     expect(result.isTrajectoryBased).toBe(true);
     expect(result.walthamCategory).toBe('V');
-    expect(result.projectedAdultKg).toBeCloseTo(38.5);
+    expect(result.projectedAdultKg).toBeCloseTo(37.7); // was 38.5
   });
 
   it('calibrates growth trajectory using custom expected adult weight for crossbreeds', () => {
@@ -98,6 +100,6 @@ describe('Multi-Breed Weight Trajectory & Custom Weight Dataset Tests', () => {
     expect(getWalthamCategory(24)).toBe('IV');
     expect(result.isTrajectoryBased).toBe(true);
     expect(result.walthamCategory).toBe('IV');
-    expect(result.projectedAdultKg).toBeCloseTo(24.9);
+    expect(result.projectedAdultKg).toBeCloseTo(24.4); // was 24.9
   });
 });

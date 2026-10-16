@@ -448,7 +448,7 @@ describe('export utilities — CSV and PDF export test suite', () => {
     it('the printed passport lists a deworming weight once, in the weight history', () => {
       printHealthPassportReport(mockProfile, [], [legacyDeworming], [dewormingWeighIn], 'fr', fr);
       const htmlContent = mockWindow?.document.write.mock.calls[0][0] as string;
-      expect(htmlContent.match(/7\.55 kg/g)).toHaveLength(2); // the latest-weight card and its weight history row
+      expect(htmlContent.match(/7,6 kg/g)).toHaveLength(2); // the latest-weight card and its weight history row, French format (formatKg)
       expect(htmlContent).not.toContain('Poids au Traitement');
     });
   });
@@ -469,6 +469,18 @@ describe('export utilities — CSV and PDF export test suite', () => {
       expect(htmlContent).toMatch(/<td>2027-07-01<\/td>\s*<td>-<\/td>/);
     });
 
+    it('the printed passport leaves a weigh-in that looks like a typo out of the latest weight, as the screen does, and marks it in the history', () => {
+      const weighIns: Activity[] = ([['2026-09-01', 9], ['2026-09-15', 9.6], ['2026-10-01', 10.4], ['2026-10-08', 104]] as const).map(([date, weightKg], index) => ({
+        id: `act-w${index}`, puppyId: 'pup-1', type: 'weight', timestamp: `${date}T08:00:00.000Z`, weightKg, loggedBy: 'Alice',
+      }));
+      printHealthPassportReport(mockProfile, [], [], weighIns, 'fr', fr);
+      const htmlContent = mockWindow?.document.write.mock.calls[0][0] as string;
+
+      expect(htmlContent).toContain('<div class="card-value">10,4 kg</div>');
+      expect(htmlContent).toContain('<strong>104 kg</strong> (À vérifier)');
+      expect(htmlContent.match(/À vérifier/g)).toHaveLength(1);
+    });
+
     it('the printed passport lists every weigh-in, not only the 15 latest', () => {
       const weighIns: Activity[] = Array.from({ length: 20 }, (_, index) => ({
         id: `act-w${index}`, puppyId: 'pup-1', type: 'weight', timestamp: new Date(Date.UTC(2026, 4, 1 + index * 7, 9)).toISOString(), weightKg: 3 + index / 2, loggedBy: 'Alice',
@@ -476,7 +488,7 @@ describe('export utilities — CSV and PDF export test suite', () => {
       printHealthPassportReport(mockProfile, [], [], weighIns, 'fr', fr);
       const htmlContent = mockWindow?.document.write.mock.calls[0][0] as string;
       const weightHistory = htmlContent.slice(htmlContent.indexOf('Historique des Pesées'));
-      expect(weightHistory.match(/<strong>[\d.]+ kg<\/strong>/g)).toHaveLength(20);
+      expect(weightHistory.match(/<strong>[\d,]+ kg<\/strong>/g)).toHaveLength(20);
       expect(weightHistory).toContain('<strong>3 kg</strong>'); // the oldest
     });
   });

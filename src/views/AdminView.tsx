@@ -13,6 +13,7 @@ import { Button, Input, Card, Chip, Modal } from '@heroui/react';
 import { SUPER_ADMIN_EMAIL, isSuperAdminEmail } from '../utils/auth';
 import { buildInviteBadge } from '../utils/caretakers';
 import { ConfirmationModal } from '../components/common/ConfirmationModal';
+import { PageHeader } from '../components/common/PageHeader';
 
 interface AdminViewProps {
   currentUserEmail: string;
@@ -224,22 +225,12 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail, caretake
   return (
     <div className="space-y-6 w-full">
       {/* Header */}
-      <Card className="bg-slate-900 border-slate-800 text-slate-100">
-        <Card.Content className="flex flex-wrap items-center justify-between gap-4 p-6">
-          <div className="flex items-center gap-3">
-            <div className="p-3 bg-gradient-to-br from-red-500 to-indigo-600 rounded-xl shadow-md">
-              <Shield className="w-6 h-6 text-white" />
-            </div>
-            <div>
-              <h2 className="text-xl font-bold text-slate-100">
-                {t.admin.title}
-              </h2>
-              <p className="text-xs text-slate-400">
-                {t.admin.subtitle}
-              </p>
-            </div>
-          </div>
-
+      <PageHeader
+        icon={Shield}
+        iconClassName="from-red-500 to-indigo-600"
+        title={t.admin.title}
+        subtitle={t.admin.subtitle}
+        action={
           <Button
             size="sm"
             onPress={loadData}
@@ -249,8 +240,8 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail, caretake
             <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
             <span>{t.admin.refreshUserList}</span>
           </Button>
-        </Card.Content>
-      </Card>
+        }
+      />
 
       {/* Status Alert Notification */}
       {statusMessage && (
@@ -312,7 +303,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail, caretake
                 <Button onPress={() => setUserToDelete(null)} className="bg-slate-950 border border-slate-800 text-slate-300 font-bold hover:bg-slate-800">
                   {t.potty.cancel}
                 </Button>
-                <Button onPress={confirmDeleteUser} className="bg-rose-600 hover:bg-rose-500 text-white font-bold">
+                <Button variant="danger" onPress={confirmDeleteUser} className="font-bold">
                   {t.admin.deleteUserBtn}
                 </Button>
               </Modal.Footer>
@@ -323,7 +314,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail, caretake
 
       {/* Pending Activations List */}
       <Card className="bg-slate-900 border-slate-800 text-slate-100">
-        <Card.Header>
+        <Card.Header className="px-4 pt-4">
           <Card.Title className="flex items-center justify-between text-amber-300">
             <span>{t.admin.pendingActivations.replace('{count}', String(pendingUsers.length))}</span>
             <span className="text-[10px] text-slate-400 font-mono font-normal">
@@ -331,7 +322,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail, caretake
             </span>
           </Card.Title>
         </Card.Header>
-        <Card.Content>
+        <Card.Content className="p-4">
           {pendingUsers.length === 0 ? (
             <p className="text-xs text-slate-400 bg-slate-950/40 p-4 rounded-xl border border-slate-800 text-center">
               {t.admin.noPendingActivations}
@@ -407,7 +398,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail, caretake
       {/* Pre-Approve Form */}
       <Card className="bg-slate-900 border-slate-800 text-slate-100">
         <form onSubmit={handlePreApproveInvite}>
-          <Card.Header>
+          <Card.Header className="px-4 pt-4">
             <Card.Title className="text-white font-bold">{t.admin.preApproveTitle}</Card.Title>
           </Card.Header>
           <Card.Content className="p-4 space-y-3">
@@ -438,7 +429,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail, caretake
 
                 <Button
                   type="submit"
-                  className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold"
+                  className="font-bold"
                 >
                   <Send className="w-3.5 h-3.5 mr-1.5 inline" />
                   {t.admin.preApprove}
@@ -451,7 +442,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail, caretake
 
       {/* Active Accounts */}
       <Card className="bg-slate-900 border-slate-800 text-slate-100">
-        <Card.Header>
+        <Card.Header className="px-4 pt-4">
           <Card.Title className="flex items-center gap-2">
             <Users className="w-4 h-4 text-indigo-400" />
             <span>{t.admin.activeAccounts.replace('{count}', String(activeUsers.length))}</span>

@@ -6,7 +6,7 @@ import { Modal } from '@heroui/react';
 import { useI18n } from '../i18n';
 import { getLocalDatetimeString } from '../utils/date';
 import { buildQuickLogActivity, validateQuickLogForm, type QuickLogFormError } from '../utils/activityPayloads';
-import type { UnifiedWeightEntry } from '../utils/weight';
+import type { GrowthProfile, UnifiedWeightEntry } from '../utils/weight';
 import { WeightHint } from './common/WeightHint';
 
 interface QuickLogModalProps {
@@ -18,6 +18,10 @@ interface QuickLogModalProps {
   dailyFoodGramGoal?: number;
   // Shown as a hint under the weight box, which always starts empty
   lastWeighIn?: UnifiedWeightEntry;
+  // An edited weigh-in: the weigh-ins either side of it, the typed weight is checked against them
+  weighInNeighbours?: UnifiedWeightEntry[];
+  // The dog, for the weight check along its growth curve
+  profile?: GrowthProfile;
   onClose: () => void;
   /**
    * Resolves to whether the form may close (saved), else it stays open with what was typed.
@@ -30,7 +34,7 @@ interface QuickLogModalProps {
 /** Text shown in a grams / weight box: empty when there is no value, never '0'. */
 const toInputText = (value?: number) => (value ? String(value) : '');
 
-const inputErrorClass = 'mt-1.5 text-xs font-semibold text-rose-400';
+const inputErrorClass = 'mt-1.5 text-xs font-semibold text-red-400';
 
 export const QuickLogModal: React.FC<QuickLogModalProps> = ({
   isOpen,
@@ -39,6 +43,8 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
   defaultMealPortionGrams,
   dailyFoodGramGoal,
   lastWeighIn,
+  weighInNeighbours,
+  profile,
   onClose,
   onSave,
   currentUser,
@@ -114,8 +120,8 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
   const timestampError = errorFor('timestamp');
 
   const activityTypes: { type: ActivityType; label: string; icon: React.ReactNode; color: string }[] = [
-    { type: 'pee', label: t.potty.pee, icon: <Droplet className="w-5 h-5" />, color: 'text-amber-400' },
-    { type: 'poop', label: t.potty.poop, icon: <PoopIcon className="w-5 h-5" />, color: 'text-amber-600' },
+    { type: 'pee', label: t.potty.pee, icon: <Droplet className="w-5 h-5" />, color: 'text-sky-400' },
+    { type: 'poop', label: t.potty.poop, icon: <PoopIcon className="w-5 h-5" />, color: 'text-amber-400' },
     { type: 'food', label: t.potty.food, icon: <Utensils className="w-5 h-5" />, color: 'text-purple-400' },
     { type: 'weight', label: t.potty.weight, icon: <Scale className="w-5 h-5" />, color: 'text-pink-400' },
     { type: 'medication', label: t.potty.medication, icon: <Pill className="w-5 h-5" />, color: 'text-teal-400' },
@@ -127,19 +133,19 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
     <Modal isOpen={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
       <Modal.Backdrop className="bg-slate-950/80 backdrop-blur-sm">
         <Modal.Container size="lg" scroll="inside">
-          <Modal.Dialog className="bg-slate-900 border border-slate-800 text-slate-100 shadow-2xl rounded-2xl max-w-lg w-full overflow-hidden">
-            {/* Header */}
-            <div className="flex items-center justify-between p-5 border-b border-slate-800/80 bg-slate-900/60">
+          <Modal.Dialog className="bg-slate-900 border border-slate-800 text-slate-100 shadow-2xl rounded-2xl max-w-lg w-full overflow-hidden p-0">
+            {/* Header: stays in place while the body scrolls */}
+            <Modal.Header className="flex-row items-center justify-between p-5 border-b border-slate-800/80 bg-slate-900/60">
               <div className="flex items-center gap-3">
                 <div className="p-2.5 bg-indigo-600/20 text-indigo-400 rounded-xl border border-indigo-500/30">
                   {currentTypeConfig.icon}
                 </div>
                 <div>
-                  <h3 className="text-base font-extrabold text-white">
+                  <Modal.Heading className="text-base font-extrabold text-white">
                     {isEditMode ? t.potty.editActivity : t.potty.logActivity}
-                  </h3>
+                  </Modal.Heading>
                   <p className="text-xs text-slate-400">
-                    {t.potty.recordCareEvent}
+                    {isEditMode ? t.potty.editCareEvent : t.potty.recordCareEvent}
                   </p>
                 </div>
               </div>
@@ -151,10 +157,10 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
               >
                 <X className="w-5 h-5" />
               </button>
-            </div>
+            </Modal.Header>
 
-            {/* Body */}
-            <div className="p-4 sm:p-6 space-y-5">
+            {/* Body: the only part that scrolls, so Save stays reachable on a short phone */}
+            <Modal.Body className="m-0 p-4 sm:p-6">
               <form id="quicklog-form" onSubmit={handleSubmit} noValidate className="space-y-5">
                 {/* Activity Type Segmented Selector */}
                 <div>
@@ -253,7 +259,7 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
                           onClick={() => setPottyLocation('indoor_accident')}
                           className={`flex items-center justify-center gap-2 py-3 px-4 rounded-xl border font-bold text-xs transition-all ${
                             pottyLocation === 'indoor_accident'
-                              ? 'bg-rose-950 border-rose-700 text-rose-300 shadow-md ring-2 ring-rose-500/30'
+                              ? 'bg-red-950 border-red-700 text-red-300 shadow-md ring-2 ring-red-500/30'
                               : 'bg-slate-950 border-slate-800 text-slate-300 hover:bg-slate-800'
                           }`}
                         >
@@ -301,7 +307,7 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
                                 onClick={() => setStoolConsistency(consistency)}
                                 className={`py-2.5 px-2 rounded-xl text-xs font-bold border transition-all text-center capitalize ${
                                   isSelected
-                                    ? 'bg-amber-600 border-amber-500 text-white shadow ring-2 ring-amber-400/30'
+                                    ? 'bg-amber-700 border-amber-600 text-white shadow ring-2 ring-amber-400/30'
                                     : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-white hover:bg-slate-800'
                                 }`}
                               >
@@ -319,7 +325,7 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
                 {type === 'food' && (
                   <div className="pt-1">
                     <label htmlFor="quicklog-quantity-grams" className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">
-                      {t.potty.quantity} (g)
+                      {t.potty.quantity} <span className="normal-case">(g)</span>
                     </label>
                     <input
                       id="quicklog-quantity-grams"
@@ -343,7 +349,7 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
                 {type === 'weight' && (
                   <div className="pt-1">
                     <label htmlFor="quicklog-weight-kg" className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">
-                      {t.potty.weight} ({t.units.kg})
+                      {t.potty.weight} <span className="normal-case">({t.units.kg})</span>
                     </label>
                     <input
                       id="quicklog-weight-kg"
@@ -360,7 +366,7 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
                       }}
                     />
                     {weightError && <p id="quicklog-weight-kg-error" role="alert" className={inputErrorClass}>{weightError}</p>}
-                    <WeightHint lastWeighIn={lastWeighIn} typedText={weightKg} />
+                    <WeightHint lastWeighIn={lastWeighIn} neighbours={weighInNeighbours} typedText={weightKg} typedAt={timestamp} profile={profile} />
                   </div>
                 )}
 
@@ -395,7 +401,7 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
                   <input
                     id="quicklog-timestamp"
                     type="datetime-local"
-                    className="w-full bg-slate-950 border border-slate-800 text-slate-100 rounded-xl px-3.5 py-2.5 text-xs focus:outline-none focus:border-indigo-500 transition-colors [color-scheme:dark] cursor-pointer hover:bg-slate-900"
+                    className="w-full bg-slate-950 border border-slate-800 text-slate-100 rounded-xl px-3.5 py-2.5 text-xs focus:outline-none focus:border-indigo-500 transition-colors cursor-pointer hover:bg-slate-900"
                     value={timestamp}
                     aria-invalid={timestampError ? true : undefined}
                     aria-describedby={timestampError ? 'quicklog-timestamp-error' : undefined}
@@ -428,10 +434,10 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
                 </p>
                 {isSaveFailed && <p role="alert" className={inputErrorClass}>{t.potty.saveFailed}</p>}
               </form>
-            </div>
+            </Modal.Body>
 
             {/* Footer Actions */}
-            <div className="flex items-center justify-end gap-3 p-5 border-t border-slate-800/80 bg-slate-900/60">
+            <Modal.Footer className="mt-0 gap-3 p-5 border-t border-slate-800/80 bg-slate-900/60">
               <button
                 type="button"
                 onClick={onClose}
@@ -448,7 +454,7 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
               >
                 {isSaving ? t.potty.saving : isEditMode ? t.potty.saveChanges : t.potty.saveLog}
               </button>
-            </div>
+            </Modal.Footer>
           </Modal.Dialog>
         </Modal.Container>
       </Modal.Backdrop>

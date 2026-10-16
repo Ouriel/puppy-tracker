@@ -6,8 +6,12 @@ import { useI18n, type Language } from '../i18n';
 import { formatBreedName } from '../data/breedsCatalog';
 import {
   calculateProjectedAdultWeightRange,
+  formatChange,
+  formatKg,
+  formatKgRange,
   getEffectivePuppyWeight,
-  getUnifiedWeightEntries,
+  getMeasuredPace,
+  getTrustedWeightEntries,
 } from '../utils/weight';
 import { getPuppyAge } from '../utils/predictions';
 import { getHealthRecordStatus } from '../utils/health';
@@ -65,7 +69,8 @@ export const DogHealthSummary: React.FC<DogHealthSummaryProps> = React.memo(({
 
   // Extract weight metrics (Last Logged, Assumed Current, Probable Adult Range via empirical trajectory)
   const weightData = useMemo(() => {
-    const unifiedLogs = getUnifiedWeightEntries(weightActivities);
+    // A weigh-in that looks like a typo stays out until edited, as on the passport's chart
+    const unifiedLogs = getTrustedWeightEntries(weightActivities, profile);
     const lastEntry = unifiedLogs.length > 0 ? unifiedLogs[unifiedLogs.length - 1] : null;
     const lastLogDateStr = lastEntry ? formatShortDate(lastEntry.timestamp, lang as 'en' | 'fr') : null;
     const lastLogAgeWeeks = lastEntry && profile.birthDate ? getPuppyAge(profile.birthDate, lastEntry.timestamp).weeks : null;
@@ -85,8 +90,8 @@ export const DogHealthSummary: React.FC<DogHealthSummaryProps> = React.memo(({
       lastLogAgeWeeks,
       assumedCurrentKg: weightInfo.estimatedCurrentWeight,
       adultTargetKg: projectedWeight.projectedAdultKg,
-      adultRangeStr: `${projectedWeight.minAdultKg}–${projectedWeight.maxAdultKg} kg`,
-      dailyGainGrams: weightInfo.dailyGainGrams,
+      adultRangeStr: formatKgRange(projectedWeight.minAdultKg, projectedWeight.maxAdultKg, lang),
+      pace: getMeasuredPace(unifiedLogs),
       walthamCategory: projectedWeight.walthamCategory,
     };
   }, [weightActivities, profile, lang]);
@@ -197,7 +202,7 @@ export const DogHealthSummary: React.FC<DogHealthSummaryProps> = React.memo(({
             <div className="grid grid-cols-2 gap-2 text-xs pt-1">
               <div className="bg-slate-950/60 p-2.5 rounded-lg border border-slate-800/80">
                 <div className="text-xs text-slate-400 font-semibold">{t.health.lastLogged}</div>
-                <div className="font-extrabold text-slate-100">{weightData.lastWeightKg !== undefined ? `${weightData.lastWeightKg} kg` : '—'}</div>
+                <div className="font-extrabold text-slate-100">{weightData.lastWeightKg !== undefined ? formatKg(weightData.lastWeightKg, lang) : '—'}</div>
                 <div className="text-xs text-slate-400 mt-0.5 break-words">
                   {weightData.lastLogDateStr ? `${weightData.lastLogDateStr} ${weightData.lastLogAgeWeeks ? t.health.ageInWeeks.replace('{weeks}', String(weightData.lastLogAgeWeeks)) : ''}` : t.health.noLogsYet}
                 </div>
@@ -206,13 +211,13 @@ export const DogHealthSummary: React.FC<DogHealthSummaryProps> = React.memo(({
               <div className="bg-slate-950/60 p-2.5 rounded-lg border border-slate-800/80">
                 <div className="flex flex-wrap items-center justify-between gap-1 text-xs">
                   <span className="text-slate-400 font-semibold">{t.health.assumedCurrent}</span>
-                  {weightData.dailyGainGrams ? (
+                  {weightData.pace && (
                     <span className="text-[10px] text-emerald-400 font-bold bg-emerald-950/60 border border-emerald-800/50 px-1.5 py-0.5 rounded">
-                      {t.health.dailyGain.replace('{grams}', String(weightData.dailyGainGrams))}
+                      {t.health.dailyGain.replace('{grams}', formatChange(weightData.pace.gramsPerDay, lang))}
                     </span>
-                  ) : null}
+                  )}
                 </div>
-                <div className="font-extrabold text-pink-400">~{weightData.assumedCurrentKg} kg</div>
+                <div className="font-extrabold text-pink-400">~{formatKg(weightData.assumedCurrentKg, lang)}</div>
                 <div className="text-xs text-slate-400 mt-0.5 break-words">
                   {t.dashboard.today} {t.health.ageInWeeks.replace('{weeks}', String(ageInfo.weeks))}
                 </div>
@@ -358,7 +363,7 @@ export const DogHealthSummary: React.FC<DogHealthSummaryProps> = React.memo(({
           variant="primary"
           size="sm"
           onPress={onOpenHealthPassport}
-          className="w-full font-bold text-xs py-2 shadow bg-indigo-600 hover:bg-indigo-500 text-white border-0"
+          className="w-full font-bold text-xs py-2 shadow"
         >
           <ExternalLink className="w-3.5 h-3.5 mr-1.5 inline" />
           <span>{t.health.viewFullHealthPassport}</span>

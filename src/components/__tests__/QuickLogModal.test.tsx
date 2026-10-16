@@ -4,6 +4,7 @@ import { act, type ComponentProps } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { QuickLogModal } from '../QuickLogModal';
 import { getLocalDatetimeString } from '../../utils/date';
+import { en } from '../../i18n/en';
 
 let root: Root | null = null;
 
@@ -206,14 +207,17 @@ describe('QuickLogModal labels and notes', () => {
 
 describe('QuickLogModal weight box: last weigh-in hint and decimal check (Phase 5c)', () => {
   const lastWeighIn = { id: 'act-w', puppyId: 'pup-1', type: 'weight' as const, timestamp: '2026-09-25T07:00:00.000Z', weightKg: 10.05, loggedBy: 'Tester' };
+  // The check moves the weigh-in it compares with along the dog's growth curve, to the typed time
+  const profile = { breed: 'Beagle', birthDate: '2026-03-01' };
   const weightBoxText = () => field('quicklog-weight-kg').parentElement!.textContent!;
+  const weekMs = 7 * 24 * 60 * 60 * 1000;
 
   afterEach(() => localStorage.clear());
 
   it('the box starts empty with the last weigh-in as a hint, whatever its date; none before a first weigh-in', async () => {
     await renderModal({ initialType: 'weight', lastWeighIn });
     expect(field('quicklog-weight-kg').value).toBe('');
-    expect(weightBoxText()).toContain('Last weigh-in: 10.05 kg on 09/25');
+    expect(weightBoxText()).toContain('Last weigh-in: 10.1 kg on 09/25'); // formatKg: at most 1 decimal
 
     await act(async () => root!.unmount());
     document.body.innerHTML = '';
@@ -227,7 +231,7 @@ describe('QuickLogModal weight box: last weigh-in hint and decimal check (Phase 
     ['10,4', null],
     ['20,1', null],
   ])('typing %j after a 10.05 kg weigh-in warns %j, and never blocks Save', async (typed, warning) => {
-    const { onSave } = await renderModal({ initialType: 'weight', lastWeighIn });
+    const { onSave } = await renderModal({ initialType: 'weight', lastWeighIn, profile });
     await typeKeys('quicklog-weight-kg', typed);
 
     const status = document.querySelector('[role="status"]');
@@ -236,13 +240,44 @@ describe('QuickLogModal weight box: last weigh-in hint and decimal check (Phase 
     expect(onSave).toHaveBeenCalledTimes(1);
   });
 
-  it('in French: "Dernière pesée : 10,05 kg le 25/09" and "Vérifie la virgule : 1,005 kg ?"', async () => {
+  it('in French: "Dernière pesée : 10,1 kg le 25/09" and "Vérifie la virgule : 1,005 kg ?" (what was typed, as typed)', async () => {
     localStorage.setItem('puppace_lang_v1', 'fr');
-    await renderModal({ initialType: 'weight', lastWeighIn });
+    await renderModal({ initialType: 'weight', lastWeighIn, profile });
     await typeKeys('quicklog-weight-kg', '1,005');
 
-    expect(weightBoxText()).toContain('Dernière pesée : 10,05 kg le 25/09');
+    expect(weightBoxText()).toContain('Dernière pesée : 10,1 kg le 25/09');
     expect(document.querySelector('[role="status"]')!.textContent).toBe('Vérifie la virgule : 1,005 kg ?');
+  });
+
+  it('a small breed doubling in 8 weeks is growth: no warning (the raw ×2 rule warned)', async () => {
+    const now = Date.now();
+    const chihuahua = { breed: 'Chihuahua', gender: 'female' as const, birthDate: new Date(now - 16 * weekMs).toISOString().slice(0, 10) };
+    await renderModal({ initialType: 'weight', lastWeighIn: { ...lastWeighIn, timestamp: new Date(now - 8 * weekMs).toISOString(), weightKg: 0.8 }, profile: chihuahua });
+    await typeKeys('quicklog-weight-kg', '1,65');
+
+    expect(document.querySelector('[role="status"]')).toBeNull();
+  });
+
+  it('an edited weigh-in is checked against the weigh-ins either side of it, with no "Last weigh-in" line', async () => {
+    const before = { ...lastWeighIn, id: 'act-before', timestamp: '2026-09-18T07:00:00.000Z', weightKg: 9.6 };
+    const after = { ...lastWeighIn, id: 'act-after', timestamp: '2026-10-02T07:00:00.000Z', weightKg: 10.5 };
+    await renderModal({ activityToEdit: lastWeighIn, weighInNeighbours: [before, after], profile });
+    await typeKeys('quicklog-weight-kg', '100,5');
+
+    expect(document.querySelector('[role="status"]')!.textContent).toBe('Check the decimal point: 100.5 kg?');
+    expect(weightBoxText()).not.toContain('Last weigh-in');
+
+    await typeKeys('quicklog-weight-kg', '10,1');
+    expect(document.querySelector('[role="status"]')).toBeNull();
+  });
+
+  it('an edited weigh-in next to a typo: matching the other neighbour is enough, no warning', async () => {
+    const typo = { ...lastWeighIn, id: 'act-typo', timestamp: '2026-09-18T07:00:00.000Z', weightKg: 96 };
+    const after = { ...lastWeighIn, id: 'act-after', timestamp: '2026-10-02T07:00:00.000Z', weightKg: 10.5 };
+    await renderModal({ activityToEdit: lastWeighIn, weighInNeighbours: [typo, after], profile });
+    await typeKeys('quicklog-weight-kg', '10,1');
+
+    expect(document.querySelector('[role="status"]')).toBeNull();
   });
 });
 
@@ -287,5 +322,42 @@ describe('QuickLogModal save that fails', () => {
     const saveButton = document.querySelector('button[type="submit"]')!;
     expect(saveButton.textContent).toBe('Saving…');
     expect(saveButton.getAttribute('aria-busy')).toBe('true');
+  });
+});
+
+describe('QuickLogModal layout on a short phone', () => {
+  it('is a dialog named by its title, with the fields in a scrolling body and Save in a footer outside it', async () => {
+    await renderModal({ initialType: 'poop' });
+
+    const dialog = document.querySelector('[role="dialog"]')!;
+    const titleId = dialog.getAttribute('aria-labelledby');
+    expect(titleId && document.getElementById(titleId)?.textContent).toBe(en.potty.logActivity);
+    // HeroUI's scroll="inside" makes the body the part that scrolls: every field must be in it
+    const body = dialog.querySelector('[data-slot="modal-body"]')!;
+    expect(body.classList.contains('modal__body--scroll-inside')).toBe(true);
+    expect(body.contains(field('quicklog-notes'))).toBe(true);
+    expect(body.contains(field('quicklog-timestamp'))).toBe(true);
+    const footer = dialog.querySelector('[data-slot="modal-footer"]')!;
+    expect(footer.querySelector('button[type="submit"]')?.textContent).toBe(en.potty.saveLog);
+    expect(body.contains(footer)).toBe(false);
+  });
+});
+
+describe('QuickLogModal edit sheet', () => {
+  const peeLog = { id: 'act-1', puppyId: 'pup-1', type: 'pee' as const, timestamp: '2026-10-13T08:15:00.000Z', loggedBy: 'Sam' };
+
+  afterEach(() => localStorage.clear());
+
+  it('has its own subtitle, not the one of a new log', async () => {
+    await renderModal({ activityToEdit: peeLog });
+    const dialogText = document.querySelector('[role="dialog"]')!.textContent;
+    expect(dialogText).toContain(en.potty.editCareEvent);
+    expect(dialogText).not.toContain(en.potty.recordCareEvent);
+  });
+
+  it('in French, Save reads "Enregistrer", short enough for one line on a 375 px phone', async () => {
+    localStorage.setItem('puppace_lang_v1', 'fr');
+    await renderModal({ activityToEdit: peeLog });
+    expect(document.querySelector('button[type="submit"]')!.textContent).toBe('Enregistrer');
   });
 });

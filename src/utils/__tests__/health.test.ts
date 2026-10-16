@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
-import { calculateNextVaccineBooster, calculateNextAntiparasiticDate, getHealthRecordDateError, getHealthRecordStatus, isVetVisitWeight } from '../health';
-import type { Activity, HealthRecord } from '../../types';
+import { calculateNextVaccineBooster, calculateNextAntiparasiticDate, getHealthRecordDateError, getHealthRecordStatus } from '../health';
+import type { HealthRecord } from '../../types';
 
 describe('Health Passport — French Veterinary Protocol & Dataset Test Suite', () => {
   /**
@@ -313,20 +313,6 @@ describe('Health Passport — French Veterinary Protocol & Dataset Test Suite', 
     } finally {
       vi.useRealTimers();
     }
-  });
-});
-
-describe('isVetVisitWeight (the stethoscope on a weigh-in, Phase 5c step 7)', () => {
-  const weighIn = (notes: string | null): Activity => ({ id: 'act-w', puppyId: 'pup-1', type: 'weight', timestamp: '2026-07-27T10:00:00.000Z', weightKg: 7.5, notes, loggedBy: 'Tester' });
-
-  it.each([
-    ['Rage (Eurican LR / Nobivac Rabies / Versiguard / Rabisin)', true],
-    ['Credelio Plus', true],
-    ['après balade', false],
-    ['Credelio', false],
-    [null, false],
-  ])('notes %j -> %s: only a vaccine or antiparasitic name of healthProtocols.json', (notes, expected) => {
-    expect(isVetVisitWeight(weighIn(notes))).toBe(expected);
   });
 });
 

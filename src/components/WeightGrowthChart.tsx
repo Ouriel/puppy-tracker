@@ -1,18 +1,26 @@
-import React, { lazy, Suspense, useState } from 'react';
+import React, { lazy, Suspense, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { Card, Button } from '@heroui/react';
 import type { Activity, PuppyProfile } from '../types';
-import { Scale, Plus, Trash2, Stethoscope, Sparkles, Pencil } from 'lucide-react';
+import { Scale, Plus, Trash2, Pencil } from 'lucide-react';
 import { useI18n } from '../i18n';
-import { formatRelativeTime } from '../utils/date';
-import { getPuppyAge } from '../utils/predictions';
-import { isVetVisitWeight } from '../utils/health';
+import { formatShortDate, getCalendarDaysAgo } from '../utils/date';
 import { ConfirmationModal } from './common/ConfirmationModal';
 import {
   calculateProjectedAdultWeightRange,
+  findUnlikelyWeighIns,
+  formatChange,
+  formatKg,
+  formatKgRange,
+  getAgeInWeeks,
   getEffectivePuppyWeight,
+  getExpectedAdultWeight,
+  getKnownAdultWeight,
+  getMeasuredPace,
   getUnifiedWeightEntries,
-  scaleGrowthBenchmarks,
+  getWalthamCategory,
+  type UnifiedWeightEntry,
 } from '../utils/weight';
+import { buildWeightChartGeometry, findNearestPoint, getFullViewEndWeeks } from '../utils/weightChartGeometry';
 
 const QuickLogModal = lazy(() => import('./QuickLogModal').then((module) => ({ default: module.QuickLogModal })));
 
@@ -24,6 +32,16 @@ interface WeightGrowthChartProps {
   onUpdateActivity?: (updated: Partial<Activity> & { id: string }) => Promise<boolean>;
 }
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+/** Before the card is measured (and where nothing measures it, as in tests): a phone's width. */
+const FALLBACK_WIDTH = 320;
+const FOLDED_ROWS = 3;
+const iconButtonClass = 'min-h-11 min-w-11 flex items-center justify-center rounded-lg border border-slate-800 bg-slate-950 text-slate-400 transition-colors hover:bg-slate-800';
+
+/**
+ * The passport's weight card: three tiles, a growth chart drawn at the card's width (tap, drag or arrow keys pick a
+ * weigh-in, shown in the readout under it), and the weigh-in list folded open inline under the chart.
+ */
 export const WeightGrowthChart: React.FC<WeightGrowthChartProps> = ({
   activities,
   profile,
@@ -31,55 +49,189 @@ export const WeightGrowthChart: React.FC<WeightGrowthChartProps> = ({
   onDeleteActivity,
   onUpdateActivity,
 }) => {
-  const [editingWeight, setEditingWeight] = useState<Activity | null>(null);
+  const [editingWeight, setEditingWeight] = useState<UnifiedWeightEntry | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  // null: the latest weigh-in
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [isZoomed, setIsZoomed] = useState(false);
+  const [isListExpanded, setIsListExpanded] = useState(false);
+  const [measuredWidth, setMeasuredWidth] = useState(0);
   const { t, lang } = useI18n();
+  const chartBoxRef = useRef<HTMLDivElement>(null);
+  const svgRef = useRef<SVGSVGElement>(null);
+  const idPrefix = useId();
 
-  // Every weight event, a vet visit's included: each one is its own entry
-  const unifiedLogs = React.useMemo(() => {
-    return getUnifiedWeightEntries(activities);
-  }, [activities]);
+  const width = measuredWidth || FALLBACK_WIDTH;
+  const readoutId = `${idPrefix}-readout`;
+  const listId = `${idPrefix}-list`;
 
-  // Display logs (newest first)
-  const displayLogs = React.useMemo(() => {
-    return [...unifiedLogs].reverse();
-  }, [unifiedLogs]);
+  const model = useMemo(() => {
+    // Every weight event; one that looks like a typo is drawn and listed, but left out of the line, scale, estimates and pace
+    const entries = getUnifiedWeightEntries(activities);
+    const unlikelyIds = findUnlikelyWeighIns(entries, profile);
+    const trusted = entries.filter((entry) => !unlikelyIds.has(entry.id));
+    return {
+      entries,
+      unlikelyIds,
+      trusted,
+      projection: calculateProjectedAdultWeightRange(profile.breed, trusted, profile.birthDate, profile.gender, profile.expectedAdultWeightKg),
+      effective: getEffectivePuppyWeight(profile, activities),
+      pace: getMeasuredPace(trusted),
+      bandAdultKg: getKnownAdultWeight(profile),
+      category: getWalthamCategory(getExpectedAdultWeight(profile.breed, profile.gender, profile.expectedAdultWeightKg)),
+      todayWeeks: getAgeInWeeks(profile.birthDate),
+    };
+  }, [activities, profile]);
 
-  // Standard & Trajectory-based Expected Adult Weight (WALTHAM multi-point regression)
-  const projectedWeight = React.useMemo(() => {
-    return calculateProjectedAdultWeightRange(
-      profile.breed,
-      unifiedLogs,
-      profile.birthDate,
-      profile.gender,
-      profile.expectedAdultWeightKg
-    );
-  }, [profile.breed, unifiedLogs, profile.birthDate, profile.gender, profile.expectedAdultWeightKg]);
+  const geometry = useMemo(() => buildWeightChartGeometry({
+    width,
+    weighIns: model.entries.map((entry) => ({
+      id: entry.id,
+      ageWeeks: getAgeInWeeks(profile.birthDate, entry.timestamp),
+      weightKg: entry.weightKg,
+      isUnlikely: model.unlikelyIds.has(entry.id),
+    })),
+    todayWeeks: model.todayWeeks,
+    category: model.category,
+    bandAdultKg: model.bandAdultKg,
+    projection: model.trusted.length > 0 ? { adultKg: model.projection.projectedAdultKg, todayKg: model.effective.estimatedCurrentWeight } : null,
+    isZoomed,
+  }), [model, width, isZoomed, profile.birthDate]);
 
-  // Centralized effective puppy weight from WALTHAM growth velocity curve
-  const effectiveWeight = React.useMemo(() => {
-    return getEffectivePuppyWeight(profile, activities);
-  }, [profile, activities]);
+  const { entries, unlikelyIds, trusted, projection, pace } = model;
+  const foundIndex = entries.findIndex((entry) => entry.id === selectedId);
+  const selectedIndex = foundIndex === -1 ? entries.length - 1 : foundIndex;
+  const selected = entries[selectedIndex];
+  const lastTrusted = trusted[trusted.length - 1];
+  const entryToDelete = entries.find((entry) => entry.id === confirmDeleteId);
+  const relativeDays = new Intl.RelativeTimeFormat(lang, { numeric: 'auto', style: 'short' });
 
-  // WALTHAM Category Milestones
-  const benchmarks = React.useMemo(() => {
-    return scaleGrowthBenchmarks(projectedWeight.projectedAdultKg, profile.breed);
-  }, [projectedWeight.projectedAdultKg, profile.breed]);
+  const ageLabel = (timestamp: string) => {
+    const weeks = getAgeInWeeks(profile.birthDate, timestamp);
+    return weeks < 16
+      ? t.weightChart.weeksOld.replace('{weeks}', String(Math.floor(weeks)))
+      : t.weightChart.monthsOld.replace('{months}', String(Math.floor((weeks * 7) / 30.4375)));
+  };
 
-  const latestWeight = effectiveWeight.lastLoggedWeight;
-  const assumedCurrentKg = effectiveWeight.estimatedCurrentWeight;
+  /** The change since the previous weigh-in that is not a typo; none for the first one or a typo. */
+  const changeAt = (index: number) => {
+    const entry = entries[index];
+    if (unlikelyIds.has(entry.id)) return null;
+    const previous = entries.slice(0, index).filter((other) => !unlikelyIds.has(other.id)).at(-1);
+    if (!previous) return null;
+    return { kg: entry.weightKg - previous.weightKg, days: (Date.parse(entry.timestamp) - Date.parse(previous.timestamp)) / DAY_MS };
+  };
+
+  const changeText = (index: number) => {
+    if (unlikelyIds.has(entries[index].id)) return t.weightChart.checkReason;
+    const change = changeAt(index);
+    if (!change) return t.weightChart.firstWeighIn;
+    const kgText = `${formatChange(change.kg, lang, 1)} kg`;
+    return change.days < 1
+      ? t.weightChart.changeSameDay.replace('{change}', kgText)
+      : t.weightChart.changeOver
+        .replace('{change}', kgText)
+        .replace('{days}', String(Math.round(change.days)))
+        .replace('{grams}', String(Math.round((change.kg * 1000) / change.days)));
+  };
+
+  const chartDescription = lastTrusted
+    ? t.weightChart.chartDescription
+      .replace('{count}', String(entries.length))
+      .replace('{from}', formatShortDate(entries[0].timestamp, lang))
+      .replace('{to}', formatShortDate(entries[entries.length - 1].timestamp, lang))
+      .replace('{first}', formatKg(trusted[0].weightKg, lang))
+      .replace('{last}', formatKg(lastTrusted.weightKg, lang))
+      .replace('{adult}', formatKgRange(projection.minAdultKg, projection.maxAdultKg, lang))
+    : t.weightChart.empty.replace('{name}', profile.name);
+
+  const pickNearest = (event: React.PointerEvent<SVGRectElement>) => {
+    // A tap, a click or a drag; never a mouse just passing over (on its way to the readout's buttons, it picked another weigh-in)
+    if (event.type === 'pointermove' && !event.buttons) return;
+    const box = svgRef.current!.getBoundingClientRect();
+    const index = findNearestPoint(geometry.points, event.clientX - box.left, event.clientY - box.top);
+    if (index !== -1) setSelectedId(geometry.points[index].id);
+  };
+
+  const handleChartKeyDown = (event: React.KeyboardEvent) => {
+    const moves: Record<string, number> = { ArrowLeft: selectedIndex - 1, ArrowRight: selectedIndex + 1, Home: 0, End: entries.length - 1 };
+    const next = moves[event.key];
+    if (next === undefined || entries.length === 0) return;
+    event.preventDefault();
+    setSelectedId(entries[Math.max(0, Math.min(entries.length - 1, next))].id);
+  };
+
+  const neighboursOf = (entry: UnifiedWeightEntry) => {
+    const index = entries.findIndex((other) => other.id === entry.id);
+    return [entries[index - 1], entries[index + 1]].filter((neighbour) => neighbour !== undefined);
+  };
+
+  const checkBadge = (
+    <span className="inline-flex items-center rounded-md border border-amber-400/40 bg-amber-400/10 px-1.5 py-0.5 text-[11px] font-bold text-amber-300">
+      {t.weightChart.checkBadge}
+    </span>
+  );
+
+  const actionButtons = (entry: UnifiedWeightEntry) => (
+    <>
+      {onUpdateActivity && (
+        <button type="button" onClick={() => setEditingWeight(entry)} aria-label={t.weightChart.editWeightEntry} className={`${iconButtonClass} hover:text-indigo-300`}>
+          <Pencil className="w-4 h-4" />
+        </button>
+      )}
+      {onDeleteActivity && (
+        <button type="button" onClick={() => setConfirmDeleteId(entry.id)} aria-label={t.weightChart.deleteWeightEntry} className={`${iconButtonClass} hover:text-red-400`}>
+          <Trash2 className="w-4 h-4" />
+        </button>
+      )}
+    </>
+  );
+
+  const tiles = [
+    {
+      id: 'weight',
+      label: t.weightChart.title,
+      value: lastTrusted ? formatKg(lastTrusted.weightKg, lang) : '—',
+      sub: lastTrusted ? relativeDays.format(-getCalendarDaysAgo(lastTrusted.timestamp), 'day') : t.weightChart.noWeighInYet,
+    },
+    {
+      id: 'pace',
+      label: t.weightChart.pace,
+      value: pace ? t.health.dailyGain.replace('{grams}', formatChange(pace.gramsPerDay, lang)) : '—',
+      sub: pace ? t.weightChart.paceOver.replace('{days}', String(pace.days)) : trusted.length < 2 ? t.weightChart.paceNeedsTwo : t.weightChart.paceNeedsWeek,
+    },
+    // An unknown breed and no adult weight typed: the breed figure is a made-up 13 kg, so none before a weigh-in
+    model.bandAdultKg === null && !lastTrusted
+      ? { id: 'adult', label: t.weightChart.adult, value: '—', sub: t.weightChart.adultNeedsWeighIn }
+      : {
+        id: 'adult',
+        label: t.weightChart.adult,
+        value: formatKgRange(projection.minAdultKg, projection.maxAdultKg, lang),
+        sub: projection.isTrajectoryBased ? t.weightChart.adultEstimated : t.weightChart.adultFromBreed,
+      },
+  ];
+
+  const rows = [...entries.keys()].reverse();
+  const shownRows = isListExpanded ? rows : rows.slice(0, FOLDED_ROWS);
+  const { plot } = geometry;
+
+  // The card's width, for real-pixel drawing (never a viewBox: it shrank the labels to 3–5 px on a phone)
+  useEffect(() => {
+    const chartBox = chartBoxRef.current;
+    if (!chartBox) return;
+    const observer = new ResizeObserver(([entry]) => setMeasuredWidth(Math.round(entry.contentRect.width)));
+    observer.observe(chartBox);
+    return () => observer.disconnect();
+  }, []);
 
   return (
     <Card className="bg-slate-900 border border-slate-800 text-slate-100 shadow-xl">
-      <Card.Content className="p-4 sm:p-6 space-y-5">
-        {/* Header: Title + Right Action Button */}
+      <Card.Content className="p-4 sm:p-6 space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h3 className="text-sm sm:text-base font-extrabold text-slate-100 flex items-center gap-2">
             <Scale className="w-4 h-4 sm:w-5 sm:h-5 text-pink-400" />
             <span>{t.weightChart.title}</span>
-            <span className="text-xs bg-slate-800 text-slate-300 px-2 py-0.5 rounded-full font-bold">
-              {unifiedLogs.length}
-            </span>
+            <span className="text-xs bg-slate-800 text-slate-300 px-2 py-0.5 rounded-full font-bold">{entries.length}</span>
           </h3>
           <Button
             variant="primary"
@@ -92,132 +244,216 @@ export const WeightGrowthChart: React.FC<WeightGrowthChartProps> = ({
           </Button>
         </div>
 
-        {/* Growth Statistics Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-          <div className="bg-slate-950/60 p-3 sm:p-3.5 rounded-xl border border-slate-800 flex flex-col justify-between">
-            <div className="text-[11px] text-slate-400 uppercase font-bold tracking-wider">{t.weightChart.lastLogged}</div>
-            <div className="text-lg sm:text-xl font-black text-slate-100 mt-1">{latestWeight !== undefined ? `${latestWeight} kg` : '—'}</div>
-          </div>
-          <div className="bg-slate-950/60 p-3 sm:p-3.5 rounded-xl border border-slate-800 flex flex-col justify-between">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] text-slate-400 uppercase font-bold tracking-wider">{t.weightChart.currentAssumed}</span>
-              {effectiveWeight.dailyGainGrams ? (
-                <span className="text-[10px] text-emerald-400 font-bold bg-emerald-950/60 border border-emerald-800/50 px-1.5 py-0.5 rounded">
-                  {t.health.dailyGain.replace('{grams}', String(effectiveWeight.dailyGainGrams))}
-                </span>
-              ) : null}
+        {/* Three tiles in one row, never stacked */}
+        <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
+          {tiles.map((tile) => (
+            <div key={tile.id} data-tile={tile.id} className="min-w-0 rounded-xl border border-slate-800 bg-slate-950/60 px-1.5 py-2 min-[375px]:px-2 sm:px-3">
+              <div className="truncate text-[11px] font-semibold text-slate-400">{tile.label}</div>
+              {/* A small dog's range ('2,2–2,9 kg') may wrap on a narrow phone, never overflow */}
+              <div className="text-sm min-[375px]:text-base sm:text-lg leading-tight tracking-tight font-extrabold tabular-nums text-slate-100">{tile.value}</div>
+              {/* Wraps on a narrow phone rather than being cut */}
+              <div className="text-[11px] leading-tight text-slate-400">{tile.sub}</div>
             </div>
-            <div className="text-lg sm:text-xl font-black text-pink-400 mt-1">~{assumedCurrentKg} kg</div>
-          </div>
-          <div className="bg-slate-950/60 p-3 sm:p-3.5 rounded-xl border border-slate-800 flex flex-col justify-between">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] text-slate-400 uppercase font-bold tracking-wider">{t.weightChart.adultRangeEst}</span>
-              {projectedWeight.walthamCategory ? (
-                <span className="text-[10px] text-indigo-300 font-bold bg-indigo-950/60 border border-indigo-800/50 px-1.5 py-0.5 rounded">
-                  Cat. {projectedWeight.walthamCategory}
-                </span>
-              ) : null}
-            </div>
-            <div className="text-lg sm:text-xl font-black text-indigo-300 mt-1">
-              {projectedWeight.minAdultKg}–{projectedWeight.maxAdultKg} kg
-            </div>
-          </div>
+          ))}
         </div>
 
-        {/* WALTHAM Scientific Milestones Bar */}
-        <div className="bg-slate-950/40 p-3 rounded-xl border border-slate-800/80 space-y-2">
-          <div className="flex items-center justify-between text-xs px-1">
-            <span className="text-slate-400 font-bold uppercase tracking-wider text-[10px] flex items-center gap-1.5">
-              <Sparkles className="w-3 h-3 text-pink-400" />
-              {t.weightChart.benchmarks}
-            </span>
-            <span className="text-[10px] text-slate-400 font-medium">
-              {t.weightChart.walthamCategory.replace('{category}', projectedWeight.walthamCategory ?? '')}
-            </span>
+        <div className="flex flex-wrap items-end justify-between gap-2">
+          <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-slate-400" aria-hidden="true">
+            {entries.length > 0 && (
+              <span className="inline-flex items-center gap-1.5">
+                <i className="inline-block h-0.5 w-3.5 bg-pink-500" />
+                <i className="inline-block h-2 w-2 rounded-full bg-pink-500" />
+                {t.weightChart.legendWeighIns}
+              </span>
+            )}
+            {geometry.bandPath && (
+              <span className="inline-flex items-center gap-1.5">
+                <i className="inline-block h-2 w-3.5 border-t border-slate-600 bg-slate-400/25" />
+                {t.weightChart.legendZone}
+              </span>
+            )}
+            {geometry.projectionPath && (
+              <span className="inline-flex items-center gap-1.5">
+                <i className="inline-block w-3.5 border-t-2 border-dashed border-pink-500/70" />
+                {t.weightChart.legendProjection}
+              </span>
+            )}
           </div>
-
-          <div className="grid grid-cols-5 gap-1.5 text-center">
-            {benchmarks.map((b) => (
-              <div key={b.label} className="bg-slate-900/90 p-1.5 sm:p-2 rounded-lg border border-slate-800">
-                <div className="text-[10px] font-bold text-slate-400">{b.label.endsWith('w') ? t.weightChart.weeksShort.replace('{weeks}', String(b.weeks)) : b.label}</div>
-                <div className="text-xs sm:text-sm font-extrabold text-slate-200 mt-0.5">~{b.expectedKg} kg</div>
-                <div className="text-[9px] text-slate-400 hidden sm:block mt-0.5">{b.minKg}–{b.maxKg}</div>
-              </div>
+          <div role="group" aria-label={t.weightChart.periodLabel} className="inline-flex rounded-lg border border-slate-800 bg-slate-950/60 p-0.5">
+            {[false, true].map((zoomed) => (
+              <button
+                key={String(zoomed)}
+                type="button"
+                aria-pressed={isZoomed === zoomed}
+                onClick={() => setIsZoomed(zoomed)}
+                className={`min-h-11 min-w-11 rounded-md px-3 text-xs font-bold whitespace-nowrap ${isZoomed === zoomed ? 'bg-slate-800 text-slate-100' : 'text-slate-400'}`}
+              >
+                {zoomed ? t.weightChart.periodQuarter : getFullViewEndWeeks(model.todayWeeks, model.category) > 56 ? t.weightChart.periodAll : t.weightChart.periodYear}
+              </button>
             ))}
           </div>
         </div>
 
-        {/* Logged Weight Entries List */}
-        {displayLogs.length === 0 ? (
-          <div className="p-6 text-center bg-slate-950/40 rounded-2xl border border-dashed border-slate-800 text-xs text-slate-400">
-            <p className="font-semibold text-slate-300">{t.weightChart.noWeightEntries}</p>
-          </div>
-        ) : (
-          <div className="space-y-2">
-            <div className="text-xs font-bold text-slate-400 uppercase tracking-wider px-1">
-              {t.weightChart.recentHistory}
-            </div>
-            {displayLogs.map((log) => {
-              const formattedDate = formatRelativeTime(log.timestamp, lang, { today: t.dashboard.today, yesterday: t.dashboard.yesterday });
-              const logAgeWeeks = profile.birthDate ? getPuppyAge(profile.birthDate, log.timestamp).weeks : null;
-              const isVetRecord = isVetVisitWeight(log);
+        <div
+          ref={chartBoxRef}
+          role="group"
+          tabIndex={0}
+          aria-label={t.weightChart.chartLabel}
+          aria-describedby={readoutId}
+          onKeyDown={handleChartKeyDown}
+          className="rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+        >
+          <svg
+            ref={svgRef}
+            width={width}
+            height={geometry.height}
+            role="img"
+            aria-labelledby={`${idPrefix}-title ${idPrefix}-description`}
+            className="block max-w-full select-none touch-pan-y"
+          >
+            <title id={`${idPrefix}-title`}>{t.weightChart.chartTitle.replace('{name}', profile.name)}</title>
+            <desc id={`${idPrefix}-description`}>{chartDescription}</desc>
+            <defs>
+              <clipPath id={`${idPrefix}-plot`}>
+                <rect x={plot.left} y={0} width={plot.right - plot.left} height={plot.bottom + 2} />
+              </clipPath>
+            </defs>
 
-              return (
-                <div
-                  key={log.id}
-                  className="flex items-center justify-between p-3 sm:p-3.5 bg-slate-950/40 hover:bg-slate-950/70 transition-colors rounded-xl border border-slate-800/80 gap-3"
-                >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className={`p-2 sm:p-2.5 rounded-xl shrink-0 ${isVetRecord ? 'bg-indigo-500/20 text-indigo-400' : 'bg-pink-500/20 text-pink-400'}`}>
-                      {isVetRecord ? <Stethoscope className="w-4 h-4" /> : <Scale className="w-4 h-4" />}
-                    </div>
-                    <div className="min-w-0 space-y-0.5">
-                      <div className="text-xs font-bold text-white flex items-center gap-2 flex-wrap">
-                        <span className={`text-sm font-extrabold ${isVetRecord ? 'text-indigo-300' : 'text-pink-400'}`}>
-                          {log.weightKg} kg
-                        </span>
-                        {logAgeWeeks && (
-                          <span className="text-[10px] text-pink-300 bg-pink-950/60 border border-pink-800/60 px-1.5 py-0.5 rounded-md font-semibold">
-                            {t.weightChart.weeksOld.replace('{weeks}', String(logAgeWeeks))}
-                          </span>
-                        )}
-                        {isVetRecord && (
-                          <span className="text-[10px] text-indigo-300 bg-indigo-950/60 border border-indigo-800/60 px-1.5 py-0.5 rounded-md font-semibold flex items-center gap-1">
-                            <Stethoscope className="w-3 h-3" />
-                            {t.weightChart.vetRecord}
-                          </span>
-                        )}
-                      </div>
-                      <div className="text-[11px] text-slate-400 truncate">
-                        {formattedDate} {log.notes ? `• ${log.notes}` : ''}
-                      </div>
-                    </div>
-                  </div>
+            {geometry.yTicks.map((tick, index) => (
+              <g key={tick.kg}>
+                <line x1={plot.left} x2={plot.right} y1={tick.y} y2={tick.y} className="stroke-slate-800" strokeWidth={1} />
+                <text x={plot.left - 6} y={tick.y + 4} textAnchor="end" className="fill-slate-400 text-[11px] tabular-nums">
+                  {index === geometry.yTicks.length - 1 ? `${tick.kg} kg` : tick.kg}
+                </text>
+              </g>
+            ))}
+            {geometry.xTicks.map((tick, index) => (
+              <text key={tick.months} x={tick.x} y={geometry.height - 8} textAnchor={tick.anchor} className="fill-slate-400 text-[11px] tabular-nums">
+                {index === geometry.xTicks.length - 1 ? t.weightChart.monthsOld.replace('{months}', String(tick.months)) : tick.months}
+              </text>
+            ))}
 
-                  {onUpdateActivity && (
-                    <button
-                      type="button"
-                      onClick={() => setEditingWeight(log)}
-                      aria-label={t.weightChart.editWeightEntry}
-                      className="ml-auto p-2 min-h-[38px] min-w-[38px] flex items-center justify-center text-slate-400 hover:text-indigo-300 hover:bg-slate-800 rounded-lg border border-slate-800 bg-slate-950 transition-colors shrink-0"
-                    >
-                      <Pencil className="w-3.5 h-3.5" />
-                    </button>
-                  )}
+            <g clipPath={`url(#${idPrefix}-plot)`}>
+              {geometry.bandPath && <path data-band d={geometry.bandPath} className="fill-slate-400/15" />}
+              {geometry.bandMidPath && <path d={geometry.bandMidPath} fill="none" className="stroke-slate-600" strokeWidth={1} />}
+              {geometry.projectionPath && (
+                <path d={geometry.projectionPath} fill="none" className="stroke-pink-500" strokeOpacity={0.6} strokeWidth={2} strokeDasharray="5 4" strokeLinecap="round" />
+              )}
+              {geometry.linePath && (
+                <path data-line d={geometry.linePath} fill="none" className="stroke-pink-500" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
+              )}
+            </g>
 
-                  {onDeleteActivity && (
-                    <button
-                      type="button"
-                      onClick={() => setConfirmDeleteId(log.id)}
-                      aria-label={t.weightChart.deleteWeightEntry}
-                      className="p-2 min-h-[38px] min-w-[38px] flex items-center justify-center text-slate-400 hover:text-red-400 hover:bg-slate-800 rounded-lg border border-slate-800 bg-slate-950 transition-colors shrink-0"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  )}
-                </div>
+            <line x1={geometry.today.x} x2={geometry.today.x} y1={plot.top} y2={plot.bottom} className="stroke-slate-700" strokeWidth={1} />
+            <text x={geometry.today.x} y={plot.top - 3} textAnchor="middle" className="fill-slate-400 text-[11px]">{t.weightChart.todayShort}</text>
+            {geometry.projectionEnd && (
+              <text x={plot.right} y={geometry.projectionEnd.labelY} textAnchor="end" className="fill-slate-300 text-[11px]">
+                {t.weightChart.adultEnd.replace('{weight}', formatKg(projection.projectedAdultKg, lang))}
+              </text>
+            )}
+            {geometry.today.estimateY !== null && (
+              <circle cx={geometry.today.x} cy={geometry.today.estimateY} r={4} className="fill-slate-900 stroke-pink-500" strokeWidth={2} />
+            )}
+
+            {geometry.points.map((point) => {
+              const radius = point.id === selected?.id ? 6 : 4;
+              return point.isUnlikely ? (
+                <g key={point.id}>
+                  <circle data-weigh-in={point.id} cx={point.x} cy={point.y} r={radius + 1} className="fill-slate-900 stroke-amber-400" strokeWidth={2} />
+                  <text x={point.x} y={point.y + 4} textAnchor="middle" className="fill-amber-400 text-[10px] font-extrabold">!</text>
+                </g>
+              ) : (
+                <circle key={point.id} data-weigh-in={point.id} cx={point.x} cy={point.y} r={radius} className="fill-pink-500 stroke-slate-900" strokeWidth={2} />
               );
             })}
+
+            {/* Tap or drag: the nearest weigh-in in 2D; pan-y keeps the page scrolling */}
+            <rect
+              data-hit-area
+              x={plot.left}
+              y={0}
+              width={plot.right - plot.left}
+              height={geometry.height}
+              fill="transparent"
+              onPointerDown={pickNearest}
+              onPointerMove={pickNearest}
+            />
+          </svg>
+        </div>
+
+        <div id={readoutId} aria-live="polite" className="flex min-h-16 items-center justify-between gap-3 rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2.5">
+          {selected ? (
+            <>
+              <div className="min-w-0 space-y-0.5">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-lg font-extrabold tabular-nums text-slate-100">{formatKg(selected.weightKg, lang)}</span>
+                  {unlikelyIds.has(selected.id) && checkBadge}
+                </div>
+                <div className="text-xs text-slate-400">{`${formatShortDate(selected.timestamp, lang)} · ${ageLabel(selected.timestamp)}`}</div>
+                <div className="text-xs text-slate-300">{changeText(selectedIndex)}</div>
+              </div>
+              <div className="flex shrink-0 gap-1.5">{actionButtons(selected)}</div>
+            </>
+          ) : (
+            <p className="text-sm text-slate-300">{t.weightChart.empty.replace('{name}', profile.name)}</p>
+          )}
+        </div>
+
+        {entries.length > 0 && (
+          <div className="space-y-2">
+            <h4 id={`${listId}-title`} className="text-xs font-bold text-slate-400">{t.weightChart.recentHistory}</h4>
+            <table id={listId} aria-labelledby={`${listId}-title`} className="w-full border-collapse text-sm tabular-nums">
+              <thead>
+                <tr className="text-left text-[11px] text-slate-400">
+                  <th className="px-0.5 sm:px-1.5 py-1 font-semibold">{t.weightChart.columnDate}</th>
+                  <th className="px-0.5 sm:px-1.5 py-1 text-right font-semibold">{t.weightChart.columnWeight}</th>
+                  <th className="px-0.5 sm:px-1.5 py-1 text-right font-semibold">{t.weightChart.columnChange}</th>
+                  <th className="px-0.5 sm:px-1.5 py-1"><span className="sr-only">{t.weightChart.editWeightEntry}</span></th>
+                </tr>
+              </thead>
+              <tbody>
+                {shownRows.map((index) => {
+                  const entry = entries[index];
+                  const change = changeAt(index);
+                  return (
+                    <tr key={entry.id} className={`border-t border-slate-800 ${entry.id === selected?.id ? 'bg-pink-500/10' : ''}`}>
+                      <td className="px-0.5 sm:px-1.5 py-1.5">
+                        {/* A date from another year wraps under the day ('2 nov.' / '2025') rather than widening the row */}
+                        <span className="block text-slate-200">{formatShortDate(entry.timestamp, lang)}</span>
+                        <span className="block text-[11px] text-slate-400">{ageLabel(entry.timestamp)}</span>
+                      </td>
+                      <td className="px-0.5 sm:px-1.5 py-1.5 text-right">
+                        <span className="block font-bold text-slate-100 whitespace-nowrap">{formatKg(entry.weightKg, lang)}</span>
+                        {/* Plain text, no pill: it wraps in the column's width on a 320 px phone */}
+                        {unlikelyIds.has(entry.id) && <span className="block text-[11px] font-bold text-amber-300">{t.weightChart.checkBadge}</span>}
+                      </td>
+                      <td className="px-0.5 sm:px-1.5 py-1.5 text-right">
+                        <span className="block text-slate-300">{change ? formatChange(change.kg, lang, 1) : '—'}</span>
+                        {change && (
+                          <span className="block text-[11px] text-slate-400">
+                            {change.days < 1 ? t.weightChart.sameDayShort : t.weightChart.daysShort.replace('{days}', String(Math.round(change.days)))}
+                          </span>
+                        )}
+                      </td>
+                      <td className="py-1.5 pl-0.5 sm:pl-1.5">
+                        <div className="flex justify-end gap-1">{actionButtons(entry)}</div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+            {entries.length > FOLDED_ROWS && (
+              <button
+                type="button"
+                aria-expanded={isListExpanded}
+                aria-controls={listId}
+                onClick={() => setIsListExpanded((previous) => !previous)}
+                className="min-h-11 w-full rounded-xl border border-slate-800 bg-slate-950/60 text-xs font-bold text-slate-300 hover:bg-slate-800"
+              >
+                {isListExpanded ? t.weightChart.showLess : t.weightChart.showAll.replace('{count}', String(entries.length))}
+              </button>
+            )}
           </div>
         )}
 
@@ -227,6 +463,8 @@ export const WeightGrowthChart: React.FC<WeightGrowthChartProps> = ({
               key={`edit-${editingWeight.id}`}
               isOpen={true}
               activityToEdit={editingWeight}
+              weighInNeighbours={neighboursOf(editingWeight)}
+              profile={profile}
               dailyFoodGramGoal={profile.dailyFoodGramGoal}
               currentUser={editingWeight.loggedBy}
               onClose={() => setEditingWeight(null)}
@@ -235,15 +473,16 @@ export const WeightGrowthChart: React.FC<WeightGrowthChartProps> = ({
           </Suspense>
         )}
 
-        {/* A one-tap trash next to the pencil, on every weigh-in a vet visit's included: confirm first */}
         <ConfirmationModal
           isOpen={!!confirmDeleteId}
           onClose={() => setConfirmDeleteId(null)}
           onConfirm={() => {
             if (confirmDeleteId) onDeleteActivity?.(confirmDeleteId);
           }}
-          title={t.potty.deleteActivityTitle}
-          message={t.potty.deleteActivityMessage}
+          title={t.weightChart.deleteWeightEntry}
+          message={entryToDelete
+            ? t.weightChart.deleteMessage.replace('{date}', formatShortDate(entryToDelete.timestamp, lang)).replace('{weight}', formatKg(entryToDelete.weightKg, lang))
+            : ''}
         />
       </Card.Content>
     </Card>

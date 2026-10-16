@@ -7,6 +7,7 @@ import { isSuperAdminEmail } from '../utils/auth';
 import { useI18n } from '../i18n';
 import { Card, Button, Input, Chip, toast } from '@heroui/react';
 import { ConfirmationModal } from '../components/common/ConfirmationModal';
+import { PageHeader } from '../components/common/PageHeader';
 
 interface HouseholdViewProps {
   caretakers: Caretaker[];
@@ -93,32 +94,24 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
   return (
     <div className="space-y-4 sm:space-y-6 w-full">
       {/* Header */}
-      <Card className="bg-slate-900 border-slate-800 text-slate-100 shadow-xl">
-        <Card.Content className="flex flex-wrap items-center justify-between gap-3 p-3.5 sm:p-5">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="p-2.5 sm:p-3 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl shadow-md shrink-0">
-              <Home className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
-            </div>
-            <div className="min-w-0">
-              <h2 className="text-base sm:text-lg font-black text-slate-100 truncate">{t.household.title}</h2>
-              <p className="text-xs text-slate-400 truncate">{t.household.subtitle}</p>
-            </div>
-          </div>
-
-          {/* Pre-Approve Action Button */}
-          {canPreApprove && (
+      <PageHeader
+        icon={Home}
+        title={t.household.title}
+        subtitle={t.household.subtitle}
+        action={
+          canPreApprove && (
             <Button
               variant="primary"
               size="sm"
               onPress={() => setIsInvitingEmail(!isInvitingEmail)}
-              className="bg-indigo-600 hover:bg-indigo-500 font-bold text-xs shadow-sm"
+              className="font-bold text-xs shadow-sm"
             >
               <Mail className="w-4 h-4 mr-1.5 inline" />
               {t.household.preApproveBtn}
             </Button>
-          )}
-        </Card.Content>
-      </Card>
+          )
+        }
+      />
 
       <ConfirmationModal
         isOpen={!!emailToMove}

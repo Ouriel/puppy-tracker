@@ -4,6 +4,7 @@ import { Syringe, ArrowLeft, Printer, Download, FileSpreadsheet, ChevronDown } f
 import { useI18n } from '../i18n';
 import { formatBreedName } from '../data/breedsCatalog';
 import { Card } from '@heroui/react';
+import { PageHeader } from '../components/common/PageHeader';
 import { fetchHealthRecords } from '../services/api';
 import { WeightGrowthChart } from '../components/WeightGrowthChart';
 import { VaccineSection } from './carnet/VaccineSection';
@@ -205,26 +206,25 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({
       </div>
 
       {/* Header Card with Passport Details */}
-      <Card className="bg-slate-900 border-slate-800 text-slate-100 shadow-xl overflow-hidden">
-        <Card.Content className="flex items-center gap-3 sm:gap-4 p-3.5 sm:p-5">
-          <div className="p-2.5 sm:p-3 bg-gradient-to-br from-teal-500 to-emerald-600 rounded-xl shadow-md shrink-0">
-            <Syringe className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <h2 className="text-base sm:text-lg font-black text-slate-100 leading-tight sm:leading-snug break-words flex items-center gap-1.5 flex-wrap">
-              <span>{t.health.healthPassportFor.replace('{name}', activePuppy.name)}</span>
-              {activePuppy.gender && (
-                <span className={`text-sm font-bold ${activePuppy.gender === 'female' ? 'text-pink-400' : 'text-blue-400'}`}>
-                  {activePuppy.gender === 'female' ? '♀' : '♂'}
-                </span>
-              )}
-            </h2>
-            <p className="text-xs text-slate-400 mt-0.5 sm:mt-1 leading-normal break-words">
-              {t.health.carnetSubtitle} &bull; <span className="text-slate-300 font-semibold">{activePuppy.name}</span> ({formatBreedName(activePuppy.breed, lang)})
-            </p>
-          </div>
-        </Card.Content>
-      </Card>
+      <PageHeader
+        icon={Syringe}
+        iconClassName="from-teal-500 to-emerald-600"
+        title={
+          <>
+            {t.health.healthPassportFor.replace('{name}', activePuppy.name)}
+            {activePuppy.gender && (
+              <span className={`ml-1.5 text-sm font-bold ${activePuppy.gender === 'female' ? 'text-pink-400' : 'text-blue-400'}`}>
+                {activePuppy.gender === 'female' ? '♀' : '♂'}
+              </span>
+            )}
+          </>
+        }
+        subtitle={
+          <>
+            {t.health.carnetSubtitle} &bull; <span className="text-slate-300 font-semibold">{activePuppy.name}</span> ({formatBreedName(activePuppy.breed, lang)})
+          </>
+        }
+      />
 
       {/* Weight & Growth Trajectory Chart */}
       <WeightGrowthChart

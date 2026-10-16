@@ -19,7 +19,8 @@ const owner: UserAccount = { email: 'owner@example.com', name: 'Owner', role: 'M
 const weighIn = (id: string, timestamp: string, weightKg: number, notes: string | null = null): Activity =>
   ({ id, puppyId: puppy.id, type: 'weight', timestamp, weightKg, notes, loggedBy: 'Owner' });
 
-// 6 home weigh-ins (one with a free-text note) and 5 deworming weigh-ins migrated to weight events (12:00 Paris, notes = product)
+// 6 home weigh-ins (one with a free-text note) and 5 deworming weigh-ins migrated to weight events (12:00 Paris, notes = product,
+// as production holds them until the owner clears those notes)
 const homeWeighIns = [
   weighIn('act-home-1', '2026-05-20T09:30:00.000Z', 3.95),
   weighIn('act-home-2', '2026-06-21T17:10:00.000Z', 5.85),
@@ -99,9 +100,17 @@ async function openPassport() {
   await settleUntil(() => weightRows().length > 0 && document.body.textContent!.includes('Credelio Plus'));
 }
 
-/** The weight timeline's rows: each has its edit button, its delete button and its weight. */
-const weightRows = () => [...document.querySelectorAll<HTMLButtonElement>('button[aria-label="Edit weight entry"]')].map((button) => button.parentElement!);
-const rowWeight = (row: Element) => Number(row.textContent!.match(/([\d.]+) kg/)![1]);
+/** Folds the weight list open: every weigh-in. */
+async function showAllWeighIns() {
+  await click([...document.querySelectorAll<HTMLButtonElement>('button[aria-expanded="false"]')].find((button) => button.textContent!.startsWith('Show all weigh-ins'))!);
+}
+
+/** The weight list under the chart (the last 3 until "Show all"): one row per weigh-in, newest first, with its edit and delete buttons. */
+const weightRows = () => [...document.querySelectorAll<HTMLTableRowElement>('tbody tr')];
+/** The row of the weigh-in on that day (each fixture weigh-in has a day of its own). */
+const rowOn = (date: string) => weightRows().find((row) => row.cells[0].firstElementChild!.textContent === formatShortDate(`${date}T12:00:00`, 'en'))!;
+/** The number next to the weight card's title. */
+const weighInCount = () => Number([...document.querySelectorAll('h3')].find((heading) => heading.textContent!.startsWith(en.weightChart.title))!.textContent!.slice(en.weightChart.title.length));
 const posts = (path: string) => requests.filter((request) => request.method === 'POST' && request.url.startsWith(path));
 
 async function setValue(input: HTMLInputElement, value: string) {
@@ -158,21 +167,27 @@ afterEach(async () => {
 describe('Weight timeline (Phase 5c, prod-shaped)', () => {
   it('6 home weigh-ins + 5 migrated weight events + 5 records still holding a weight: 11 entries, each once, each editable and deletable', async () => {
     await openPassport();
+    expect(weightRows()).toHaveLength(3);
+    await showAllWeighIns();
 
     const rows = weightRows();
-    expect(rows.map(rowWeight)).toEqual([...homeWeighIns, ...migratedWeighIns].map((weight) => weight.weightKg!).sort((weightA, weightB) => weightB - weightA));
-    rows.forEach((row) => expect(row.querySelector('button[aria-label="Delete weight entry"]')).not.toBeNull());
-    // The vet marker: a weigh-in whose note is a vaccine or antiparasitic of healthProtocols.json, not a free-text note
-    expect(rows.filter((row) => row.textContent!.includes(en.weightChart.vetRecord)).map(rowWeight)).toEqual([9.95, 9.05, 7.55, 6.05, 3.85]);
+    const newestFirst = [...homeWeighIns, ...migratedWeighIns].sort((weightA, weightB) => Date.parse(weightB.timestamp) - Date.parse(weightA.timestamp));
+    expect(rows.map((row) => row.cells[0].firstElementChild!.textContent)).toEqual(newestFirst.map((weight) => formatShortDate(weight.timestamp, 'en')));
+    rows.forEach((row) => {
+      expect(row.querySelector('button[aria-label="Edit weight entry"]')).not.toBeNull();
+      expect(row.querySelector('button[aria-label="Delete weight entry"]')).not.toBeNull();
+    });
+    // Owner decision 2026-10-16: no vet/home distinction, a product-name note included
+    expect(document.querySelector('table')!.textContent).not.toMatch(/vet/i);
     // The deworming list shows no weight: records never hold one
     expect(document.body.textContent).not.toContain(`Weight: 9.95`);
   });
 
   it('a migrated deworming weigh-in is edited and deleted from the timeline like any weigh-in', async () => {
     await openPassport();
-    const firstDoseRow = weightRows().find((row) => rowWeight(row) === 3.85)!;
+    await showAllWeighIns();
 
-    await click(firstDoseRow.querySelector<HTMLButtonElement>('button[aria-label="Edit weight entry"]')!);
+    await click(rowOn('2026-05-18').querySelector<HTMLButtonElement>('button[aria-label="Edit weight entry"]')!);
     await settleUntil(() => document.getElementById('quicklog-weight-kg') !== null);
     const weightBox = document.getElementById('quicklog-weight-kg') as HTMLInputElement;
     expect(weightBox.value).toBe('3.85');
@@ -181,12 +196,12 @@ describe('Weight timeline (Phase 5c, prod-shaped)', () => {
 
     const put = requests.find((request) => request.method === 'PUT')!;
     expect(put.body).toMatchObject({ id: 'act-vet-1', type: 'weight', weightKg: 3.9, notes: 'Drontal Chiot (Sirop / Comprimés)' });
-    expect(weightRows().map(rowWeight)).toContain(3.9);
+    expect(rowOn('2026-05-18').textContent).toContain('3.9 kg');
 
     // One tap on the trash, next to the pencil, only asks
-    await click(weightRows().find((row) => rowWeight(row) === 3.9)!.querySelector<HTMLButtonElement>('button[aria-label="Delete weight entry"]')!);
+    await click(rowOn('2026-05-18').querySelector<HTMLButtonElement>('button[aria-label="Delete weight entry"]')!);
     expect(requests.filter((request) => request.method === 'DELETE')).toEqual([]);
-    expect(document.body.textContent).toContain(en.potty.deleteActivityMessage);
+    expect(document.body.textContent).toContain('Delete the weigh-in of May 18 (3.9 kg)? This cannot be undone.');
     await click(buttonWithText('Delete'));
     expect(requests.find((request) => request.method === 'DELETE')!.url).toBe('/api/activities?id=act-vet-1');
     expect(weightRows()).toHaveLength(10);
@@ -194,7 +209,8 @@ describe('Weight timeline (Phase 5c, prod-shaped)', () => {
 
   it('a weigh-in edit the server does not take keeps the edit form open with the typed weight', async () => {
     await openPassport();
-    await click(weightRows().find((row) => rowWeight(row) === 3.85)!.querySelector<HTMLButtonElement>('button[aria-label="Edit weight entry"]')!);
+    await showAllWeighIns();
+    await click(rowOn('2026-05-18').querySelector<HTMLButtonElement>('button[aria-label="Edit weight entry"]')!);
     await settleUntil(() => document.getElementById('quicklog-weight-kg') !== null);
     const serverStub = globalThis.fetch;
     vi.stubGlobal('fetch', vi.fn((url: string, init: RequestInit = {}) => (init.method === 'PUT' ? Promise.reject(new TypeError('Load failed')) : serverStub(url, init))));
@@ -206,7 +222,8 @@ describe('Weight timeline (Phase 5c, prod-shaped)', () => {
     expect(document.querySelector('[role="alert"]')?.textContent).toBe(en.potty.saveFailed);
   });
 
-  it('a deworming saved with a weight: the record holds no weight, the weight is its own event at 12:00 Paris named after the product', async () => {
+  // Owner decision 2026-10-16: no vet/home distinction, so the weigh-in carries no product name
+  it('a deworming saved with a weight: the record holds no weight, the weight is its own event at 12:00 Paris, with no note', async () => {
     await openPassport();
     await click(buttonWithText(en.health.addDeworming));
     const weightBox = document.getElementById('deworming-weight-kg') as HTMLInputElement;
@@ -218,11 +235,12 @@ describe('Weight timeline (Phase 5c, prod-shaped)', () => {
     expect(posts('/api/health-records')).toHaveLength(1);
     expect(posts('/api/health-records')[0].body).not.toHaveProperty('weightAtTime');
     expect(posts('/api/activities')).toHaveLength(1);
-    expect(posts('/api/activities')[0].body).toMatchObject({ type: 'weight', weightKg: 10.4, timestamp: '2026-07-27T10:00:00.000Z', notes: 'Credelio Plus', puppyId: puppy.id });
-    expect(weightRows()).toHaveLength(12);
+    expect(posts('/api/activities')[0].body).toMatchObject({ type: 'weight', weightKg: 10.4, timestamp: '2026-07-27T10:00:00.000Z', puppyId: puppy.id });
+    expect(posts('/api/activities')[0].body).not.toHaveProperty('notes');
+    expect(weighInCount()).toBe(12);
   });
 
-  it('a vaccine saved with a weight: the weight event is named after the vaccine', async () => {
+  it('a vaccine saved with a weight: the weight event carries no note', async () => {
     await openPassport();
     await click(buttonWithText(en.health.addVaccine));
     const weightBox = document.getElementById('vaccine-weight-kg') as HTMLInputElement;
@@ -234,7 +252,8 @@ describe('Weight timeline (Phase 5c, prod-shaped)', () => {
     const record = posts('/api/health-records')[0].body;
     expect(record).not.toHaveProperty('weightAtTime');
     // Winter time: 12:00 Paris is 11:00 UTC
-    expect(posts('/api/activities')[0].body).toMatchObject({ type: 'weight', weightKg: 11.2, timestamp: '2026-03-28T11:00:00.000Z', notes: record.name });
+    expect(posts('/api/activities')[0].body).toMatchObject({ type: 'weight', weightKg: 11.2, timestamp: '2026-03-28T11:00:00.000Z' });
+    expect(posts('/api/activities')[0].body).not.toHaveProperty('notes');
   });
 
   // Owner decision 2026-10-15: no badge here carries the saved name (the account's first log made one), so the badges reload
@@ -256,14 +275,14 @@ describe('Weight timeline (Phase 5c, prod-shaped)', () => {
     await renderAppAt('/');
     await settleUntil(() => document.body.textContent!.includes(en.health.summaryTitle));
 
-    expect(document.body.textContent).toContain(`${en.health.lastLogged}10.05 kg`);
+    expect(document.body.textContent).toContain(`${en.health.lastLogged}10.1 kg`); // formatKg: at most 1 decimal
 
     await click(document.querySelector<HTMLElement>(`[aria-label="${en.nav.logEvent}"]`)!);
     await settleUntil(() => document.getElementById('quicklog-form') !== null);
     await click(buttonWithText(en.potty.weight));
     const weightBox = document.getElementById('quicklog-weight-kg') as HTMLInputElement;
     expect(weightBox.value).toBe('');
-    expect(weightBox.parentElement!.textContent).toContain('Last weigh-in: 10.05 kg on 09/25');
+    expect(weightBox.parentElement!.textContent).toContain('Last weigh-in: 10.1 kg on 09/25');
   });
 
   it('no dog chosen yet on this device: the dashboard sends every dog\'s weigh-ins, the timeline shows the selected dog\'s only', async () => {
@@ -273,9 +292,10 @@ describe('Weight timeline (Phase 5c, prod-shaped)', () => {
     answerDashboard = () => respond({ ...prodShapedDashboard(), puppies: [puppy, otherDog], weightActivities: [...homeWeighIns, ...migratedWeighIns, { ...weighIn('act-other', '2026-09-30T08:00:00.000Z', 33.3), puppyId: otherDog.id }] });
 
     await openPassport();
+    await showAllWeighIns();
 
     expect(weightRows()).toHaveLength(11);
-    expect(weightRows().map(rowWeight)).not.toContain(33.3);
+    expect(document.querySelector('table')!.textContent).not.toContain('33.3');
   });
 
   it('while the full weight list is not loaded (dashboard down), the recent logs cached on this device give the weigh-ins', async () => {
@@ -285,7 +305,7 @@ describe('Weight timeline (Phase 5c, prod-shaped)', () => {
     await renderAppAt('/health-passport');
     await settleUntil(() => weightRows().length > 0);
 
-    expect(weightRows().map(rowWeight)).toEqual([10.25]);
+    expect(weightRows().map((row) => row.cells[1].textContent)).toEqual(['10.3 kg']); // 10.25, at most 1 decimal
   });
 
   it('editing a deworming shows no weight box, and an emptied next date is sent as null so it is cleared', async () => {
@@ -368,7 +388,7 @@ describe.each([
     const box = await openAddForm();
 
     expect(box.value).toBe('');
-    expect(box.parentElement!.textContent).toContain('Last weigh-in: 10.05 kg on 09/25');
+    expect(box.parentElement!.textContent).toContain('Last weigh-in: 10.1 kg on 09/25');
   });
 
   it('left empty, saves the record and no weight event', async () => {
@@ -378,7 +398,7 @@ describe.each([
 
     expect(posts('/api/health-records')).toHaveLength(1);
     expect(posts('/api/activities')).toEqual([]);
-    expect(weightRows()).toHaveLength(11);
+    expect(weighInCount()).toBe(11);
   });
 
   it('an invalid weight blocks the save with a message under the box, and the form stays open', async () => {
@@ -426,7 +446,7 @@ describe.each([
     expect(posts('/api/health-records')).toHaveLength(1);
     expect(posts('/api/activities')).toEqual([]);
     expect(weightBox()!.value).toBe('10,4');
-    expect(weightRows()).toHaveLength(11);
+    expect(weighInCount()).toBe(11);
   });
 });
 

@@ -72,7 +72,7 @@ export const DewormingSection: React.FC<DewormingSectionProps> = ({
 
     const name = productName.trim() || 'Credelio Plus';
     // Optional: empty saves no weight; typed, it is checked before anything is saved
-    const weighIn = buildVetWeighIn({ puppyId: activePuppy.id, date: dewormAdminDate, weightText, productName: name, loggedBy: currentUser });
+    const weighIn = buildVetWeighIn({ puppyId: activePuppy.id, date: dewormAdminDate, weightText, loggedBy: currentUser });
     if (weighIn.error) {
       setWeightError(weighIn.error);
       return;
@@ -201,7 +201,7 @@ export const DewormingSection: React.FC<DewormingSectionProps> = ({
                       }}
                       required
                     />
-                    {addDateError && addDateError !== 'boosterBeforeDate' && <p role="alert" className="mt-1.5 text-xs font-semibold text-rose-400">{t.health[addDateError]}</p>}
+                    {addDateError && addDateError !== 'boosterBeforeDate' && <p role="alert" className="mt-1.5 text-xs font-semibold text-red-400">{t.health[addDateError]}</p>}
                   </div>
 
                   <div className="sm:col-span-1 min-w-0">
@@ -214,7 +214,7 @@ export const DewormingSection: React.FC<DewormingSectionProps> = ({
                       onChange={(event) => setCustomDewormNextDate(event.target.value)}
                       required
                     />
-                    {addDateError === 'boosterBeforeDate' && <p role="alert" className="mt-1.5 text-xs font-semibold text-rose-400">{t.health.boosterBeforeDate}</p>}
+                    {addDateError === 'boosterBeforeDate' && <p role="alert" className="mt-1.5 text-xs font-semibold text-red-400">{t.health.boosterBeforeDate}</p>}
                   </div>
                 </div>
 
@@ -224,6 +224,8 @@ export const DewormingSection: React.FC<DewormingSectionProps> = ({
                     value={weightText}
                     error={weightError}
                     lastWeighIn={lastWeighIn}
+                    date={dewormAdminDate}
+                    profile={activePuppy}
                     onChange={(value) => {
                       setWeightText(value);
                       setWeightError(undefined);
@@ -290,7 +292,7 @@ export const DewormingSection: React.FC<DewormingSectionProps> = ({
                           max={today}
                           onChange={(event) => setEditDewormingDate(event.target.value)}
                         />
-                        {editDateError && editDateError !== 'boosterBeforeDate' && <p role="alert" className="mt-1.5 text-xs font-semibold text-rose-400">{t.health[editDateError]}</p>}
+                        {editDateError && editDateError !== 'boosterBeforeDate' && <p role="alert" className="mt-1.5 text-xs font-semibold text-red-400">{t.health[editDateError]}</p>}
                       </div>
                       <div>
                         <label className="block text-[10px] text-slate-400 font-semibold mb-1">{t.health.boosterDue}</label>
@@ -301,7 +303,7 @@ export const DewormingSection: React.FC<DewormingSectionProps> = ({
                           min={editDewormingDate}
                           onChange={(event) => setEditDewormingBoosterDate(event.target.value)}
                         />
-                        {editDateError === 'boosterBeforeDate' && <p role="alert" className="mt-1.5 text-xs font-semibold text-rose-400">{t.health.boosterBeforeDate}</p>}
+                        {editDateError === 'boosterBeforeDate' && <p role="alert" className="mt-1.5 text-xs font-semibold text-red-400">{t.health.boosterBeforeDate}</p>}
                         {suggestedEditNextDate && suggestedEditNextDate !== editDewormingBoosterDate && (
                           <button
                             type="button"
