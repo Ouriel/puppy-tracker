@@ -172,12 +172,12 @@ describe('predictions utility — comprehensive test suite', () => {
     });
 
     it('drops pee gaps under 45 min and poop gaps under 90 min (second void on the same walk)', () => {
-      // 35-min pee gaps and 75-min poop gaps are dropped; only the gaps between walks are learned
-      const pees = logsAt('pee', ['08:00', '08:35', '12:00', '12:35', '16:00', '16:35'].map((time) => `2026-08-17T${time}:00Z`));
-      const poops = logsAt('poop', ['06:00', '07:15', '12:00', '13:15', '18:00', '19:15'].map((time) => `2026-08-17T${time}:00Z`));
+      // 35-min pee gaps and 75-min poop gaps are dropped; only the 3 gaps between walks are learned (3 needed)
+      const pees = logsAt('pee', ['08:00', '08:35', '12:00', '12:35', '16:00', '16:35', '20:00', '20:35'].map((time) => `2026-08-17T${time}:00Z`));
+      const poops = logsAt('poop', ['00:00', '01:15', '06:00', '07:15', '12:00', '13:15', '18:00', '19:15'].map((time) => `2026-08-17T${time}:00Z`));
 
-      expect(calculateLearnedIntervalMinutes(pees, 'pee', 240, utcSchedule, 'UTC')).toMatchObject({ intervalMins: 205, sampleCount: 2, isLearned: true });
-      expect(calculateLearnedIntervalMinutes(poops, 'poop', 360, utcSchedule, 'UTC')).toMatchObject({ intervalMins: 285, sampleCount: 2, isLearned: true });
+      expect(calculateLearnedIntervalMinutes(pees, 'pee', 240, utcSchedule, 'UTC')).toMatchObject({ intervalMins: 205, sampleCount: 3, isLearned: true });
+      expect(calculateLearnedIntervalMinutes(poops, 'poop', 360, utcSchedule, 'UTC')).toMatchObject({ intervalMins: 285, sampleCount: 3, isLearned: true });
     });
   });
 
@@ -1223,8 +1223,8 @@ describe('predictions utility — comprehensive test suite', () => {
       // Should NOT force post_meal_override (~20m)
       expect(pred.mode).toBe('daytime_baseline');
       expect(pred.reason).toMatch(/Learned average|bladder interval/);
-      // 06:00 pee + learned 5h
-      expect(at(pred.nextExpectedAt!)).toBe('2026-08-26 11:00');
+      // 06:00 pee + the 4 h age default: its 2 daytime gaps are not learned yet (3 needed)
+      expect(at(pred.nextExpectedAt!)).toBe('2026-08-26 10:00');
     });
 
     it('triggers post-meal pee override for an 8-week-old young puppy after eating', () => {
