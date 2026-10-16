@@ -169,7 +169,8 @@ describe('health passport, in French (backlog item 3)', () => {
 });
 
 describe('a new dog with no logs, in French (backlog item 3)', () => {
-  it('the prediction cards show an em dash, not "N/A"', async () => {
+  // App review 2026-10-16, section 3.3: one line instead of an em dash
+  it('the prediction cards say there is nothing yet, never "N/A"', async () => {
     const now = new Date();
     const container = await render(
       <PredictorWidget
@@ -186,7 +187,7 @@ describe('a new dog with no logs, in French (backlog item 3)', () => {
     );
 
     expect(container.textContent).not.toContain('N/A');
-    expect([...container.querySelectorAll('.whitespace-nowrap')].map((countdown) => countdown.textContent)).toContain('—');
+    expect(container.textContent).toContain('Pas encore de pipi.');
   });
 });
 

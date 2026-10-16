@@ -99,8 +99,11 @@ async function renderApp() {
   await settle();
 }
 
-const isSkeletonShown = () => document.querySelector('.h-48.motion-safe\\:animate-pulse') !== null;
+// The skeleton's card placeholders
+const isSkeletonShown = () => document.querySelector('main .rounded-3xl.motion-safe\\:animate-pulse') !== null;
 const isTimelineEmpty = () => document.body.textContent!.includes(en.dashboard.noActivityLogs);
+// The cards' lines for a dog with nothing logged yet
+const isPresentedAsNewDog = () => [en.dashboard.noPeeYet, en.dashboard.noPoopYet, 'Next: breakfast', 'Next: first meal'].some((line) => document.body.textContent!.includes(line));
 const isLockScreenShown = () => document.getElementById('sign-in') !== null;
 const dashboardUrl = '/api/dashboard?puppyId=pup-1&days=14';
 
@@ -169,6 +172,8 @@ describe('App boot and sign-in data loading', () => {
 
     expect(isSkeletonShown()).toBe(false);
     expect(isTimelineEmpty()).toBe(true);
+    // Its logs could not be loaded: the cards never present it as a new dog (review 2026-10-16)
+    expect(isPresentedAsNewDog()).toBe(false);
     // The failed dashboard falls back to dogs and household
     expect(requestedUrls).toEqual([dashboardUrl, '/api/dogs', '/api/households']);
   });
@@ -414,7 +419,7 @@ describe('App log state', () => {
     await act(async () => {
       document.dispatchEvent(new Event('visibilitychange'));
     });
-    const peeButton = [...document.querySelectorAll('button')].find((button) => button.textContent === en.potty.peedOutside)!;
+    const peeButton = document.querySelector<HTMLButtonElement>(`button[aria-label="${en.potty.peedOutside}"]`)!;
     await act(async () => peeButton.click());
     await settle();
     // The refresh read the logs before the pee was saved
@@ -441,7 +446,7 @@ describe('App log state', () => {
     });
     await renderApp();
 
-    const peeButton = [...document.querySelectorAll('button')].find((button) => button.textContent === en.potty.peedOutside)!;
+    const peeButton = document.querySelector<HTMLButtonElement>(`button[aria-label="${en.potty.peedOutside}"]`)!;
     await act(async () => peeButton.click());
     await act(async () => {
       document.dispatchEvent(new Event('visibilitychange'));
@@ -512,7 +517,7 @@ describe('App log state', () => {
 
     async function logPeeThenOpenForm() {
       await renderApp();
-      const peeButton = [...document.querySelectorAll('button')].find((button) => button.textContent === en.potty.peedOutside)!;
+      const peeButton = document.querySelector<HTMLButtonElement>(`button[aria-label="${en.potty.peedOutside}"]`)!;
       await act(async () => peeButton.click());
       await settle();
       await openLogForm();
@@ -582,8 +587,6 @@ describe('App log state', () => {
   });
 });
 
-const buttonWithText = (text: string) => [...document.querySelectorAll('button')].find((button) => button.textContent === text);
-
 /** The dashboard answers; each POST is refused as by a phone with no signal until `isOnline` is set. */
 function stubOfflineSaves(connection: { isOnline: boolean }) {
   const posted: Activity[] = [];
@@ -597,15 +600,23 @@ function stubOfflineSaves(connection: { isOnline: boolean }) {
   return posted;
 }
 
+/** Picks a dog in the top bar's dog menu. */
+async function pickDog(name: string) {
+  await act(async () => document.querySelector<HTMLButtonElement>('header button[aria-haspopup="listbox"]')!.click());
+  await act(async () => [...document.querySelectorAll<HTMLElement>('[role="option"]')].find((option) => option.textContent!.startsWith(name))!.click());
+  await settle();
+}
+
 async function tapPeeOutside() {
-  await act(async () => buttonWithText(en.potty.peedOutside)!.click());
+  await act(async () => document.querySelector<HTMLButtonElement>(`button[aria-label="${en.potty.peedOutside}"]`)!.click());
   await settle();
 }
 
 // Backlog item 5: a quick log tapped with no signal used to vanish, so its real time had to be typed again by hand
 describe('a quick log that could not be saved', () => {
   const isMarkedNotSaved = () => document.body.textContent!.includes(en.potty.notSaved);
-  const retryButtons = () => [...document.querySelectorAll('button')].filter((button) => button.textContent === en.potty.retry);
+  // The feed rows' Retry (the amber line above the cards has its own)
+  const retryButtons = () => [...document.querySelectorAll<HTMLButtonElement>('.group button')].filter((button) => button.textContent === en.potty.retry);
 
   it('stays in the feed marked "not saved"; Retry sends it again under the same id and clears the mark', async () => {
     signedInWithCachedDogOnly();
@@ -619,7 +630,7 @@ describe('a quick log that could not be saved', () => {
     expect(isMarkedNotSaved()).toBe(true);
 
     connection.isOnline = true;
-    await act(async () => buttonWithText(en.potty.retry)!.click());
+    await act(async () => retryButtons()[0].click());
     await settle();
 
     expect(posted).toHaveLength(2);
@@ -634,7 +645,7 @@ describe('a quick log that could not be saved', () => {
     await renderApp();
 
     await tapPeeOutside();
-    await act(async () => buttonWithText(en.potty.retry)!.click());
+    await act(async () => retryButtons()[0].click());
     await settle();
 
     expect(isMarkedNotSaved()).toBe(true);
@@ -654,7 +665,7 @@ describe('a quick log that could not be saved', () => {
     await renderApp();
     await tapPeeOutside();
 
-    await act(async () => buttonWithText(en.potty.retry)!.click());
+    await act(async () => retryButtons()[0].click());
     await settle();
     expect(isMarkedNotSaved()).toBe(true);
     expect(retryButtons()).toHaveLength(1);
@@ -725,6 +736,115 @@ describe('a quick log that could not be saved', () => {
     await settle();
 
     expect(isMarkedNotSaved()).toBe(true);
+  });
+
+  // App review 2026-10-16, decision 8: once its toast closed, a failed log looked saved; its mark was 2 screens down
+  describe('the amber line above the cards', () => {
+    const unsentLine = () => [...document.querySelectorAll('[role="status"]')].find((status) => /not sent/.test(status.textContent!))?.parentElement ?? null;
+    const lineButton = (label: string) => [...unsentLine()!.querySelectorAll('button')].find((button) => button.textContent === label)!;
+    const tapPoopOutside = async () => {
+      await act(async () => document.querySelector<HTMLButtonElement>(`button[aria-label="${en.potty.poopedOutside}"]`)!.click());
+      await settle();
+    };
+
+    it('counts the logs not sent, above the cards; its Retry sends them all again and the line goes', async () => {
+      signedInWithCachedDogOnly();
+      const connection = { isOnline: false };
+      const posted = stubOfflineSaves(connection);
+      await renderApp();
+
+      await tapPeeOutside();
+      expect(unsentLine()!.textContent).toContain('1 log not sent');
+      await tapPoopOutside();
+      expect(unsentLine()!.textContent).toContain('2 logs not sent');
+      const peeCard = [...document.querySelectorAll('h2')].find((heading) => heading.textContent === en.potty.nextPee)!;
+      expect(unsentLine()!.compareDocumentPosition(peeCard) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+
+      connection.isOnline = true;
+      await act(async () => lineButton(en.potty.retry).click());
+      await settle();
+
+      expect(posted.slice(2).map((post) => post.id).sort()).toEqual(posted.slice(0, 2).map((post) => post.id).sort());
+      expect(unsentLine()).toBeNull();
+      expect(isMarkedNotSaved()).toBe(false);
+    });
+
+    // Review 2026-10-16: one tap, 4 px from Retry, dropped every log not sent, with no way back
+    const dialogButton = (label: string) => [...document.querySelectorAll<HTMLButtonElement>('[role="dialog"] button')].find((button) => button.textContent === label);
+
+    it('its Discard of 2 logs asks first; confirmed, it drops them all and sends nothing', async () => {
+      signedInWithCachedDogOnly();
+      const posted = stubOfflineSaves({ isOnline: false });
+      await renderApp();
+      await tapPeeOutside();
+      await tapPoopOutside();
+
+      const clearToasts = vi.spyOn(toast, 'clear');
+      await act(async () => lineButton(en.potty.discard).click());
+      await settle();
+      expect(document.querySelector('[role="dialog"]')!.textContent).toContain('Discard 2 logs not sent?');
+      expect(unsentLine()!.textContent).toContain('2 logs not sent');
+      // Their "not saved" toasts, at the bottom like the dialog on a phone, would cover its buttons
+      expect(clearToasts).toHaveBeenCalled();
+
+      await act(async () => dialogButton(en.potty.discard)!.click());
+      await settle();
+
+      expect(posted).toHaveLength(2);
+      expect(unsentLine()).toBeNull();
+      expect(isTimelineEmpty()).toBe(true);
+    });
+
+    it('its Discard of the one log shown below drops it at once, as the row\'s Discard does', async () => {
+      signedInWithCachedDogOnly();
+      stubOfflineSaves({ isOnline: false });
+      await renderApp();
+      await tapPeeOutside();
+
+      await act(async () => lineButton(en.potty.discard).click());
+      await settle();
+
+      expect(document.querySelector('[role="dialog"]')).toBeNull();
+      expect(unsentLine()).toBeNull();
+      expect(isTimelineEmpty()).toBe(true);
+    });
+
+    it('counts a log kept through a dog switch; on the other dog\'s screen, Discard asks first, and Cancel keeps it', async () => {
+      signedInWithCachedDogOnly();
+      const second: PuppyProfile = { ...puppy, id: 'pup-2', name: 'Second' };
+      setStoredPuppies([puppy, second]);
+      stubApi({
+        '/api/dashboard': () => respond({ ...dashboardPayload([]), puppies: [puppy, second] }),
+        '/api/activities': (_url, init) => (init?.method === 'POST' ? Promise.reject(new TypeError('Load failed')) : respond([])),
+      });
+      await renderApp();
+      await tapPeeOutside();
+
+      await pickDog('Second');
+      expect(unsentLine()!.textContent).toContain('1 log not sent');
+      expect(isMarkedNotSaved()).toBe(false);
+
+      await act(async () => lineButton(en.potty.discard).click());
+      await settle();
+      expect(document.querySelector('[role="dialog"]')!.textContent).toContain('Discard 1 log not sent?');
+      await act(async () => dialogButton(en.potty.cancel)!.click());
+      await settle();
+
+      expect(unsentLine()!.textContent).toContain('1 log not sent');
+      await pickDog('Rex');
+      expect(isMarkedNotSaved()).toBe(true);
+    });
+
+    it('says it in French: "1 enregistrement non envoyé"', async () => {
+      signedInWithCachedDogOnly();
+      localStorage.setItem('puppace_lang_v1', 'fr');
+      stubOfflineSaves({ isOnline: false });
+      await renderApp();
+      await act(async () => document.querySelector<HTMLButtonElement>('button[aria-label="Pipi dehors"]')!.click());
+      await settle();
+
+      expect(document.body.textContent).toContain('1 enregistrement non envoyé');
+    });
   });
 
   it('Discard removes it and sends nothing', async () => {
@@ -1044,5 +1164,129 @@ describe('dashboard headings', () => {
     expect([...document.querySelectorAll('h2')].map((heading) => heading.textContent)).toEqual(
       expect.arrayContaining([en.potty.nextPee, en.potty.nextPoop, en.potty.nextMeal])
     );
+  });
+});
+
+// App review 2026-10-16, flow 4: a dog switch blanked the dashboard to the skeleton and the page jumped back to the top
+describe('switching dogs', () => {
+  const second: PuppyProfile = { ...puppy, id: 'pup-2', name: 'Second' };
+
+  it('keeps the dashboard on screen, dimmed and marked busy, until the second dog\'s logs arrive: never the skeleton', async () => {
+    signedInWithCachedDogOnly();
+    setStoredPuppies([puppy, second]);
+    const heldLogs: Array<() => void> = [];
+    stubApi({
+      '/api/dashboard': () => respond({ ...dashboardPayload(), puppies: [puppy, second] }),
+      '/api/activities': () => new Promise<Response>((resolve) => heldLogs.push(() => resolve(new Response('[]')))),
+    });
+    await renderApp();
+
+    await pickDog('Second');
+    const busy = document.querySelector('[aria-busy="true"]');
+    expect(isSkeletonShown()).toBe(false);
+    expect(document.querySelector('h1')!.textContent).toBe('Second');
+    expect(busy?.textContent).toContain(en.potty.nextPee);
+    expect(busy?.className).toMatch(/opacity-/);
+    // Its logs are not here yet: the cards never present it as a new dog (review 2026-10-16)
+    expect(isPresentedAsNewDog()).toBe(false);
+
+    await act(async () => heldLogs.forEach((answer) => answer()));
+    await settle();
+    expect(document.querySelector('[aria-busy="true"]')).toBeNull();
+    // The server says it has none: now it is a new dog
+    expect(isPresentedAsNewDog()).toBe(true);
+  });
+
+  it('a switch whose request fails never presents the dog as new, and switching back shows the first dog at once', async () => {
+    signedInWithCachedDogOnly();
+    setStoredPuppies([puppy, second]);
+    stubApi({
+      '/api/dashboard': () => respond({ ...dashboardPayload(), puppies: [puppy, second] }),
+      '/api/activities': () => respond({ error: 'Internal server error' }, 500),
+    });
+    await renderApp();
+
+    await pickDog('Second');
+    expect(document.body.textContent).toContain(en.potty.nextPee);
+    expect(isPresentedAsNewDog()).toBe(false);
+
+    await pickDog('Rex');
+    expect(document.querySelector('[aria-busy="true"]')).toBeNull();
+    expect(isTimelineEmpty()).toBe(false);
+  });
+});
+
+// App review 2026-10-16, section 3 (loading): screen readers heard nothing while the skeleton showed
+describe('the first load\'s skeleton', () => {
+  it('is announced: a status with a label, in the app language', async () => {
+    signedInWithCachedDogOnly();
+    localStorage.setItem('puppace_lang_v1', 'fr');
+    stubApi({ '/api/dashboard': () => heldUntilTeardown() });
+    await renderApp();
+
+    expect(isSkeletonShown()).toBe(true);
+    const skeleton = document.querySelector('main');
+    expect(skeleton?.getAttribute('role')).toBe('status');
+    expect(skeleton?.getAttribute('aria-label')).toBe('Chargement…');
+  });
+});
+
+
+// App review 2026-10-16, decision 9: after saving the first dog the family stayed in Settings, with no card in sight
+describe('adding a dog', () => {
+  const settingsButton = (text: string) => [...document.querySelectorAll('button')].find((button) => button.textContent?.trim() === text);
+
+  async function addDog(name: string) {
+    await settleUntil(() => settingsButton('Add Dog') !== undefined);
+    await act(async () => settingsButton('Add Dog')!.click());
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!;
+    const type = async (id: string, value: string) => act(async () => {
+      setter.call(document.getElementById(id), value);
+      document.getElementById(id)!.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    await type('dog-name', name);
+    await act(async () => {
+      // The breed picker's hidden native select (the dog picker in the bar has one too)
+      const breedSelect = document.getElementById('dog-name')!.closest('form')!.querySelector('select')!;
+      breedSelect.value = 'Beagle';
+      breedSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    await type('dog-birth-date', '2026-07-01');
+    await type('dog-food-goal', '200');
+    await act(async () => document.querySelector<HTMLButtonElement>('button[type="submit"]')!.click());
+    await settle();
+  }
+
+  function stubDogs(puppies: PuppyProfile[]) {
+    stubApi({
+      '/api/dashboard': () => respond({ ...dashboardPayload([]), puppies }),
+      '/api/dogs': (_url, init) => respond({ ...JSON.parse(String(init!.body)), householdId: 'hh-1' }, 201),
+      '/api/activities': () => respond([]),
+    });
+  }
+
+  it('the first dog saved opens the dashboard, with its cards', async () => {
+    setAuthToken('app-session');
+    setStoredAuthUser(owner);
+    stubDogs([]);
+    await renderApp();
+    await act(async () => settingsButton(en.dashboard.registerDog)!.click());
+
+    await addDog('Biscuit');
+
+    expect(window.location.pathname).toBe('/');
+    expect(document.querySelector('h1')?.textContent).toBe('Biscuit');
+  });
+
+  it('a second dog keeps Settings open', async () => {
+    signedInWithCachedDogOnly();
+    stubDogs([puppy]);
+    window.history.pushState({}, '', '/settings');
+    await renderApp();
+
+    await addDog('Biscuit');
+
+    expect(document.body.textContent).toContain(`${en.settings.dogProfiles} (2)`);
+    expect(window.location.pathname).toBe('/settings');
   });
 });

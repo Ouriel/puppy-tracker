@@ -23,6 +23,7 @@ export const fr: TranslationKeys = {
   },
   common: {
     delete: 'Supprimer',
+    undo: 'Annuler',
     // Between a label and its value: 'Rappel : 3 nov.', with a no-break space
     colon: '\u00a0:',
     // Row buttons say which row: 'Modifier pipi 14:20', 'Supprimer Marie'
@@ -51,6 +52,8 @@ export const fr: TranslationKeys = {
     lastPoop: 'Dernier caca\u00a0:',
     rationIntakeToday: 'Ration aujourd\'hui\u00a0:',
     lastMeal: 'Dernier repas\u00a0:',
+    // A compact card's line on a phone: '6 aujourd'hui · il y a 31 min'
+    todayCount: '{count} aujourd\'hui',
     noneLoggedToday: 'Aucun aujourd\'hui',
     overduePrefix: 'En retard ~',
     dueNowCount: 'Prévu maintenant',
@@ -59,6 +62,12 @@ export const fr: TranslationKeys = {
     timeAgo: 'il y a {time}',
     justNow: 'à l\'instant',
     noLogYet: 'Aucun enregistrement',
+    // A card with nothing logged yet
+    noPeeYet: 'Pas encore de pipi. Touche Dehors pour commencer.',
+    noPoopYet: 'Pas encore de caca. Touche Dehors pour commencer.',
+    firstMealNext: 'Prochain\u00a0: petit-déjeuner ~{time}',
+    // Once the morning is over: the engine's breakfast time would be past, or in the evening
+    firstMealNoTime: 'Prochain\u00a0: premier repas',
     withoutMeal: 'Repère',
     vetDiarrhea: 'Laisse de l\'eau à disposition. Appelle le vétérinaire si cela dure plus de 24\u00a0h, ou tout de suite en cas de sang, de vomissements, de fatigue, ou si le chiot n\'a pas tous ses vaccins.',
     vetHardStool: 'Laisse de l\'eau à disposition. Appelle le vétérinaire en l\'absence de selles pendant 48\u00a0h, ou en cas d\'efforts ou de vomissements.',
@@ -74,6 +83,9 @@ export const fr: TranslationKeys = {
     mealsFilter: 'Repas',
     noActivityLogs: 'Aucun événement enregistré.',
     offlineDataFrom: 'Hors ligne, données de {time}',
+    unsentLogs: { one: '{count} enregistrement non envoyé', other: '{count} enregistrements non envoyés' },
+    discardUnsentTitle: { one: 'Abandonner {count} enregistrement non envoyé\u00a0?', other: 'Abandonner {count} enregistrements non envoyés\u00a0?' },
+    discardUnsentMessage: { one: 'Le serveur ne l\'a jamais reçu\u00a0: abandonné, il est perdu.', other: 'Le serveur ne les a jamais reçus\u00a0: abandonnés, ils sont perdus.' },
     tapLogEvent: 'Touche + pour enregistrer une activité.',
     today: 'Aujourd\'hui',
     yesterday: 'Hier',
@@ -87,6 +99,7 @@ export const fr: TranslationKeys = {
     hourlyDistribution: 'Répartition sur 24\u00a0heures',
     showingLogs: 'Affichage des {days} derniers jours ({total} au total)',
     showingAllLogs: 'Affichage de tout l\'historique ({total} au total)',
+    loading: 'Chargement…',
     loadingEarlier: 'Chargement…',
     loadEarlier: 'Charger les {days} derniers jours',
     loadAllLogs: 'Charger tout l\'historique',
@@ -122,6 +135,10 @@ export const fr: TranslationKeys = {
     peedOutside: 'Pipi dehors',
     poopedOutside: 'Caca dehors',
     accident: 'Accident',
+    // The dashboard's potty buttons: a short word on screen, the full name for screen readers
+    accidentShort: 'Accident',
+    peeAccident: 'Accident de pipi',
+    poopAccident: 'Accident de caca',
     outside: 'Dehors',
     location: 'Lieu',
     activityType: 'Type d\'activité',
@@ -489,6 +506,8 @@ export const fr: TranslationKeys = {
   toasts: {
     selectPuppyFirst: 'Choisis d\'abord un chiot.',
     activityLogged: 'Activité enregistrée\u00a0!',
+    // A one-tap log, named: 'Pipi dehors enregistré'
+    quickLogged: '{log} enregistré',
     alreadyLogged: 'Déjà enregistré',
     activityUpdated: 'Activité mise à jour.',
     activityDeleted: 'Activité supprimée.',

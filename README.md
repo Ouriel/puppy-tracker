@@ -41,10 +41,12 @@ Three cards, one per need, for the selected dog (pick the dog in the top bar).
 | | Pee | Poop | Meal |
 |---|---|---|---|
 | Shows | countdown, clock time, ± margin, today's count, time since the last one, the reason | same | grams eaten / goal and meals (n of target), time since the last meal, the reason |
-| One-tap buttons | Peed Outside · Accident | Pooped Outside · Accident | Feed Meal Now (*suggested g*): opens the form on Meal |
+| One-tap buttons | ✓ Outside · Accident (screen readers: "Peed Outside", "Pee accident indoors") | ✓ Outside · Accident (same, for poop) | Feed Meal Now (*suggested g*): opens the form on Meal |
 | Soon (amber) | 20 min before | 30 min before | 15 min before breakfast, 30 min before other meals |
 
-A one-tap log is timed at the tap and stored under your name. A second log of the same type for the same dog within 5 seconds (a double tap, or Save pressed twice) is ignored ("Already logged").
+On a phone each card keeps its countdown and buttons with one line ("6 today · 31m ago"); a tap on that line opens the counts and the reason. Before a dog's first pee (or poop) its card says "No pee yet. Tap Outside to start." with no countdown; before its first meal, the meal card never turns amber or red: it names breakfast with its time while that time is ahead and in the morning ("Next: breakfast ~7:30 AM"), and says "Next: first meal" otherwise.
+
+A one-tap log is timed at the tap and stored under your name; its toast names it ("Logged: Peed Outside") and has **Undo**, which deletes it. A second log of the same type for the same dog within 5 seconds (a double tap, or Save pressed twice) is ignored ("Already logged"), unless the first one was undone.
 
 ### How the guesses work
 
@@ -101,7 +103,7 @@ Your logs are stored under your **badge** (Settings > Household Members) linked 
 - Today's meal total is compared to today's goal. Past days show plain totals ("240 g · 3 meals"), since past goals are not stored.
 - Each log can be edited (same rules as the form) or deleted. The badge colour shows who logged it.
 - A one-tap log that could not be saved stays, marked "Not saved", with **Retry** (sends it again, never twice) and **Discard** instead of edit and delete; its day stays open.
-- **Export**: CSV or a printable report of exactly the days shown. The report prints its period ("From … to …"). The CSV has separate date and time columns and opens with accents intact in Excel and Numbers. Its date is the app's 04:00 day, so a log at 01:30 carries the previous day's date.
+- **Export**: CSV or a printable report of exactly the days shown, without the logs marked "Not saved". The report prints its period ("From … to …"). The CSV has separate date and time columns and opens with accents intact in Excel and Numbers. Its date is the app's 04:00 day, so a log at 01:30 carries the previous day's date.
 
 ## Health passport
 

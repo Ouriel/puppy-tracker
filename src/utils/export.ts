@@ -3,7 +3,9 @@ import type { TranslationKeys } from '../i18n/types';
 import { formatLocalDate, parseIsoDate, formatLogicalDate, getUserTimezone } from './date';
 import { resolveCaretakerName } from './caretakers';
 import { formatBreedName } from '../data/breedsCatalog';
-import { findUnlikelyWeighIns, formatKg, getUnifiedWeightEntries } from './weight';
+import { findUnlikelyWeighIns, formatGrams, formatKg, getUnifiedWeightEntries } from './weight';
+import { en } from '../i18n/en';
+import { fr } from '../i18n/fr';
 
 function downloadCsvFile(content: string, filename: string): void {
   const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
@@ -90,15 +92,6 @@ export function exportActivitiesToCSV(
     return location;
   };
 
-  const formatConsistency = (consistency?: string) => {
-    if (!consistency) return '';
-    if (consistency === 'normal') return isFrench ? 'Normale' : 'Normal';
-    if (consistency === 'soft') return isFrench ? 'Molle' : 'Soft';
-    if (consistency === 'liquid') return isFrench ? 'Liquide' : 'Liquid';
-    if (consistency === 'hard') return isFrench ? 'Dure' : 'Hard';
-    return consistency;
-  };
-
   const formatActivityType = (type: string) => {
     if (type === 'pee') return isFrench ? 'Pipi' : 'Pee';
     if (type === 'poop') return isFrench ? 'Caca' : 'Poop';
@@ -123,7 +116,8 @@ export function exportActivitiesToCSV(
       escapeCsvField(timeStr),
       escapeCsvField(formatActivityType(activity.type)),
       escapeCsvField(formatLocation(activity.pottyLocation)),
-      escapeCsvField(formatConsistency(activity.stoolConsistency)),
+      // The log form's words: 'Molles', 'Diarrhée'
+      escapeCsvField(activity.stoolConsistency ? (isFrench ? fr : en).potty[activity.stoolConsistency] : ''),
       escapeCsvField(activity.quantityGrams ?? ''),
       escapeCsvField(activity.quantityCups ?? ''),
       escapeCsvField(activity.durationMinutes ?? ''),
@@ -162,7 +156,7 @@ export function printActivitiesReport(
   activities: Activity[],
   profile: PuppyProfile,
   lang: 'en' | 'fr' = 'fr',
-  _t: TranslationKeys | undefined,
+  t: TranslationKeys,
   caretakers: Caretaker[],
   /** The first and last day the feed shows (YYYY-MM-DD) */
   period: { from: string; to: string }
@@ -375,6 +369,7 @@ export function printActivitiesReport(
             background: #f1f5f9;
             padding: 1px 6px;
             border-radius: 4px;
+            white-space: nowrap;
           }
           .notes-cell {
             color: #475569;
@@ -398,7 +393,7 @@ export function printActivitiesReport(
             <p><strong>${esc(periodLabel)}</strong></p>
             <p>${isFrench ? 'Édité le' : 'Generated on'} ${generatedDate}</p>
           </div>
-          <span class="brand-tag">PupPace &bull; Smart Activity Log</span>
+          <span class="brand-tag">${esc(t.brand)}</span>
         </div>
 
         <div class="info-panel">
@@ -426,7 +421,7 @@ export function printActivitiesReport(
           <div class="card">
             <div class="card-label">${isFrench ? 'Repas' : 'Meals'}</div>
             <div class="card-value" style="color: #7c3aed;">${totalMeals}</div>
-            <div class="card-sub">${totalFoodGrams > 0 ? `${totalFoodGrams}g ${isFrench ? 'total' : 'logged'}` : ''}</div>
+            <div class="card-sub">${totalFoodGrams > 0 ? `${formatGrams(totalFoodGrams, lang)} ${isFrench ? 'total' : 'logged'}` : ''}</div>
           </div>
           <div class="card">
             <div class="card-label">${isFrench ? 'Taux Réussite' : 'Potty Rate'}</div>
@@ -452,7 +447,7 @@ export function printActivitiesReport(
                 <th style="width: 85px;">${isFrench ? 'Type' : 'Type'}</th>
                 <th>${isFrench ? 'Détails' : 'Details'}</th>
                 <th style="width: 100px;">${isFrench ? 'Membre' : 'Logged By'}</th>
-                <th>${isFrench ? 'Notes' : 'Notes'}</th>
+                <th style="width: 160px;">${isFrench ? 'Notes' : 'Notes'}</th>
               </tr>
             </thead>
             <tbody>
@@ -473,15 +468,16 @@ export function printActivitiesReport(
                 }
 
                 if (activity.stoolConsistency) {
-                  details.push(`<span>${isFrench ? 'Selles :' : 'Stool:'} ${esc(activity.stoolConsistency)}</span>`);
+                  details.push(`<span>${t.potty.stoolConsistencyPrefix}${t.common.colon} ${esc(t.potty[activity.stoolConsistency])}</span>`);
                 }
 
                 if (activity.quantityGrams) {
-                  details.push(`<strong>${esc(activity.quantityGrams)}g</strong>${activity.quantityCups ? ` (${esc(activity.quantityCups)} cups)` : ''}`);
+                  const cups = activity.quantityCups ? ` (${new Intl.NumberFormat(locale).format(activity.quantityCups)} ${t.units.cups})` : '';
+                  details.push(`<strong>${formatGrams(activity.quantityGrams, lang)}</strong>${esc(cups)}`);
                 }
 
                 if (activity.weightKg) {
-                  details.push(`<strong>${esc(activity.weightKg)} kg</strong>`);
+                  details.push(`<strong>${formatKg(activity.weightKg, lang)}</strong>`);
                 }
 
                 if (activity.medicationName) {

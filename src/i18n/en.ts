@@ -19,6 +19,7 @@ export const en = {
   },
   common: {
     delete: 'Delete',
+    undo: 'Undo',
     // Between a label and its value: 'Booster: 3 Nov'
     colon: ':',
     // Row buttons say which row: 'Edit pee 14:20', 'Delete Marie'
@@ -46,6 +47,8 @@ export const en = {
     lastPoop: 'Last poop:',
     rationIntakeToday: 'Ration intake today:',
     lastMeal: 'Last meal:',
+    // A compact card's line on a phone: '6 aujourd'hui · il y a 31 min'
+    todayCount: '{count} today',
     noneLoggedToday: 'None logged today',
     overduePrefix: 'Overdue ~',
     dueNowCount: 'Due now',
@@ -54,6 +57,12 @@ export const en = {
     timeAgo: '{time} ago',
     justNow: 'just now',
     noLogYet: 'No log yet',
+    // A card with nothing logged yet
+    noPeeYet: 'No pee yet. Tap Outside to start.',
+    noPoopYet: 'No poop yet. Tap Outside to start.',
+    firstMealNext: 'Next: breakfast ~{time}',
+    // Once the morning is over: the engine's breakfast time would be past, or in the evening
+    firstMealNoTime: 'Next: first meal',
     withoutMeal: 'Baseline',
     vetDiarrhea: 'Keep water available. Call your vet if it lasts more than 24 h, or now if there is blood, vomiting, tiredness, or the puppy is not fully vaccinated.',
     vetHardStool: 'Keep water available. Call your vet if there is no stool for 48 h, or if there is straining or vomiting.',
@@ -69,6 +78,9 @@ export const en = {
     mealsFilter: 'Meals',
     noActivityLogs: 'No activity logs recorded yet.',
     offlineDataFrom: 'Offline, data from {time}',
+    unsentLogs: { one: '{count} log not sent', other: '{count} logs not sent' },
+    discardUnsentTitle: { one: 'Discard {count} log not sent?', other: 'Discard {count} logs not sent?' },
+    discardUnsentMessage: { one: 'The server never got it: once discarded, it is lost.', other: 'The server never got them: once discarded, they are lost.' },
     tapLogEvent: 'Tap "+ Quick Log" above to record your first event.',
     today: 'Today',
     yesterday: 'Yesterday',
@@ -82,6 +94,7 @@ export const en = {
     hourlyDistribution: '24-hour breakdown of potty events',
     showingLogs: 'Showing last {days} days ({total} total)',
     showingAllLogs: 'Showing all logs ({total} total)',
+    loading: 'Loading…',
     loadingEarlier: 'Loading...',
     loadEarlier: 'Load past {days} days',
     loadAllLogs: 'Load all-time history',
@@ -102,7 +115,7 @@ export const en = {
     exportCsv: 'Export to CSV',
     exportCsvDesc: 'Spreadsheet format (Excel, Numbers)',
     exportPdf: 'Export to PDF / Print',
-    exportPdfDesc: 'Printable activity & health report',
+    exportPdfDesc: 'Printable activity report',
     noLogsToExport: 'No activity logs to export',
   },
   potty: {
@@ -117,6 +130,10 @@ export const en = {
     peedOutside: 'Peed Outside',
     poopedOutside: 'Pooped Outside',
     accident: 'Accident Indoor',
+    // The dashboard's potty buttons: a short word on screen, the full name for screen readers
+    accidentShort: 'Accident',
+    peeAccident: 'Pee accident indoors',
+    poopAccident: 'Poop accident indoors',
     outside: 'Outside',
     location: 'Location',
     activityType: 'Activity Type',
@@ -483,6 +500,8 @@ export const en = {
   toasts: {
     selectPuppyFirst: 'Please select a puppy profile first.',
     activityLogged: 'Activity logged successfully!',
+    // A one-tap log, named: 'Pipi dehors enregistré'
+    quickLogged: 'Logged: {log}',
     alreadyLogged: 'Already logged',
     activityUpdated: 'Activity updated.',
     activityDeleted: 'Activity deleted.',

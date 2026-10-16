@@ -15,6 +15,8 @@ import { AuthLockScreen } from '../AuthLockScreen';
 import { PrivacyPolicyModal } from '../PrivacyPolicyModal';
 import { TermsOfServiceModal } from '../TermsOfServiceModal';
 import { CarnetDeSanteView } from '../../views/CarnetDeSanteView';
+import { AppToastProvider } from '../common/AppToastProvider';
+import { toast } from '@heroui/react';
 import { calculatePredictions } from '../../utils/predictions';
 import { act as log, PISTACHE } from '../../utils/__tests__/fixtures';
 
@@ -231,6 +233,20 @@ describe('row buttons named after their row, 44 px targets (French)', () => {
     await render(<QuickLogModal isOpen onClose={vi.fn()} onSave={vi.fn()} currentUser="Tester" />, 'fr');
     expect(button('Fermer')!.classList).toContain('min-h-11');
     expect(document.querySelector('button[type="submit"]')!.classList).toContain('min-h-11');
+  });
+
+  // Review 2026-10-16: the one-tap log's Undo (and the failed log's Retry) was 40 px tall
+  it('a toast\'s action button (Annuler, Réessayer) is 44 px tall', async () => {
+    await render(<AppToastProvider />, 'fr');
+    try {
+      await act(async () => {
+        toast.success('Pipi dehors enregistré', { actionProps: { children: 'Annuler', onPress: vi.fn() } });
+      });
+      const undo = [...document.querySelectorAll('button')].find((element) => element.textContent === 'Annuler')!;
+      expect(undo.classList).toContain('min-h-11');
+    } finally {
+      await act(async () => toast.clear());
+    }
   });
 
   it('members: "Modifier Marie" / "Supprimer Marie", named colour pickers and boxes, a named close button', async () => {
