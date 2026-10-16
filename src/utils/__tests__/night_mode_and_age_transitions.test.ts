@@ -71,7 +71,7 @@ describe('Night Mode, Evening Outings, and Age Transitions Comprehensive Test Su
   });
 
   // 5. Young Puppy Multi-Step Night Pauses
-  it('schedules successive mid-night potty breaks for an 8-week-old young puppy overnight', () => {
+  it('schedules one mid-night potty break for an 8-week-old young puppy overnight, then the morning outing', () => {
     const youngProfile = {
       ...PISTACHE,
       birthDate: '2026-06-20', // 8 weeks old on August 15
@@ -106,9 +106,10 @@ describe('Night Mode, Evening Outings, and Age Transitions Comprehensive Test Su
     const step2Ref = new Date('2026-08-16T02:30:00+02:00');
     const pred2 = calculatePredictions(newestFirst(step2Activities), youngProfile, step2Ref, 'Europe/Paris', sleepSchedule);
 
+    // One break a night: no 2nd break at 06:00 (02:00 + 4h), the morning outing
     expect(pred2.peeMode).toBe('night_sleep');
-    expect(pred2.peeReason).toContain('Young puppy mid-night potty break');
-    expect(at(pred2.nextPeeExpectedAt!)).toBe('2026-08-16 06:00'); // 02:00 + 4h
+    expect(pred2.peeReason).toBe('Morning outing (~07:00)');
+    expect(at(pred2.nextPeeExpectedAt!)).toBe('2026-08-16 07:00');
   });
 
   // 6. Late Evening Dinner
@@ -158,10 +159,10 @@ describe('Night Mode, Evening Outings, and Age Transitions Comprehensive Test Su
 
   // 8b. Under 90 min, the window stays half the interval: the age cap shortens a young puppy's pre-bed card
   it('ends a 1.9-month puppy overdue pre-bed pee card at bedtime (20:30) + half its 2.9 h age cap (87 min)', () => {
-    // Gaps of 190 and 270 min learn 270, capped at (1.9 + 1) h = 174 min: 14:30 + 174 = 17:24
+    // Gaps of 70, 120 and 270 min learn 270 (70th percentile), capped at (1.9 + 1) h = 174 min: 14:30 + 174 = 17:24
     const puppy = { ...PISTACHE, birthDate: '2026-06-19' };
     const schedule: SleepSchedule = { bedtimeHour: 20.5, wakeupHour: 6 + 50 / 60, bedtimeStr: '20:30', wakeupStr: '06:50' };
-    const activities = newestFirst(['06:50', '10:00', '14:30'].map((time) => act('pee', `2026-08-15T${time}:00+02:00`)));
+    const activities = newestFirst(['06:50', '08:00', '10:00', '14:30'].map((time) => act('pee', `2026-08-15T${time}:00+02:00`)));
 
     const lastMinute = calculatePredictions(activities, puppy, new Date('2026-08-15T21:57:00+02:00'), 'Europe/Paris', schedule);
     expect(at(lastMinute.nextPeeExpectedAt!)).toBe('2026-08-15 17:24');
@@ -324,7 +325,7 @@ describe('Night Mode, Evening Outings, and Age Transitions Comprehensive Test Su
   });
 
   // 15. Afternoon Poop Prediction Targets Tonight's Evening Walk (No 18h Skip to Morning)
-  it('predicts evening outing tonight when puppy poops in early afternoon (13:52) with a learned ~5h09 interval', () => {
+  it('predicts evening outing tonight when puppy poops in early afternoon (13:52), one gap giving the 6 h default', () => {
     const lateWakeSchedule: SleepSchedule = {
       bedtimeHour: 22.81, // 22:49 PM
       wakeupHour: 8.63,   // 08:38 AM
@@ -346,11 +347,11 @@ describe('Night Mode, Evening Outings, and Age Transitions Comprehensive Test Su
 
     expect(pred.poopMode).toBe('daytime_baseline');
     expect(pred.poopReason).not.toContain('Morning outing');
-    expect(pred.poopReason).toContain('5h09'); // Learned from today's 08:43 -> 13:52 gap
+    expect(pred.poopReason).toBe('Standard digestive interval (~6h)'); // one gap (08:43 -> 13:52) is not learned yet
     expect(pred.nextPoopExpectedAt).not.toBeNull();
 
-    // Next poop is tonight (13:52 + 5h09 = 19:01), NOT next morning (~08:44)
-    expect(at(pred.nextPoopExpectedAt!)).toBe('2026-09-10 19:01');
+    // Next poop is tonight (13:52 + 6h = 19:52), NOT next morning (~08:44)
+    expect(at(pred.nextPoopExpectedAt!)).toBe('2026-09-10 19:52');
   });
 
   // 16. Pre-bed Poop Rolls Over to Morning Once Outing Is Logged
