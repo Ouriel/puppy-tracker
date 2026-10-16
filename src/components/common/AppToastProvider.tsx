@@ -14,7 +14,8 @@ export const AppToastProvider = () => {
         // HeroUI's breakpoint: on a phone the action button sits under the text.
         // ponytail: read when the toast renders, not on resize; a resized window gets it right from the next toast
         const isMobile = window.matchMedia('(max-width: 768px)').matches;
-        const action = actionProps?.children ? <Toast.ActionButton {...actionProps} /> : null;
+        // 44 px tall, like every other target (Undo after a one-tap log, Retry after a failed one)
+        const action = actionProps?.children ? <Toast.ActionButton {...actionProps} className="min-h-11" /> : null;
         return (
           <Toast toast={item} placement="bottom" variant={variant}>
             {indicator === null ? null : <Toast.Indicator variant={variant}>{indicator}</Toast.Indicator>}

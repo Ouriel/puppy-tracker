@@ -62,7 +62,9 @@ function formatDayHeading(
   if (isYesterday) {
     return `${labels.yesterday} • ${shortDate}`;
   }
-  return dateObj.toLocaleDateString(locale, { weekday: 'long', month: 'short', day: 'numeric' });
+  // 'Mardi 13 oct.': only the first letter is a capital (CSS capitalize gave 'Mardi 13 Oct.')
+  const longDate = dateObj.toLocaleDateString(locale, { weekday: 'long', month: 'short', day: 'numeric' });
+  return longDate.charAt(0).toLocaleUpperCase(locale) + longDate.slice(1);
 }
 
 export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
@@ -154,6 +156,13 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
 
   const hasMorePriorLogs = sortedCoreActivities.length > visibleActivities.length || hasMoreRemote;
 
+  // The export is what the feed shows (owner decision 2026-10-14): its days, and the report prints them.
+  // A log the server never took is left out (app review decision 8).
+  const exportableActivities = useMemo(
+    () => (unsavedIds?.size ? visibleActivities.filter((activity) => !unsavedIds.has(activity.id)) : visibleActivities),
+    [visibleActivities, unsavedIds]
+  );
+
   const dailyGoalGrams = activePuppy?.dailyFoodGramGoal ?? 200; // 0: no gram goal
   const targetMealsCount = activePuppy?.targetMealsPerDay || 3;
 
@@ -236,20 +245,19 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
     }
   }, [isAllExpanded, allDayKeys]);
 
-  // The export is what the feed shows (owner decision 2026-10-14): its days, and the report prints them
   const handleExportCsv = useCallback(() => {
     setIsExportMenuOpen(false);
     if (!activePuppy) return;
-    exportActivitiesToCSV(visibleActivities, activePuppy, lang as 'en' | 'fr', caretakers);
-  }, [activePuppy, visibleActivities, lang, caretakers]);
+    exportActivitiesToCSV(exportableActivities, activePuppy, lang as 'en' | 'fr', caretakers);
+  }, [activePuppy, exportableActivities, lang, caretakers]);
 
   const handleExportPdf = useCallback(() => {
     setIsExportMenuOpen(false);
     if (!activePuppy) return;
     // All time: from the oldest day shown
     const period = { from: cutoffDateKey ?? dayGroups[dayGroups.length - 1]?.dateKey ?? todayDateKey, to: todayDateKey };
-    printActivitiesReport(visibleActivities, activePuppy, lang as 'en' | 'fr', t, caretakers, period);
-  }, [activePuppy, visibleActivities, cutoffDateKey, dayGroups, todayDateKey, lang, t, caretakers]);
+    printActivitiesReport(exportableActivities, activePuppy, lang as 'en' | 'fr', t, caretakers, period);
+  }, [activePuppy, exportableActivities, cutoffDateKey, dayGroups, todayDateKey, lang, t, caretakers]);
 
   // Close Export dropdown on outside click or Escape key
   useEffect(() => {
@@ -278,7 +286,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
     };
   }, [isExportMenuOpen]);
 
-  const hasLogsToExport = visibleActivities.length > 0 && !!activePuppy;
+  const hasLogsToExport = exportableActivities.length > 0 && !!activePuppy;
 
   return (
     <Card className="shadow-xl bg-slate-900/90 border-slate-800">
@@ -418,7 +426,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
                           <Calendar className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                         </div>
                         <div className="flex items-center gap-2 flex-wrap min-w-0">
-                          <span className="text-xs sm:text-sm font-extrabold text-slate-100 capitalize">
+                          <span className="text-xs sm:text-sm font-extrabold text-slate-100">
                             {group.dateLabel}
                           </span>
                           <span className="text-[10px] font-bold bg-slate-800/90 text-slate-300 px-2 py-0.5 rounded-full border border-slate-700/60 shrink-0">
@@ -508,15 +516,20 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
                             const isUnsaved = unsavedIds?.has(item.id);
                             // 'pipi 14:20': names this row's buttons
                             const rowName = `${String(t.potty[item.type as keyof typeof t.potty] || item.type).toLocaleLowerCase(lang)} ${formatLocalTime(new Date(item.timestamp), tz)}`;
+                            // The buttons sit at the row's right from 400 px (narrower phones keep the text readable with the buttons below); a log not saved keeps Retry and Discard on their own line below sm,
+                            // since they are wider and its "Not saved" mark must stay readable
+                            const inline = isUnsaved
+                              ? { row: 'sm:flex-row sm:items-start', actions: 'sm:self-start sm:pt-0 sm:border-t-0 sm:w-auto' }
+                              : { row: 'min-[400px]:flex-row min-[400px]:items-start', actions: 'min-[400px]:self-start min-[400px]:pt-0 min-[400px]:border-t-0 min-[400px]:w-auto' };
 
                             return (
                               <div
                                 key={item.id}
-                                className="relative group bg-slate-900/80 hover:bg-slate-900 border border-slate-800/80 hover:border-slate-700 rounded-xl p-3 sm:p-3.5 transition-all shadow-sm flex flex-col sm:flex-row sm:items-start justify-between gap-2.5 sm:gap-3"
+                                className={`relative group bg-slate-900/80 hover:bg-slate-900 border border-slate-800/80 hover:border-slate-700 rounded-xl p-3 sm:p-3.5 transition-all shadow-sm flex flex-col ${inline.row} justify-between gap-2.5 sm:gap-3`}
                               >
-                                {/* Timeline dot */}
+                                {/* Timeline dot, centred on the line (the list's before: element, 10 px from its left edge) */}
                                 <div
-                                  className="absolute -left-[22px] sm:-left-[23px] top-4 w-3.5 h-3.5 rounded-full ring-4 ring-slate-950 shrink-0"
+                                  className="absolute -left-4 sm:-left-5 top-4 w-3.5 h-3.5 rounded-full ring-4 ring-slate-950 shrink-0"
                                   style={{ backgroundColor: color }}
                                 />
 
@@ -532,7 +545,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
                                       </span>
 
                                       {isUnsaved && (
-                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-semibold bg-amber-950/70 border border-amber-700/60 text-amber-300 whitespace-nowrap">
+                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-semibold bg-amber-950/70 border border-amber-700/60 text-amber-300 sm:whitespace-nowrap">
                                           <AlertTriangle className="w-3 h-3 shrink-0" />
                                           <span>{t.potty.notSaved}</span>
                                         </span>
@@ -540,12 +553,12 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
 
                                       {/* Potty location pill */}
                                       {item.pottyLocation === 'outside' && (
-                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-semibold bg-emerald-950/70 border border-emerald-800/60 text-emerald-300 whitespace-nowrap">
+                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-semibold bg-emerald-950/70 border border-emerald-800/60 text-emerald-300 sm:whitespace-nowrap">
                                           <span aria-hidden="true">🌳</span> {t.potty.outside}
                                         </span>
                                       )}
                                       {item.pottyLocation === 'indoor_accident' && (
-                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-semibold bg-red-950/80 border border-red-700/80 text-red-300 whitespace-nowrap">
+                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-semibold bg-red-950/80 border border-red-700/80 text-red-300 sm:whitespace-nowrap">
                                           <AlertTriangle className="w-3 h-3 text-red-400 shrink-0" />
                                           <span>{t.potty.accident}</span>
                                         </span>
@@ -553,14 +566,14 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
 
                                       {/* Stool consistency */}
                                       {item.stoolConsistency && (
-                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium bg-slate-950 border border-slate-800 text-slate-300 whitespace-nowrap">
+                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium bg-slate-950 border border-slate-800 text-slate-300 sm:whitespace-nowrap">
                                           {t.dashboard.stoolChip[item.stoolConsistency] || item.stoolConsistency}
                                         </span>
                                       )}
 
                                       {/* Food Grams */}
                                       {item.quantityGrams && (
-                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-bold bg-purple-950/60 border border-purple-800/60 text-purple-300 whitespace-nowrap">
+                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-bold bg-purple-950/60 border border-purple-800/60 text-purple-300 sm:whitespace-nowrap">
                                           {formatGrams(item.quantityGrams, lang)}
                                           {item.quantityCups ? (
                                             <span className="font-normal text-purple-400/80"> ({item.quantityCups} {t.units.cups})</span>
@@ -570,14 +583,14 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
 
                                       {/* Weight Kg */}
                                       {item.weightKg && (
-                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-bold bg-pink-950/60 border border-pink-800/60 text-pink-300 whitespace-nowrap">
+                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-bold bg-pink-950/60 border border-pink-800/60 text-pink-300 sm:whitespace-nowrap">
                                           {formatKg(item.weightKg, lang)}
                                         </span>
                                       )}
 
                                       {/* Medication */}
                                       {item.medicationName && (
-                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-semibold bg-teal-950/60 border border-teal-800/60 text-teal-300 whitespace-nowrap">
+                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-semibold bg-teal-950/60 border border-teal-800/60 text-teal-300 sm:whitespace-nowrap">
                                           <span aria-hidden="true">💊</span> {item.medicationName}
                                         </span>
                                       )}
@@ -590,23 +603,26 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
                                     )}
 
                                     {/* Caretaker Name & Timestamp Line */}
-                                    <div className="flex items-center gap-1.5 sm:gap-2 text-xs text-slate-400 pt-0.5 min-w-0">
+                                    {/* Wraps: next to the buttons a name like "Owner Example" goes under the time rather than under the buttons */}
+                                    <div className="flex flex-wrap items-center gap-x-1.5 sm:gap-x-2 gap-y-0.5 text-xs text-slate-400 pt-0.5 min-w-0">
                                       <span className="font-medium text-slate-300 shrink-0 whitespace-nowrap">{formatLocalTime(new Date(item.timestamp), tz)}</span>
                                       <span className="text-slate-600 shrink-0">&bull;</span>
+                                      {/* Readable whatever the badge colour, which outlines the pill (from sm) and fills the dot. On a phone, no pill: the name gets the room */}
                                       <span
-                                        className="inline-flex items-center gap-1 font-bold px-2 py-0.5 rounded-full bg-slate-950 border border-slate-800 text-xs max-w-[130px] sm:max-w-[220px] min-w-0"
-                                        style={{ color }}
+                                        className="inline-flex items-center gap-1 font-bold text-slate-200 sm:px-2 sm:py-0.5 rounded-full sm:bg-slate-950 sm:border text-xs sm:max-w-[220px] min-w-0"
+                                        style={{ borderColor: color }}
                                         title={caretakerName}
                                       >
-                                        <User className="w-3 h-3 shrink-0" />
-                                        <span className="truncate">{caretakerName}</span>
+                                        <User className="hidden sm:block w-3 h-3 shrink-0" style={{ color }} />
+                                        {/* A phone wraps a long name rather than cut it to 'Own…', inside a word only when one word is wider than the row */}
+                                        <span className="min-w-0 break-words sm:truncate">{caretakerName}</span>
                                       </span>
                                     </div>
                                   </div>
                                 </div>
 
                                 {/* Actions: Edit & Delete, or Retry & Discard for a log not saved */}
-                                <div className="flex items-center justify-end gap-1.5 shrink-0 self-end sm:self-start pt-1 sm:pt-0 border-t border-slate-800/40 sm:border-t-0 w-full sm:w-auto">
+                                <div className={`flex items-center justify-end gap-1.5 shrink-0 self-end pt-1 border-t border-slate-800/40 w-full ${inline.actions}`}>
                                   {isUnsaved ? (
                                     <>
                                       <button

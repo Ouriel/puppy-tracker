@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from 'vite
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { ActivityTimeline } from '../ActivityTimeline';
-import type { Activity, ActivityType, PuppyProfile } from '../../types';
+import type { Activity, ActivityType, Caretaker, PuppyProfile } from '../../types';
 
 // Backlog item 26, on a made-up dog. Now: 15 Oct 2026, noon in Paris (npm test pins TZ=Europe/Paris).
 
@@ -38,13 +38,13 @@ afterEach(async () => {
 });
 
 /** Renders the feed in `lang` with every day open. */
-async function renderFeed(lang: 'en' | 'fr', list: Activity[] = activities) {
+async function renderFeed(lang: 'en' | 'fr', list: Activity[] = activities, caretakers: Caretaker[] = []) {
   localStorage.setItem('puppace_lang_v1', lang);
   const container = document.createElement('div');
   document.body.appendChild(container);
   root = createRoot(container);
   await act(async () => root!.render(
-    <ActivityTimeline activities={list} caretakers={[]} activePuppy={puppy} onDeleteActivity={vi.fn()} referenceTime={new Date()} />
+    <ActivityTimeline activities={list} caretakers={caretakers} activePuppy={puppy} onDeleteActivity={vi.fn()} referenceTime={new Date()} />
   ));
   const expandAll = [...container.querySelectorAll('button')].find((button) => button.textContent === (lang === 'fr' ? 'Tout déplier' : 'Expand All'))!;
   await act(async () => expandAll.click());
@@ -90,5 +90,25 @@ describe('activity feed day groups (backlog item 26)', () => {
 
     expect(spans).toEqual(expect.arrayContaining(['Mou', 'Dur (constipation)', 'Normal']));
     expect(container.textContent).not.toMatch(/Molles|Dures|Normales/);
+  });
+
+  // App review 2026-10-16, section 3: CSS capitalize gave "Ven. 16 Oct."; only the first letter is a capital
+  it('in French, a day header starts with a capital and keeps the rest lower case: "Mardi 13 oct.", "Aujourd\'hui • jeu. 15 oct."', async () => {
+    const container = await renderFeed('fr', [...activities, log('act-older', 'pee', '2026-10-13T09:00:00+02:00')]);
+    const headers = [...container.querySelectorAll('button[aria-expanded] span.font-extrabold')];
+
+    expect(headers.map((header) => header.textContent)).toEqual(['Aujourd\'hui • jeu. 15 oct.', 'Hier • mer. 14 oct.', 'Mardi 13 oct.']);
+    expect(headers.some((header) => header.classList.contains('capitalize'))).toBe(false);
+  });
+
+  // App review 2026-10-16, section 3: a dark badge colour made the name unreadable (1.95:1); the colour stays on the dot and the outline
+  it('the caretaker\'s name is written in the feed\'s text colour; the badge colour marks the dot and the outline', async () => {
+    const darkBadge: Caretaker = { id: 'c-1', name: 'Sam', role: 'Member', color: '#1E3A8A' };
+    const container = await renderFeed('en', [log('act-pee', 'pee', '2026-10-15T09:00:00+02:00')], [darkBadge]);
+    const namePill = container.querySelector<HTMLElement>('[title="Sam"]')!;
+
+    expect(namePill.style.color).toBe('');
+    expect(namePill.style.borderColor).toBe('rgb(30, 58, 138)');
+    expect([...container.querySelectorAll<HTMLElement>('[style]')].some((element) => element.style.backgroundColor === 'rgb(30, 58, 138)')).toBe(true);
   });
 });

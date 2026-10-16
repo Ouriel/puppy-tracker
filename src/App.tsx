@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef, lazy, Suspense, type SetStateAction } from 'react';
-import type { Activity, UserAccount, ActivityType, PottyLocation, FamilyRole, HealthRecord, HealthRecordsLoadState, SignInOutcome } from './types';
+import type { Activity, UserAccount, ActivityType, PottyLocation, FamilyRole, HealthRecord, HealthRecordsLoadState, PuppyProfile, SignInOutcome } from './types';
 import { getAuthToken, setAuthToken, getStoredAuthUser, setStoredAuthUser } from './utils/auth';
 import { isSuperAdminEmail } from './utils/auth';
 import {
@@ -16,14 +16,15 @@ import { Navbar } from './components/Navbar';
 import { PredictorWidget } from './components/PredictorWidget';
 import { ActivityTimeline } from './components/ActivityTimeline';
 import { DogHealthSummary } from './components/DogHealthSummary';
+import { ConfirmationModal } from './components/common/ConfirmationModal';
 
 const SettingsView = lazy(() => import('./views/SettingsView').then((m) => ({ default: m.SettingsView })));
 const CarnetDeSanteView = lazy(() => import('./views/CarnetDeSanteView').then((m) => ({ default: m.CarnetDeSanteView })));
 const AuthLockScreen = lazy(() => import('./components/AuthLockScreen').then((m) => ({ default: m.AuthLockScreen })));
 const QuickLogModal = lazy(() => import('./components/QuickLogModal').then((m) => ({ default: m.QuickLogModal })));
-import { Button, Card } from '@heroui/react';
-import { useI18n } from './i18n';
-import { Dog, Plus } from 'lucide-react';
+import { Button, Card, toast } from '@heroui/react';
+import { useI18n, formatCount } from './i18n';
+import { AlertTriangle, Dog, Plus } from 'lucide-react';
 import { usePuppies } from './hooks/usePuppies';
 import { useCaretakers } from './hooks/useCaretakers';
 import { useActivities, mergeOlderActivities } from './hooks/useActivities';
@@ -37,7 +38,7 @@ const FAMILY_ROLES: readonly string[] = ['Husband', 'Wife', 'Partner', 'Child', 
 const DASHBOARD_RELOAD_MS = 15 * 60 * 1000;
 
 function App() {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
 
   const [user, setUser] = useState<UserAccount | null>(() => {
     const token = getAuthToken();
@@ -75,10 +76,14 @@ function App() {
   const [currentView, setCurrentView] = useState<'dashboard' | 'carnetdesante' | 'settings'>(getViewFromPath);
   const [isQuickLogOpen, setIsQuickLogOpen] = useState<boolean>(false);
   const [quickLogType, setQuickLogType] = useState<ActivityType>('pee');
+  const [isDiscardUnsentOpen, setIsDiscardUnsentOpen] = useState<boolean>(false);
 
-  const { activePuppyId, setPuppies, setDeletedPuppies, selectPuppy } = puppyState;
+  const { activePuppyId, setPuppies, setDeletedPuppies, selectPuppy, addPuppy } = puppyState;
   const { setCaretakers } = caretakerState;
-  const { setActivitiesForPuppy, getMutationVersion, addActivity, retryActivity } = activityState;
+  const { setActivitiesForPuppy, getMutationVersion, addActivity, retryActivity, discardActivity } = activityState;
+  const hasNoDog = puppyState.puppies.length === 0;
+  // A dog switch keeps the dashboard, dimmed, until the dog's logs arrive (app review flow 4); the skeleton is for the first load only
+  const isSwitchingDog = activityState.isLoadingActivities;
 
   // Counts the health passport's changes: a dashboard answer read before one may miss it
   const healthRecordsVersionRef = useRef(0);
@@ -312,6 +317,12 @@ function App() {
 
   const activePuppyMedications = useMemo(() => activePuppyAllTime.filter((activity) => activity.type === 'medication'), [activePuppyAllTime]);
 
+  // Quick logs the server did not take, every dog's: one line above the cards keeps them in sight
+  const unsavedActivities = useMemo(
+    () => activityState.activities.filter((activity) => activityState.unsavedActivityIds.has(activity.id)),
+    [activityState.activities, activityState.unsavedActivityIds]
+  );
+
   const lastWeighIn = useMemo(() => getUnifiedWeightEntries(activePuppyWeights).at(-1), [activePuppyWeights]);
 
   const predictions = useMemo(() => {
@@ -380,10 +391,36 @@ function App() {
     void logActivity(newAct, { keepUnsaved: true });
   }, [puppyState.activePuppy, caretakerState.currentUser, logActivity]);
 
+  const retryUnsavedLogs = useCallback(() => {
+    unsavedActivities.forEach((unsaved) => void retryLog(unsaved));
+  }, [unsavedActivities, retryLog]);
+
+  const discardUnsavedLogs = useCallback(() => {
+    unsavedActivities.forEach((unsaved) => discardActivity(unsaved.id));
+  }, [unsavedActivities, discardActivity]);
+
+  // The one log of the dog shown goes at once, as with its row's Discard; more, or another dog's (its row is not on screen), ask first.
+  // The toasts go: on a phone their "not saved" toasts would cover the dialog's buttons.
+  const handleDiscardUnsavedLogs = useCallback(() => {
+    if (unsavedActivities.length === 1 && unsavedActivities[0].puppyId === activePuppyId) {
+      discardUnsavedLogs();
+      return;
+    }
+    toast.clear();
+    setIsDiscardUnsentOpen(true);
+  }, [unsavedActivities, activePuppyId, discardUnsavedLogs]);
+
   const handleOpenQuickLogModal = useCallback((type?: ActivityType) => {
     setQuickLogType(type || 'pee');
     setIsQuickLogOpen(true);
   }, []);
+
+  // App review decision 9: the first dog saved opens the dashboard, where its cards are; a later dog keeps Settings open
+  const handleAddPuppy = useCallback(async (newPuppy: PuppyProfile) => {
+    const isSaved = await addPuppy(newPuppy);
+    if (isSaved && hasNoDog) handleNavigate('dashboard');
+    return isSaved;
+  }, [addPuppy, hasNoDog, handleNavigate]);
 
   const handleOpenHealthPassport = useCallback(() => handleNavigate('carnetdesante'), [handleNavigate]);
 
@@ -436,7 +473,7 @@ function App() {
     </p>
   );
 
-  if (isLoading || (currentView === 'dashboard' && user && activityState.isLoadingActivities && puppyState.puppies.length > 0)) {
+  if (isLoading) {
     return (
       <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans antialiased">
         {/* Real Navbar if cached profile present, otherwise Skeleton Navbar */}
@@ -454,15 +491,15 @@ function App() {
             <div className="w-24 h-4 rounded bg-slate-800 motion-safe:animate-pulse" />
           </div>
         )}
-        {/* Skeleton PredictorWidget — 3 hero card placeholders */}
-        <main className="flex-1 max-w-6xl w-full mx-auto px-4 py-6 space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* Skeleton PredictorWidget — 3 hero card placeholders, as tall as the cards (about 240 px compact on a phone, 300 px from md), so the page does not jump when they arrive */}
+        <main role="status" aria-label={t.dashboard.loading} className="flex-1 max-w-6xl w-full mx-auto px-4 py-6 space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             {[1, 2, 3].map((index) => (
-              <div key={index} className="h-48 rounded-3xl bg-slate-900 border border-slate-800 motion-safe:animate-pulse" />
+              <div key={index} className="h-60 md:h-76 rounded-3xl bg-slate-900 border border-slate-800 motion-safe:animate-pulse" />
             ))}
           </div>
-          {/* Skeleton Health Summary */}
-          <div className="h-32 rounded-3xl bg-slate-900 border border-slate-800 motion-safe:animate-pulse" />
+          {/* Skeleton Health Summary (the real one is 850-1050 px; 600 px fills the first screen) */}
+          <div className="h-150 rounded-3xl bg-slate-900 border border-slate-800 motion-safe:animate-pulse" />
           {/* Skeleton Timeline */}
           <div className="space-y-3">
             {[1, 2, 3].map((index) => (
@@ -543,7 +580,7 @@ function App() {
               puppies={puppyState.puppies}
               activePuppyId={puppyState.activePuppyId}
               onSelectPuppy={puppyState.selectPuppy}
-              onAddPuppy={puppyState.addPuppy}
+              onAddPuppy={handleAddPuppy}
               onUpdatePuppy={puppyState.updatePuppy}
               onDeletePuppy={puppyState.deletePuppy}
               deletedPuppies={puppyState.deletedPuppies}
@@ -572,9 +609,26 @@ function App() {
             </Card.Content>
           </Card>
         ) : (
-          <div className="space-y-6">
+          <div aria-busy={isSwitchingDog || undefined} className={`space-y-6 motion-safe:transition-opacity ${isSwitchingDog ? 'opacity-50' : ''}`}>
             <h1 className="sr-only">{puppyState.activePuppy?.name}</h1>
             {offlineLine}
+            {/* App review decision 8: a failed log stays in sight after its toast closed (its row may be screens below) */}
+            {unsavedActivities.length > 0 && (
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pl-3 pr-1 py-1 rounded-xl border border-amber-700/60 bg-amber-950/40 text-xs font-semibold text-amber-300">
+                <span role="status" className="flex items-center gap-1.5 min-w-0">
+                  <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                  {formatCount(t.dashboard.unsentLogs, unsavedActivities.length, lang)}
+                </span>
+                <div className="flex items-center gap-3 ml-auto">
+                  <button type="button" onClick={retryUnsavedLogs} className="min-h-11 px-3 rounded-lg font-bold text-amber-200 hover:bg-amber-900/50 transition-colors">
+                    {t.potty.retry}
+                  </button>
+                  <button type="button" onClick={handleDiscardUnsavedLogs} className="min-h-11 px-3 rounded-lg text-slate-300 hover:bg-slate-800 transition-colors">
+                    {t.potty.discard}
+                  </button>
+                </div>
+              </div>
+            )}
 
             {/* Active Puppy Predictor Hero Bar (3 Cards: Next Pee, Next Poop, Next Meal) */}
             {predictions && puppyState.activePuppy && (
@@ -588,6 +642,7 @@ function App() {
                 onQuickAction={handleQuickAction}
                 onOpenQuickLogModal={handleOpenQuickLogModal}
                 referenceTime={now}
+                isHistoryUnknown={!activityState.areActivitiesKnown}
               />
             )}
 
@@ -622,6 +677,15 @@ function App() {
           </div>
         )}
       </main>
+
+      <ConfirmationModal
+        isOpen={isDiscardUnsentOpen}
+        onClose={() => setIsDiscardUnsentOpen(false)}
+        onConfirm={discardUnsavedLogs}
+        title={formatCount(t.dashboard.discardUnsentTitle, unsavedActivities.length, lang)}
+        message={formatCount(t.dashboard.discardUnsentMessage, unsavedActivities.length, lang)}
+        confirmLabel={t.potty.discard}
+      />
 
       {/* Quick Log Modal: mounted on open, unmounted on close, so it never resets while open */}
       {isQuickLogOpen && (

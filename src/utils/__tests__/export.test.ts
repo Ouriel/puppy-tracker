@@ -167,6 +167,21 @@ describe('export utilities — CSV and PDF export test suite', () => {
       expect(text).toContain('"Outside"');
       expect(text).toContain('"Indoor Accident"');
     });
+
+    // App review 2026-10-16, section 3: "diarrhea" and "runny" were exported raw
+    it('every stool value is translated, as in the log form', async () => {
+      const stools: Activity[] = (['diarrhea', 'runny', 'soft', 'hard', 'normal'] as const).map((stoolConsistency, index) => ({
+        id: `poop-${index}`, puppyId: 'pup-1', type: 'poop', timestamp: `2026-08-19T1${index}:00:00.000Z`, stoolConsistency, loggedBy: 'Sam',
+      }));
+      exportActivitiesToCSV(stools, mockProfile, 'fr', mockCaretakers);
+      const text = await (createdBlob as Blob).text();
+
+      expect(text.match(/"Diarrhée"/g)).toHaveLength(2);
+      expect(text).toContain(`"${fr.potty.soft}"`);
+      expect(text).toContain(`"${fr.potty.hard}"`);
+      expect(text).toContain(`"${fr.potty.normal}"`);
+      expect(text).not.toMatch(/diarrhea|runny/);
+    });
   });
 
   describe('printActivitiesReport', () => {
@@ -193,7 +208,7 @@ describe('export utilities — CSV and PDF export test suite', () => {
       expect(htmlContent).toContain('<div class="card-value">5</div>'); // total logs card
       expect(htmlContent).toContain('Dehors');
       expect(htmlContent).toContain('Accident Intérieur');
-      expect(htmlContent).toContain('80g');
+      expect(htmlContent).toContain('80\u00a0g');
       expect(htmlContent).toContain('Bravecto');
     });
 
@@ -222,7 +237,27 @@ describe('export utilities — CSV and PDF export test suite', () => {
 
       expect(mealsCard(gramlessMeals)).toContain('>2</div>');
       expect(mealsCard(gramlessMeals)).not.toMatch(/\dg/);
-      expect(mealsCard(mockActivities)).toContain('80g logged');
+      expect(mealsCard(mockActivities)).toContain('80 g logged');
+    });
+
+    // App review 2026-10-16, section 3: "Selles : diarrhea", "(0.73 cups)" and an English brand line in a French report
+    it('a French report says the stool, the cups and its brand line in French, with French numbers', () => {
+      const diarrhea: Activity = { id: 'act-d', puppyId: 'pup-1', type: 'poop', timestamp: '2026-08-19T10:00:00.000Z', stoolConsistency: 'diarrhea', loggedBy: 'Sam' };
+      printActivitiesReport([...mockActivities, diarrhea], mockProfile, 'fr', fr, mockCaretakers, period);
+      const htmlContent = mockWindow?.document.write.mock.calls[0][0] as string;
+
+      expect(htmlContent).toContain('Selles\u00a0: Diarrhée');
+      expect(htmlContent).toContain('Selles\u00a0: Molles');
+      expect(htmlContent).toContain('80\u00a0g</strong> (0,73 verres)');
+      expect(htmlContent).toContain('6,8 kg');
+      expect(htmlContent).not.toMatch(/Smart Activity Log|diarrhea|cups/);
+    });
+
+    it('the "Logged by" cell never wraps', () => {
+      printActivitiesReport(mockActivities, mockProfile, 'en', en, mockCaretakers, period);
+      const htmlContent = (mockWindow!.document.write.mock.calls[0][0] as string).replace(/\s+/g, ' ');
+
+      expect(htmlContent).toMatch(/\.caretaker-badge \{[^}]*white-space: nowrap;/);
     });
   });
 

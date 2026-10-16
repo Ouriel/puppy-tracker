@@ -66,6 +66,13 @@ function toastNotSaved(t: TranslationKeys, errorKey: ApiErrorKey, onRetry: () =>
   });
 }
 
+/** A one-tap log's name, for its toast: 'Pipi dehors', 'Accident de caca'. */
+function quickLogName(t: TranslationKeys, activity: Activity): string {
+  const isAccident = activity.pottyLocation === 'indoor_accident';
+  if (activity.type === 'poop') return isAccident ? t.potty.poopAccident : t.potty.poopedOutside;
+  return isAccident ? t.potty.peeAccident : t.potty.peedOutside;
+}
+
 /** Counts an add, edit or delete from its request to its answer: a dashboard answer read meanwhile may miss it. */
 async function trackMutation<T>(mutations: { version: number; pending: number }, request: Promise<T>): Promise<T> {
   mutations.pending += 1;
@@ -100,6 +107,9 @@ export function useActivities(
   const [hasMoreRemote, setHasMoreRemote] = useState(true);
   // Quick logs the server did not take, kept in the list for Retry or Discard
   const [unsavedIds, setUnsavedIds] = useState<ReadonlySet<string>>(() => new Set());
+  // The dog whose logs are here (the server's, or this phone's copy at boot). Another dog's are unknown, not "none yet".
+  const [knownPuppyId, setKnownPuppyId] = useState<string | null>(() =>
+    (activePuppy?.id && getStoredRecentActivities(activePuppy.id) ? activePuppy.id : null));
   const loadedPuppyIdRef = useRef<string | null>(null);
   const isInitialMountRef = useRef(true);
   // Tap time of the last log per dog and type, for the double-log guard
@@ -138,6 +148,7 @@ export function useActivities(
           : allTimeLogs));
       }
       setIsLoading(false);
+      setKnownPuppyId(puppyId);
       // A refresh of the same dog never hides "load more"
       setHasMoreRemote((previous) => (isSamePuppy && previous) || recentActivities.length >= RECENT_LOGS_LIMIT);
     });
@@ -163,30 +174,30 @@ export function useActivities(
     let isMounted = true;
     async function loadActivities() {
       setIsLoading(true);
+      // Read first: a log added or deleted before the answer arrives (the dimmed dashboard stays usable) may be missing from it
+      const mutationVersion = mutationsRef.current.version;
       // Fetch initial 14-day window (matches 10-day decay learning history & 7-day timeline view), and every weigh-in and medication
       const [result, ...allTimeResults] = await Promise.all([
         fetchActivities(activePuppy!.id, { days: RECENT_LOGS_DAYS, limit: RECENT_LOGS_LIMIT, offset: 0 }),
         ...ALL_TIME_TYPES.map((type) => fetchActivities(activePuppy!.id, { type })),
       ]);
-      if (isMounted && result.ok) {
-        loadedPuppyIdRef.current = activePuppy!.id;
-        historyStartRef.current = recentWindowStart(result.data);
-        setActivities((previous) => mergeOlderActivities(result.data, previous.filter((activity) => pendingAddIdsRef.current.has(activity.id))));
-        setHasMoreRemote(result.data.length >= RECENT_LOGS_LIMIT);
+      if (!isMounted) return;
+      const allTimeLogs = allTimeResults.some((allTimeResult) => allTimeResult.ok)
+        ? allTimeResults.flatMap((allTimeResult) => (allTimeResult.ok ? allTimeResult.data : []))
+        : undefined;
+      if (result.ok) {
+        setActivitiesForPuppy(result.data, activePuppy!.id, mutationVersion, allTimeLogs);
+        return;
       }
-      if (isMounted && allTimeResults.some((allTimeResult) => allTimeResult.ok)) {
-        setAllTimeActivities(allTimeResults.flatMap((allTimeResult) => (allTimeResult.ok ? allTimeResult.data : [])));
-      }
-      if (isMounted) {
-        setIsLoading(false);
-      }
+      if (allTimeLogs) setAllTimeActivities(allTimeLogs);
+      setIsLoading(false);
     }
 
     loadActivities();
     return () => {
       isMounted = false;
     };
-  }, [activePuppy?.id, options?.skipInitialFetch]);
+  }, [activePuppy?.id, options?.skipInitialFetch, setActivitiesForPuppy]);
 
   const activePuppyId = activePuppy?.id;
 
@@ -222,6 +233,23 @@ export function useActivities(
     setIsFetchingMore(false);
   }, [activePuppyId, activities, isFetchingMore]);
 
+  /** Removes a log at once, then asks the server; refused, `removed` and `removedWeight` (its rows as shown) come back. */
+  const removeActivity = useCallback(async (id: string, removed?: Activity, removedWeight?: Activity) => {
+    locallyDeletedIdsRef.current.add(id);
+    setActivities((previous) => previous.filter((activity) => activity.id !== id));
+    setAllTimeActivities((previous) => replaceAllTimeRow(previous, id));
+
+    const result = await trackMutation(mutationsRef.current, apiDeleteActivity(id));
+    if (result.ok) {
+      toast(t.toasts.activityDeleted);
+    } else {
+      locallyDeletedIdsRef.current.delete(id);
+      if (removed) setActivities((previous) => [removed, ...previous]);
+      if (removedWeight) setAllTimeActivities((previous) => replaceAllTimeRow(previous, id, removedWeight));
+      toast.danger(t.toasts[result.errorKey]);
+    }
+  }, [t]);
+
   /** Sends a log kept as not saved again, under the same id (the server keeps one copy). The saved log, or undefined. */
   const retryActivity = useCallback(async function retry(unsaved: Activity): Promise<Activity | undefined> {
     // Discarded, or saved by an earlier Retry
@@ -244,7 +272,8 @@ export function useActivities(
 
   /**
    * The saved log; 'alreadyLogged' for a double tap, ignored; undefined when it was not saved.
-   * `keepUnsaved`: a refused log stays, marked, for Retry. `id`: the log form's own, the same for each Save of one form.
+   * `keepUnsaved` (a one-tap log): a refused log stays, marked, for Retry; a saved one gets Undo in its toast.
+   * `id`: the log form's own, the same for each Save of one form.
    */
   const addActivity = useCallback(
     async (activityData: Omit<Activity, 'id'>, options?: { keepUnsaved?: boolean; id?: string }): Promise<Activity | 'alreadyLogged' | undefined> => {
@@ -284,8 +313,24 @@ export function useActivities(
           setActivities((previous) => previous.map((activity) => (activity.id === newActivity.id ? result.data : activity)));
           setAllTimeActivities((previous) => replaceAllTimeRow(previous, newActivity.id, result.data));
         });
-        toast.success(t.toasts.activityLogged);
-        return result.data;
+        if (!options?.keepUnsaved) {
+          toast.success(t.toasts.activityLogged);
+          return result.data;
+        }
+        // App review decision 7: one tap logged it, one tap undoes it. The toast says what was logged.
+        const saved = result.data;
+        const key = toast.success(t.toasts.quickLogged.replace('{log}', quickLogName(t, saved)), {
+          actionProps: {
+            children: t.common.undo,
+            onPress: () => {
+              toast.close(key);
+              // The tap that corrects it ("Accident" for "Dehors") is not a double tap
+              if (lastLogTapRef.current.get(tapKey) === tapTime) lastLogTapRef.current.delete(tapKey);
+              void removeActivity(saved.id, saved, saved.type === 'weight' ? saved : undefined);
+            },
+          },
+        });
+        return saved;
       } else if (options?.keepUnsaved) {
         // Still on screen, marked: a second tap within the window stays a double tap
         setUnsavedIds((previous) => new Set(previous).add(newActivity.id));
@@ -301,7 +346,7 @@ export function useActivities(
         toast.danger(t.toasts[result.errorKey]);
       }
     },
-    [activePuppy, t, retryActivity]
+    [activePuppy, t, retryActivity, removeActivity]
   );
 
   /** Drops a log kept as not saved, without sending anything. */
@@ -337,24 +382,8 @@ export function useActivities(
   }, [activities, allTimeActivities, t]);
 
   const deleteActivity = useCallback(
-    async (id: string) => {
-      const removed = activities.find((activity) => activity.id === id);
-      const removedWeight = allTimeActivities.find((weight) => weight.id === id);
-      locallyDeletedIdsRef.current.add(id);
-      setActivities((previous) => previous.filter((activity) => activity.id !== id));
-      setAllTimeActivities((previous) => replaceAllTimeRow(previous, id));
-
-      const result = await trackMutation(mutationsRef.current, apiDeleteActivity(id));
-      if (result.ok) {
-        toast(t.toasts.activityDeleted);
-      } else {
-        locallyDeletedIdsRef.current.delete(id);
-        if (removed) setActivities((previous) => [removed, ...previous]);
-        if (removedWeight) setAllTimeActivities((previous) => replaceAllTimeRow(previous, id, removedWeight));
-        toast.danger(t.toasts[result.errorKey]);
-      }
-    },
-    [activities, allTimeActivities, t]
+    (id: string) => removeActivity(id, activities.find((activity) => activity.id === id), allTimeActivities.find((weight) => weight.id === id)),
+    [activities, allTimeActivities, removeActivity]
   );
 
   return {
@@ -364,6 +393,7 @@ export function useActivities(
     getMutationVersion,
     setActivitiesForPuppy,
     isLoadingActivities: isLoading,
+    areActivitiesKnown: !!activePuppy && knownPuppyId === activePuppy.id,
     hasMoreRemoteActivities: hasMoreRemote,
     isFetchingMoreActivities: isFetchingMore,
     loadMoreActivities,

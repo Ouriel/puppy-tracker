@@ -31,12 +31,12 @@ afterEach(async () => {
   vi.clearAllMocks();
 });
 
-async function renderTimeline({ shownActivities = activities, hasMoreRemote = false } = {}) {
+async function renderTimeline({ shownActivities = activities, hasMoreRemote = false, unsavedIds = new Set<string>() } = {}) {
   const container = document.createElement('div');
   document.body.appendChild(container);
   root = createRoot(container);
   await act(async () => {
-    root!.render(<ActivityTimeline activities={shownActivities} caretakers={[]} activePuppy={puppy} onDeleteActivity={vi.fn()} hasMoreRemote={hasMoreRemote} referenceTime={referenceTime} />);
+    root!.render(<ActivityTimeline activities={shownActivities} caretakers={[]} activePuppy={puppy} onDeleteActivity={vi.fn()} hasMoreRemote={hasMoreRemote} referenceTime={referenceTime} unsavedIds={unsavedIds} />);
   });
 }
 
@@ -93,5 +93,15 @@ describe('Activity feed export (pre-fill review item 29)', () => {
     await renderTimeline({ shownActivities: activities.slice(7) });
 
     expect(document.querySelector(`button[title="${en.dashboard.export}"]`)).toBeNull();
+  });
+
+  // App review 2026-10-16, decision 8: a log the server never took is not in the family's records
+  it('a log marked "not saved" stays out of the CSV and the print', async () => {
+    await renderTimeline({ unsavedIds: new Set(['act-0']) });
+    await exportAs(en.dashboard.exportCsv);
+    await exportAs(en.dashboard.exportPdf);
+
+    expect(exportedIds(exportActivitiesToCSV)).toEqual(shownIds.slice(1));
+    expect(exportedIds(printActivitiesReport)).toEqual(shownIds.slice(1));
   });
 });

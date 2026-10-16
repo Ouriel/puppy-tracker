@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import type { Activity, ActivityType, PottyLocation, PuppyProfile, PredictionResult } from '../types';
-import { Droplet, Utensils, CheckCircle2 } from 'lucide-react';
+import { Droplet, Utensils, CheckCircle2, ChevronDown } from 'lucide-react';
 import { PoopIcon } from './common/PoopIcon';
 import { Card } from '@heroui/react';
 import { useI18n } from '../i18n';
@@ -21,7 +21,18 @@ interface PredictorWidgetProps {
   onQuickAction: (type: ActivityType, pottyLocation?: PottyLocation) => void;
   onOpenQuickLogModal: (type?: ActivityType) => void;
   referenceTime?: Date;
+  /** The dog's logs are not here (a dog switch, or a load that failed): no "nothing yet" line and no counts, which would present it as new. */
+  isHistoryUnknown?: boolean;
 }
+
+type CardKind = 'pee' | 'poop' | 'food';
+
+// App review decision 5: a 2 px outline on urgency, red when overdue and amber when soon, the same on all three cards
+const URGENCY_CARD_CLASSES: Record<PredictionResult['peeUrgency'], string> = {
+  overdue: 'border-2 border-red-500/80 bg-red-950/40 shadow-lg shadow-red-950/50',
+  soon: 'border-2 border-amber-400/70 bg-amber-950/30',
+  safe: 'bg-slate-900/90 border-slate-800',
+};
 
 export const PredictorWidget: React.FC<PredictorWidgetProps> = React.memo(({
   predictions,
@@ -33,7 +44,10 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = React.memo(({
   onQuickAction,
   onOpenQuickLogModal,
   referenceTime,
+  isHistoryUnknown = false,
 }) => {
+  // Decision 10: below md a card folds its counts and explanation; the cards opened by a tap
+  const [openDetails, setOpenDetails] = useState<ReadonlySet<CardKind>>(() => new Set());
   const { t, lang } = useI18n();
 
   const now = useMemo(() => referenceTime || new Date(), [referenceTime]);
@@ -79,6 +93,16 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = React.memo(({
     ? t.dashboard.vetDiarrhea
     : predictions.poopReason.startsWith('Digestive recovery') ? t.dashboard.vetHardStool : null;
   const targetMeals = profile.targetMealsPerDay || 3;
+  // Nothing logged yet (the engine has no last pee or poop): one line instead of a countdown, no chip, no ±
+  const hasNoPee = predictions.nextPeeExpectedAt === null;
+  const hasNoPoop = predictions.nextPoopExpectedAt === null;
+  // Decision 9: before the dog's first meal the meal card names breakfast and never turns amber or red
+  const isBeforeFirstMeal = lastFoodMinsAgo === null;
+  const foodUrgency = isBeforeFirstMeal ? 'safe' : predictions.foodUrgency;
+  // Its time only while it is ahead and in the morning: for a dog added at 15:00 the engine's breakfast is 07:30, past,
+  // and after an evening first pee it is 15 min later
+  const firstMealAt = predictions.nextFoodExpectedAt ? new Date(predictions.nextFoodExpectedAt) : null;
+  const isBreakfastAhead = firstMealAt !== null && firstMealAt > now && firstMealAt.getHours() < 12;
 
   const getUrgencyBadge = (urgency: 'safe' | 'soon' | 'overdue') => {
     return <StatusBadge status={urgency} />;
@@ -120,21 +144,45 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = React.memo(({
     return minutes < 1 ? t.dashboard.justNow : t.dashboard.timeAgo.replace('{time}', formatDuration(minutes, lang));
   };
 
+  const toggleDetails = (card: CardKind) => {
+    setOpenDetails((previous) => {
+      const next = new Set(previous);
+      if (next.has(card)) next.delete(card);
+      else next.add(card);
+      return next;
+    });
+  };
+
+  // Below md: one line ("6 today · 31m ago") that opens the counts and the explanation
+  const renderDetailsToggle = (card: CardKind, summary: string) => (
+    <button
+      type="button"
+      onClick={() => toggleDetails(card)}
+      aria-expanded={openDetails.has(card)}
+      aria-controls={`predictor-${card}-details`}
+      className="md:hidden w-full min-h-11 flex items-center justify-between gap-2 px-2.5 rounded-xl bg-slate-950/60 border border-slate-800/80 text-xs font-semibold text-slate-300"
+    >
+      <span>{summary}</span>
+      <ChevronDown aria-hidden="true" className={`w-4 h-4 shrink-0 text-slate-400 transition-transform ${openDetails.has(card) ? 'rotate-180' : ''}`} />
+    </button>
+  );
+  // The toggle and its details share one wrapper, so the card's spacing comes after both (the poop card's vet line follows them)
+  const detailsClass = (card: CardKind) => `space-y-3 ${openDetails.has(card) ? 'mt-3 md:mt-0' : 'hidden md:block'}`;
+  // "2 today · 10m ago"; no "ago" before the first log
+  const joinSummary = (first: string, minutesAgo: number | null) => (minutesAgo === null ? first : `${first} · ${formatAgo(minutesAgo)}`);
+  const rationText = dailyGoal > 0
+    ? `${formatGrams(todayFoodLoggedGrams, lang)} / ${formatGrams(dailyGoal, lang)} (${todayMealsCount}/${targetMeals})`
+    : `${todayMealsCount}/${targetMeals} ${targetMeals === 1 ? t.puppies.meal : t.puppies.meals}`;
+
   // "15:50" in French, "3:50 PM" in English (not "03:50 PM")
   const formatClock = (date: Date) =>
     date.toLocaleTimeString(lang === 'fr' ? 'fr-FR' : 'en-US', { hour: lang === 'fr' ? '2-digit' : 'numeric', minute: '2-digit' });
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-stretch">
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-stretch">
       {/* 1. Next Pee Card */}
       <Card
-        className={`transition-all flex flex-col ${
-          predictions.peeUrgency === 'overdue'
-            ? 'bg-red-950/40 border-red-700/60 shadow-lg shadow-red-950/50'
-            : predictions.peeUrgency === 'soon'
-            ? 'bg-amber-950/30 border-amber-600/50'
-            : 'bg-slate-900/90 border-slate-800'
-        }`}
+        className={`transition-all flex flex-col ${URGENCY_CARD_CLASSES[predictions.peeUrgency]}`}
       >
         <Card.Content className="p-4 flex flex-col justify-between h-full space-y-3">
           <div className="space-y-3">
@@ -146,66 +194,81 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = React.memo(({
                 </div>
                 <h2 className="text-xs font-bold text-slate-300">{t.potty.nextPee}</h2>
               </div>
-              {getUrgencyBadge(predictions.peeUrgency)}
+              {!hasNoPee && getUrgencyBadge(predictions.peeUrgency)}
             </div>
 
             {/* Countdown & Delta Pill Row */}
-            <div className="space-y-1">
-              <div className="flex items-baseline gap-2 flex-wrap">
-                <span className="text-xl sm:text-2xl font-black text-slate-100 whitespace-nowrap">
-                  {formatCountdown(predictions.nextPeeExpectedAt)}
-                </span>
-                {predictions.nextPeeExpectedAt && (
-                  <span className="text-xs text-slate-400 ml-1">
-                    ({formatClock(new Date(predictions.nextPeeExpectedAt))})
+            {hasNoPee ? (
+              <p className="text-sm font-semibold text-slate-200">{isHistoryUnknown ? '—' : t.dashboard.noPeeYet}</p>
+            ) : (
+              <div className="space-y-1">
+                <div className="flex items-baseline gap-2 flex-wrap">
+                  <span className="text-xl sm:text-2xl font-black text-slate-100 whitespace-nowrap">
+                    {formatCountdown(predictions.nextPeeExpectedAt)}
                   </span>
-                )}
-                <span className="text-xs font-bold text-slate-300 bg-slate-950 border border-slate-700/80 px-2 py-0.5 rounded-lg shrink-0 shadow-sm">
-                  ±{formatDuration(predictions.peeDeltaMins || 20, lang)}
-                </span>
-              </div>
-              {predictions.peeMode === 'post_meal_override' && predictions.standardPeeExpectedAt && (
-                <div className="mt-1.5 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-sky-950/80 border border-sky-700/60 text-xs font-semibold text-sky-300">
-                  <span>{t.dashboard.withoutMeal}{t.common.colon} {formatCountdown(predictions.standardPeeExpectedAt)}</span>
+                  {predictions.nextPeeExpectedAt && (
+                    <span className="text-xs text-slate-400 ml-1">
+                      ({formatClock(new Date(predictions.nextPeeExpectedAt))})
+                    </span>
+                  )}
+                  <span className="text-xs font-bold text-slate-300 bg-slate-950 border border-slate-700/80 px-2 py-0.5 rounded-lg shrink-0 shadow-sm">
+                    ±{formatDuration(predictions.peeDeltaMins || 20, lang)}
+                  </span>
                 </div>
-              )}
-            </div>
-
-            {/* FIRST: Pee Stats Summary (Records of the day) */}
-            <div className="bg-slate-950/60 p-2.5 rounded-xl border border-slate-800/80 text-xs space-y-1 text-slate-400">
-              <div className="flex justify-between font-medium">
-                <span>{t.dashboard.peesToday}</span>
-                <span className="font-bold text-sky-300">{todayPeeCount}</span>
+                {predictions.peeMode === 'post_meal_override' && predictions.standardPeeExpectedAt && (
+                  <div className="mt-1.5 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-sky-950/80 border border-sky-700/60 text-xs font-semibold text-sky-300">
+                    <span>{t.dashboard.withoutMeal}{t.common.colon} {formatCountdown(predictions.standardPeeExpectedAt)}</span>
+                  </div>
+                )}
               </div>
-              <div className="flex justify-between font-medium">
-                <span>{t.dashboard.lastPee}</span>
-                <span className="font-bold text-slate-300">
-                  {formatAgo(lastPeeMinsAgo)}
-                </span>
-              </div>
-            </div>
+            )}
 
-            {/* SECOND: Pee Recommendation Description (Calculation details) */}
-            <p className="text-xs text-slate-300 bg-slate-950/60 p-2.5 rounded-xl border border-slate-800/80 leading-relaxed min-h-[52px] flex items-center">
-              {translatePredictionReason(predictions.peeReason, lang)}
-            </p>
+            {!isHistoryUnknown && (
+              <div>
+                {renderDetailsToggle('pee', joinSummary(t.dashboard.todayCount.replace('{count}', String(todayPeeCount)), lastPeeMinsAgo))}
+                <div id="predictor-pee-details" className={detailsClass('pee')}>
+                  {/* FIRST: Pee Stats Summary (Records of the day) */}
+                  <div className="bg-slate-950/60 p-2.5 rounded-xl border border-slate-800/80 text-xs space-y-1 text-slate-400">
+                    <div className="flex justify-between gap-2 font-medium">
+                      <span>{t.dashboard.peesToday}</span>
+                      <span className="font-bold text-sky-300">{todayPeeCount}</span>
+                    </div>
+                    <div className="flex justify-between gap-2 font-medium">
+                      <span>{t.dashboard.lastPee}</span>
+                      <span className="font-bold text-slate-300">
+                        {formatAgo(lastPeeMinsAgo)}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* SECOND: Pee Recommendation Description (Calculation details) */}
+                  {!hasNoPee && (
+                    <p className="text-xs text-slate-300 bg-slate-950/60 p-2.5 rounded-xl border border-slate-800/80 leading-relaxed min-h-[52px] flex items-center">
+                      {translatePredictionReason(predictions.peeReason, lang)}
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-2.5 w-full pt-1">
             <button
               type="button"
               onClick={() => onQuickAction('pee', 'outside')}
+              aria-label={t.potty.peedOutside}
               className="w-full h-11 flex items-center justify-center gap-1.5 bg-emerald-700 hover:bg-emerald-600 active:scale-[0.98] text-white font-extrabold text-xs rounded-xl shadow transition-all px-2 cursor-pointer"
             >
               <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
-              <span className="truncate">{t.potty.peedOutside}</span>
+              <span className="truncate">{t.potty.outside}</span>
             </button>
             <button
               type="button"
               onClick={() => onQuickAction('pee', 'indoor_accident')}
+              aria-label={t.potty.peeAccident}
               className="w-full h-11 flex items-center justify-center gap-1.5 bg-red-950/70 border border-red-700/70 text-red-300 hover:bg-red-900/80 active:scale-[0.98] font-bold text-xs rounded-xl transition-all px-2 cursor-pointer"
             >
-              <span className="truncate">{t.potty.accident}</span>
+              <span className="truncate">{t.potty.accidentShort}</span>
             </button>
           </div>
         </Card.Content>
@@ -213,13 +276,7 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = React.memo(({
 
       {/* 2. Next Poop Card */}
       <Card
-        className={`transition-all flex flex-col ${
-          predictions.poopUrgency === 'overdue'
-            ? 'bg-red-950/40 border-red-700/60 shadow-lg shadow-red-950/50'
-            : predictions.poopUrgency === 'soon'
-            ? 'bg-amber-950/30 border-amber-600/50'
-            : 'bg-slate-900/90 border-slate-800'
-        }`}
+        className={`transition-all flex flex-col ${URGENCY_CARD_CLASSES[predictions.poopUrgency]}`}
       >
         <Card.Content className="p-4 flex flex-col justify-between h-full space-y-3">
           <div className="space-y-3">
@@ -231,49 +288,62 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = React.memo(({
                 </div>
                 <h2 className="text-xs font-bold text-slate-300">{t.potty.nextPoop}</h2>
               </div>
-              {getUrgencyBadge(predictions.poopUrgency)}
+              {!hasNoPoop && getUrgencyBadge(predictions.poopUrgency)}
             </div>
 
             {/* Countdown & Delta Pill Row */}
-            <div className="space-y-1">
-              <div className="flex items-baseline gap-2 flex-wrap">
-                <span className="text-xl sm:text-2xl font-black text-slate-100 whitespace-nowrap">
-                  {formatCountdown(predictions.nextPoopExpectedAt)}
-                </span>
-                {predictions.nextPoopExpectedAt && (
-                  <span className="text-xs text-slate-400 ml-1">
-                    ({formatClock(new Date(predictions.nextPoopExpectedAt))})
+            {hasNoPoop ? (
+              <p className="text-sm font-semibold text-slate-200">{isHistoryUnknown ? '—' : t.dashboard.noPoopYet}</p>
+            ) : (
+              <div className="space-y-1">
+                <div className="flex items-baseline gap-2 flex-wrap">
+                  <span className="text-xl sm:text-2xl font-black text-slate-100 whitespace-nowrap">
+                    {formatCountdown(predictions.nextPoopExpectedAt)}
                   </span>
-                )}
-                <span className="text-xs font-bold text-slate-300 bg-slate-950 border border-slate-700/80 px-2 py-0.5 rounded-lg shrink-0 shadow-sm">
-                  ±{formatDuration(predictions.poopDeltaMins || 25, lang)}
-                </span>
-              </div>
-              {predictions.poopMode === 'post_meal_override' && predictions.standardPoopExpectedAt && (
-                <div className="mt-1.5 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-950/80 border border-amber-700/60 text-xs font-semibold text-amber-300">
-                  <span>{t.dashboard.withoutMeal}{t.common.colon} {formatCountdown(predictions.standardPoopExpectedAt)}</span>
+                  {predictions.nextPoopExpectedAt && (
+                    <span className="text-xs text-slate-400 ml-1">
+                      ({formatClock(new Date(predictions.nextPoopExpectedAt))})
+                    </span>
+                  )}
+                  <span className="text-xs font-bold text-slate-300 bg-slate-950 border border-slate-700/80 px-2 py-0.5 rounded-lg shrink-0 shadow-sm">
+                    ±{formatDuration(predictions.poopDeltaMins || 25, lang)}
+                  </span>
                 </div>
-              )}
-            </div>
-
-            {/* FIRST: Poop Stats Summary (Records of the day) */}
-            <div className="bg-slate-950/60 p-2.5 rounded-xl border border-slate-800/80 text-xs space-y-1 text-slate-400">
-              <div className="flex justify-between font-medium">
-                <span>{t.dashboard.poopsToday}</span>
-                <span className="font-bold text-amber-300">{todayPoopCount}</span>
+                {predictions.poopMode === 'post_meal_override' && predictions.standardPoopExpectedAt && (
+                  <div className="mt-1.5 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-950/80 border border-amber-700/60 text-xs font-semibold text-amber-300">
+                    <span>{t.dashboard.withoutMeal}{t.common.colon} {formatCountdown(predictions.standardPoopExpectedAt)}</span>
+                  </div>
+                )}
               </div>
-              <div className="flex justify-between font-medium">
-                <span>{t.dashboard.lastPoop}</span>
-                <span className="font-bold text-slate-300">
-                  {formatAgo(lastPoopMinsAgo)}
-                </span>
-              </div>
-            </div>
+            )}
 
-            {/* SECOND: Poop Recommendation Description (Calculation details) */}
-            <p className="text-xs text-slate-300 bg-slate-950/60 p-2.5 rounded-xl border border-slate-800/80 leading-relaxed min-h-[52px] flex items-center">
-              {translatePredictionReason(predictions.poopReason, lang)}
-            </p>
+            {!isHistoryUnknown && (
+              <div>
+                {renderDetailsToggle('poop', joinSummary(t.dashboard.todayCount.replace('{count}', String(todayPoopCount)), lastPoopMinsAgo))}
+                <div id="predictor-poop-details" className={detailsClass('poop')}>
+                  {/* FIRST: Poop Stats Summary (Records of the day) */}
+                  <div className="bg-slate-950/60 p-2.5 rounded-xl border border-slate-800/80 text-xs space-y-1 text-slate-400">
+                    <div className="flex justify-between gap-2 font-medium">
+                      <span>{t.dashboard.poopsToday}</span>
+                      <span className="font-bold text-amber-300">{todayPoopCount}</span>
+                    </div>
+                    <div className="flex justify-between gap-2 font-medium">
+                      <span>{t.dashboard.lastPoop}</span>
+                      <span className="font-bold text-slate-300">
+                        {formatAgo(lastPoopMinsAgo)}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* SECOND: Poop Recommendation Description (Calculation details) */}
+                  {!hasNoPoop && (
+                    <p className="text-xs text-slate-300 bg-slate-950/60 p-2.5 rounded-xl border border-slate-800/80 leading-relaxed min-h-[52px] flex items-center">
+                      {translatePredictionReason(predictions.poopReason, lang)}
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
             {poopVetAdvice && (
               <p className="text-xs text-amber-200 bg-amber-950/40 p-2.5 rounded-xl border border-amber-700/50 leading-relaxed">
                 {poopVetAdvice}
@@ -285,17 +355,19 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = React.memo(({
             <button
               type="button"
               onClick={() => onQuickAction('poop', 'outside')}
+              aria-label={t.potty.poopedOutside}
               className="w-full h-11 flex items-center justify-center gap-1.5 bg-emerald-700 hover:bg-emerald-600 active:scale-[0.98] text-white font-extrabold text-xs rounded-xl shadow transition-all px-2 cursor-pointer"
             >
               <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
-              <span className="truncate">{t.potty.poopedOutside}</span>
+              <span className="truncate">{t.potty.outside}</span>
             </button>
             <button
               type="button"
               onClick={() => onQuickAction('poop', 'indoor_accident')}
+              aria-label={t.potty.poopAccident}
               className="w-full h-11 flex items-center justify-center gap-1.5 bg-red-950/70 border border-red-700/70 text-red-300 hover:bg-red-900/80 active:scale-[0.98] font-bold text-xs rounded-xl transition-all px-2 cursor-pointer"
             >
-              <span className="truncate">{t.potty.accident}</span>
+              <span className="truncate">{t.potty.accidentShort}</span>
             </button>
           </div>
         </Card.Content>
@@ -303,13 +375,7 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = React.memo(({
 
       {/* 3. Next Meal Card */}
       <Card
-        className={`transition-all flex flex-col ${
-          predictions.foodUrgency === 'overdue'
-            ? 'bg-amber-950/30 border-amber-700/60'
-            : predictions.foodUrgency === 'soon'
-            ? 'bg-indigo-950/30 border-indigo-600/50'
-            : 'bg-slate-900/90 border-slate-800'
-        }`}
+        className={`transition-all flex flex-col ${URGENCY_CARD_CLASSES[foodUrgency]}`}
       >
         <Card.Content className="p-4 flex flex-col justify-between h-full space-y-3">
           <div className="space-y-3">
@@ -321,48 +387,61 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = React.memo(({
                 </div>
                 <h2 className="text-xs font-bold text-slate-300">{t.potty.nextMeal}</h2>
               </div>
-              {getUrgencyBadge(predictions.foodUrgency)}
+              {!isBeforeFirstMeal && getUrgencyBadge(foodUrgency)}
             </div>
 
             {/* Countdown & Delta Pill Row */}
-            <div className="space-y-1">
-              <div className="flex items-baseline gap-2 flex-wrap">
-                <span className="text-xl sm:text-2xl font-black text-slate-100 whitespace-nowrap">
-                  {formatCountdown(predictions.nextFoodExpectedAt)}
-                </span>
-                {predictions.nextFoodExpectedAt && (
-                  <span className="text-xs text-slate-400 ml-1">
-                    ({formatClock(new Date(predictions.nextFoodExpectedAt))})
+            {isBeforeFirstMeal && predictions.nextFoodExpectedAt ? (
+              <p className="text-sm font-semibold text-slate-200">
+                {isHistoryUnknown
+                  ? '—'
+                  : isBreakfastAhead ? t.dashboard.firstMealNext.replace('{time}', formatClock(firstMealAt)) : t.dashboard.firstMealNoTime}
+              </p>
+            ) : (
+              <div className="space-y-1">
+                <div className="flex items-baseline gap-2 flex-wrap">
+                  <span className="text-xl sm:text-2xl font-black text-slate-100 whitespace-nowrap">
+                    {formatCountdown(predictions.nextFoodExpectedAt)}
                   </span>
-                )}
-                <span className="text-xs font-bold text-slate-300 bg-slate-950 border border-slate-700/80 px-2 py-0.5 rounded-lg shrink-0 shadow-sm">
-                  ±{formatDuration(predictions.foodDeltaMins || 30, lang)}
-                </span>
+                  {predictions.nextFoodExpectedAt && (
+                    <span className="text-xs text-slate-400 ml-1">
+                      ({formatClock(new Date(predictions.nextFoodExpectedAt))})
+                    </span>
+                  )}
+                  <span className="text-xs font-bold text-slate-300 bg-slate-950 border border-slate-700/80 px-2 py-0.5 rounded-lg shrink-0 shadow-sm">
+                    ±{formatDuration(predictions.foodDeltaMins || 30, lang)}
+                  </span>
+                </div>
               </div>
-            </div>
+            )}
 
-            {/* FIRST: Food Stats Summary (Records of the day) */}
-            <div className="bg-slate-950/60 p-2.5 rounded-xl border border-slate-800/80 text-xs space-y-1 text-slate-400">
-              <div className="flex justify-between font-medium">
-                <span>{t.dashboard.rationIntakeToday}</span>
-                <span className="font-bold text-purple-300">
-                  {dailyGoal > 0
-                    ? `${formatGrams(todayFoodLoggedGrams, lang)} / ${formatGrams(dailyGoal, lang)} (${todayMealsCount}/${targetMeals})`
-                    : `${todayMealsCount}/${targetMeals} ${targetMeals === 1 ? t.puppies.meal : t.puppies.meals}`}
-                </span>
-              </div>
-              <div className="flex justify-between font-medium">
-                <span>{t.dashboard.lastMeal}</span>
-                <span className="font-bold text-slate-300">
-                  {formatAgo(lastFoodMinsAgo)}
-                </span>
-              </div>
-            </div>
+            {!isHistoryUnknown && (
+              <div>
+                {renderDetailsToggle('food', joinSummary(rationText, lastFoodMinsAgo))}
+                <div id="predictor-food-details" className={detailsClass('food')}>
+                  {/* FIRST: Food Stats Summary (Records of the day) */}
+                  <div className="bg-slate-950/60 p-2.5 rounded-xl border border-slate-800/80 text-xs space-y-1 text-slate-400">
+                    <div className="flex justify-between gap-2 font-medium">
+                      <span>{t.dashboard.rationIntakeToday}</span>
+                      <span className="font-bold text-purple-300">{rationText}</span>
+                    </div>
+                    <div className="flex justify-between gap-2 font-medium">
+                      <span>{t.dashboard.lastMeal}</span>
+                      <span className="font-bold text-slate-300">
+                        {formatAgo(lastFoodMinsAgo)}
+                      </span>
+                    </div>
+                  </div>
 
-            {/* SECOND: Food Description (Calculation details) */}
-            <p className="text-xs text-slate-300 bg-slate-950/60 p-2.5 rounded-xl border border-slate-800/80 leading-relaxed min-h-[52px] flex items-center">
-              {translatePredictionReason(predictions.foodReason, lang)}
-            </p>
+                  {/* SECOND: Food Description (Calculation details) */}
+                  {!isBeforeFirstMeal && (
+                    <p className="text-xs text-slate-300 bg-slate-950/60 p-2.5 rounded-xl border border-slate-800/80 leading-relaxed min-h-[52px] flex items-center">
+                      {translatePredictionReason(predictions.foodReason, lang)}
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="w-full pt-1">

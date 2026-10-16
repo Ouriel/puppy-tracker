@@ -349,6 +349,44 @@ describe('useActivities: a dog switch fetches the same recent window as the dash
     await switchTo({ ...puppy, id: 'pup-3', name: 'Third' });
     expect(hook.hasMoreRemoteActivities).toBe(true);
   });
+
+  // Review 2026-10-16: the dimmed dashboard lets a log be made while the switch's request runs; its answer, read before
+  // the log was stored, used to replace the rows and drop it from the screen
+  it('keeps a log saved while its request ran: the answer read before it was stored does not drop it', async () => {
+    const secondDog: PuppyProfile = { ...puppy, id: 'pup-2', name: 'Second' };
+    answerGet = () => [];
+    await act(async () => root!.render(<DogProbe dog={puppy} onRender={(state) => { hook = state; }} />));
+    await settle();
+    answerGet = null;
+    await act(async () => root!.render(<DogProbe dog={secondDog} onRender={(state) => { hook = state; }} />));
+    const switchRequests = sent.filter((request) => request.method === 'GET' && request.url.includes('puppyId=pup-2'));
+
+    await start(() => hook.addActivity({ ...newLog('pee'), puppyId: 'pup-2' }));
+    const peeId = posts()[0].body!.id;
+    await posts()[0].answer(201, posts()[0].body);
+    for (const request of switchRequests) await request.answer(200, []);
+
+    expect(ids()).toContain(peeId);
+  });
+
+  it('a log deleted while its request ran does not come back with the answer', async () => {
+    const secondDog: PuppyProfile = { ...puppy, id: 'pup-2', name: 'Second' };
+    const pee = { ...log('act-2', 1), puppyId: 'pup-2' };
+    answerGet = () => [];
+    await act(async () => root!.render(<DogProbe dog={puppy} onRender={(state) => { hook = state; }} />));
+    await settle();
+    answerGet = null;
+    await act(async () => root!.render(<DogProbe dog={secondDog} onRender={(state) => { hook = state; }} />));
+    const switchRequests = sent.filter((request) => request.method === 'GET' && request.url.includes('puppyId=pup-2'));
+
+    // A row of the second dog on screen (the passport, a log made at once) deleted before the answer
+    await act(async () => hook.setActivities((previous) => [pee, ...previous]));
+    await start(() => hook.deleteActivity('act-2'));
+    await requestFor('act-2').answer(200, { success: true, deletedId: 'act-2' });
+    for (const request of switchRequests) await request.answer(200, request.url.includes('type=weight') ? [] : [pee]);
+
+    expect(ids()).not.toContain('act-2');
+  });
 });
 
 describe('useActivities: a dashboard answer read before a local change (C1)', () => {
@@ -627,3 +665,84 @@ describe('useActivities: a log form saved again after a failure', () => {
   });
 });
 
+
+// App review 2026-10-16, decision 7: a mis-tap ("Pipi dehors" for "Accident") took 2.8 screens of scrolling to fix
+describe('useActivities: Undo after a one-tap log', () => {
+  const peeOutside = (): Omit<Activity, 'id'> => ({ ...newLog('pee'), pottyLocation: 'outside' });
+  const peeAccident = (): Omit<Activity, 'id'> => ({ ...newLog('pee'), pottyLocation: 'indoor_accident' });
+  const deletes = () => sent.filter((request) => request.method === 'DELETE');
+
+  /** Logs with one tap, saves it, and returns the success toast's Undo. */
+  async function tapAndSave(activity: Omit<Activity, 'id'>) {
+    const success = vi.spyOn(toast, 'success');
+    await start(() => hook.addActivity(activity, { keepUnsaved: true }));
+    const post = posts().at(-1)!;
+    await post.answer(201, post.body);
+    const [message, options] = success.mock.calls.at(-1)!;
+    return { id: post.body!.id, message, undo: options?.actionProps };
+  }
+
+  it('the toast names the log and offers Undo, which deletes that log', async () => {
+    const { id, message, undo } = await tapAndSave(peeOutside());
+    expect(message).toBe('Logged: Peed Outside');
+    expect(undo?.children).toBe('Undo');
+
+    await act(async () => (undo!.onPress as () => void)());
+    expect(ids()).not.toContain(id);
+    expect(deletes().map((request) => request.url)).toEqual([expect.stringContaining(`id=${id}`)]);
+    await deletes()[0].answer(200, { success: true, deletedId: id });
+
+    expect(ids()).not.toContain(id);
+  });
+
+  it('the tap that corrects it, within 5 s, is logged: not refused as "already logged"', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-14T08:00:00.000Z'));
+    const warning = vi.spyOn(toast, 'warning');
+    const { id, undo } = await tapAndSave(peeOutside());
+    await act(async () => (undo!.onPress as () => void)());
+    await deletes()[0].answer(200, { success: true, deletedId: id });
+
+    vi.setSystemTime(Date.now() + 2000);
+    await start(() => hook.addActivity(peeAccident(), { keepUnsaved: true }));
+
+    expect(warning).not.toHaveBeenCalled();
+    expect(posts().map((post) => post.body!.pottyLocation)).toEqual(['outside', 'indoor_accident']);
+  });
+
+  it('an Undo the server refuses puts the log back', async () => {
+    const { id, undo } = await tapAndSave(peeOutside());
+    await act(async () => (undo!.onPress as () => void)());
+
+    await deletes()[0].answer(500, { error: 'Internal server error' });
+
+    expect(ids()).toEqual([id]);
+  });
+
+  it('in French: "Accident de pipi enregistré", Undo reads "Annuler"', async () => {
+    localStorage.setItem('puppace_lang_v1', 'fr');
+    await act(async () => root!.render(<HookProbe key="fr" onRender={(state) => { hook = state; }} />));
+    const { message, undo } = await tapAndSave(peeAccident());
+
+    expect(message).toBe('Accident de pipi enregistré');
+    expect(undo?.children).toBe('Annuler');
+  });
+
+  it('a poop is named a poop: "Pooped Outside", "Poop accident indoors"', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-14T08:00:00.000Z'));
+    const outside = await tapAndSave({ ...newLog('poop'), pottyLocation: 'outside' });
+    expect(outside.message).toBe('Logged: Pooped Outside');
+    vi.setSystemTime(Date.now() + 6000);
+    const accident = await tapAndSave({ ...newLog('poop'), pottyLocation: 'indoor_accident' });
+    expect(accident.message).toBe('Logged: Poop accident indoors');
+  });
+
+  it('a log saved from the log form keeps the plain toast, with no Undo', async () => {
+    const success = vi.spyOn(toast, 'success');
+    await start(() => hook.addActivity(newLog('food')));
+    await posts()[0].answer(201, posts()[0].body);
+
+    expect(success).toHaveBeenCalledWith(en.toasts.activityLogged);
+  });
+});
