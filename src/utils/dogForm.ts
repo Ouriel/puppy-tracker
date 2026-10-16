@@ -55,17 +55,18 @@ export interface DogFormError {
 const isWholeNumberBetween = (text: string, min: number, max: number) =>
   /^\d+$/.test(text.trim()) && Number(text) >= min && Number(text) <= max;
 
-/** The first field that blocks the save, or null. `today`: the phone's local date, YYYY-MM-DD. */
-export function validateDogForm(form: DogForm, today: string): DogFormError | null {
-  if (!form.name.trim()) return { field: 'name', messageKey: 'nameRequired' };
-  if (!form.breed) return { field: 'breed', messageKey: 'breedRequired' };
-  if (!form.birthDate) return { field: 'birthDate', messageKey: 'birthDateRequired' };
-  if (form.birthDate > today) return { field: 'birthDate', messageKey: 'birthDateInFuture' };
+/** Every field that blocks the save, in the form's order (empty: it saves). `today`: the phone's local date, YYYY-MM-DD. */
+export function validateDogForm(form: DogForm, today: string): DogFormError[] {
+  const errors: DogFormError[] = [];
+  if (!form.name.trim()) errors.push({ field: 'name', messageKey: 'nameRequired' });
+  if (!form.breed) errors.push({ field: 'breed', messageKey: 'breedRequired' });
+  if (!form.birthDate) errors.push({ field: 'birthDate', messageKey: 'birthDateRequired' });
+  else if (form.birthDate > today) errors.push({ field: 'birthDate', messageKey: 'birthDateInFuture' });
   if (form.hasGramGoal && !isWholeNumberBetween(form.dailyFoodGramGoal, 10, 2000)) {
-    return { field: 'dailyFoodGramGoal', messageKey: 'gramGoalInvalid' };
+    errors.push({ field: 'dailyFoodGramGoal', messageKey: 'gramGoalInvalid' });
   }
-  if (!isWholeNumberBetween(form.targetMealsPerDay, 1, 6)) return { field: 'targetMealsPerDay', messageKey: 'mealsPerDayInvalid' };
-  return null;
+  if (!isWholeNumberBetween(form.targetMealsPerDay, 1, 6)) errors.push({ field: 'targetMealsPerDay', messageKey: 'mealsPerDayInvalid' });
+  return errors;
 }
 
 /** The dog fields sent to POST / PUT /api/dogs. `storedPuppy`: the dog being edited. */

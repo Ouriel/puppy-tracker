@@ -277,6 +277,80 @@ describe('Members tab identity (22)', () => {
   });
 });
 
+// App review 2026-10-16, Settings: Members, and owner decision 13 (each badge's linked email is shown to the whole household)
+describe('Members list layout', () => {
+  const rowOf = (name: string) =>
+    [...document.querySelectorAll('li')].find((row) => row.querySelector('.font-bold')?.textContent === name)!;
+  // The name and its chip; the email is the element right after it
+  const nameLine = (row: HTMLElement) => row.querySelector('.font-bold')!.parentElement!;
+  const actions = (row: HTMLElement) => row.lastElementChild!;
+
+  it('shows the linked email under each linked name, to a member too; an unlinked badge shows none', async () => {
+    await renderMembers(member, [...badges, { id: 'c-guest', name: 'Guest', role: 'Member', color: '#F59E0B' }]);
+
+    expect(nameLine(rowOf('Alice')).nextElementSibling!.textContent).toBe('alice@example.com');
+    expect(nameLine(rowOf('Sam')).nextElementSibling!.textContent).toBe(SUPER_ADMIN_EMAIL);
+    expect(rowOf('Guest').textContent).not.toContain('@');
+  });
+
+  it('every row ends with the same action column: the pencil, then the trash or an empty 44 px slot on your own row', async () => {
+    await renderMembers(owner);
+
+    for (const name of ['Sam', 'Alice']) {
+      const column = actions(rowOf(name));
+      expect(column.children, name).toHaveLength(2);
+      expect(column.children[0].getAttribute('aria-label')).toBe(`Edit ${name}`);
+    }
+    expect(actions(rowOf('Alice')).children[1].getAttribute('aria-label')).toBe('Delete Alice');
+    const ownSlot = actions(rowOf('Sam')).children[1];
+    expect(ownSlot.getAttribute('aria-hidden')).toBe('true');
+    expect(ownSlot.classList).toContain('w-11');
+    // "Active" sits next to the name, not in the action column
+    expect(actions(rowOf('Sam')).textContent).not.toContain('Active');
+    expect(nameLine(rowOf('Sam')).textContent).toContain('Active');
+  });
+
+  it('a long name wraps to 2 lines and a long email wraps, rather than being cut or pushing the row wider', async () => {
+    const longName = 'Marie-Charlotte de La Rochefoucauld';
+    const longEmail = 'marie-charlotte.delarochefoucauld@example.com';
+    await renderMembers(owner, [{ id: 'c-long', name: longName, role: 'Member', color: '#10B981', email: longEmail }]);
+
+    const name = rowOf(longName).querySelector('.font-bold')!;
+    expect(name.classList).toContain('line-clamp-2');
+    expect(name.classList).toContain('break-words');
+    expect(name.classList).not.toContain('truncate');
+    const email = [...rowOf(longName).querySelectorAll('div')].find((element) => element.textContent === longEmail)!;
+    expect(email.classList).toContain('break-all');
+  });
+
+  it('editing: "This is me" has its own line under the name, with Save and close below it', async () => {
+    await renderMembers(owner);
+    await click(document.querySelector<HTMLButtonElement>('[aria-label="Edit Sam"]')!);
+
+    const label = document.querySelector('input[type="checkbox"]')!.closest('label')!;
+    expect(label.previousElementSibling!.querySelector('input[type="text"]')).not.toBeNull();
+    expect(label.nextElementSibling!.textContent).toContain('Save Changes');
+  });
+
+  it('"Add Member" turns into a close button with an X while the form is open', async () => {
+    await renderMembers(owner);
+    await click(buttons('Add Member')[0]);
+
+    const toggle = buttons('Cancel')[0];
+    expect(toggle.querySelector('.lucide-x')).not.toBeNull();
+    expect(toggle.querySelector('.lucide-user-plus')).toBeNull();
+  });
+
+  it('the invite email box takes the full width on a phone, the send button under it', async () => {
+    await renderMembers(owner);
+    await click(buttons('Pre-Approve Member Email')[0]);
+
+    const emailRow = document.querySelector('form input[type="email"]')!.parentElement!.parentElement!;
+    expect(emailRow.classList).toContain('flex-col');
+    expect(emailRow.innerHTML).not.toContain('min-w-[200px]');
+  });
+});
+
 // Improvement backlog 18: the boxes stop where the server's limit stops, so a typed name is never refused on save
 describe('Members tab name limits', () => {
   it('the new badge and badge rename boxes stop at the length the server accepts', async () => {
@@ -427,6 +501,25 @@ describe('Admin panel (27, 28)', () => {
     await preApprove('jane.doe@example.com');
 
     expect(document.body.textContent).toContain('Add jane.doe@example.com to Other Family?');
+  });
+
+  // App review 2026-10-16, Settings: Admin: at 320 px the selects were 434 px wide (each option carried the household id)
+  it('the household selects name each household only (its id in a title) and fit their row; role chips are 12 px', async () => {
+    await renderAdmin();
+
+    const selects = [...document.querySelectorAll('select')];
+    expect(selects).toHaveLength(3);
+    for (const select of selects) {
+      expect(select.classList).toContain('w-full');
+      expect(select.classList).toContain('min-w-0');
+      for (const option of select.options) {
+        expect(option.textContent).not.toContain(option.value);
+        expect(option.title).toBe(option.value);
+      }
+    }
+    const roleChip = [...document.querySelectorAll('.chip')].find((chip) => chip.textContent === 'Member')!;
+    expect(roleChip.className).not.toContain('text-[10px]');
+    expect(document.querySelector('[class*="text-[10px]"]')).toBeNull();
   });
 
   describe("'Active accounts' household select", () => {

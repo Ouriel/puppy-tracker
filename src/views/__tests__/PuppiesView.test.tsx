@@ -365,6 +365,84 @@ describe('PuppiesView add form', () => {
   });
 });
 
+// App review 2026-10-16, Settings: Dogs and the first day: adding the first dog took 4 to 5 Save presses
+describe('PuppiesView first dog', () => {
+  it('with no dog, the add form is open at once, without the "add a dog above" card', async () => {
+    await renderView({ puppies: [], activePuppyId: '' });
+
+    expect(field('dog-name')).not.toBeNull();
+    expect(document.body.textContent).not.toContain('No dogs registered in household.');
+  });
+
+  it('a later dog still waits for "Add Dog"', async () => {
+    await renderView();
+    expect(field('dog-name')).toBeNull();
+  });
+
+  it('Save on an empty form shows every missing field at once, each under its own box, and focuses the first', async () => {
+    const { onAddPuppy } = await renderView({ puppies: [], activePuppyId: '' });
+    await submit();
+
+    expect(onAddPuppy).not.toHaveBeenCalled();
+    expect(field('dog-name-error').textContent).toBe('Enter the name');
+    expect(field('dog-breed-error').textContent).toBe('Pick a breed, or Other / Mixed');
+    expect(field('dog-birth-date-error').textContent).toBe('Enter the birth date');
+    expect(field('dog-food-goal-error').textContent).toBe('Enter 10 to 2000 g, or tick "No gram goal"');
+    expect(field('dog-meals-per-day-error').textContent).toBe('Enter 1 to 6 meals');
+    expect(document.activeElement).toBe(field('dog-name'));
+  });
+
+  it('a field fixed and saved again: its error goes, the others stay, and the focus moves to the first one left', async () => {
+    await renderView({ puppies: [], activePuppyId: '' });
+    await submit();
+    await setValue('dog-name', 'Biscuit');
+    await setValue('dog-birth-date', formatLocalDate(new Date(Date.now() - 70 * 24 * 60 * 60 * 1000)));
+    await submit();
+
+    expect(field('dog-name-error')).toBeNull();
+    expect(field('dog-birth-date-error')).toBeNull();
+    expect(field('dog-breed-error')).not.toBeNull();
+    expect(field('dog-food-goal-error')).not.toBeNull();
+    expect(document.activeElement).toBe(document.querySelector('[data-slot="select-trigger"]'));
+  });
+
+  it('after a Save, a field fixed loses its error at once, with no second Save; the meals the birth date fills in too', async () => {
+    await renderView({ puppies: [], activePuppyId: '' });
+    expect(field('dog-name-error')).toBeNull();
+    await submit();
+
+    await setValue('dog-name', 'Biscuit');
+    expect(field('dog-name-error')).toBeNull();
+    expect(field('dog-breed-error')).not.toBeNull();
+
+    await setValue('dog-birth-date', formatLocalDate(new Date(Date.now() - 70 * 24 * 60 * 60 * 1000)));
+    expect(field('dog-birth-date-error')).toBeNull();
+    expect(field('dog-meals-per-day').value).toBe('4');
+    expect(field('dog-meals-per-day-error')).toBeNull();
+  });
+
+  it('errors from a Save do not come back when the form is closed and opened again', async () => {
+    await renderView();
+    await click(buttonByText('Add Dog'));
+    await submit();
+    expect(field('dog-name-error')).not.toBeNull();
+
+    await click(buttonByText('Cancel'));
+    await click(buttonByText('Add Dog'));
+    expect(field('dog-name-error')).toBeNull();
+  });
+
+  it('the header button shows an X, not a +, while the form is open', async () => {
+    await renderView();
+    await click(buttonByText('Add Dog'));
+
+    // The first "Cancel" is the header's; the form has its own at the bottom
+    const toggle = buttonByText('Cancel');
+    expect(toggle.querySelector('.lucide-x')).not.toBeNull();
+    expect(toggle.querySelector('.lucide-plus')).toBeNull();
+  });
+});
+
 describe('PuppiesView dog card picture', () => {
   it("a dog without a photo shows its initial, not the cocker mascot; a photo is still shown", async () => {
     await renderView({ puppies: [REX, { ...REX, id: 'dog-2', name: 'Pistache', avatarUrl: '/pistache.jpg' }] });
@@ -397,6 +475,9 @@ describe('PuppiesView deleted dogs, in French', () => {
     await renderView({ deletedPuppies: [{ ...REX, id: 'dog-2', name: 'Mia' }], onRestorePuppy });
 
     expect(document.body.textContent).toContain('Chiens supprimés');
+    // The breed line is as readable as the other secondary lines (slate-500 was too dark on the card)
+    const breed = [...document.querySelectorAll('li p')].find((line) => line.textContent === 'Beagle')!;
+    expect(breed.classList).toContain('text-slate-400');
     expect(buttonLabelled('Restaurer Mia')!.textContent).toBe('Restaurer');
     await click(buttonLabelled('Restaurer Mia')!);
     expect(onRestorePuppy).toHaveBeenCalledWith('dog-2');
