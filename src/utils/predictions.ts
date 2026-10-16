@@ -63,7 +63,8 @@ function isNightTimeMode(
     const logTime = activityDate.getTime();
     if (logTime <= lastBedtime.getTime()) return false;
     const logHour = getLocalDecimalHour(activityDate, tz);
-    return isDaytimeHour(logHour, Math.max(4.0, sleepSchedule.wakeupHour - 3), sleepSchedule.bedtimeHour);
+    // Night ends with a log after 05:00 (or wake-up - 3 h if later): a 04:xx night potty does not wake the household
+    return isDaytimeHour(logHour, Math.max(5.0, sleepSchedule.wakeupHour - 3), sleepSchedule.bedtimeHour);
   });
 
   return !hasAwokenToday;
@@ -203,6 +204,9 @@ export function detectSleepSchedule(
     byDate[dateStr].push(d);
   });
 
+  // One evening of logs would set the whole schedule (wake-up at 19:00): keep the default until 3 days have 2+ logs
+  if (Object.values(byDate).filter((logs) => logs.length >= 2).length < 3) return defaultSchedule;
+
   const morningData: { mins: number; weight: number }[] = [];
   const eveningData: { mins: number; weight: number }[] = [];
 
@@ -211,12 +215,14 @@ export function detectSleepSchedule(
       const sortedLogs = [...logs].sort((a, b) => a.getTime() - b.getTime());
       // First activity of the day after 05:00 AM (filters out mid-night potty breaks)
       const firstMorning = sortedLogs.find((a) => getLocalHour(a, tz) >= 5) || sortedLogs[0];
-      const last = sortedLogs[sortedLogs.length - 1];
+      // A log between 02:00 and 05:00 is a night potty, not the day's bedtime.
+      // ponytail: a night potty logged before 02:00 still reads as the bedtime; telling them apart needs the gap before it
+      const last = sortedLogs.findLast((log) => { const hour = getLocalHour(log, tz); return hour < 2 || hour >= 5; }) ?? sortedLogs[sortedLogs.length - 1];
 
       const firstM = Math.round(getLocalDecimalHour(firstMorning, tz) * 60);
       const lastHour = getLocalDecimalHour(last, tz);
 
-      // Exponential time decay (7-day half-life so full week sets the schedule smoothly)
+      // Exponential time decay (7-day time constant, half-life about 5 days, so a full week sets the schedule smoothly)
       const daysAgo = Math.max(0, (nowTime - last.getTime()) / (1000 * 60 * 60 * 24));
       const weight = Math.exp(-daysAgo / 7);
 
@@ -252,14 +258,14 @@ export function detectSleepSchedule(
 }
 
 /**
- * Calculates empirical morning sequence offsets (poop offset & breakfast offset relative to first morning pee).
- * Zero hardcoded numbers: learns directly from the household's actual morning logs.
+ * Calculates the empirical morning poop offset (minutes from the first morning pee to the first poop),
+ * learned from the household's morning logs; 10 min until there is one.
  */
 export function calculateMorningSequenceOffsets(
   activities: Activity[],
   timeZone?: string
-): { morningPoopOffsetMins: number; morningFoodOffsetMins: number } {
-  const defaultOffsets = { morningPoopOffsetMins: 10, morningFoodOffsetMins: 20 };
+): { morningPoopOffsetMins: number } {
+  const defaultOffsets = { morningPoopOffsetMins: 10 };
   const tz = timeZone || getUserTimezone();
 
   const maxLogTime = activities.reduce((max, act) => Math.max(max, parseIsoDate(act.timestamp).getTime()), 0);
@@ -276,16 +282,13 @@ export function calculateMorningSequenceOffsets(
   });
 
   const poopOffsets: { mins: number; weight: number }[] = [];
-  const foodOffsets: { mins: number; weight: number }[] = [];
 
   Object.values(byDate).forEach((dayLogs) => {
     const sorted = [...dayLogs].sort(
       (a, b) => parseIsoDate(a.timestamp).getTime() - parseIsoDate(b.timestamp).getTime()
     );
 
-    const firstPee =
-      sorted.find((a) => a.type === 'pee' && getLocalHour(parseIsoDate(a.timestamp), tz) >= 5) ||
-      sorted.find((a) => a.type === 'pee');
+    const firstPee = sorted.find((a) => a.type === 'pee' && getLocalHour(parseIsoDate(a.timestamp), tz) >= 5);
     if (!firstPee) return;
 
     const firstPeeTime = parseIsoDate(firstPee.timestamp).getTime();
@@ -301,27 +304,11 @@ export function calculateMorningSequenceOffsets(
         poopOffsets.push({ mins: Math.max(0, diffMins), weight });
       }
     }
-
-    // Look for first meal within 3 hours of first pee
-    const firstFood = sorted.find((a) => a.type === 'food');
-    if (firstFood) {
-      const firstFoodTime = parseIsoDate(firstFood.timestamp).getTime();
-      const diffMins = Math.round((firstFoodTime - firstPeeTime) / 60000);
-      if (diffMins >= -30 && diffMins <= 180) {
-        foodOffsets.push({ mins: Math.max(0, diffMins), weight });
-      }
-    }
   });
 
   const morningPoopOffsetMins = Math.round(calculateWeightedMedian(poopOffsets, defaultOffsets.morningPoopOffsetMins));
-  let morningFoodOffsetMins = Math.round(calculateWeightedMedian(foodOffsets, defaultOffsets.morningFoodOffsetMins));
 
-  // Enforce morning sequence: Pee ≤ Poop ≤ Breakfast
-  if (morningFoodOffsetMins <= morningPoopOffsetMins) {
-    morningFoodOffsetMins = morningPoopOffsetMins + 5;
-  }
-
-  return { morningPoopOffsetMins, morningFoodOffsetMins };
+  return { morningPoopOffsetMins };
 }
 
 /**
@@ -427,8 +414,8 @@ export function calculateLearnedIntervalMinutes(
         const crossesNight = !isSameLogicalDate(prevTime, currTime, timeZone);
 
         // Allow valid waking retention intervals (including pre-bedtime outings around midnight)
-        if (isPrevDay && isCurrDay && !crossesNight && diffMinutes <= 8 * 60) {
-          // Exponential time decay: 10-day half-life tracks growth without getting hijacked by short vacations
+        if (isPrevDay && isCurrDay && !crossesNight) {
+          // Exponential time decay: 10-day time constant (half-life about 7 days) tracks growth without getting hijacked by short vacations
           const daysAgo = Math.max(0, (nowTime - currTime.getTime()) / (1000 * 60 * 60 * 24));
           const weight = Math.exp(-daysAgo / 10);
           intervals.push({ diffMinutes, weight });
@@ -480,7 +467,7 @@ export function calculateLearnedIntervalMinutes(
 
 /**
  * Evaluates whether a puppy is eligible for post-meal potty override
- * based on canine neurological maturity (pudendal nerve myelination) and empirical data.
+ * based on its age and its own post-meal logs.
  */
 export function shouldApplyPostMealOverride(
   ageMonths: number,
@@ -637,7 +624,7 @@ function isDeepNightTime(
 }
 
 /**
- * Wake-up pee of `now`'s logical day: the earliest pee at or after 05:00, else the earliest pee.
+ * Wake-up pee of `now`'s logical day: the earliest pee at or after 05:00, if any.
  * Same rule as calculateMorningSequenceOffsets, so a night potty does not anchor the morning.
  * `newestFirst` must be sorted newest first.
  */
@@ -645,7 +632,7 @@ function findFirstMorningPee(newestFirst: Activity[], now: Date, timeZone: strin
   const peesToday = newestFirst.filter(
     (activity) => activity.type === 'pee' && isSameLogicalDate(parseIsoDate(activity.timestamp), now, timeZone)
   );
-  return peesToday.findLast((activity) => getLocalHour(parseIsoDate(activity.timestamp), timeZone) >= 5) ?? peesToday.at(-1);
+  return peesToday.findLast((activity) => getLocalHour(parseIsoDate(activity.timestamp), timeZone) >= 5);
 }
 
 /**
@@ -716,53 +703,37 @@ export function predictNextPee(
 
   const todayPees = past.filter((a) => a.type === 'pee' && isSameLogicalDate(parseIsoDate(a.timestamp), now, tz));
 
+  // Night target, at night and for an evening pee due in the deep night: a puppy under 2.5 months gets a break 4 h after
+  // its last pee while that is 45 min or more before wake-up, kept 30 min as 'due now'; otherwise the next wake-up.
+  // ponytail: 2.5 months, not 4 (owner's P5, on hold): a logged break before 02:00 reads as bedtime, a 2nd break can fall
+  // after 05:00 and end the night, and from 2.5 months a held break can show red in the daytime branch; fix those first
+  const nextWakeup = getNextOccurrenceOfClockTime(now, sleepSchedule.wakeupHour, tz);
+  const midNightPeeTime = lastPeeTime + 4 * 60 * 60 * 1000;
+  const isMidNightBreak = months < 2.5
+    && midNightPeeTime > now.getTime() - 30 * 60 * 1000
+    && midNightPeeTime < nextWakeup.getTime() - 45 * 60 * 1000;
+  const nightTarget = isMidNightBreak ? new Date(Math.max(midNightPeeTime, now.getTime())) : nextWakeup;
+  const nightReason = isMidNightBreak ? 'Night mode: Young puppy mid-night potty break' : `Morning outing (~${wakeupStr})`;
+
   if (isNightTime && !preservePreBed) {
     mode = 'night_sleep';
-    const targetWakeup = getNextOccurrenceOfClockTime(now, sleepSchedule.wakeupHour, tz);
-
-    if (months < 2.5) {
-      const midNightPee = new Date(lastPeeTime + 4 * 60 * 60 * 1000);
-      if (midNightPee > now && midNightPee.getTime() < targetWakeup.getTime() - 45 * 60 * 1000) {
-        nextExpectedAt = midNightPee;
-        reason = 'Night mode: Young puppy mid-night potty break';
-      } else {
-        nextExpectedAt = targetWakeup;
-        reason = `Morning outing (~${wakeupStr})`;
-      }
-    } else {
-      nextExpectedAt = targetWakeup;
-      reason = `Morning outing (~${wakeupStr})`;
-    }
-  } else if (todayPees.length === 0 && !isSameLogicalDate(lastPeeDate, now, tz) && !isNightTime) {
+    nextExpectedAt = nightTarget;
+    reason = nightReason;
+  } else if (todayPees.length === 0 && !isNightTime) {
     // New day has started, puppy woke up after overnight sleep and hasn't peed yet today
     mode = 'daytime_baseline';
     const todayWakeup = getOccurrenceOfClockTimeInTimezone(now, sleepSchedule.wakeupHour, tz, 0);
     nextExpectedAt = todayWakeup;
-    reason = `Morning outing (~${wakeupStr})`;
-  } else if (isAfterMeal) {
-    if (peedRightBeforeMeal) {
-      mode = 'daytime_baseline';
-      nextExpectedAt = standardExpectedAt;
-      reason = learnedPee.isLearned
-        ? `Learned average: ~${formatMinutesToXhXX(learnedPee.intervalMins)} bladder interval`
-        : `Standard bladder interval (~${formatMinutesToXhXX(learnedPee.intervalMins)})`;
-    } else if (minsSinceMeal <= postMealPeeDelay + 40) {
-      mode = 'post_meal_override';
-      nextExpectedAt = new Date(foodTime + postMealPeeDelay * 60 * 1000);
-      reason = `Post-meal potty break (~${postMealPeeDelay}m after food)`;
-    } else {
-      mode = 'daytime_baseline';
-      nextExpectedAt = standardExpectedAt;
-      reason = learnedPee.isLearned
-        ? `Learned average: ~${formatMinutesToXhXX(learnedPee.intervalMins)} bladder interval`
-        : `Standard bladder interval (~${formatMinutesToXhXX(learnedPee.intervalMins)})`;
-    }
+    reason = `First pee of the day (~${wakeupStr})`;
+  } else if (isPostMealReminder) {
+    mode = 'post_meal_override';
+    nextExpectedAt = new Date(foodTime + postMealPeeDelay * 60 * 1000);
+    reason = `Post-meal potty break (~${postMealPeeDelay}m after food)`;
   } else {
-    mode = (isNightTime && !preservePreBed) ? 'night_sleep' : 'daytime_baseline';
-    if ((isNightTime || isDeepNight) && !preservePreBed) {
-      const nextWakeup = getNextOccurrenceOfClockTime(now, sleepSchedule.wakeupHour, tz);
-      nextExpectedAt = nextWakeup;
-      reason = `Morning outing (~${wakeupStr})`;
+    mode = 'daytime_baseline';
+    if (isDeepNight && !preservePreBed) {
+      nextExpectedAt = nightTarget;
+      reason = nightReason;
     } else {
       nextExpectedAt = standardExpectedAt;
       reason = learnedPee.isLearned
@@ -844,19 +815,15 @@ export function predictNextPoop(
   // Unlike pee, the poop pre-bed outing ends at bedtime + 1 h: half its long interval would run until about 04:00
   const preservePreBed = shouldPreservePreBedPotty(lastPoopTime, learnedPoop.intervalMins, 60, now, sleepSchedule, tz);
 
-  const isLastPoopDiarrhea =
-    lastPoop.stoolConsistency === 'diarrhea' ||
-    lastPoop.stoolConsistency === 'soft' ||
-    lastPoop.stoolConsistency === 'runny' ||
-    (lastPoop.notes || '').toLowerCase().match(/liquid|liquide|diarrhea|diarrhee|loose/) !== null;
-
+  // Diarrhoea alert from the stool choice only (legacy 'runny' shows as Diarrhoea): notes and legacy 'soft' do not start it
   const hoursSinceLastPoop = (now.getTime() - lastPoopTime) / (1000 * 60 * 60);
+  const isDigestiveAlert = (lastPoop.stoolConsistency === 'diarrhea' || lastPoop.stoolConsistency === 'runny') && hoursSinceLastPoop < 12;
 
   let nextExpectedAt: Date = standardExpectedAt;
   let mode: ScheduleMode = 'daytime_baseline';
   let reason = '';
 
-  if (isLastPoopDiarrhea && hoursSinceLastPoop < 12) {
+  if (isDigestiveAlert) {
     mode = 'daytime_baseline';
     // Smooth 60-minute rolling window: always target lastPoop + next 60m boundary
     const elapsedMins = (now.getTime() - lastPoopTime) / (60 * 1000);
@@ -873,7 +840,7 @@ export function predictNextPoop(
     nextExpectedAt = new Date(targetWakeup.getTime() + offsets.morningPoopOffsetMins * 60 * 1000);
     const targetTimeStr = formatLocalTime(nextExpectedAt, tz);
     reason = `Morning outing (~${targetTimeStr})`;
-  } else if (todayPoops.length === 0 && !isSameLogicalDate(lastPoopDate, now, tz) && !isNightTime) {
+  } else if (todayPoops.length === 0 && !isNightTime) {
     // New day has started, puppy woke up after overnight sleep and has not pooped yet today
     const todayMealsSorted = past
       .filter((a) => a.type === 'food' && isSameLogicalDate(parseIsoDate(a.timestamp), now, tz))
@@ -904,7 +871,7 @@ export function predictNextPoop(
     if (!postMealOverride) {
       mode = 'daytime_baseline';
       nextExpectedAt = todayMorningPoop;
-      reason = `Morning outing (~${targetTimeStr})`;
+      reason = `First poop of the day (~${targetTimeStr})`;
     }
   } else {
     let postMealOverride = false;
@@ -925,8 +892,8 @@ export function predictNextPoop(
     }
 
     if (!postMealOverride) {
-      mode = (isNightTime && !preservePreBed) ? 'night_sleep' : 'daytime_baseline';
-      if ((isNightTime || isDeepNight) && !preservePreBed) {
+      mode = 'daytime_baseline';
+      if (isDeepNight && !preservePreBed) {
         const nextWakeup = getNextOccurrenceOfClockTime(now, sleepSchedule.wakeupHour, tz);
         nextExpectedAt = new Date(nextWakeup.getTime() + offsets.morningPoopOffsetMins * 60 * 1000);
         const targetTimeStr = formatLocalTime(nextExpectedAt, tz);
@@ -940,12 +907,21 @@ export function predictNextPoop(
     }
   }
 
+  // After a hard stool no card points before the pause end: the morning or post-meal times would read "overdue by hours"
+  if (isHardStool && nextExpectedAt.getTime() < recoveryEnd) {
+    mode = 'daytime_baseline';
+    nextExpectedAt = new Date(recoveryEnd);
+    reason = 'Digestive recovery: pause after hard stool';
+  }
+
   const diffMins = (nextExpectedAt.getTime() - now.getTime()) / 60000;
   let urgency: 'safe' | 'soon' | 'overdue' = 'safe';
   if (mode !== 'night_sleep' && !isInRecovery) {
     if (diffMins <= 0) urgency = 'overdue';
     else if (diffMins <= 30) urgency = 'soon';
   }
+  // Hourly checks after diarrhoea: a steady amber badge for the 12 h, night included, never red on the hour
+  if (isDigestiveAlert) urgency = 'soon';
 
   const deltaMins = mode === 'post_meal_override' ? learnedPostMealPoop.deltaMins : learnedPoop.deltaMins;
 
@@ -981,7 +957,7 @@ export function predictNextFood(
   const todayMeals = past.filter(
     (a) => a.type === 'food' && isSameLogicalDate(parseIsoDate(a.timestamp), now, tz)
   );
-  const todayGramTotal = todayMeals.reduce((sum, a) => sum + (a.quantityGrams || 0), 0);
+  const todayGramTotal = Math.round(todayMeals.reduce((sum, a) => sum + (a.quantityGrams || 0), 0));
   const isGramGoalMet = isDailyGramGoalMet(profile.dailyFoodGramGoal, todayGramTotal);
   const isGoalReached = isGramGoalMet || (profile.dailyFoodGramGoal === 0 && todayMeals.length >= targetMeals);
 
@@ -992,28 +968,30 @@ export function predictNextFood(
   const scheduledBfastToday = getOccurrenceOfClockTimeInTimezone(now, mealSchedule.breakfastMins / 60, tz, 0);
 
   const firstMorningPee = findFirstMorningPee(sorted, now, tz);
+  // Breakfast comes after the morning pee, or after wake-up while no morning pee is logged
   const minBfastAfterWalk = firstMorningPee
     ? new Date(parseIsoDate(firstMorningPee.timestamp).getTime() + 15 * 60 * 1000)
-    : scheduledBfastToday;
+    : getOccurrenceOfClockTimeInTimezone(now, sleepSchedule.wakeupHour, tz, 0);
 
   const todayBreakfast = scheduledBfastToday.getTime() >= minBfastAfterWalk.getTime()
     ? scheduledBfastToday
     : minBfastAfterWalk;
   const todayBfastStr = formatLocalTime(todayBreakfast, tz);
 
-  // Next upcoming morning breakfast (strictly in the future, for night sleep or goal reached)
-  const nextBreakfast = getNextOccurrenceOfClockTime(now, mealSchedule.breakfastMins / 60, tz);
+  // Next breakfast (night sleep or goal reached): the breakfast time on the next wake-up's day, never before that wake-up
+  const nextWakeup = getNextOccurrenceOfClockTime(now, sleepSchedule.wakeupHour, tz);
+  const nextBreakfast = new Date(Math.max(
+    nextWakeup.getTime(),
+    getOccurrenceOfClockTimeInTimezone(nextWakeup, mealSchedule.breakfastMins / 60, tz, 0).getTime()
+  ));
   const nextBfastStr = formatLocalTime(nextBreakfast, tz);
   let nextExpectedAt: Date = todayBreakfast;
   let mode: FoodScheduleMode = 'daytime_schedule';
   let urgency: 'safe' | 'soon' | 'overdue' = 'safe';
   let reason = '';
 
-  // A missed meal stays on the card until bedtime + 1 h (normal meal spacing), then night mode takes over
-  const isPreBedMealPending = !isGoalReached && todayMeals.length > 0 && todayMeals.length < targetMeals
-    && now.getTime() <= getRelevantBedtime(now, sleepSchedule, tz).getTime() + 60 * 60 * 1000;
-
-  if (isNightTime && !isPreBedMealPending) {
+  // A missed meal stops at bedtime: night mode shows tomorrow's breakfast
+  if (isNightTime) {
     mode = 'night_sleep';
     nextExpectedAt = nextBreakfast;
     reason = `Breakfast (~${nextBfastStr}, Meal 1 of ${targetMeals})`;
@@ -1045,7 +1023,9 @@ export function predictNextFood(
     const effectiveBedtime = sleepSchedule.bedtimeHour < sleepSchedule.wakeupHour
       ? sleepSchedule.bedtimeHour + 24
       : sleepSchedule.bedtimeHour;
-    const lastMealHour = getLocalDecimalHour(new Date(lastMealTime), tz);
+    // A meal after midnight belongs to the evening before (04:00 day): 00:10 is hour 24.17, not 0.17
+    const lastMealClockHour = getLocalDecimalHour(new Date(lastMealTime), tz);
+    const lastMealHour = lastMealClockHour < 4 ? lastMealClockHour + 24 : lastMealClockHour;
     const wakingHoursLeft = Math.max(1, effectiveBedtime - lastMealHour);
     const idealIntervalHours = Math.max(2.5, wakingHoursLeft / (remainingMealsCount + 1));
 
@@ -1104,7 +1084,10 @@ export function calculatePredictions(
 ): PredictionResult {
   const now = referenceTime || new Date();
   const tz = timeZone || getUserTimezone();
-  const past = excludeFutureLogs(activities, now);
+  // The last 14 days only, what the app loads at start: "Load more" in the history must not change the cards
+  const past = excludeFutureLogs(activities, now).filter(
+    (activity) => parseIsoDate(activity.timestamp).getTime() >= now.getTime() - 14 * 24 * 60 * 60 * 1000
+  );
   const sleepSchedule = customSleepSchedule || detectSleepSchedule(past, tz);
   const mealSchedule = detectMealSchedule(past, tz);
   const options: PredictorOptions = {

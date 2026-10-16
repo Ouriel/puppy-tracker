@@ -355,7 +355,7 @@ describe('predictions utility — comprehensive test suite', () => {
 
         const predictions = calculatePredictions(constipationDataset, mockProfile, referenceTime, 'Europe/Paris');
         // Pause = max(1.4 x 6 h fallback interval, 8 h) = 8.4 h; then the default 07:00 wake-up + 10 min
-        expect(predictions.poopReason).toBe('Morning outing (~07:10)');
+        expect(predictions.poopReason).toBe('First poop of the day (~07:10)');
         expect(at(predictions.nextPoopExpectedAt!)).toBe('2026-08-15 07:10');
         expect(predictions.poopUrgency).toBe('overdue');
       });
@@ -562,17 +562,17 @@ describe('predictions utility — comprehensive test suite', () => {
         expect(predictions.foodReason).toBe('Meal 2 of 2 (spaced ~7.0h)');
         expect(predictions.nextFoodExpectedAt!.toISOString()).toBe('2026-08-17T15:00:00.000Z');
 
-        // Same spacing at 23:00 (bedtime + 1 h), when the missing meal is kept past bedtime instead of switching to night mode
+        // The missed meal stops at bedtime: at 23:00 (bedtime + 1 h) the card shows tomorrow's breakfast
         const pastBedtime = calculatePredictions(
           [act('food', '2026-08-17T08:00:00Z')],
           { ...PISTACHE, targetMealsPerDay: 2 },
           new Date('2026-08-17T23:00:00Z'),
           'UTC'
         );
-        expect(pastBedtime.foodMode).toBe('daytime_schedule');
-        expect(pastBedtime.foodReason).toBe('Meal 2 of 2 (spaced ~7.0h)');
-        expect(pastBedtime.nextFoodExpectedAt!.toISOString()).toBe('2026-08-17T15:00:00.000Z');
-        expect(pastBedtime.foodUrgency).toBe('overdue');
+        expect(pastBedtime.foodMode).toBe('night_sleep');
+        expect(pastBedtime.foodReason).toBe('Breakfast (~07:30, Meal 1 of 2)');
+        expect(pastBedtime.nextFoodExpectedAt!.toISOString()).toBe('2026-08-18T07:30:00.000Z');
+        expect(pastBedtime.foodUrgency).toBe('safe');
       });
 
       it('keeps meal 2 safe at 15:30 after a 09:45 breakfast (bedtime 23:30): due ~16:37, not overdue since 15:15', () => {
@@ -913,7 +913,7 @@ describe('predictions utility — comprehensive test suite', () => {
       expect(foodResult.portionGrams).toBe(80);
     });
 
-    it('calculateMorningSequenceOffsets calculates empirical offsets from historical morning logs', () => {
+    it('calculateMorningSequenceOffsets learns the morning poop offset from historical morning logs', () => {
       const activities: Activity[] = [];
       // 5 days of data: Pee at 07:00, Poop at 07:07 (+7m), Breakfast at 07:18 (+18m)
       for (let d = 0; d < 5; d++) {
@@ -923,13 +923,12 @@ describe('predictions utility — comprehensive test suite', () => {
       }
 
       const offsets = calculateMorningSequenceOffsets(activities, 'Europe/Paris');
-      expect(offsets.morningPoopOffsetMins).toBe(7);
-      expect(offsets.morningFoodOffsetMins).toBe(18);
+      expect(offsets).toEqual({ morningPoopOffsetMins: 7 });
     });
 
-    it('calculateMorningSequenceOffsets falls back to 10 min (poop) and 20 min (breakfast) without a morning poop or meal', () => {
-      expect(calculateMorningSequenceOffsets([], 'Europe/Paris')).toEqual({ morningPoopOffsetMins: 10, morningFoodOffsetMins: 20 });
-      expect(calculateMorningSequenceOffsets([act('pee', makeParisIso(17, 7, 0))], 'Europe/Paris')).toEqual({ morningPoopOffsetMins: 10, morningFoodOffsetMins: 20 });
+    it('calculateMorningSequenceOffsets falls back to 10 min without a morning poop', () => {
+      expect(calculateMorningSequenceOffsets([], 'Europe/Paris')).toEqual({ morningPoopOffsetMins: 10 });
+      expect(calculateMorningSequenceOffsets([act('pee', makeParisIso(17, 7, 0))], 'Europe/Paris')).toEqual({ morningPoopOffsetMins: 10 });
     });
 
     it('at 02:00 in night mode, predicts the morning sequence pee <= poop <= food from the wake-up time and learned offsets', () => {
@@ -1266,7 +1265,7 @@ describe('predictions utility — comprehensive test suite', () => {
       expect(at(predictions.nextPoopExpectedAt!)).toBe('2026-08-15 08:04');
       expect(predictions.poopMode).toBe('daytime_baseline');
       expect(predictions.poopUrgency).toBe('soon');
-      expect(predictions.poopReason).toBe('Morning outing (~08:04)');
+      expect(predictions.poopReason).toBe('First poop of the day (~08:04)');
     });
 
     it('predicts morning wake-up pee (~07:00 AM) instead of middle-of-night (02:00 AM) before first pee is logged today', () => {
@@ -1279,7 +1278,7 @@ describe('predictions utility — comprehensive test suite', () => {
       expect(at(predictions.nextPeeExpectedAt!)).toBe('2026-08-15 07:00');
       expect(predictions.peeMode).toBe('daytime_baseline');
       expect(predictions.peeUrgency).toBe('overdue');
-      expect(predictions.peeReason).toContain('Morning outing');
+      expect(predictions.peeReason).toContain('First pee of the day');
     });
 
     // Newest first, as production feeds them. The wake-up pee is 07:00: the 04:30 night potty is before 05:00,
@@ -1299,7 +1298,7 @@ describe('predictions utility — comprehensive test suite', () => {
 
       expect(at(predictions.nextPoopExpectedAt!)).toBe('2026-08-14 07:10');
       expect(predictions.poopMode).toBe('daytime_baseline');
-      expect(predictions.poopReason).toBe('Morning outing (~07:10)');
+      expect(predictions.poopReason).toBe('First poop of the day (~07:10)');
       expect(predictions.poopUrgency).toBe('overdue');
       expect(at(predictions.nextFoodExpectedAt!)).toBe('2026-08-14 07:30');
       expect(predictions.foodMode).toBe('daytime_schedule');
