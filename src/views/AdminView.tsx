@@ -314,9 +314,9 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail, caretake
       {/* Pending Activations List */}
       <Card className="bg-slate-900 border-slate-800 text-slate-100">
         <Card.Header className="px-4 pt-4">
-          <Card.Title className="flex items-center justify-between text-amber-300">
+          <Card.Title className="flex flex-wrap items-center justify-between gap-x-2 text-amber-300">
             <span>{t.admin.pendingActivations.replace('{count}', String(pendingUsers.length))}</span>
-            <span className="text-[10px] text-slate-400 font-mono font-normal">
+            <span className="text-xs text-slate-400 font-normal">
               {t.admin.requiresApprovalAndHousehold}
             </span>
           </Card.Title>
@@ -336,11 +336,11 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail, caretake
                     className="p-4 bg-slate-950/40 rounded-xl border border-slate-800 space-y-3"
                   >
                     <div className="flex flex-wrap items-center justify-between gap-2">
-                      <div>
-                        <div className="text-xs font-bold text-slate-100">
+                      <div className="min-w-0">
+                        <div className="text-xs font-bold text-slate-100 break-words">
                           {userItem.name}
                         </div>
-                        <div className="text-xs text-slate-400 font-mono mt-0.5">{userItem.email}</div>
+                        <div className="text-xs text-slate-400 font-mono mt-0.5 break-all">{userItem.email}</div>
                       </div>
 
                       <div className="flex items-center gap-1.5 text-[11px] text-slate-400 bg-slate-900 px-2.5 py-1 rounded-lg border border-slate-800">
@@ -350,29 +350,29 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail, caretake
                     </div>
 
                     <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-900">
-                      <div className="flex items-center gap-2">
-                        <label htmlFor={`assign-${userItem.id}`} className="text-xs text-slate-400">{t.admin.assignTo}</label>
+                      <div className="flex items-center gap-2 flex-1 min-w-0">
+                        <label htmlFor={`assign-${userItem.id}`} className="text-xs text-slate-400 shrink-0">{t.admin.assignTo}</label>
                         <select
                           id={`assign-${userItem.id}`}
                           value={currentSelectedHousehold}
                           onChange={(event) =>
                             setTargetHouseholds({ ...targetHouseholds, [userItem.email]: event.target.value })
                           }
-                          className="bg-slate-900 border border-slate-700 text-slate-200 text-xs rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-indigo-500"
+                          className="w-full min-w-0 min-h-11 bg-slate-900 border border-slate-700 text-slate-200 text-xs rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-indigo-500"
                         >
                           {householdOptions(userItem.householdId).map((household) => (
-                            <option key={household.id} value={household.id}>
-                              {household.name} ({household.id})
+                            <option key={household.id} value={household.id} title={household.id}>
+                              {household.name}
                             </option>
                           ))}
                         </select>
                       </div>
 
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 w-full sm:w-auto">
                         <Button
                           size="sm"
                           onPress={() => handleActivate(userItem)}
-                          className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold"
+                          className="flex-1 sm:flex-none min-w-0 h-auto min-h-11 py-1.5 whitespace-normal bg-emerald-600 hover:bg-emerald-500 text-white font-bold"
                         >
                           <UserCheck className="w-3.5 h-3.5 mr-1 inline" />
                           {t.admin.approveAndAssign}
@@ -402,8 +402,8 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail, caretake
             <Card.Title className="text-white font-bold">{t.admin.preApproveTitle}</Card.Title>
           </Card.Header>
           <Card.Content className="p-4 space-y-3">
-            <div className="flex flex-wrap gap-2 items-center">
-              <div className="flex-1 min-w-[200px]">
+            <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
+              <div className="flex-1 min-w-0">
                 <Input
                   type="email"
                   aria-label={t.admin.preApproveTitle}
@@ -415,15 +415,15 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail, caretake
                 />
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 min-w-0">
                 <select
                   aria-label={t.admin.household}
                   value={newInviteHousehold || currentHouseholdId || ''}
                   onChange={(event) => setNewInviteHousehold(event.target.value)}
-                  className="bg-slate-950 border border-slate-800 text-slate-200 text-xs rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-500"
+                  className="w-full sm:w-auto min-w-0 min-h-11 bg-slate-950 border border-slate-800 text-slate-200 text-xs rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-500"
                 >
                   {householdOptions(currentHouseholdId).map((household) => (
-                    <option key={household.id} value={household.id}>
+                    <option key={household.id} value={household.id} title={household.id}>
                       {household.name}
                     </option>
                   ))}
@@ -462,17 +462,17 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail, caretake
                   key={userItem.id}
                   className="flex flex-wrap items-center justify-between gap-3 p-3.5 bg-slate-950/60 rounded-xl border border-slate-800"
                 >
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-bold text-slate-100">{userItem.name}</span>
-                      <Chip color="default" size="sm" variant="soft" className="text-[10px]">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-xs font-bold text-slate-100 break-words min-w-0">{userItem.name}</span>
+                      <Chip color="default" size="sm" variant="soft">
                         {t.admin.roles[userItem.role as keyof typeof t.admin.roles] ?? userItem.role}
                       </Chip>
                     </div>
-                    <div className="text-xs text-slate-400 font-mono mt-0.5">{userItem.email}</div>
+                    <div className="text-xs text-slate-400 font-mono mt-0.5 break-all">{userItem.email}</div>
                   </div>
 
-                  <div className="flex flex-wrap items-center gap-3">
+                  <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto min-w-0">
                     {/* Household badge / mover */}
                     {isSuperAdminEmail(userItem.email) ? (
                       <Chip color="accent" size="sm" variant="soft" className="font-bold">
@@ -480,17 +480,17 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail, caretake
                       </Chip>
                     ) : (
                       <>
-                        <div className="flex items-center gap-1.5">
-                          <Home className="w-3.5 h-3.5 text-indigo-400" />
+                        <div className="flex items-center gap-1.5 w-full sm:w-auto min-w-0">
+                          <Home className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
                           <select
                             value={userItem.householdId ?? ''}
                             onChange={(event) => setAccountToMove({ email: userItem.email, householdId: event.target.value })}
                             aria-label={t.admin.householdFor.replace('{name}', userItem.name)}
-                            className="bg-slate-900 border border-slate-700 text-slate-200 text-xs rounded-lg px-2.5 py-1 focus:outline-none focus:border-indigo-500"
+                            className="w-full sm:w-auto min-w-0 min-h-11 bg-slate-900 border border-slate-700 text-slate-200 text-xs rounded-lg px-2.5 py-1 focus:outline-none focus:border-indigo-500"
                           >
                             {householdOptions(userItem.householdId).map((household) => (
-                              <option key={household.id} value={household.id}>
-                                {household.name} ({household.id})
+                              <option key={household.id} value={household.id} title={household.id}>
+                                {household.name}
                               </option>
                             ))}
                           </select>

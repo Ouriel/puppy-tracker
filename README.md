@@ -29,7 +29,7 @@ React 19 · Vite 8 · HeroUI v3 · Tailwind 4 · Vercel serverless functions · 
 
 ## Signing in and families
 
-- Sign in with Google. The first sign-in of a new person creates an account **waiting for approval**, in a new household of its own; the app shows "pending activation" until the owner approves it. Approved there, alone, that person becomes the family's **Admin**: the first member of a new family invites the rest of it.
+- Sign in with Google. The first sign-in of a new person creates an account **waiting for approval**, in a new household of its own; until the owner approves it, the sign-in screen says the request was sent and waits for the family's admin (still shown after a reload on that phone, with "Use another Google account"). Approved there, alone, that person becomes the family's **Admin**: the first member of a new family invites the rest of it.
 - The owner, or a family's Admin, can also **invite** someone by email in advance (Settings > Household Members). An invited person lands directly in the inviter's family, as a member. Someone who signed in before being invited and still waits alone, in a household with no dog, joins it too.
 - Several families can use the same app: each household sees only its own dogs, logs and members. Apart from that case, only the owner moves an account from one household to another, and always after a confirmation.
 - A session lasts 90 days and is renewed each time the app is opened. A removed or revoked account is sent back to the sign-in screen on its next request.

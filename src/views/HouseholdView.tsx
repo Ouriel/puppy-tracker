@@ -163,8 +163,8 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
                 </div>
               )}
 
-              <div className="flex flex-wrap gap-2 items-center">
-                <div className="flex-1 min-w-[200px]">
+              <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
+                <div className="flex-1 min-w-0">
                   <Input
                     type="email"
                     aria-labelledby="invite-email-title"
@@ -207,7 +207,7 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
               }}
               className="text-xs border-slate-800"
             >
-              <UserPlus className="w-3.5 h-3.5 mr-1 inline" />
+              {isAdding ? <X className="w-3.5 h-3.5 mr-1 inline" /> : <UserPlus className="w-3.5 h-3.5 mr-1 inline" />}
               {isAdding ? t.potty.cancel : t.household.addMember}
             </Button>
           </div>
@@ -256,7 +256,7 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
           )}
 
           {/* Member List */}
-          <div className="space-y-2">
+          <ul className="space-y-2">
             {caretakers.map((caretaker) => {
               const isSelected = linkedCaretaker?.id === caretaker.id;
               const isEditingThis = editingId === caretaker.id;
@@ -268,12 +268,13 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
                 const canClaim = caretaker.email
                   ? isLinkedToMe && isSuperAdminEmail(user.email)
                   : !caretakers.some((item) => item.email?.toLowerCase() === myEmail);
+                // One line each: colour and name, then "This is me", then Save and close
                 return (
-                  <div
+                  <li
                     key={caretaker.id}
-                    className="flex flex-wrap items-center justify-between p-3 sm:p-3.5 bg-slate-900 border border-indigo-500/60 rounded-xl gap-3 shadow-md"
+                    className="flex flex-col gap-3 p-3 sm:p-3.5 bg-slate-900 border border-indigo-500/60 rounded-xl shadow-md"
                   >
-                    <div className="flex items-center gap-3 flex-1 min-w-[200px]">
+                    <div className="flex items-center gap-3">
                       <input
                         type="color"
                         aria-label={t.household.badgeColor}
@@ -290,20 +291,21 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
                         aria-label={t.household.memberName}
                         autoFocus
                       />
-                      {canClaim && (
-                        <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-300 shrink-0 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={editIsMe}
-                            onChange={(event) => setEditIsMe(event.target.checked)}
-                            className="w-4 h-4 accent-indigo-500"
-                          />
-                          {t.household.thisIsMe}
-                        </label>
-                      )}
                     </div>
 
-                    <div className="flex items-center gap-2">
+                    {canClaim && (
+                      <label className="flex items-center gap-2 min-h-11 text-xs font-semibold text-slate-300 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={editIsMe}
+                          onChange={(event) => setEditIsMe(event.target.checked)}
+                          className="w-4 h-4 accent-indigo-500 shrink-0"
+                        />
+                        {t.household.thisIsMe}
+                      </label>
+                    )}
+
+                    <div className="flex items-center justify-end gap-2">
                       <Button
                         variant="primary"
                         size="sm"
@@ -333,26 +335,35 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
                         <X className="w-4 h-4" />
                       </Button>
                     </div>
-                  </div>
+                  </li>
                 );
               }
 
+              // A fixed action column: the pencil, then the trash, or an empty slot on your own badge. The email goes
+              // under the name and runs under the actions too, so a long one keeps some width on a phone.
               return (
-                <div
+                <li
                   key={caretaker.id}
-                  className="flex items-center justify-between p-3 sm:p-3.5 bg-slate-950/40 rounded-xl border border-slate-800 gap-2"
+                  className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-0.5 p-3 sm:p-3.5 bg-slate-950/40 rounded-xl border border-slate-800"
                 >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div
-                      className="w-4 h-4 rounded-full ring-2 ring-white/20 shrink-0"
-                      style={{ backgroundColor: caretaker.color }}
-                    />
-                    <div className="text-xs font-bold text-slate-100 truncate">
-                      {caretaker.name}
-                    </div>
+                  <div
+                    className="w-4 h-4 rounded-full ring-2 ring-white/20"
+                    style={{ backgroundColor: caretaker.color }}
+                  />
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1 min-w-0">
+                    <span className="text-xs font-bold text-slate-100 line-clamp-2 break-words min-w-0">{caretaker.name}</span>
+                    {isSelected && (
+                      <Chip color="success" variant="soft" size="sm">
+                        <UserCheck className="w-3.5 h-3.5 mr-1 inline text-emerald-400" />
+                        {t.household.activeMember}
+                      </Chip>
+                    )}
                   </div>
+                  {caretaker.email && (
+                    <div className="col-start-2 col-span-2 row-start-2 text-xs text-slate-400 break-all">{caretaker.email}</div>
+                  )}
 
-                  <div className="flex items-center gap-1.5 shrink-0">
+                  <div className="col-start-3 row-start-1 flex items-center gap-1.5">
                     <button
                       type="button"
                       onClick={() => {
@@ -367,14 +378,9 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
                       <Pencil className="w-4 h-4" />
                     </button>
 
-                    {isSelected && (
-                      <Chip color="success" variant="soft" size="sm">
-                        <UserCheck className="w-3.5 h-3.5 mr-1 inline text-emerald-400" />
-                        {t.household.activeMember}
-                      </Chip>
-                    )}
-
-                    {!isSelected && (
+                    {isSelected ? (
+                      <div aria-hidden="true" className="w-11 h-11" />
+                    ) : (
                       <button
                         type="button"
                         onClick={() => setBadgeToDelete(caretaker)}
@@ -385,10 +391,10 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
                       </button>
                     )}
                   </div>
-                </div>
+                </li>
               );
             })}
-          </div>
+          </ul>
         </Card.Content>
       </Card>
     </div>
