@@ -153,7 +153,7 @@ describe('getRecommendedMealsPerDay (engine fallback and new-dog default)', () =
 });
 
 describe('buildVetWeighIn (the optional weight box of the vaccine and deworming forms)', () => {
-  const box = { puppyId: 'pup-1', date: '2026-07-27', productName: 'Credelio Plus', loggedBy: 'Tester' };
+  const box = { puppyId: 'pup-1', date: '2026-07-27', loggedBy: 'Tester' };
   // Save pressed on 2026-10-14 at 09:00 Paris
   const now = new Date('2026-10-14T07:00:00.000Z');
 
@@ -165,9 +165,10 @@ describe('buildVetWeighIn (the optional weight box of the vaccine and deworming 
     expect(buildVetWeighIn({ ...box, weightText }, now)).toEqual({ error: 'weightInvalid' });
   });
 
-  it('a past date: a weight event at 12:00 Paris that day, its note the product name', () => {
-    expect(buildVetWeighIn({ ...box, weightText: '10,4' }, now)).toEqual({
-      activity: { puppyId: 'pup-1', type: 'weight', timestamp: '2026-07-27T10:00:00.000Z', weightKg: 10.4, notes: 'Credelio Plus', loggedBy: 'Tester' },
+  // Owner decision 2026-10-16: no vet/home distinction, so no product name in the note
+  it('a past date: a weight event at 12:00 Paris that day, with no note', () => {
+    expect(buildVetWeighIn({ ...box, weightText: '10,4' }, now)).toStrictEqual({
+      activity: { puppyId: 'pup-1', type: 'weight', timestamp: '2026-07-27T10:00:00.000Z', weightKg: 10.4, loggedBy: 'Tester' },
     });
   });
 

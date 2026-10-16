@@ -82,6 +82,11 @@ export function formatLocalDate(date: Date = new Date(), timeZone?: string): str
   }
 }
 
+/** Calendar days from a timestamp's local day to today's: 0 today, 1 yesterday. */
+export function getCalendarDaysAgo(timestamp: string, now: Date = new Date()): number {
+  return Math.round((Date.parse(formatLocalDate(now)) - Date.parse(formatLocalDate(new Date(timestamp)))) / (24 * 60 * 60 * 1000));
+}
+
 /**
  * Returns YYYY-MM-DDTHH:mm in local timezone for <input type="datetime-local">
  */

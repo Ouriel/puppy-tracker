@@ -611,6 +611,7 @@ function App() {
             defaultMealPortionGrams={nextMealPortionGrams}
             dailyFoodGramGoal={puppyState.activePuppy?.dailyFoodGramGoal}
             lastWeighIn={lastWeighIn}
+            profile={puppyState.activePuppy ?? undefined}
           />
         </Suspense>
       )}

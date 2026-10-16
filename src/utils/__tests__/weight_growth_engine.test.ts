@@ -7,7 +7,14 @@ import {
   calculateProjectedAdultWeightRange,
   estimateCurrentWeightFromLastLog,
   getEffectivePuppyWeight,
-  scaleGrowthBenchmarks,
+  formatKg,
+  getMeasuredPace,
+  isUnlikelyWeight,
+  findUnlikelyWeighIns,
+  getTrustedWeightEntries,
+  getKnownAdultWeight,
+  getWalthamAdultWeeks,
+  type UnifiedWeightEntry,
 } from '../weight';
 import { calculatePredictions } from '../predictions';
 import type { Activity, PuppyProfile } from '../../types';
@@ -152,19 +159,29 @@ describe('Canine Weight Prediction & WALTHAM Growth Engine', () => {
       expect(getWalthamGrowthVelocity(14.4, 56)).toBe(0);
     });
 
-    it('estimates accurate current weight between weigh-ins without severe underestimation', () => {
-      // Last weigh-in: 9.5 kg on September 1. Target date: September 6 (5 days elapsed)
-      const estimated = estimateCurrentWeightFromLastLog(
-        9.5,
-        '2026-09-01T16:00:00.000Z',
-        '2026-09-06T16:00:00.000Z',
-        21.7,
-        14.4
-      );
+    it('estimates today along the dog\'s own track: the last weigh-in × f(today) / f(last weigh-in)', () => {
+      // Last weigh-in: 9.5 kg at 21.7 weeks. Target: 5 days later.
+      // Pin changed on purpose: it was the Gompertz velocity at today's age × 5 days (9.70–9.82); now the dog stays
+      // on her own curve: 9.5 × 0.6926 / 0.6775
+      expect(estimateCurrentWeightFromLastLog(9.5, 21.7, 21.7 + 5 / 7, 14.4)).toBeCloseTo(9.71, 2);
+    });
 
-      // In 5 days at ~53 g/day, puppy should gain ~0.26 kg -> ~9.76 kg
-      expect(estimated).toBeGreaterThanOrEqual(9.70);
-      expect(estimated).toBeLessThanOrEqual(9.82);
+    it('after a long gap, the estimate stays on the dog\'s curve (the velocity × days drifted about 10 % below it)', () => {
+      // 4 kg at 10 weeks, 20 weeks without a weigh-in
+      const estimated = estimateCurrentWeightFromLastLog(4, 10, 30, 14);
+
+      expect(estimated / getWalthamGrowthFraction('III', 30)).toBeCloseTo(4 / getWalthamGrowthFraction('III', 10), 2);
+      expect(estimated).toBeCloseTo(9.45, 2); // the velocity × days gave 8.48
+    });
+
+    it('a large dog moves along its own size\'s curve: 10 kg at 12 weeks is 14 kg at 16 weeks for a 40 kg adult (category V)', () => {
+      // 10 × 0.42 / 0.30; the medium curve (category III) would give 12,86
+      expect(estimateCurrentWeightFromLastLog(10, 12, 16, 40)).toBeCloseTo(14, 2);
+    });
+
+    it('a weigh-in in the future or today estimates the weigh-in itself', () => {
+      expect(estimateCurrentWeightFromLastLog(9.5, 21.7, 21.7, 14.4)).toBe(9.5);
+      expect(estimateCurrentWeightFromLastLog(9.5, 21.7, 21, 14.4)).toBe(9.5);
     });
   });
 
@@ -191,7 +208,7 @@ describe('Canine Weight Prediction & WALTHAM Growth Engine', () => {
 
         expect(effective.lastLoggedWeight).toBe(9.52); // The Sept 3 deworming weigh-in
         expect(effective.estimatedCurrentWeight).toBeGreaterThan(9.52);
-        expect(effective.dailyGainGrams).toBe(50);
+        // No model g/day any more (it was 50, the Gompertz velocity at 22 weeks): the screens show getMeasuredPace
       } finally {
         vi.useRealTimers();
       }
@@ -233,6 +250,137 @@ describe('Canine Weight Prediction & WALTHAM Growth Engine', () => {
     });
   });
 
+  describe('getMeasuredPace: the measured gain, least squares over the 28 days up to the last weigh-in', () => {
+    const weighIn = (date: string, weightKg: number): UnifiedWeightEntry =>
+      ({ id: date, puppyId: 'pup-pistache', type: 'weight', timestamp: `${date}T08:00:00.000Z`, weightKg, loggedBy: 'Sam' });
+
+    it('fits a line through the weigh-ins of the last 28 days, leaving older ones out', () => {
+      // +60 g/day exactly; the July weigh-in would bend the line
+      const pace = getMeasuredPace([weighIn('2026-07-01', 3), weighIn('2026-09-01', 9), weighIn('2026-09-11', 9.6), weighIn('2026-09-21', 10.2)]);
+
+      expect(pace).toEqual({ gramsPerDay: 60, days: 20 });
+    });
+
+    it('a loss reads negative', () => {
+      expect(getMeasuredPace([weighIn('2026-09-01', 10), weighIn('2026-09-11', 9.8)])).toEqual({ gramsPerDay: -20, days: 10 });
+    });
+
+    it('one weigh-in, or two less than 7 days apart: no pace', () => {
+      expect(getMeasuredPace([weighIn('2026-09-01', 9)])).toBeNull();
+      expect(getMeasuredPace([weighIn('2026-09-01', 9), weighIn('2026-09-05', 9.3)])).toBeNull();
+    });
+
+    it('a single weigh-in in the last 28 days: the pace from the one before it', () => {
+      expect(getMeasuredPace([weighIn('2026-08-01', 7.2), weighIn('2026-09-10', 9.6)])).toEqual({ gramsPerDay: 60, days: 40 });
+    });
+
+    it('the last weigh-ins less than a week apart: the pace reaches back to the latest weigh-in a week or more before the last one', () => {
+      // The last two 3 days apart, the one before 40 days earlier
+      expect(getMeasuredPace([weighIn('2026-07-01', 5), weighIn('2026-08-10', 6.2), weighIn('2026-08-13', 6.3)])).toEqual({ gramsPerDay: 30, days: 43 });
+      // Two on the same day, 30 days after the one before
+      const sameDay: UnifiedWeightEntry = { ...weighIn('2026-08-31', 8.9), id: 'same-day', timestamp: '2026-08-31T18:00:00.000Z' };
+      expect(getMeasuredPace([weighIn('2026-08-01', 7), weighIn('2026-08-31', 8.8), sameDay])).toEqual({ gramsPerDay: 61, days: 30 });
+    });
+
+    it('least squares, not the two ends: 48 g/day through uneven weigh-ins (the ends alone give 50)', () => {
+      expect(getMeasuredPace([weighIn('2026-09-01', 5), weighIn('2026-09-08', 5.5), weighIn('2026-09-15', 5.7), weighIn('2026-09-29', 6.4)])).toEqual({ gramsPerDay: 48, days: 28 });
+    });
+
+    it('a weigh-in 25 days before the last one counts (61 g/day; without it, 40)', () => {
+      expect(getMeasuredPace([weighIn('2026-07-01', 3), weighIn('2026-08-05', 8.5), weighIn('2026-08-20', 9.6), weighIn('2026-08-30', 10)])).toEqual({ gramsPerDay: 61, days: 25 });
+    });
+
+    it('7 days apart is enough, 6.9 days is not', () => {
+      expect(getMeasuredPace([weighIn('2026-09-01', 9), weighIn('2026-09-08', 9.4)])).toEqual({ gramsPerDay: 57, days: 7 });
+      expect(getMeasuredPace([weighIn('2026-09-01', 9), { ...weighIn('2026-09-08', 9.4), timestamp: '2026-09-08T05:36:00.000Z' }])).toBeNull();
+    });
+  });
+
+  describe('typo check: a weight compared with its neighbour moved along the growth curve', () => {
+    const weighIn = (id: string, date: string, weightKg: number): UnifiedWeightEntry =>
+      ({ id, puppyId: 'pup-pistache', type: 'weight', timestamp: `${date}T08:00:00.000Z`, weightKg, loggedBy: 'Sam' });
+    const chihuahua: PuppyProfile = { ...pistacheProfile, breed: 'Chihuahua', birthDate: '2026-04-03' };
+
+    it('a small breed doubling between 8 and 16 weeks is growth, not a typo (the raw ×2 rule warned)', () => {
+      // 0.8 kg at 8 weeks; her curve goes from 32 % to 65 % of the adult weight by 16 weeks
+      expect(isUnlikelyWeight(1.65, '2026-07-24T08:00:00.000Z', weighIn('w8', '2026-05-29', 0.8), chihuahua)).toBe(false);
+    });
+
+    it.each([[113, true], [1.13, true], [11.9, false]])('%s kg typed a week after 11,3 kg: unlikely %s', (typedKg, expected) => {
+      expect(isUnlikelyWeight(typedKg, '2026-09-08T08:00:00.000Z', weighIn('w', '2026-09-01', 11.3), pistacheProfile)).toBe(expected);
+    });
+
+    it('a saved weigh-in is flagged when it fails against both neighbours; the first and the last against the two nearest', () => {
+      const series = [weighIn('a', '2026-08-01', 7.8), weighIn('b', '2026-08-15', 8.4), weighIn('typo', '2026-08-29', 91), weighIn('c', '2026-09-12', 9.9)];
+
+      // c, next to the typo, still matches b
+      expect(findUnlikelyWeighIns(series, pistacheProfile)).toEqual(new Set(['typo']));
+      expect(findUnlikelyWeighIns([...series.slice(0, 2), weighIn('last', '2026-08-29', 0.9)], pistacheProfile)).toEqual(new Set(['last']));
+      expect(findUnlikelyWeighIns([weighIn('first', '2026-07-18', 72), ...series.slice(0, 2)], pistacheProfile)).toEqual(new Set(['first']));
+    });
+
+    it('a flagged weigh-in is left out of the current weight and its estimate until edited', () => {
+      const withTypo = [...pistacheActivities, { ...pistacheActivities[5], id: 'typo', timestamp: '2026-09-05T08:00:00.000Z', weightKg: 97 }];
+
+      expect(getTrustedWeightEntries(withTypo, pistacheProfile).map((entry) => entry.id)).not.toContain('typo');
+      expect(getEffectivePuppyWeight(pistacheProfile, withTypo, '2026-09-06T16:00:00.000Z').lastLoggedWeight).toBe(9.5);
+    });
+
+    it('two weigh-ins far apart: the one far off the breed curve (adult × its growth fraction) is flagged; one alone never', () => {
+      expect(findUnlikelyWeighIns([weighIn('a', '2026-08-01', 7.8), weighIn('typo', '2026-08-15', 84)], pistacheProfile)).toEqual(new Set(['typo']));
+      expect(findUnlikelyWeighIns([weighIn('only', '2026-08-01', 78)], pistacheProfile)).toEqual(new Set());
+    });
+
+    it('two weigh-ins, the older one the typo: the older one is flagged, never the right one after it', () => {
+      // 10 and 12 weeks old; a 13 kg Cocker female is about 4,5 then 5,5 kg
+      const series = [weighIn('typo', '2026-06-12', 46), weighIn('b', '2026-06-26', 5.5)];
+
+      expect(findUnlikelyWeighIns(series, pistacheProfile)).toEqual(new Set(['typo']));
+      expect(getTrustedWeightEntries(series, pistacheProfile).map((entry) => entry.id)).toEqual(['b']);
+    });
+
+    it('two weigh-ins far apart, a breed the app does not know and no adult weight typed: neither is flagged', () => {
+      const series = [weighIn('a', '2026-06-12', 46), weighIn('b', '2026-06-26', 5.5)];
+
+      expect(findUnlikelyWeighIns(series, { ...pistacheProfile, breed: 'Labradoodle' })).toEqual(new Set());
+    });
+
+    it('a birth weight is not a typo: the curve says nothing before 4 weeks', () => {
+      const labrador: PuppyProfile = { ...pistacheProfile, breed: 'Labrador Retriever' };
+      // Birth (0,45 kg), then 8, 9 and 10 weeks old
+      const series = [weighIn('birth', '2026-04-03', 0.45), weighIn('w8', '2026-05-29', 7), weighIn('w9', '2026-06-05', 7.6), weighIn('w10', '2026-06-12', 8.3)];
+
+      expect(findUnlikelyWeighIns(series, labrador)).toEqual(new Set());
+      // Typing 3,5 kg at 8 weeks after a 0,3 kg birth weight: no "check the decimal point"
+      expect(isUnlikelyWeight(3.5, '2026-05-29T08:00:00.000Z', weighIn('birth', '2026-04-03', 0.3), pistacheProfile)).toBe(false);
+      // A typo next to a birth weight is still caught by the weigh-ins after it
+      expect(findUnlikelyWeighIns([series[0], weighIn('typo', '2026-05-29', 70), ...series.slice(2)], labrador)).toEqual(new Set(['typo']));
+    });
+  });
+
+  describe('getKnownAdultWeight: the adult weight the chart\'s expected zone uses', () => {
+    it('the breed standard for the sex, or the adult weight typed for the dog', () => {
+      expect(getKnownAdultWeight({ breed: 'English Cocker Spaniel', gender: 'female' })).toBe(13);
+      expect(getKnownAdultWeight({ breed: 'Labradoodle', expectedAdultWeightKg: 24 })).toBe(24);
+    });
+
+    it.each(['Labradoodle', 'Mixed Breed', 'Unknown Breed', 'Other'])('none for "%s" with no typed weight: the 13 kg fallback is made up', (breed) => {
+      expect(getKnownAdultWeight({ breed, gender: 'female' })).toBeNull();
+    });
+  });
+
+  describe('formatKg: one number format for every weight on screen and in the PDF', () => {
+    it.each([
+      [6.4, 'fr', '6,4 kg'],
+      [6.4, 'en', '6.4 kg'],
+      [10.05, 'fr', '10,1 kg'], // at most 1 decimal
+      [7, 'fr', '7 kg'], // no trailing ",0"
+      [4.075, 'en', '4.1 kg'],
+    ] as const)('%s in %s reads "%s"', (kg, lang, text) => {
+      expect(formatKg(kg, lang)).toBe(text);
+    });
+  });
+
   describe('WALTHAM Category Benchmarks', () => {
     it('accurately categorizes breeds into WALTHAM 5-tier size classes', () => {
       expect(getWalthamCategory(4)).toBe('I');
@@ -242,7 +390,7 @@ describe('Canine Weight Prediction & WALTHAM Growth Engine', () => {
       expect(getWalthamCategory(35.0)).toBe('V');
     });
 
-    it('returns the WALTHAM anchors and a smooth Hermite blend between them', () => {
+    it('returns the WALTHAM anchors and a monotone cubic (PCHIP) between them', () => {
       const fracAt8w = getWalthamGrowthFraction('III', 8);
       const fracAt26w = getWalthamGrowthFraction('III', 26);
       const fracAt52w = getWalthamGrowthFraction('III', 52);
@@ -250,39 +398,31 @@ describe('Canine Weight Prediction & WALTHAM Growth Engine', () => {
       expect(fracAt26w).toBeCloseTo(0.76, 2);
       expect(fracAt52w).toBe(1.0);
 
-      // 9 weeks sits between the 8w (0.27) and 12w (0.42) anchors: t = 0.25, S(t) = 3t² - 2t³ = 0.15625
-      expect(getWalthamGrowthFraction('III', 9)).toBeCloseTo(0.2934, 4);
+      // Pin changed on purpose (0.2934 with smoothstep): the curve now leaves the 8w anchor at the pace of its
+      // neighbours (0.0375/week) instead of flat, so 1 week later it is higher
+      expect(getWalthamGrowthFraction('III', 9)).toBeCloseTo(0.3083, 4);
     });
 
-    it('produces category-accurate expected benchmarks for English Cocker Spaniel (Category III)', () => {
-      const benchmarks = scaleGrowthBenchmarks(14.0, 'English Cocker Spaniel');
-      const w8 = benchmarks.find((b) => b.label === '8w');
-      const w12 = benchmarks.find((b) => b.label === '12w');
-      const w16 = benchmarks.find((b) => b.label === '16w');
-      const m6 = benchmarks.find((b) => b.label === '6m');
-      const m12 = benchmarks.find((b) => b.label === '12m');
+    it.each(['I', 'II', 'III', 'IV', 'V'] as const)('category %s: never flat at an anchor before adulthood, never going down', (category) => {
+      const fraction = (weeks: number) => getWalthamGrowthFraction(category, weeks);
+      const slopeAt = (weeks: number) => (fraction(weeks + 0.01) - fraction(weeks - 0.01)) / 0.02;
+      // Smoothstep made the curve flat at 8, 12, 16, 20, 26 and 36 weeks: a 14 kg dog's implied gain swung from 0 to 100+ g/day.
+      // Now the slope at an anchor is of the order of its neighbouring secants (weeks 4 apart at least).
+      for (const anchorWeeks of [8, 12, 16, 20, 26, 36]) {
+        const secantBefore = (fraction(anchorWeeks) - fraction(anchorWeeks - 4)) / 4;
+        const secantAfter = (fraction(anchorWeeks + 4) - fraction(anchorWeeks)) / 4;
+        expect(slopeAt(anchorWeeks)).toBeGreaterThan(Math.min(secantBefore, secantAfter) / 4);
+      }
+      for (let weeks = 2; weeks < 70; weeks += 0.1) {
+        expect(getWalthamGrowthFraction(category, weeks + 0.1)).toBeGreaterThanOrEqual(getWalthamGrowthFraction(category, weeks));
+      }
+    });
 
-      // For a 14kg adult Cocker:
-      // 8w should be ~3.8kg (min ~3.3, max ~4.3), correctly validating Pistache's 4.0kg!
-      expect(w8?.expectedKg).toBeGreaterThanOrEqual(3.5);
-      expect(w8?.expectedKg).toBeLessThanOrEqual(4.2);
-      expect(w8?.minKg).toBeLessThanOrEqual(4.0);
-      expect(w8?.maxKg).toBeGreaterThanOrEqual(4.0);
+    it.each([['I', 52], ['III', 52], ['IV', 60], ['V', 68]] as const)('category %s: growth eases to a stop at the adult age (%s weeks), never past 100 %', (category, adultWeeks) => {
+      const slopeJustBefore = (getWalthamGrowthFraction(category, adultWeeks) - getWalthamGrowthFraction(category, adultWeeks - 0.1)) / 0.1;
 
-      // 12w should be ~5.9kg
-      expect(w12?.expectedKg).toBeGreaterThanOrEqual(5.5);
-      expect(w12?.expectedKg).toBeLessThanOrEqual(6.5);
-
-      // 16w should be ~7.6kg
-      expect(w16?.expectedKg).toBeGreaterThanOrEqual(7.0);
-      expect(w16?.expectedKg).toBeLessThanOrEqual(8.2);
-
-      // 6m should be ~10.6kg
-      expect(m6?.expectedKg).toBeGreaterThanOrEqual(10.0);
-      expect(m6?.expectedKg).toBeLessThanOrEqual(11.5);
-
-      // 12m must equal adult target (14kg)
-      expect(m12?.expectedKg).toBe(14.0);
+      expect(slopeJustBefore).toBeLessThan(0.001); // per week; the last secant as end slope would leave 0.0025–0.007
+      expect(getWalthamAdultWeeks(category)).toBe(adultWeeks);
     });
   });
 });

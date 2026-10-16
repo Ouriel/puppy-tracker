@@ -3,6 +3,7 @@ import type { TranslationKeys } from '../i18n/types';
 import { formatLocalDate, parseIsoDate, formatLogicalDate, getUserTimezone } from './date';
 import { resolveCaretakerName } from './caretakers';
 import { formatBreedName } from '../data/breedsCatalog';
+import { findUnlikelyWeighIns, formatKg, getUnifiedWeightEntries } from './weight';
 
 function downloadCsvFile(content: string, filename: string): void {
   const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
@@ -657,12 +658,14 @@ export function printHealthPassportReport(
   const sortedDewormings = [...dewormings].sort(
     (dewormingA, dewormingB) => new Date(dewormingB.date).getTime() - new Date(dewormingA.date).getTime()
   );
-  const weightLogs = activities
-    .filter((activity) => activity.type === 'weight' && activity.weightKg && activity.weightKg > 0)
-    .sort((activityA, activityB) => new Date(activityB.timestamp).getTime() - new Date(activityA.timestamp).getTime());
+  // One that looks like a typo is listed, marked, and left out of the latest weight, as on screen
+  const weightEntries = getUnifiedWeightEntries(activities);
+  const unlikelyIds = findUnlikelyWeighIns(weightEntries, profile);
+  const weightLogs = [...weightEntries].reverse();
+  const latestTrusted = weightLogs.find((weightItem) => !unlikelyIds.has(weightItem.id));
 
   // Never the profile weight: legacy, an older dog's is a made-up 4.5 kg (a new dog has none)
-  const latestWeight = weightLogs.length > 0 ? `${weightLogs[0].weightKg} kg` : '-';
+  const latestWeight = latestTrusted ? formatKg(latestTrusted.weightKg, lang) : '-';
   const breedLabel = formatBreedName(profile?.breed || 'Puppy', lang);
 
   const html = `
@@ -869,7 +872,7 @@ export function printHealthPassportReport(
             ${weightLogs.map((weightItem) => `
               <tr>
                 <td>${new Date(weightItem.timestamp).toLocaleDateString(locale)}</td>
-                <td><strong>${esc(weightItem.weightKg)} kg</strong></td>
+                <td><strong>${esc(formatKg(weightItem.weightKg, lang))}</strong>${unlikelyIds.has(weightItem.id) ? ` (${isFrench ? 'À vérifier' : 'Check'})` : ''}</td>
                 <td>${esc(weightItem.loggedBy)}</td>
                 <td>${esc(weightItem.notes || '-')}</td>
               </tr>

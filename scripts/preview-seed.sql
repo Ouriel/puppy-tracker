@@ -198,11 +198,11 @@ BEGIN
     ) AS e
     WHERE e.r0 >= e.skip AND e.ts <= now();
 
-    -- A vaccine given in the logged window comes with its weigh-in: 12:00 Paris, notes = vaccine name (the vet badge)
-    INSERT INTO activities (id, household_id, puppy_id, type, timestamp, logged_by, weight_kg, notes)
+    -- A vaccine given in the logged window comes with its weigh-in: 12:00 Paris, no note (like any weigh-in)
+    INSERT INTO activities (id, household_id, puppy_id, type, timestamp, logged_by, weight_kg)
     SELECT 'seed-act-' || v_key || '-vet-' || hr.date, d.household_id, d.id, 'weight',
            least((hr.date + time '12:00') AT TIME ZONE v_tz, now()), d.loggers[1],
-           round(d.adult_kg * exp(-4.32 * exp(-0.0146 * (hr.date - v_birth))), 2), hr.name
+           round(d.adult_kg * exp(-4.32 * exp(-0.0146 * (hr.date - v_birth))), 2)
     FROM health_records AS hr
     WHERE hr.puppy_id = d.id AND hr.type = 'vaccination' AND hr.name NOT LIKE 'Rage%' AND hr.date >= v_start;
   END LOOP;

@@ -207,14 +207,17 @@ describe('QuickLogModal labels and notes', () => {
 
 describe('QuickLogModal weight box: last weigh-in hint and decimal check (Phase 5c)', () => {
   const lastWeighIn = { id: 'act-w', puppyId: 'pup-1', type: 'weight' as const, timestamp: '2026-09-25T07:00:00.000Z', weightKg: 10.05, loggedBy: 'Tester' };
+  // The check moves the weigh-in it compares with along the dog's growth curve, to the typed time
+  const profile = { breed: 'Beagle', birthDate: '2026-03-01' };
   const weightBoxText = () => field('quicklog-weight-kg').parentElement!.textContent!;
+  const weekMs = 7 * 24 * 60 * 60 * 1000;
 
   afterEach(() => localStorage.clear());
 
   it('the box starts empty with the last weigh-in as a hint, whatever its date; none before a first weigh-in', async () => {
     await renderModal({ initialType: 'weight', lastWeighIn });
     expect(field('quicklog-weight-kg').value).toBe('');
-    expect(weightBoxText()).toContain('Last weigh-in: 10.05 kg on 09/25');
+    expect(weightBoxText()).toContain('Last weigh-in: 10.1 kg on 09/25'); // formatKg: at most 1 decimal
 
     await act(async () => root!.unmount());
     document.body.innerHTML = '';
@@ -228,7 +231,7 @@ describe('QuickLogModal weight box: last weigh-in hint and decimal check (Phase 
     ['10,4', null],
     ['20,1', null],
   ])('typing %j after a 10.05 kg weigh-in warns %j, and never blocks Save', async (typed, warning) => {
-    const { onSave } = await renderModal({ initialType: 'weight', lastWeighIn });
+    const { onSave } = await renderModal({ initialType: 'weight', lastWeighIn, profile });
     await typeKeys('quicklog-weight-kg', typed);
 
     const status = document.querySelector('[role="status"]');
@@ -237,13 +240,44 @@ describe('QuickLogModal weight box: last weigh-in hint and decimal check (Phase 
     expect(onSave).toHaveBeenCalledTimes(1);
   });
 
-  it('in French: "Dernière pesée : 10,05 kg le 25/09" and "Vérifie la virgule : 1,005 kg ?"', async () => {
+  it('in French: "Dernière pesée : 10,1 kg le 25/09" and "Vérifie la virgule : 1,005 kg ?" (what was typed, as typed)', async () => {
     localStorage.setItem('puppace_lang_v1', 'fr');
-    await renderModal({ initialType: 'weight', lastWeighIn });
+    await renderModal({ initialType: 'weight', lastWeighIn, profile });
     await typeKeys('quicklog-weight-kg', '1,005');
 
-    expect(weightBoxText()).toContain('Dernière pesée : 10,05 kg le 25/09');
+    expect(weightBoxText()).toContain('Dernière pesée : 10,1 kg le 25/09');
     expect(document.querySelector('[role="status"]')!.textContent).toBe('Vérifie la virgule : 1,005 kg ?');
+  });
+
+  it('a small breed doubling in 8 weeks is growth: no warning (the raw ×2 rule warned)', async () => {
+    const now = Date.now();
+    const chihuahua = { breed: 'Chihuahua', gender: 'female' as const, birthDate: new Date(now - 16 * weekMs).toISOString().slice(0, 10) };
+    await renderModal({ initialType: 'weight', lastWeighIn: { ...lastWeighIn, timestamp: new Date(now - 8 * weekMs).toISOString(), weightKg: 0.8 }, profile: chihuahua });
+    await typeKeys('quicklog-weight-kg', '1,65');
+
+    expect(document.querySelector('[role="status"]')).toBeNull();
+  });
+
+  it('an edited weigh-in is checked against the weigh-ins either side of it, with no "Last weigh-in" line', async () => {
+    const before = { ...lastWeighIn, id: 'act-before', timestamp: '2026-09-18T07:00:00.000Z', weightKg: 9.6 };
+    const after = { ...lastWeighIn, id: 'act-after', timestamp: '2026-10-02T07:00:00.000Z', weightKg: 10.5 };
+    await renderModal({ activityToEdit: lastWeighIn, weighInNeighbours: [before, after], profile });
+    await typeKeys('quicklog-weight-kg', '100,5');
+
+    expect(document.querySelector('[role="status"]')!.textContent).toBe('Check the decimal point: 100.5 kg?');
+    expect(weightBoxText()).not.toContain('Last weigh-in');
+
+    await typeKeys('quicklog-weight-kg', '10,1');
+    expect(document.querySelector('[role="status"]')).toBeNull();
+  });
+
+  it('an edited weigh-in next to a typo: matching the other neighbour is enough, no warning', async () => {
+    const typo = { ...lastWeighIn, id: 'act-typo', timestamp: '2026-09-18T07:00:00.000Z', weightKg: 96 };
+    const after = { ...lastWeighIn, id: 'act-after', timestamp: '2026-10-02T07:00:00.000Z', weightKg: 10.5 };
+    await renderModal({ activityToEdit: lastWeighIn, weighInNeighbours: [typo, after], profile });
+    await typeKeys('quicklog-weight-kg', '10,1');
+
+    expect(document.querySelector('[role="status"]')).toBeNull();
   });
 });
 
