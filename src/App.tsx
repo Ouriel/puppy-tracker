@@ -556,6 +556,7 @@ function App() {
                 healthRecords={healthRecords}
                 setHealthRecords={updateHealthRecords}
                 isDashboardDown={isDashboardDown}
+                caretakers={caretakerState.caretakers}
                 healthRecordsState={healthRecordsState}
                 currentUser={caretakerState.currentUser}
                 onAddActivity={logActivity}

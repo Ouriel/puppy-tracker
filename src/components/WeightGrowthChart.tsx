@@ -5,22 +5,8 @@ import { Scale, Plus, Trash2, Pencil } from 'lucide-react';
 import { useI18n } from '../i18n';
 import { formatShortDate, getCalendarDaysAgo } from '../utils/date';
 import { ConfirmationModal } from './common/ConfirmationModal';
-import {
-  calculateProjectedAdultWeightRange,
-  findUnlikelyWeighIns,
-  formatChange,
-  formatKg,
-  formatKgRange,
-  getAgeInWeeks,
-  getEffectivePuppyWeight,
-  getExpectedAdultWeight,
-  getKnownAdultWeight,
-  getMeasuredPace,
-  getUnifiedWeightEntries,
-  getWalthamCategory,
-  type UnifiedWeightEntry,
-} from '../utils/weight';
-import { buildWeightChartGeometry, findNearestPoint, getFullViewEndWeeks } from '../utils/weightChartGeometry';
+import { formatChange, formatKg, formatKgRange, getAgeInWeeks, type UnifiedWeightEntry } from '../utils/weight';
+import { buildDogWeightChart, findNearestPoint, getFullViewEndWeeks, getWeightChartModel } from '../utils/weightChartGeometry';
 
 const QuickLogModal = lazy(() => import('./QuickLogModal').then((module) => ({ default: module.QuickLogModal })));
 
@@ -65,38 +51,8 @@ export const WeightGrowthChart: React.FC<WeightGrowthChartProps> = ({
   const readoutId = `${idPrefix}-readout`;
   const listId = `${idPrefix}-list`;
 
-  const model = useMemo(() => {
-    // Every weight event; one that looks like a typo is drawn and listed, but left out of the line, scale, estimates and pace
-    const entries = getUnifiedWeightEntries(activities);
-    const unlikelyIds = findUnlikelyWeighIns(entries, profile);
-    const trusted = entries.filter((entry) => !unlikelyIds.has(entry.id));
-    return {
-      entries,
-      unlikelyIds,
-      trusted,
-      projection: calculateProjectedAdultWeightRange(profile.breed, trusted, profile.birthDate, profile.gender, profile.expectedAdultWeightKg),
-      effective: getEffectivePuppyWeight(profile, activities),
-      pace: getMeasuredPace(trusted),
-      bandAdultKg: getKnownAdultWeight(profile),
-      category: getWalthamCategory(getExpectedAdultWeight(profile.breed, profile.gender, profile.expectedAdultWeightKg)),
-      todayWeeks: getAgeInWeeks(profile.birthDate),
-    };
-  }, [activities, profile]);
-
-  const geometry = useMemo(() => buildWeightChartGeometry({
-    width,
-    weighIns: model.entries.map((entry) => ({
-      id: entry.id,
-      ageWeeks: getAgeInWeeks(profile.birthDate, entry.timestamp),
-      weightKg: entry.weightKg,
-      isUnlikely: model.unlikelyIds.has(entry.id),
-    })),
-    todayWeeks: model.todayWeeks,
-    category: model.category,
-    bandAdultKg: model.bandAdultKg,
-    projection: model.trusted.length > 0 ? { adultKg: model.projection.projectedAdultKg, todayKg: model.effective.estimatedCurrentWeight } : null,
-    isZoomed,
-  }), [model, width, isZoomed, profile.birthDate]);
+  const model = useMemo(() => getWeightChartModel(activities, profile), [activities, profile]);
+  const geometry = useMemo(() => buildDogWeightChart(model, profile.birthDate, width, isZoomed), [model, width, isZoomed, profile.birthDate]);
 
   const { entries, unlikelyIds, trusted, projection, pace } = model;
   const foundIndex = entries.findIndex((entry) => entry.id === selectedId);

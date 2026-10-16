@@ -147,8 +147,8 @@ export interface HealthRecord {
   boosterDate?: string | null;
   batchNumber?: string | null;
   vetClinic?: string | null;
-  productName?: string;
-  notes?: string;
+  productName?: string | null; // a deworming's product; a vaccine's product typed from the vet's sticker
+  notes?: string | null;
 }
 
 // The dog's health records: not answered yet, known, or no load worked (they are never kept on the phone)

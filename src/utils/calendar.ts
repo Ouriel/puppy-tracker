@@ -37,7 +37,8 @@ const slugify = (value: string) =>
 /** The event's date, title and description, shared by the .ics and the Google Calendar link. */
 function dueDateEvent(record: DueHealthRecord, dogName: string, t: TranslationKeys, lang: Language) {
   const dueDate = record.boosterDate.slice(0, 10);
-  const productName = record.productName || record.name;
+  // A vaccine's productName is the product on the vet's sticker: the event names the vaccine
+  const productName = (record.type === 'deworming' && record.productName) || record.name;
   const title = t.health.calendarEventTitle.replace('{dog}', () => dogName).replace('{name}', () => productName);
   const givenOn = new Date(`${record.date.slice(0, 10)}T00:00:00Z`).toLocaleDateString(lang === 'fr' ? 'fr-FR' : 'en-US', { dateStyle: 'long', timeZone: 'UTC' });
   const description = [`${t.health.givenOn} ${givenOn}`, record.vetClinic?.trim() && `${t.health.clinic}${t.common.colon} ${record.vetClinic.trim()}`].filter(Boolean).join('\n');

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import type { PuppyProfile, Activity, HealthRecord, HealthRecordsLoadState, ActivityType } from '../types';
+import type { PuppyProfile, Activity, HealthRecord, HealthRecordsLoadState, ActivityType, Caretaker } from '../types';
 import { Syringe, ArrowLeft, Printer, Download, FileSpreadsheet, ChevronDown } from 'lucide-react';
 import { useI18n } from '../i18n';
 import { formatBreedName } from '../data/breedsCatalog';
@@ -22,6 +22,7 @@ interface CarnetDeSanteViewProps {
   healthRecords: HealthRecord[]; // every dog's, from /api/dashboard: the dashboard card reads the same list
   setHealthRecords: React.Dispatch<React.SetStateAction<HealthRecord[]>>;
   isDashboardDown: boolean;
+  caretakers?: Caretaker[]; // the CSV names whoever logged a weigh-in or a treatment by their badge
   healthRecordsState?: HealthRecordsLoadState; // until known: skeletons or one "unavailable" line, never "nothing recorded" or a made-up weight
   currentUser: string;
   onAddActivity: (activity: Omit<Activity, 'id'>) => void;
@@ -44,6 +45,7 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({
   healthRecords,
   setHealthRecords,
   isDashboardDown,
+  caretakers = [],
   healthRecordsState = 'loaded',
   currentUser,
   onAddActivity,
@@ -87,14 +89,14 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({
   const handleExportPdf = useCallback(() => {
     setIsExportMenuOpen(false);
     if (!activePuppy) return;
-    printHealthPassportReport(activePuppy, vaccinations, dewormingLogs, weightActivities, lang as 'en' | 'fr', t);
-  }, [activePuppy, vaccinations, dewormingLogs, weightActivities, lang, t]);
+    printHealthPassportReport(activePuppy, vaccinations, dewormingLogs, [...weightActivities, ...medicationActivities], lang as 'en' | 'fr');
+  }, [activePuppy, vaccinations, dewormingLogs, weightActivities, medicationActivities, lang]);
 
   const handleExportCsv = useCallback(() => {
     setIsExportMenuOpen(false);
     if (!activePuppy) return;
-    exportHealthPassportToCSV(activePuppy, vaccinations, dewormingLogs, weightActivities, lang as 'en' | 'fr');
-  }, [activePuppy, vaccinations, dewormingLogs, weightActivities, lang]);
+    exportHealthPassportToCSV(activePuppy, vaccinations, dewormingLogs, [...weightActivities, ...medicationActivities], lang as 'en' | 'fr', caretakers);
+  }, [activePuppy, vaccinations, dewormingLogs, weightActivities, medicationActivities, lang, caretakers]);
 
   // Fallback only: the records come with /api/dashboard
   useEffect(() => {

@@ -485,3 +485,34 @@ describe('"À faire": every open next date, overdue first (C6); short vaccine na
     }
   });
 });
+
+describe('a vaccine typed under "Autre…" (C13) takes a protocol\'s rules only from its exact name, never from a brand or a few letters', () => {
+  // Made-up puppy born 1 Aug 2026 (9 weeks on 1 Oct); its CHPPi + L4 of 1 Sep was due on 1 Oct, overdue on 15 Oct
+  const birthDate = '2026-08-01';
+  const record = (id: string, name: string, date: string, boosterDate: string): HealthRecord => (
+    { id, householdId: 'hh-001', puppyId: 'pup-1', type: 'vaccination', name, date, boosterDate }
+  );
+  const overdueCombo = record('combo', 'CHPPi / DAPPi + L4 (Eurican / Nobivac / Versican / Canigen)', '2026-09-01', '2026-10-01');
+
+  it.each(['Eurican Herpes 205', 'Versican Plus Pi', 'Pi', 'CH', 'L', 'a'])('"%s": the generic 12 months, and the overdue CHPPi + L4 stays in "À faire"', (typedName) => {
+    expect(calculateNextVaccineBooster('2026-10-01', typedName, birthDate)).toBe('2027-10-01');
+
+    const typed = record('typed', typedName, '2026-10-01', '2027-10-01');
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-15T10:00:00+02:00'));
+    try {
+      expect(getHealthRecordStatus(overdueCombo, [overdueCombo, typed])).toBe('overdue');
+      expect(getNextDue([overdueCombo, typed]).map((item) => item.record.id)).toEqual(['combo', 'typed']);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('a name that is a protocol\'s still takes its rules: an alias, a protocol name (current or former), a brand alone', () => {
+    expect(calculateNextVaccineBooster('2026-10-01', 'Nobivac Rabies', birthDate)).toBe('2027-10-01');
+    expect(calculateNextVaccineBooster('2026-10-01', 'Rage', birthDate)).toBe('2027-10-01');
+    expect(calculateNextVaccineBooster('2026-10-01', 'CHPPi + L4 (Eurican / Nobivac / Versican)', birthDate)).toBe('2026-11-01');
+    expect(calculateNextVaccineBooster('2026-10-01', 'Nobivac', birthDate)).toBe('2026-11-01');
+    expect(calculateNextVaccineBooster('2026-10-01', 'Toux de chenil', birthDate)).toBe('2027-10-01');
+  });
+});

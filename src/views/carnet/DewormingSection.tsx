@@ -2,7 +2,7 @@ import React, { useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import type { PuppyProfile, HealthRecord, Activity } from '../../types';
 import { Pill, Plus, Trash2, Pencil, Check, X, ChevronDown } from 'lucide-react';
-import { Card, Button, Input, Select, ListBox, ListBoxItem, toast } from '@heroui/react';
+import { Card, Button, Input, Select, ListBox, ListBoxItem, TextArea, toast } from '@heroui/react';
 import { calculateNextAntiparasiticDate, getHealthProtocols, getHealthRecordDateError, getHealthRecordStatus } from '../../utils/health';
 import { StatusBadge } from '../../components/common/StatusBadge';
 import { AddToCalendarButton } from '../../components/common/AddToCalendarButton';
@@ -30,6 +30,8 @@ const errorClass = 'mt-1.5 text-xs font-semibold text-red-400';
 const iconButtonClass = 'min-h-11 min-w-11 flex items-center justify-center text-slate-400 hover:bg-slate-800 rounded-lg border border-slate-800 bg-slate-950 transition-colors';
 // Renewed doses shown before "Historique (n)"
 const HISTORY_SHOWN = 3;
+// The picker's "Autre…": the product is typed, and an unknown product gets the generic schedule
+const OTHER = '__other__';
 
 export const DewormingSection: React.FC<DewormingSectionProps> = ({
   activePuppy,
@@ -43,9 +45,11 @@ export const DewormingSection: React.FC<DewormingSectionProps> = ({
   const [isAddingDeworming, setIsAddingDeworming] = useState(false);
   // null: the user has not picked one yet, the form shows the default
   const [selectedProductName, setSelectedProductName] = useState<string | null>(null);
+  const [otherProductName, setOtherProductName] = useState('');
   const [dewormAdminDate, setDewormAdminDate] = useState(() => formatLocalDate());
   const [customDewormNextDate, setCustomDewormNextDate] = useState<string | null>(null);
   const [weightText, setWeightText] = useState('');
+  const [notes, setNotes] = useState('');
   const [weightError, setWeightError] = useState<'weightInvalid' | 'dateTimeInFuture' | undefined>();
   const [confirmDelete, setConfirmDelete] = useState<{id: string; type: string} | null>(null);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
@@ -53,25 +57,32 @@ export const DewormingSection: React.FC<DewormingSectionProps> = ({
   // Edit Deworming state
   const [editingDewormingId, setEditingDewormingId] = useState<string | null>(null);
   const [editDewormingName, setEditDewormingName] = useState('');
+  const [editOtherName, setEditOtherName] = useState('');
   const [editDewormingDate, setEditDewormingDate] = useState('');
   const [editDewormingBoosterDate, setEditDewormingBoosterDate] = useState('');
+  const [editNotes, setEditNotes] = useState('');
 
   const editProductTriggerRef = useRef<HTMLButtonElement>(null);
   const { lang } = useI18n();
 
-  // dewormingLogs is sorted newest first. Default product: the last one given if it is still an option, else Credelio Plus
+  // dewormingLogs is sorted newest first. Default product: the last one given, else Credelio Plus.
+  // One the list does not have (typed for "Autre…", or an older one) is a choice of the add form too
   const productOptions = getHealthProtocols().antiparasitics;
   const lastProductName = dewormingLogs[0]?.productName || dewormingLogs[0]?.name;
-  const defaultProductName = lastProductName && productOptions.some((productOption) => productOption.name === lastProductName)
-    ? lastProductName
-    : 'Credelio Plus';
+  const addOptions = lastProductName && !productOptions.some((productOption) => productOption.name === lastProductName)
+    ? [{ id: lastProductName, name: lastProductName, label: lastProductName }, ...productOptions]
+    : productOptions;
+  const defaultProductName = lastProductName || 'Credelio Plus';
   const productName = selectedProductName ?? defaultProductName;
+  // The product saved: the protocol name, or the name typed for "Autre…"
+  const savedProductName = productName === OTHER ? otherProductName.trim() : productName;
+  const savedEditName = editDewormingName === OTHER ? editOtherName.trim() : editDewormingName;
 
   // From her age on the dose day, not today's: doses are often entered weeks later
   const autoNextDewormDate = React.useMemo(() => {
-    if (!dewormAdminDate) return '';
-    return calculateNextAntiparasiticDate(dewormAdminDate, productName, activePuppy.birthDate);
-  }, [dewormAdminDate, productName, activePuppy.birthDate]);
+    if (!dewormAdminDate || !savedProductName) return '';
+    return calculateNextAntiparasiticDate(dewormAdminDate, savedProductName, activePuppy.birthDate);
+  }, [dewormAdminDate, savedProductName, activePuppy.birthDate]);
 
   const dewormNextDate = customDewormNextDate !== null ? customDewormNextDate : autoNextDewormDate;
   const today = formatLocalDate();
@@ -79,9 +90,9 @@ export const DewormingSection: React.FC<DewormingSectionProps> = ({
   const editDateError = getHealthRecordDateError(editDewormingDate, editDewormingBoosterDate, today);
   // The edit form keeps the stored next date: only a changed date or product offers this one
   const editedDeworming = dewormingLogs.find((deworming) => deworming.id === editingDewormingId);
-  const suggestedEditNextDate = editedDeworming && editDewormingDate
-    && (editDewormingDate !== editedDeworming.date || editDewormingName !== (editedDeworming.productName || editedDeworming.name))
-    ? calculateNextAntiparasiticDate(editDewormingDate, editDewormingName, activePuppy.birthDate)
+  const suggestedEditNextDate = editedDeworming && editDewormingDate && savedEditName
+    && (editDewormingDate !== editedDeworming.date || savedEditName !== (editedDeworming.productName || editedDeworming.name))
+    ? calculateNextAntiparasiticDate(editDewormingDate, savedEditName, activePuppy.birthDate)
     : '';
   // A tablet or a pipette is a dose, never an injection: its date error speaks of doses
   const dateErrorText = (error: NonNullable<typeof addDateError>) => (error === 'boosterBeforeDate' ? t.health.nextDoseBeforeDate : t.health[error]);
@@ -98,9 +109,8 @@ export const DewormingSection: React.FC<DewormingSectionProps> = ({
 
   const handleAddDewormingSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (addDateError || !dewormNextDate) return;
+    if (addDateError || !dewormNextDate || !savedProductName) return;
 
-    const name = productName.trim() || 'Credelio Plus';
     // Optional: empty saves no weight; typed, it is checked before anything is saved
     const weighIn = buildVetWeighIn({ puppyId: activePuppy.id, date: dewormAdminDate, weightText, loggedBy: currentUser });
     if (weighIn.error) {
@@ -111,10 +121,11 @@ export const DewormingSection: React.FC<DewormingSectionProps> = ({
     const newEntry = {
       puppyId: activePuppy.id,
       type: 'deworming' as const,
-      name,
-      productName: name,
+      name: savedProductName,
+      productName: savedProductName,
       date: dewormAdminDate,
       boosterDate: dewormNextDate,
+      notes: notes.trim() || undefined,
     };
 
     const result = await createHealthRecord(newEntry);
@@ -125,7 +136,9 @@ export const DewormingSection: React.FC<DewormingSectionProps> = ({
       setHealthRecords((previous) => [result.data, ...previous.filter((record) => record.id !== result.data.id)]);
       setIsAddingDeworming(false);
       setSelectedProductName(null);
+      setOtherProductName('');
       setCustomDewormNextDate(null);
+      setNotes('');
       setWeightText('');
     } else {
       toast.danger(t.toasts[result.errorKey]);
@@ -137,8 +150,10 @@ export const DewormingSection: React.FC<DewormingSectionProps> = ({
     flushSync(() => {
       setEditingDewormingId(deworming.id);
       setEditDewormingName(deworming.productName || deworming.name);
+      setEditOtherName('');
       setEditDewormingDate(deworming.date);
       setEditDewormingBoosterDate(deworming.boosterDate || '');
+      setEditNotes(deworming.notes || '');
     });
     editProductTriggerRef.current?.focus();
   };
@@ -150,16 +165,17 @@ export const DewormingSection: React.FC<DewormingSectionProps> = ({
   };
 
   const handleUpdateDewormingSubmit = async (id: string) => {
-    if (editDateError) return;
+    if (editDateError || !savedEditName) return;
     const result = await updateHealthRecord({
       id,
       puppyId: activePuppy.id,
       type: 'deworming',
-      name: editDewormingName,
-      productName: editDewormingName,
+      name: savedEditName,
+      productName: savedEditName,
       date: editDewormingDate,
       // null clears a next date the user emptied
       boosterDate: editDewormingBoosterDate || null,
+      notes: editNotes.trim() || null,
     });
 
     if (result.ok) {
@@ -180,8 +196,8 @@ export const DewormingSection: React.FC<DewormingSectionProps> = ({
     }
   };
 
-  // Long labels wrap, so "mensuel" stays visible
-  const productListItems = (options: { id: string; name: string; label: string }[]) => options.map((productOption) => (
+  // Long labels wrap, so "mensuel" stays visible; "Autre…" comes last
+  const productListItems = (options: { id: string; name: string; label: string }[]) => [...options, { id: OTHER, name: OTHER, label: t.health.otherOption }].map((productOption) => (
     <ListBoxItem key={productOption.id} id={productOption.name} textValue={productOption.label}>
       <span className="block text-xs">{productOption.label}</span>
     </ListBoxItem>
@@ -224,9 +240,26 @@ export const DewormingSection: React.FC<DewormingSectionProps> = ({
                     <Select.Indicator />
                   </Select.Trigger>
                   <Select.Popover className="bg-slate-900 border border-slate-800 text-slate-100 max-w-xl w-full">
-                    <ListBox>{productListItems(productOptions)}</ListBox>
+                    <ListBox>{productListItems(addOptions)}</ListBox>
                   </Select.Popover>
                 </Select>
+                {productName === OTHER && (
+                  <div className="mt-2">
+                    <label htmlFor="deworming-other-name" className={labelClass}>{t.health.otherProductName}</label>
+                    <Input
+                      id="deworming-other-name"
+                      type="text"
+                      className="w-full bg-slate-900 border-slate-700/80 text-slate-100"
+                      value={otherProductName}
+                      maxLength={80}
+                      required
+                      onChange={(event) => {
+                        setOtherProductName(event.target.value);
+                        setCustomDewormNextDate(null);
+                      }}
+                    />
+                  </div>
+                )}
               </div>
 
               <div className="sm:col-span-1 min-w-0">
@@ -280,6 +313,19 @@ export const DewormingSection: React.FC<DewormingSectionProps> = ({
               />
             </div>
 
+            <div className="min-w-0">
+              <label htmlFor="deworming-notes" className={labelClass}>{t.potty.notes}</label>
+              <TextArea
+                id="deworming-notes"
+                rows={2}
+                placeholder={t.health.recordNotesPlaceholder}
+                className="w-full bg-slate-900 border-slate-700/80 text-slate-100"
+                value={notes}
+                maxLength={2000}
+                onChange={(event) => setNotes(event.target.value)}
+              />
+            </div>
+
             <div className="flex justify-end">
               <Button type="submit" size="sm" className="min-h-11 bg-amber-700 hover:bg-amber-600 text-white font-bold">
                 {t.health.saveDeworming}
@@ -295,9 +341,11 @@ export const DewormingSection: React.FC<DewormingSectionProps> = ({
             const isEditing = editingDewormingId === deworming.id;
 
             if (isEditing) {
-              const editOptions = productOptions.some((productOption) => productOption.name === editDewormingName) || !editDewormingName
+              // A product the list does not have (typed for "Autre…", or an older one) stays a choice
+              const storedName = deworming.productName || deworming.name;
+              const editOptions = productOptions.some((productOption) => productOption.name === storedName)
                 ? productOptions
-                : [{ id: editDewormingName, name: editDewormingName, label: editDewormingName }, ...productOptions];
+                : [{ id: storedName, name: storedName, label: storedName }, ...productOptions];
               return (
                 // A form, so Enter saves
                 <form
@@ -320,6 +368,20 @@ export const DewormingSection: React.FC<DewormingSectionProps> = ({
                           <ListBox>{productListItems(editOptions)}</ListBox>
                         </Select.Popover>
                       </Select>
+                      {editDewormingName === OTHER && (
+                        <div className="mt-2">
+                          <label htmlFor="deworming-edit-other-name" className={labelClass}>{t.health.otherProductName}</label>
+                          <Input
+                            id="deworming-edit-other-name"
+                            type="text"
+                            className="w-full bg-slate-900 border-slate-700/80 text-slate-100"
+                            value={editOtherName}
+                            maxLength={80}
+                            required
+                            onChange={(event) => setEditOtherName(event.target.value)}
+                          />
+                        </div>
+                      )}
                     </div>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -360,6 +422,17 @@ export const DewormingSection: React.FC<DewormingSectionProps> = ({
                         </button>
                       )}
                     </div>
+                  </div>
+                  <div className="min-w-0">
+                    <label htmlFor="deworming-edit-notes" className={labelClass}>{t.potty.notes}</label>
+                    <TextArea
+                      id="deworming-edit-notes"
+                      rows={2}
+                      className="w-full bg-slate-900 border-slate-700/80 text-slate-100"
+                      value={editNotes}
+                      maxLength={2000}
+                      onChange={(event) => setEditNotes(event.target.value)}
+                    />
                   </div>
                   <div className="flex flex-wrap justify-end gap-2 pt-1">
                     <button
@@ -425,6 +498,7 @@ export const DewormingSection: React.FC<DewormingSectionProps> = ({
                     <div className="text-xs text-slate-400">
                       {t.health.givenOn} {formatShortDate(deworming.date, lang)}
                     </div>
+                    {deworming.notes && <p className="text-xs italic text-slate-400 break-words line-clamp-3">{deworming.notes}</p>}
                   </div>
                 </div>
 
