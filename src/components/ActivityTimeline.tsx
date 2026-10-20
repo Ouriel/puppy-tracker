@@ -393,8 +393,9 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
         ) : (
           <div className="space-y-3">
             {dayGroups.map((group) => {
-              // A day holding a log not saved stays open, so its Retry is never hidden
-              const isExpanded = expandedDays.has(group.dateKey) || group.activities.some((activity) => unsavedIds?.has(activity.id));
+              // Open only by a tap: a log not saved never opens or closes its day, which would move the page (its Retry is in the line at the bottom)
+              const isExpanded = expandedDays.has(group.dateKey);
+              const unsavedCount = unsavedIds?.size ? group.activities.filter((activity) => unsavedIds.has(activity.id)).length : 0;
               const foodPill = getDayFoodPill(group, formatCount(t.dashboard.mealsCount, group.mealsCount, lang), lang);
 
               return (
@@ -416,14 +417,17 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
                     <div className="flex items-center justify-between gap-2">
                       {/* Left: Date Title & Events Badge */}
                       <div className="flex items-center gap-2 min-w-0">
+                        {/* A day holding a log not saved shows it in its closed header, in the calendar's place (same size) */}
                         <div
                           className={`p-1.5 sm:p-2 rounded-xl border shrink-0 ${
-                            group.isToday
+                            unsavedCount > 0
+                              ? 'bg-amber-950/70 text-amber-300 border-amber-700/60'
+                              : group.isToday
                               ? 'bg-indigo-600/20 text-indigo-400 border-indigo-500/30'
                               : 'bg-slate-900 text-slate-400 border-slate-800'
                           }`}
                         >
-                          <Calendar className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                          {unsavedCount > 0 ? <AlertTriangle className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> : <Calendar className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
                         </div>
                         <div className="flex items-center gap-2 flex-wrap min-w-0">
                           <span className="text-xs sm:text-sm font-extrabold text-slate-100">
@@ -447,6 +451,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
                         formatCount(t.dashboard.peesCount, group.peeCount, lang),
                         formatCount(t.dashboard.poopsCount, group.poopCount, lang),
                         group.accidentCount > 0 ? formatCount(t.dashboard.accidentsCount, group.accidentCount, lang) : '',
+                        unsavedCount > 0 ? formatCount(t.dashboard.unsentLogs, unsavedCount, lang) : '',
                       ].filter(Boolean).join(', ')}
                     </span>
                     <div className="flex items-center gap-1.5 flex-wrap mt-2.5 pt-2 border-t border-slate-800/50">
@@ -627,11 +632,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
                                     <>
                                       <button
                                         type="button"
-                                        onClick={() => {
-                                          // Its day stays open once it is saved and no longer marked
-                                          setExpandedDays((previous) => new Set(previous).add(group.dateKey));
-                                          onRetry?.(item);
-                                        }}
+                                        onClick={() => onRetry?.(item)}
                                         className="px-2.5 min-h-11 inline-flex items-center gap-1.5 text-xs font-bold text-amber-200 hover:bg-slate-800 rounded-lg border border-amber-700/60 bg-slate-950 transition-colors"
                                       >
                                         <RotateCw className="w-3.5 h-3.5" />

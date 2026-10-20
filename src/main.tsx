@@ -1,7 +1,6 @@
 import { StrictMode, Component } from 'react';
 import type { ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { SpeedInsights } from '@vercel/speed-insights/react';
 import { Analytics } from '@vercel/analytics/react';
 import './index.css';
 import App from './App.tsx';
@@ -67,15 +66,6 @@ createRoot(document.getElementById('root')!).render(
         <AppToastProvider />
         <App />
       </I18nProvider>
-      <SpeedInsights
-        route={getAppRoute()}
-        beforeSend={(event) => {
-          return {
-            ...event,
-            route: getAppRoute(),
-          };
-        }}
-      />
       <Analytics
         beforeSend={(event) => {
           const route = getAppRoute();

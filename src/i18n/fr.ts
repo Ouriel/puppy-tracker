@@ -84,7 +84,7 @@ export const fr: TranslationKeys = {
     mealsFilter: 'Repas',
     noActivityLogs: 'Aucun événement enregistré.',
     offlineDataFrom: 'Hors ligne, données de {time}',
-    unsentLogs: { one: '{count} enregistrement non envoyé', other: '{count} enregistrements non envoyés' },
+    unsentLogs: { one: '{count} non envoyé', other: '{count} non envoyés' },
     discardUnsentTitle: { one: 'Abandonner {count} enregistrement non envoyé\u00a0?', other: 'Abandonner {count} enregistrements non envoyés\u00a0?' },
     discardUnsentMessage: { one: 'Le serveur ne l\'a jamais reçu\u00a0: abandonné, il est perdu.', other: 'Le serveur ne les a jamais reçus\u00a0: abandonnés, ils sont perdus.' },
     tapLogEvent: 'Touche + pour enregistrer une activité.',
