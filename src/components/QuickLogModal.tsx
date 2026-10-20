@@ -132,7 +132,8 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
   return (
     <Modal isOpen={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
       <Modal.Backdrop className="bg-slate-950/80 backdrop-blur-sm">
-        <Modal.Container size="lg" scroll="inside">
+        {/* Top, not bottom: pinned to the bottom, the form jumped down when the phone keyboard closed */}
+        <Modal.Container size="lg" scroll="inside" placement="top">
           <Modal.Dialog className="bg-slate-900 border border-slate-800 text-slate-100 shadow-2xl rounded-2xl max-w-lg w-full overflow-hidden p-0">
             {/* Header: stays in place while the body scrolls */}
             <Modal.Header className="flex-row items-center justify-between p-5 border-b border-slate-800/80 bg-slate-900/60">
