@@ -900,7 +900,7 @@ describe('a quick log that could not be saved', () => {
       expect([...unsentLine()!.querySelectorAll('button')].map((button) => button.textContent)).toEqual([en.potty.retry, en.potty.discard]);
     });
 
-    it('says it in French: "1 enregistrement non envoyé"', async () => {
+    it('says it in French, short enough for one line at 320 px: "1 non envoyé"', async () => {
       signedInWithCachedDogOnly();
       localStorage.setItem('puppace_lang_v1', 'fr');
       stubOfflineSaves({ isOnline: false });
@@ -908,7 +908,8 @@ describe('a quick log that could not be saved', () => {
       await act(async () => document.querySelector<HTMLButtonElement>('button[aria-label="Pipi dehors"]')!.click());
       await settle();
 
-      expect(document.body.textContent).toContain('1 enregistrement non envoyé');
+      expect(document.querySelector('.status-bar')!.textContent).toContain('1 non envoyé');
+      expect(document.body.textContent).not.toContain('enregistrement non envoyé');
     });
   });
 
