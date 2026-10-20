@@ -341,6 +341,11 @@ describe('QuickLogModal layout on a short phone', () => {
     expect(footer.querySelector('button[type="submit"]')?.textContent).toBe(en.potty.saveLog);
     expect(body.contains(footer)).toBe(false);
   });
+
+  it('sits at the top, so the form does not jump down when the phone keyboard closes', async () => {
+    await renderModal({ initialType: 'food' });
+    expect(document.querySelector('[data-slot="modal-dialog"]')!.getAttribute('data-placement')).toBe('top');
+  });
 });
 
 describe('QuickLogModal edit sheet', () => {
