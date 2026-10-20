@@ -1,4 +1,4 @@
-import type { Caretaker, PuppyProfile } from '../types';
+import type { Caretaker, HealthRecord, PuppyProfile } from '../types';
 
 const STORAGE_KEY_ACTIVE_PUPPY = 'puppace_active_puppy';
 
@@ -97,3 +97,22 @@ export function setStoredRecentActivities(puppyId: string, activities: import('.
   } catch {}
 }
 
+const STORAGE_KEY_CACHED_HEALTH_RECORDS = 'puppace_cached_health_records';
+
+/** The household's health records as last loaded, or null: the To do lists paint from them before the network answers. */
+export function getStoredHealthRecords(): HealthRecord[] | null {
+  if (typeof localStorage === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY_CACHED_HEALTH_RECORDS);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function setStoredHealthRecords(records: HealthRecord[]): void {
+  if (typeof localStorage === 'undefined') return;
+  try {
+    localStorage.setItem(STORAGE_KEY_CACHED_HEALTH_RECORDS, JSON.stringify(records));
+  } catch {}
+}

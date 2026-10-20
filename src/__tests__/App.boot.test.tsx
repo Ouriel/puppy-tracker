@@ -24,12 +24,15 @@ const renderCounts = vi.hoisted(() => ({ predictorWidget: 0, healthSummary: 0 })
 const countRender = vi.hoisted(() => (name: 'predictorWidget' | 'healthSummary') => {
   renderCounts[name] += 1;
 });
+// Each render of the prediction cards: whether they waited for the dog's logs (no details shown)
+const cardsWaitingForLogs = vi.hoisted(() => [] as boolean[]);
 vi.mock('../components/PredictorWidget', async (importOriginal) => {
   const { memo } = await import('react');
   const actual = await importOriginal<typeof import('../components/PredictorWidget')>();
   return {
     PredictorWidget: memo((props: ComponentProps<typeof actual.PredictorWidget>) => {
       countRender('predictorWidget');
+      cardsWaitingForLogs.push(Boolean(props.isHistoryUnknown));
       return <actual.PredictorWidget {...props} />;
     }),
   };
@@ -142,6 +145,7 @@ beforeEach(() => {
   window.history.pushState({}, '', '/');
   requestedUrls = [];
   heldResponses = [];
+  cardsWaitingForLogs.length = 0;
   localStorage.clear();
   clearAuthToken();
   clearApiCache();
@@ -601,6 +605,25 @@ function stubOfflineSaves(connection: { isOnline: boolean }) {
   return posted;
 }
 
+/**
+ * Layout-shift hunt 2026-10-20: above the cards, the offline and "not sent" lines moved the whole page when they came or went.
+ * In a bar stuck to the bottom of the screen, after the page, they take no room above anything.
+ */
+function expectInBottomBar(line: Element) {
+  const bar = line.closest('.sticky');
+  expect(bar?.className ?? 'no sticky bar').toMatch(/\bbottom-/);
+  const lastCard = [...document.querySelectorAll('main h2, main h3')].at(-1)!;
+  expect(bar!.compareDocumentPosition(lastCard) & Node.DOCUMENT_POSITION_PRECEDING).toBeTruthy();
+}
+
+/** The feed's day card for today: its header button opens and closes it. */
+const todayHeader = () => [...document.querySelectorAll<HTMLButtonElement>('button[aria-expanded]')].find((button) => button.textContent!.includes(en.dashboard.today))!;
+
+/** Opens today's day card in the feed, as a tap on its header does. */
+async function openToday() {
+  if (todayHeader().getAttribute('aria-expanded') === 'false') await act(async () => todayHeader().click());
+}
+
 /** Picks a dog in the top bar's dog menu. */
 async function pickDog(name: string) {
   await act(async () => document.querySelector<HTMLButtonElement>('header button[aria-haspopup="listbox"]')!.click());
@@ -627,6 +650,7 @@ describe('a quick log that could not be saved', () => {
     await renderApp();
 
     await tapPeeOutside();
+    await openToday();
     expect(danger.mock.calls.map(([message]) => message)).toEqual([en.toasts.offline]);
     expect(isMarkedNotSaved()).toBe(true);
 
@@ -640,12 +664,34 @@ describe('a quick log that could not be saved', () => {
     expect(isTimelineEmpty()).toBe(false);
   });
 
+  // Layout-shift hunt 2026-10-20: its day opened by itself on the failure and closed on the save, moving the whole page
+  it('leaves the days as they were: the failure opens none, a Retry that works closes none', async () => {
+    signedInWithCachedDogOnly();
+    const connection = { isOnline: false };
+    stubOfflineSaves(connection);
+    await renderApp();
+
+    await tapPeeOutside();
+    expect(todayHeader().getAttribute('aria-expanded')).toBe('false');
+    // Its closed header says it holds one
+    expect(todayHeader().textContent).toContain('1 log not sent');
+
+    await openToday();
+    connection.isOnline = true;
+    await act(async () => retryButtons()[0].click());
+    await settle();
+
+    expect(isMarkedNotSaved()).toBe(false);
+    expect(todayHeader().getAttribute('aria-expanded')).toBe('true');
+  });
+
   it('a Retry that fails again keeps the mark', async () => {
     signedInWithCachedDogOnly();
     stubOfflineSaves({ isOnline: false });
     await renderApp();
 
     await tapPeeOutside();
+    await openToday();
     await act(async () => retryButtons()[0].click());
     await settle();
 
@@ -665,6 +711,7 @@ describe('a quick log that could not be saved', () => {
     });
     await renderApp();
     await tapPeeOutside();
+    await openToday();
 
     await act(async () => retryButtons()[0].click());
     await settle();
@@ -706,6 +753,7 @@ describe('a quick log that could not be saved', () => {
     const danger = vi.spyOn(toast, 'danger');
     await renderApp();
     await tapPeeOutside();
+    await openToday();
 
     expect(danger.mock.calls.map(([message]) => message)).toEqual([en.potty.saveFailed]);
     expect(isMarkedNotSaved()).toBe(true);
@@ -719,6 +767,7 @@ describe('a quick log that could not be saved', () => {
 
     await tapPeeOutside();
     await tapPeeOutside();
+    await openToday();
 
     expect(posted).toHaveLength(1);
     expect(warning).toHaveBeenCalledWith(en.toasts.alreadyLogged);
@@ -730,6 +779,7 @@ describe('a quick log that could not be saved', () => {
     stubOfflineSaves({ isOnline: false });
     await renderApp();
     await tapPeeOutside();
+    await openToday();
 
     await act(async () => {
       document.dispatchEvent(new Event('visibilitychange'));
@@ -740,7 +790,7 @@ describe('a quick log that could not be saved', () => {
   });
 
   // App review 2026-10-16, decision 8: once its toast closed, a failed log looked saved; its mark was 2 screens down
-  describe('the amber line above the cards', () => {
+  describe('the amber line at the bottom of the screen', () => {
     const unsentLine = () => [...document.querySelectorAll('[role="status"]')].find((status) => /not sent/.test(status.textContent!))?.parentElement ?? null;
     const lineButton = (label: string) => [...unsentLine()!.querySelectorAll('button')].find((button) => button.textContent === label)!;
     const tapPoopOutside = async () => {
@@ -748,7 +798,7 @@ describe('a quick log that could not be saved', () => {
       await settle();
     };
 
-    it('counts the logs not sent, above the cards; its Retry sends them all again and the line goes', async () => {
+    it('counts the logs not sent, in a bar stuck to the bottom of the screen; its Retry sends them all again and the line goes', async () => {
       signedInWithCachedDogOnly();
       const connection = { isOnline: false };
       const posted = stubOfflineSaves(connection);
@@ -758,8 +808,7 @@ describe('a quick log that could not be saved', () => {
       expect(unsentLine()!.textContent).toContain('1 log not sent');
       await tapPoopOutside();
       expect(unsentLine()!.textContent).toContain('2 logs not sent');
-      const peeCard = [...document.querySelectorAll('h2')].find((heading) => heading.textContent === en.potty.nextPee)!;
-      expect(unsentLine()!.compareDocumentPosition(peeCard) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      expectInBottomBar(unsentLine()!);
 
       connection.isOnline = true;
       await act(async () => lineButton(en.potty.retry).click());
@@ -833,7 +882,22 @@ describe('a quick log that could not be saved', () => {
 
       expect(unsentLine()!.textContent).toContain('1 log not sent');
       await pickDog('Rex');
+      await openToday();
       expect(isMarkedNotSaved()).toBe(true);
+    });
+
+    // Review 2026-10-20: the offline line and this one, stacked, made a 116 px bar over the cards
+    it('offline, one line says both, the time of the data and the count, beside Retry and Discard', async () => {
+      signedInWithCachedDogOnly();
+      setStoredRecentActivities(puppy.id, [recentPee()]);
+      const offline = () => Promise.reject(new TypeError('Load failed'));
+      stubApi({ '/api/dashboard': offline, '/api/dogs': offline, '/api/households': offline, '/api/activities': offline });
+      await renderApp();
+      await tapPeeOutside();
+
+      const statuses = [...document.querySelector('main > .sticky')!.querySelectorAll('[role="status"]')].map((status) => status.textContent);
+      expect(statuses).toEqual([expect.stringMatching(/^Offline, data from \d\d:\d\d1 log not sent$/)]);
+      expect([...unsentLine()!.querySelectorAll('button')].map((button) => button.textContent)).toEqual([en.potty.retry, en.potty.discard]);
     });
 
     it('says it in French: "1 enregistrement non envoyé"', async () => {
@@ -853,6 +917,7 @@ describe('a quick log that could not be saved', () => {
     const posted = stubOfflineSaves({ isOnline: false });
     await renderApp();
     await tapPeeOutside();
+    await openToday();
 
     await act(async () => document.querySelector<HTMLElement>(`[aria-label="${en.potty.discard}"]`)!.click());
     await settle();
@@ -956,6 +1021,7 @@ describe('a dashboard that cannot be reached', () => {
     clearApiCache();
     await renderApp();
     expect(document.body.textContent).toContain('Offline, data from 09:15');
+    expectInBottomBar([...document.querySelectorAll('[role="status"]')].find((status) => status.textContent!.startsWith('Offline'))!);
 
     connection.isOnline = true;
     await act(async () => {
@@ -992,7 +1058,7 @@ describe('the health passport while its data loads', () => {
     expect(document.body.textContent).toContain(`${en.health.vaccinations} (0)`);
   });
 
-  // Health records are never kept on the phone: with no answer, the passport cannot know what is due
+  // No health records kept on the phone yet (a first open) and no answer: the passport cannot know what is due
   const expectNoMadeUpState = () => {
     const text = document.body.textContent!;
     expect(text).not.toContain(en.health.nothingDue);
@@ -1088,6 +1154,52 @@ describe('the health passport while its data loads', () => {
     answerSecond(new Response(JSON.stringify({ ...dashboardPayload(), healthRecords: [overdueRabies] })));
     await settleUntil(() => !isPassportBusy());
     expect(document.body.textContent).toContain(`${en.health.vaccinations} (1)`);
+  });
+
+  // Layout-shift hunt 2026-10-20: the To do skeleton (2 short rows) gave way to the records' taller rows, moving the page below it
+  it('the dashboard card\'s "To do" paints at once from the records the last answer left on the phone', async () => {
+    signedInWithCachedDogOnly();
+    let isAnswering = true;
+    stubApi({ '/api/dashboard': () => (isAnswering ? respond({ ...dashboardPayload(), healthRecords: [overdueRabies] }) : heldUntilTeardown()) });
+    await renderApp();
+    await act(async () => root!.unmount());
+
+    // Opened again: the dashboard request is still on its way
+    isAnswering = false;
+    clearApiCache();
+    await renderApp();
+
+    const toDo = [...document.querySelectorAll('h3')].find((title) => title.textContent === en.health.toDo)!.closest('section')!;
+    expect(toDo.getAttribute('aria-busy')).toBeNull();
+    expect(toDo.querySelector('li')!.textContent).toMatch(new RegExp(`^Rabies.*${en.potty.overdue}$`));
+  });
+
+  it('a record deleted in the passport stays deleted in the records kept on the phone', async () => {
+    signedInWithCachedDogOnly();
+    let isAnswering = true;
+    stubApi({
+      '/api/dashboard': () => (isAnswering ? respond({ ...dashboardPayload(), healthRecords: [overdueRabies] }) : heldUntilTeardown()),
+      '/api/health-records': () => respond({ success: true, deletedId: overdueRabies.id }),
+    });
+    window.history.pushState({}, '', '/health-passport');
+    await renderApp();
+    await settleUntil(() => document.querySelector('[aria-label^="Edit Rabies"]') !== null);
+    await act(async () => document.querySelector<HTMLButtonElement>('[aria-label^="Edit Rabies"]')!.click());
+    await act(async () => document.querySelector<HTMLButtonElement>('form [aria-label^="Delete Rabies"]')!.click());
+    await act(async () => [...document.querySelectorAll<HTMLButtonElement>('button')].find((button) => button.textContent!.trim() === en.common.delete)!.click());
+    await settle();
+    expect(requestedUrls).toContain(`/api/health-records?id=${overdueRabies.id}`);
+    await act(async () => root!.unmount());
+
+    // Opened again on the dashboard: its request is still on its way
+    isAnswering = false;
+    clearApiCache();
+    window.history.pushState({}, '', '/');
+    await renderApp();
+
+    const toDo = [...document.querySelectorAll('h3')].find((title) => title.textContent === en.health.toDo)!.closest('section')!;
+    expect(toDo.textContent).not.toContain('Rabies');
+    expect(toDo.textContent).toContain(en.health.nothingDue);
   });
 
   it('the dashboard card\'s "To do": busy until the first answer, then unavailable offline, never "nothing due"', async () => {
@@ -1362,6 +1474,70 @@ describe('switching dogs', () => {
     expect(document.querySelector('[aria-busy="true"]')).toBeNull();
     expect(isTimelineEmpty()).toBe(false);
   });
+
+  // Layout-shift hunt 2026-10-20: a refresh answered after a switch went back to the dog it was sent for
+  it('a refresh still on its way when another dog is picked keeps that dog, with its own logs', async () => {
+    signedInWithCachedDogOnly();
+    setStoredPuppies([puppy, second]);
+    const secondPoop: Activity = { ...recentPee(), id: 'act-2', puppyId: second.id, type: 'poop' };
+    let dashboardAnswers = 0;
+    let answerRefresh: (response: Response) => void = () => {};
+    stubApi({
+      '/api/dashboard': () => (dashboardAnswers++ === 0
+        ? respond({ ...dashboardPayload(), puppies: [puppy, second] })
+        : new Promise<Response>((resolve) => { answerRefresh = resolve; })),
+      '/api/activities': (url) => respond(url.includes('type=') ? [] : [secondPoop]),
+    });
+    await renderApp();
+
+    await act(async () => {
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+    await pickDog('Second');
+    // The refresh, sent for Rex before the switch, answers now
+    answerRefresh(new Response(JSON.stringify({ ...dashboardPayload(), puppies: [puppy, second] })));
+    await settle();
+
+    expect(document.querySelector('h1')!.textContent).toBe('Second');
+    expect(getActivePuppyId()).toBe(second.id);
+    await act(async () => document.querySelector<HTMLElement>(`[aria-label="${en.dashboard.expandAll}"]`)!.click());
+    expect(document.querySelector('[aria-label^="Delete poop "]')).not.toBeNull();
+    expect(document.querySelector('[aria-label^="Delete pee "]')).toBeNull();
+  });
+
+  // A slow phone: the pick is saved at once, its render comes later. A refresh fired in between asks for the dog picked.
+  it('a refresh fired between the pick and its render keeps the dog picked', async () => {
+    signedInWithCachedDogOnly();
+    setStoredPuppies([puppy, second]);
+    const secondPoop: Activity = { ...recentPee(), id: 'act-2', puppyId: second.id, type: 'poop' };
+    let dashboardAnswers = 0;
+    const heldRefreshes: Array<{ url: string; answer: () => void }> = [];
+    stubApi({
+      '/api/dashboard': (url) => (dashboardAnswers++ === 0
+        ? respond({ ...dashboardPayload(), puppies: [puppy, second] })
+        : new Promise<Response>((resolve) => heldRefreshes.push({
+          url,
+          answer: () => resolve(new Response(JSON.stringify({ ...dashboardPayload(url.includes(second.id) ? [secondPoop] : [recentPee()]), puppies: [puppy, second] }))),
+        }))),
+      '/api/activities': (url) => respond(url.includes('type=') ? [] : [secondPoop]),
+    });
+    await renderApp();
+
+    await act(async () => document.querySelector<HTMLButtonElement>('header button[aria-haspopup="listbox"]')!.click());
+    await act(async () => {
+      [...document.querySelectorAll<HTMLElement>('[role="option"]')].find((option) => option.textContent!.startsWith('Second'))!.click();
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+    heldRefreshes.forEach((refresh) => refresh.answer());
+    await settle();
+
+    expect(document.querySelector('h1')!.textContent).toBe('Second');
+    expect(getActivePuppyId()).toBe(second.id);
+    expect(heldRefreshes.map((refresh) => refresh.url)).toEqual([`/api/dashboard?puppyId=${second.id}&days=14`]);
+    await act(async () => document.querySelector<HTMLElement>(`[aria-label="${en.dashboard.expandAll}"]`)!.click());
+    expect(document.querySelector('[aria-label^="Delete poop "]')).not.toBeNull();
+    expect(document.querySelector('[aria-label^="Delete pee "]')).toBeNull();
+  });
 });
 
 // App review 2026-10-16, section 3 (loading): screen readers heard nothing while the skeleton showed
@@ -1376,6 +1552,33 @@ describe('the first load\'s skeleton', () => {
     const skeleton = document.querySelector('main');
     expect(skeleton?.getAttribute('role')).toBe('status');
     expect(skeleton?.getAttribute('aria-label')).toBe('Chargement…');
+  });
+
+  // Layout-shift hunt 2026-10-20: one frame showed the cards waiting for the logs, smaller, between the skeleton and them (CLS 0.2)
+  it('gives way to the cards with the logs in one step, never to the cards waiting for them', async () => {
+    signedInWithCachedDogOnly();
+    stubApi({ '/api/dashboard': () => respond(dashboardPayload()) });
+
+    await renderApp();
+
+    expect(isSkeletonShown()).toBe(false);
+    expect(cardsWaitingForLogs.length).toBeGreaterThan(0);
+    expect(cardsWaitingForLogs).not.toContain(true);
+  });
+
+  it('after a first sign-in too', async () => {
+    stubApi({
+      '/api/auth/session': () => respond({ sessionToken: 'app-session', user: owner }),
+      '/api/dashboard': () => respond(dashboardPayload()),
+    });
+    await renderApp();
+
+    await act(async () => document.getElementById('sign-in')!.click());
+    await settle();
+
+    expect(isSkeletonShown()).toBe(false);
+    expect(cardsWaitingForLogs.length).toBeGreaterThan(0);
+    expect(cardsWaitingForLogs).not.toContain(true);
   });
 });
 

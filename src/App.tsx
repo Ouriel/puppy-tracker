@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo, useRef, lazy, Suspense, type SetStateAction } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef, lazy, Suspense, startTransition, type ReactNode, type SetStateAction } from 'react';
 import type { Activity, UserAccount, ActivityType, PottyLocation, FamilyRole, HealthRecord, HealthRecordsLoadState, PuppyProfile, SignInOutcome } from './types';
 import { getAuthToken, setAuthToken, getStoredAuthUser, setStoredAuthUser } from './utils/auth';
 import { isSuperAdminEmail } from './utils/auth';
@@ -23,6 +23,7 @@ const CarnetDeSanteView = lazy(() => import('./views/CarnetDeSanteView').then((m
 const AuthLockScreen = lazy(() => import('./components/AuthLockScreen').then((m) => ({ default: m.AuthLockScreen })));
 const QuickLogModal = lazy(() => import('./components/QuickLogModal').then((m) => ({ default: m.QuickLogModal })));
 import { Button, Card, toast } from '@heroui/react';
+import { SpeedInsights } from '@vercel/speed-insights/react';
 import { useI18n, formatCount } from './i18n';
 import { AlertTriangle, Dog, Plus } from 'lucide-react';
 import { usePuppies } from './hooks/usePuppies';
@@ -30,12 +31,14 @@ import { useCaretakers } from './hooks/useCaretakers';
 import { useActivities, mergeOlderActivities } from './hooks/useActivities';
 import { getUnifiedWeightEntries } from './utils/weight';
 
-import { getStoredRecentActivities, getStoredRecentActivitiesTime } from './utils/storage';
+import { getActivePuppyId, getStoredHealthRecords, getStoredRecentActivities, getStoredRecentActivitiesTime, setStoredHealthRecords } from './utils/storage';
 
 // One list for the sign-in and the deferred session exchange, so a returning Admin keeps the role the sign-in test pins.
 const FAMILY_ROLES: readonly string[] = ['Husband', 'Wife', 'Partner', 'Child', 'Dog Walker', 'Sitter', 'Relative', 'Member', 'Admin', 'SuperAdmin'];
 // A screen left open (a tablet in the kitchen) reloads data this old, so it shows the others' logs
 const DASHBOARD_RELOAD_MS = 15 * 60 * 1000;
+// The route Speed Insights files each metric under: the screen shown when the metric is sent
+const SPEED_INSIGHTS_ROUTES = { dashboard: '/dashboard', carnetdesante: '/health-passport', settings: '/settings' } as const;
 
 function App() {
   const { t, lang } = useI18n();
@@ -49,14 +52,15 @@ function App() {
   const puppyState = usePuppies();
   const caretakerState = useCaretakers(user);
   const activityState = useActivities(puppyState.activePuppy, { skipInitialFetch: true });
-  const [healthRecords, setHealthRecords] = useState<HealthRecord[]>([]);
+  // The household's records as last loaded on this phone: the To do lists paint at once, never a skeleton that grows into them
+  const [healthRecords, setHealthRecords] = useState<HealthRecord[]>(() => getStoredHealthRecords() ?? []);
   // While /api/dashboard fails, the health passport loads the dog's records itself
   const [isDashboardDown, setIsDashboardDown] = useState<boolean>(false);
   const [now, setNow] = useState<Date>(() => new Date());
   // The dashboard could not be reached: when the data shown was loaded (ms); null otherwise
   const [offlineDataTime, setOfflineDataTime] = useState<number | null>(null);
-  // The health records came with a dashboard answer: until then the passport and the health summary never say "nothing recorded"
-  const [areHealthRecordsLoaded, setAreHealthRecordsLoaded] = useState<boolean>(false);
+  // The health records came with a dashboard answer (this one's, or kept on the phone): until then the passport and the health summary never say "nothing recorded"
+  const [areHealthRecordsLoaded, setAreHealthRecordsLoaded] = useState<boolean>(() => getStoredHealthRecords() !== null);
 
   const [isLoading, setIsLoading] = useState<boolean>(() => {
     if (!getAuthToken()) return false;
@@ -101,6 +105,7 @@ function App() {
       previous.forEach((record) => {
         if (!nextIds.has(record.id)) deletedHealthRecordIdsRef.current.add(record.id);
       });
+      setStoredHealthRecords(next);
       return next;
     });
   }, []);
@@ -131,11 +136,14 @@ function App() {
     }
   }, [puppyState, caretakerState]);
 
-  // One request for puppies, caretakers, the last 14 days of logs and health records; false when it fails
-  const loadDashboard = useCallback(async (puppyId: string = activePuppyId): Promise<boolean> => {
+  // One request for puppies, caretakers, the last 14 days of logs and health records; false when it fails.
+  // For the dog picked now: a pick is saved at once, its render (activePuppyId) comes later.
+  const loadDashboard = useCallback(async (puppyId: string = getActivePuppyId() || activePuppyId): Promise<boolean> => {
     // Read first: a log added, edited or deleted before the answer arrives may be missing from it
     const mutationVersion = getMutationVersion();
     const healthRecordsVersion = healthRecordsVersionRef.current;
+    // The dog picked now (a pick is saved at once, before its render): one picked while this is on its way wins over the answer
+    const pickedPuppyId = getActivePuppyId();
     dashboardRequestsRef.current += 1;
     const dashboardRes = await fetchDashboard(puppyId || undefined, 14).finally(() => {
       dashboardRequestsRef.current -= 1;
@@ -151,8 +159,11 @@ function App() {
       // The stored dog is gone, so these are its logs (none): load the first dog's instead
       if (puppyId && !puppies.some((puppy) => puppy.id === puppyId)) return loadDashboard(puppies[0].id);
       setPuppies(puppies);
-      selectPuppy(puppyId || puppies[0].id);
-      setActivitiesForPuppy(activities, puppyId || puppies[0].id, mutationVersion, weightActivities);
+      // Another dog picked meanwhile stays, and its own load brings its logs: these logs are not its
+      if (getActivePuppyId() === pickedPuppyId) {
+        selectPuppy(puppyId || puppies[0].id);
+        setActivitiesForPuppy(activities, puppyId || puppies[0].id, mutationVersion, weightActivities);
+      }
     } else if (puppies) {
       // No dog left (the owner deleted the last one): drop the cached ones too
       setPuppies([]);
@@ -164,9 +175,12 @@ function App() {
     if (records) {
       const isStale = healthRecordsVersion !== healthRecordsVersionRef.current;
       setHealthRecords((previous) => {
-        if (!isStale) return records;
         const keptIds = new Set(previous.map((record) => record.id));
-        return [...previous, ...records.filter((record) => !keptIds.has(record.id) && !deletedHealthRecordIdsRef.current.has(record.id))];
+        const next = isStale
+          ? [...previous, ...records.filter((record) => !keptIds.has(record.id) && !deletedHealthRecordIdsRef.current.has(record.id))]
+          : records;
+        setStoredHealthRecords(next);
+        return next;
       });
       setAreHealthRecordsLoaded(true);
     }
@@ -220,7 +234,8 @@ function App() {
       } catch (err) {
         console.error('Failed to load initial PupPace data', err);
       } finally {
-        setIsLoading(false);
+        // In a transition, like the logs (setActivitiesForPuppy): the skeleton gives way to the cards with their logs in one commit
+        startTransition(() => setIsLoading(false));
 
         // Health Passport and Settings paint first, then load the same payload, so the dashboard opened next has fresh logs.
         // A failed dashboard falls back to dogs and household, never before first paint.
@@ -442,7 +457,7 @@ function App() {
         await loadDogsAndHouseholdIfSignedIn();
       }
 
-      setIsLoading(false);
+      startTransition(() => setIsLoading(false));
       return 'signedIn';
     }
 
@@ -467,14 +482,51 @@ function App() {
   const healthRecordsState: HealthRecordsLoadState = areHealthRecordsLoaded ? 'loaded' : isDashboardDown ? 'failed' : 'loading';
 
   // Shown on the dashboard and the passport: the data on screen is from the last load that worked
-  const offlineLine = offlineDataTime !== null && (
-    <p role="status" className="text-xs font-semibold text-amber-300">
-      {t.dashboard.offlineDataFrom.replace('{time}', formatLocalTime(new Date(offlineDataTime)))}
-    </p>
+  const offlineText = offlineDataTime !== null ? t.dashboard.offlineDataFrom.replace('{time}', formatLocalTime(new Date(offlineDataTime))) : null;
+  // App review decision 8: a failed log stays in sight after its toast closed (its row may be screens below). On the dashboard only.
+  const unsentCount = currentView === 'dashboard' ? unsavedActivities.length : 0;
+
+  // Layout-shift hunt 2026-10-20: above the cards, these lines moved the whole page when they came or went. One row stuck to the
+  // bottom of the screen after the page takes no room above it; at the end of the page it sits under the last card. Only its box
+  // takes taps; index.css keeps the toasts above it and a control focused by keyboard clear of it.
+  const statusBar = currentView !== 'settings' && (offlineText !== null || unsentCount > 0) && (
+    <div className="status-bar sticky bottom-[max(1rem,env(safe-area-inset-bottom))] z-20 mt-6 flex justify-center pointer-events-none">
+      <div className={`pointer-events-auto max-w-full flex flex-wrap items-center gap-x-2 pl-3 pr-1 py-1 rounded-xl border border-amber-700/60 ${unsentCount > 0 ? 'w-full bg-amber-950' : 'bg-slate-950'} text-xs font-semibold text-amber-300 shadow-lg`}>
+        {/* The text wraps inside the row, so Retry and Discard stay beside it; under 6 rem of room for it (large text), they go below */}
+        <div role="status" className="min-w-0 grow basis-24 py-1 leading-tight break-words hyphens-auto">
+          {offlineText && <p>{offlineText}</p>}
+          {unsentCount > 0 && (
+            <p className="flex items-center gap-1.5">
+              <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+              {formatCount(t.dashboard.unsentLogs, unsentCount, lang)}
+            </p>
+          )}
+        </div>
+        {unsentCount > 0 && (
+          <div className="flex items-center shrink-0 ml-auto">
+            <button type="button" onClick={retryUnsavedLogs} className="min-h-11 px-2 rounded-lg font-bold text-amber-200 hover:bg-amber-900/50 transition-colors">
+              {t.potty.retry}
+            </button>
+            <button type="button" onClick={handleDiscardUnsavedLogs} className="min-h-11 px-2 rounded-lg text-slate-300 hover:bg-slate-800 transition-colors">
+              {t.potty.discard}
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
+  // Its script reads the route when it sends a metric. First on every screen (skeleton, lock screen, app), so it stays mounted:
+  // a remount finds the script already there and could no longer change the route.
+  const withSpeedInsights = (screen: ReactNode) => (
+    <>
+      <SpeedInsights route={SPEED_INSIGHTS_ROUTES[currentView]} />
+      {screen}
+    </>
   );
 
   if (isLoading) {
-    return (
+    return withSpeedInsights(
       <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans antialiased">
         {/* Real Navbar if cached profile present, otherwise Skeleton Navbar */}
         {puppyState.puppies.length > 0 && user ? (
@@ -512,7 +564,7 @@ function App() {
   }
 
   if (!user) {
-    return (
+    return withSpeedInsights(
       <Suspense
         fallback={
           <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center">
@@ -525,7 +577,7 @@ function App() {
     );
   }
 
-  return (
+  return withSpeedInsights(
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans antialiased">
       {/* Top Navbar */}
       <Navbar
@@ -541,7 +593,6 @@ function App() {
         {currentView === 'carnetdesante' ? (
           /* Full Page View for Health Passport */
           <div className="space-y-4">
-            {offlineLine}
             <Suspense
               fallback={
                 <div className="py-20 text-center">
@@ -612,25 +663,6 @@ function App() {
         ) : (
           <div aria-busy={isSwitchingDog || undefined} className={`space-y-6 motion-safe:transition-opacity ${isSwitchingDog ? 'opacity-50' : ''}`}>
             <h1 className="sr-only">{puppyState.activePuppy?.name}</h1>
-            {offlineLine}
-            {/* App review decision 8: a failed log stays in sight after its toast closed (its row may be screens below) */}
-            {unsavedActivities.length > 0 && (
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pl-3 pr-1 py-1 rounded-xl border border-amber-700/60 bg-amber-950/40 text-xs font-semibold text-amber-300">
-                <span role="status" className="flex items-center gap-1.5 min-w-0">
-                  <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
-                  {formatCount(t.dashboard.unsentLogs, unsavedActivities.length, lang)}
-                </span>
-                <div className="flex items-center gap-3 ml-auto">
-                  <button type="button" onClick={retryUnsavedLogs} className="min-h-11 px-3 rounded-lg font-bold text-amber-200 hover:bg-amber-900/50 transition-colors">
-                    {t.potty.retry}
-                  </button>
-                  <button type="button" onClick={handleDiscardUnsavedLogs} className="min-h-11 px-3 rounded-lg text-slate-300 hover:bg-slate-800 transition-colors">
-                    {t.potty.discard}
-                  </button>
-                </div>
-              </div>
-            )}
-
             {/* Active Puppy Predictor Hero Bar (3 Cards: Next Pee, Next Poop, Next Meal) */}
             {predictions && puppyState.activePuppy && (
               <PredictorWidget
@@ -677,6 +709,8 @@ function App() {
             />
           </div>
         )}
+
+        {statusBar}
       </main>
 
       <ConfirmationModal

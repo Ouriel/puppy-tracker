@@ -34,6 +34,11 @@ iframe[src*="accounts.google.com"] { color-scheme: light; }
   .input { @apply w-full; }
 }
 
+/* While the status line stuck to the bottom of the screen shows (App.tsx, one row of about 3.5 rem on a phone): the toasts sit
+   above it, so its Retry and Discard stay tappable, and a control reached with Tab scrolls into view clear of it */
+html:has(.status-bar) { scroll-padding-bottom: 7rem; }
+html:has(.status-bar) .toast-region--bottom { bottom: calc(max(1rem, env(safe-area-inset-bottom)) + 4.5rem); }
+
 /* iPhone Safari zooms into a field under 16 px when it gets focus. Outside any layer, so no text-xs utility wins */
 @media (pointer: coarse) {
   input, select, textarea { font-size: 16px; }
