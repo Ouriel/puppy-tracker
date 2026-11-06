@@ -106,6 +106,15 @@ PupPace — Smart Household Puppy Activity Tracker & Potty Predictor. React 19 +
 - Rerunnable: every seed id starts with `seed-`; the block first deletes the seed and what the app attached to seeded households or dogs, and never touches other rows.
 - Guard: the block raises before any write unless `md5(neon.branch_id)` is the `preview` branch's (fails closed: production, other branches, non-Neon hosts). A reset from parent keeps the branch id; a recreated `preview` branch needs the new hash in the guard. Keep it.
 
+### Neon CLI
+
+- Never run `neon link`, `neon checkout`, `neon init` or `neon env pull` without the owner's OK: they overwrite `POSTGRES_URL` in `.env` / `.env.local`.
+- Never run `neon mcp` or `neon init -y`: the Neon MCP is the owner's claude.ai connector, and these add a duplicate server with an API key in `~/.claude.json`.
+
+### Sync with TipsyTap
+
+- PupPace and the owner's other app, TipsyTap (`Ouriel/drinks-counter`), share engineering only: CI/CD, workflows, rulesets, dependency strategy, testing, architecture patterns. Never features, product behaviour, data retention or UX: each app decides those with the owner.
+
 ## Key Files
 
 | File                                  | Role                                                                                  |
