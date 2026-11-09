@@ -116,6 +116,28 @@ describe('meal times learned by rank, for any number of meals a day', () => {
       .toEqual(['12:00', '16:00', '20:00']);
   });
 
+  it('old and recent days that disagree keep the meals in order: the next meal is never due before the last one', () => {
+    // Complete days 10 days ago (07:30, 12:30, 18:30), then 5 recent days with breakfast at 13:30 and lunch not logged
+    const oldDays = ['2026-08-27', '2026-08-28', '2026-08-29'].flatMap((date) =>
+      ['07:30', '12:30', '18:30'].map((clockTime) => act('food', `${date}T${clockTime}:00+02:00`))
+    );
+    const recentDays = mealDays(['13:30', '19:00'], 5);
+    const logs = [...oldDays, ...recentDays];
+
+    const schedule = detectMealSchedule(logs, 3, NIGHT_22_TO_07, TIME_ZONE, new Date('2026-09-06T05:00:00+02:00'));
+    expect(schedule).toEqual([...schedule].sort((minsA, minsB) => minsA - minsB));
+
+    const afterBreakfast = calculatePredictions(
+      newestFirst([...logs, act('food', '2026-09-06T13:45:00+02:00')]),
+      { ...PISTACHE, targetMealsPerDay: 3, dailyFoodGramGoal: 240 },
+      new Date('2026-09-06T13:46:00+02:00'),
+      TIME_ZONE,
+      NIGHT_22_TO_07
+    );
+    expect(afterBreakfast.nextFoodExpectedAt!.getTime()).toBeGreaterThan(new Date('2026-09-06T13:46:00+02:00').getTime());
+    expect(afterBreakfast.foodUrgency).not.toBe('overdue');
+  });
+
   it('one meal a day: an evening chew logged as food does not move the meal to the evening', () => {
     const mealAndChew = mealDays(['08:00', '20:00'], 7);
 
