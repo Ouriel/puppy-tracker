@@ -102,6 +102,11 @@ export function getRecommendedMealsPerDay(birthDateIso: string, targetDate: Date
   return months < 3 ? 4 : months < 6 ? 3 : 2;
 }
 
+/** The dog's meals per day: its profile's, else the count for its age. */
+function getTargetMealsPerDay(profile: PuppyProfile, date: Date): number {
+  return Math.max(1, profile.targetMealsPerDay || getRecommendedMealsPerDay(profile.birthDate, date));
+}
+
 /**
  * Calculates remaining portion grams for the next meal given daily goal and meals logged today.
  * Undefined for a dog with no gram goal (0): its meals are only counted.
@@ -345,44 +350,74 @@ export function calculateMorningSequenceOffsets(
 }
 
 /**
- * Learns puppy's historical typical meal times (breakfast, lunch, dinner) from food logs
- * using exponential time-decay weighted medians (consistent with all other schedule detectors).
+ * The dog's usual time of each meal of the day, in minutes after midnight (a meal after midnight counts past 24 h):
+ * `targetMeals` entries, meal 1 first. Learned by rank, with the same 7-day decay as the other schedules, from the days
+ * up to `now`'s (a day ends at 04:00): meal k of each day with exactly `targetMeals` meals. A day with fewer or more
+ * gives its first and last meal, and a day with one meal gives it as the first or the last, by the half of the waking
+ * day it falls in: a new meal count keeps its first and last meal times. A meal not learned yet sits evenly between
+ * its neighbours. Not learned: the first meal at wake-up, the last 2.5 h before bedtime (vets: 2-3 h before bed).
  */
 export function detectMealSchedule(
   activities: Activity[],
-  timeZone?: string
-): { breakfastMins: number; lunchMins: number; dinnerMins: number } {
-  const defaultMeals = { breakfastMins: 7 * 60 + 30, lunchMins: 12 * 60 + 30, dinnerMins: 19 * 60 + 30 };
-
-  const maxLogTime = activities.reduce((max, act) => Math.max(max, parseIsoDate(act.timestamp).getTime()), 0);
-  const nowTime = maxLogTime > 0 ? maxLogTime : Date.now();
-  const thirtyDaysAgo = new Date(nowTime - 30 * 24 * 60 * 60 * 1000);
-  const foodLogs = activities.filter(
-    (activity) => activity.type === 'food' && parseIsoDate(activity.timestamp) >= thirtyDaysAgo
-  );
-
-  if (foodLogs.length < 3) return defaultMeals;
-
+  targetMeals: number,
+  sleepSchedule: SleepSchedule,
+  timeZone?: string,
+  now: Date = new Date()
+): number[] {
   const tz = timeZone || getUserTimezone();
-  const bfasts: { mins: number; weight: number }[] = [];
-  const lunches: { mins: number; weight: number }[] = [];
-  const dinners: { mins: number; weight: number }[] = [];
+  const mealCount = Math.max(1, targetMeals);
+  const maxLogTime = activities.reduce((max, act) => Math.max(max, parseIsoDate(act.timestamp).getTime()), 0);
+  const nowTime = maxLogTime > 0 ? maxLogTime : now.getTime();
+  const windowStart = nowTime - 30 * 24 * 60 * 60 * 1000;
+  const today = formatLogicalDate(now, tz);
+  const bedtimeHour = sleepSchedule.bedtimeHour < sleepSchedule.wakeupHour
+    ? sleepSchedule.bedtimeHour + 24
+    : sleepSchedule.bedtimeHour;
+  const middayMins = ((sleepSchedule.wakeupHour + bedtimeHour) / 2) * 60;
 
-  foodLogs.forEach((f) => {
-    const d = parseIsoDate(f.timestamp);
-    const m = Math.round(getLocalDecimalHour(d, tz) * 60);
-    const daysAgo = Math.max(0, (nowTime - d.getTime()) / (1000 * 60 * 60 * 24));
-    const weight = Math.exp(-daysAgo / 7);
-    if (m >= 5 * 60 && m < 11 * 60) bfasts.push({ mins: m, weight });
-    else if (m >= 11 * 60 && m < 16 * 60) lunches.push({ mins: m, weight });
-    else if (m >= 16 * 60 && m <= 23 * 60 + 59) dinners.push({ mins: m, weight });
+  const mealsByDay = new Map<string, Date[]>();
+  for (const activity of activities) {
+    const date = parseIsoDate(activity.timestamp);
+    const day = formatLogicalDate(date, tz);
+    if (activity.type !== 'food' || date.getTime() < windowStart || day > today) continue;
+    mealsByDay.set(day, [...(mealsByDay.get(day) ?? []), date]);
+  }
+
+  const samples: { mins: number; weight: number }[][] = Array.from({ length: mealCount }, () => []);
+  for (const [day, dates] of mealsByDay) {
+    const sorted = dates.sort((dateA, dateB) => dateA.getTime() - dateB.getTime());
+    // Today until all its meals are logged: only its first meal (its last so far may not be the day's last)
+    const meals = (day === today && sorted.length < mealCount ? sorted.slice(0, 1) : sorted).map((date) => {
+      const hour = getLocalDecimalHour(date, tz);
+      const daysAgo = Math.max(0, (nowTime - date.getTime()) / (1000 * 60 * 60 * 24));
+      return { mins: Math.round((hour < 4 ? hour + 24 : hour) * 60), weight: Math.exp(-daysAgo / 7) };
+    });
+    if (meals.length === mealCount) {
+      meals.forEach((meal, index) => samples[index].push(meal));
+    } else if (meals.length === 1) {
+      samples[meals[0].mins < middayMins ? 0 : mealCount - 1].push(meals[0]);
+    } else {
+      samples[0].push(meals[0]);
+      samples[mealCount - 1].push(meals[meals.length - 1]);
+    }
+  }
+
+  const learned = samples.map((slot) => (slot.length > 0 ? Math.round(calculateWeightedMedian(slot, 0)) : undefined));
+  const firstMeal = learned[0] ?? Math.round(sleepSchedule.wakeupHour * 60);
+  learned[0] = firstMeal;
+  learned[mealCount - 1] ??= Math.max(firstMeal, Math.round(bedtimeHour * 60 - 150));
+
+  const learnedIndexes = learned.flatMap((mins, index) => (mins === undefined ? [] : [index]));
+  const schedule = learned.map((mins, index) => {
+    if (mins !== undefined) return mins;
+    const before = learnedIndexes.findLast((learnedIndex) => learnedIndex < index) ?? 0;
+    const after = learnedIndexes.find((learnedIndex) => learnedIndex > index) ?? mealCount - 1;
+    const beforeMins = learned[before] ?? firstMeal;
+    const afterMins = learned[after] ?? firstMeal;
+    return Math.round(beforeMins + ((afterMins - beforeMins) * (index - before)) / (after - before));
   });
-
-  const breakfastMins = Math.round(calculateWeightedMedian(bfasts, defaultMeals.breakfastMins));
-  const lunchMins = Math.round(calculateWeightedMedian(lunches, defaultMeals.lunchMins));
-  const dinnerMins = Math.round(calculateWeightedMedian(dinners, defaultMeals.dinnerMins));
-
-  return { breakfastMins, lunchMins, dinnerMins };
+  // Medians from different days can cross: keep the meals in order
+  return schedule.map((mins, index) => Math.max(mins, ...schedule.slice(0, index)));
 }
 
 /**
@@ -993,8 +1028,7 @@ export function predictNextFood(
   const past = activities.filter((a) => parseIsoDate(a.timestamp).getTime() <= maxAllowedTime);
   const sorted = [...past].sort((a, b) => parseIsoDate(b.timestamp).getTime() - parseIsoDate(a.timestamp).getTime());
 
-  const vetRecommendedMeals = getRecommendedMealsPerDay(profile.birthDate, now);
-  const targetMeals = Math.max(1, profile.targetMealsPerDay || vetRecommendedMeals);
+  const targetMeals = getTargetMealsPerDay(profile, now);
 
   const todayMeals = past.filter(
     (a) => a.type === 'food' && isSameLogicalDate(parseIsoDate(a.timestamp), now, tz)
@@ -1004,10 +1038,12 @@ export function predictNextFood(
   const isGoalReached = isGramGoalMet || (profile.dailyFoodGramGoal === 0 && todayMeals.length >= targetMeals);
 
   const isNightTime = isNightTimeMode(now, sorted, sleepSchedule, tz);
-  const mealSchedule = options?.mealSchedule || detectMealSchedule(activities, tz);
+  const mealSchedule = options?.mealSchedule?.length === targetMeals
+    ? options.mealSchedule
+    : detectMealSchedule(past, targetMeals, sleepSchedule, tz, now);
 
   // Today's scheduled breakfast time (for daytime schedule)
-  const scheduledBfastToday = getOccurrenceOfClockTimeInTimezone(now, mealSchedule.breakfastMins / 60, tz, 0);
+  const scheduledBfastToday = getOccurrenceOfClockTimeInTimezone(now, mealSchedule[0] / 60, tz, 0);
 
   const firstMorningPee = findFirstMorningPee(sorted, now, tz);
   // Breakfast comes after the morning pee, or after wake-up while no morning pee is logged
@@ -1024,7 +1060,7 @@ export function predictNextFood(
   const nextWakeup = getNextOccurrenceOfClockTime(now, sleepSchedule.wakeupHour, tz);
   const nextBreakfast = new Date(Math.max(
     nextWakeup.getTime(),
-    getOccurrenceOfClockTimeInTimezone(nextWakeup, mealSchedule.breakfastMins / 60, tz, 0).getTime()
+    getOccurrenceOfClockTimeInTimezone(nextWakeup, mealSchedule[0] / 60, tz, 0).getTime()
   ));
   const nextBfastStr = formatLocalTime(nextBreakfast, tz);
   let nextExpectedAt: Date = todayBreakfast;
@@ -1061,7 +1097,7 @@ export function predictNextFood(
     , todayMeals[0]);
     const lastMealTime = parseIsoDate(lastMealToday.timestamp).getTime();
 
-    const remainingMealsCount = Math.max(1, targetMeals - todayMeals.length);
+    const remainingMealsCount = targetMeals - todayMeals.length;
     const effectiveBedtime = sleepSchedule.bedtimeHour < sleepSchedule.wakeupHour
       ? sleepSchedule.bedtimeHour + 24
       : sleepSchedule.bedtimeHour;
@@ -1069,19 +1105,33 @@ export function predictNextFood(
     const lastMealClockHour = getLocalDecimalHour(new Date(lastMealTime), tz);
     const lastMealHour = lastMealClockHour < 4 ? lastMealClockHour + 24 : lastMealClockHour;
     const wakingHoursLeft = Math.max(1, effectiveBedtime - lastMealHour);
-    const idealIntervalHours = Math.max(2.5, wakingHoursLeft / (remainingMealsCount + 1));
 
     // An extra 'Remaining portion' meal is a reminder: due now at the latest, never overdue
-    const isExtraPortion = todayMeals.length >= targetMeals;
-    nextExpectedAt = new Date(Math.max(lastMealTime + idealIntervalHours * 60 * 60 * 1000, isExtraPortion ? now.getTime() : 0));
+    const isExtraPortion = remainingMealsCount <= 0;
+    if (isExtraPortion) {
+      const idealIntervalHours = Math.max(2.5, wakingHoursLeft / 2);
+      nextExpectedAt = new Date(Math.max(lastMealTime + idealIntervalHours * 60 * 60 * 1000, now.getTime()));
+      reason = `Remaining portion (spaced ~${idealIntervalHours.toFixed(1)}h)`;
+    } else {
+      // Today's occurrence of a usual meal time (the day ends at 04:00: a time past 24 h falls on the next date)
+      const usualTimeToday = (mins: number) => getOccurrenceOfClockTimeInTimezone(
+        new Date(now.getTime() - 4 * 60 * 60 * 1000), (mins / 60) % 24, tz, mins >= 24 * 60 ? 1 : 0
+      ).getTime();
+      const eatenUsual = usualTimeToday(mealSchedule[todayMeals.length - 1]);
+      const nextUsual = usualTimeToday(mealSchedule[todayMeals.length]);
+      const lastUsual = usualTimeToday(mealSchedule[targetMeals - 1]);
+      // The next meal's usual time. After a late meal, the meals left keep their usual proportions until the usual
+      // last meal, so a late breakfast does not bring lunch right after it; past the usual last meal, the usual gap
+      const catchUp = lastMealTime < lastUsual && eatenUsual < lastUsual
+        ? lastMealTime + ((nextUsual - eatenUsual) * (lastUsual - lastMealTime)) / (lastUsual - eatenUsual)
+        : lastMealTime + (nextUsual - eatenUsual);
+      nextExpectedAt = new Date(Math.max(nextUsual, catchUp));
+      reason = `Meal ${todayMeals.length + 1} of ${targetMeals} (~${formatLocalTime(nextExpectedAt, tz)})`;
+    }
     const minsUntil = (nextExpectedAt.getTime() - now.getTime()) / 60000;
 
     if (minsUntil <= 0 && !isExtraPortion) urgency = 'overdue';
     else if (minsUntil <= 30) urgency = 'soon';
-
-    reason = isExtraPortion
-      ? `Remaining portion (spaced ~${idealIntervalHours.toFixed(1)}h)`
-      : `Meal ${todayMeals.length + 1} of ${targetMeals} (spaced ~${idealIntervalHours.toFixed(1)}h)`;
   }
 
   // ponytail: no UI reads portionGrams (App and PredictorWidget call calculateNextMealPortion themselves); kept only
@@ -1131,7 +1181,7 @@ export function calculatePredictions(
     (activity) => parseIsoDate(activity.timestamp).getTime() >= now.getTime() - 14 * 24 * 60 * 60 * 1000
   );
   const sleepSchedule = customSleepSchedule || detectSleepSchedule(past, tz, profile.birthDate);
-  const mealSchedule = detectMealSchedule(past, tz);
+  const mealSchedule = detectMealSchedule(past, getTargetMealsPerDay(profile, now), sleepSchedule, tz, now);
   const options: PredictorOptions = {
     timeZone: tz,
     sleepSchedule,

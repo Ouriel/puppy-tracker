@@ -275,7 +275,7 @@ function describePredictions(scenario: GoldenScenario, referenceTime: Date): str
   const result = calculatePredictions(visibleLogs, scenario.profile, referenceTime, TIME_ZONE);
   const sleep = result.sleepSchedule;
   const meals = result.mealSchedule;
-  const mealsLabel = meals ? `${clock(meals.breakfastMins)} ${clock(meals.lunchMins)} ${clock(meals.dinnerMins)}` : '-';
+  const mealsLabel = meals ? meals.map(clock).join(' ') : '-';
 
   return [
     `== ${at(referenceTime)} ${utcOffset(referenceTime)} | ${visibleLogs.length} logs | sleep ${sleep?.bedtimeStr}-${sleep?.wakeupStr} | meals ${mealsLabel}`,

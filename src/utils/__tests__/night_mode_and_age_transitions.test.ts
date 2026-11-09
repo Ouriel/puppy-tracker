@@ -320,8 +320,8 @@ describe('Night Mode, Evening Outings, and Age Transitions Comprehensive Test Su
     // Poop should anchor around early morning outing (07:48 + ~10m = 07:58), not wait until 08:48
     expect(pred.nextPoopExpectedAt).not.toBeNull();
     expect(at(pred.nextPoopExpectedAt!)).toBe('2026-09-08 07:58');
-    // Breakfast follows the same walk (07:48 + 15m = 08:03), not the default 07:30 schedule
-    expect(at(pred.nextFoodExpectedAt!)).toBe('2026-09-08 08:03');
+    // No meal logged ever: breakfast at the 08:38 wake-up, which is after the walk (07:48 + 15m = 08:03)
+    expect(at(pred.nextFoodExpectedAt!)).toBe('2026-09-08 08:38');
   });
 
   // 15. Afternoon Poop Prediction Targets Tonight's Evening Walk (No 18h Skip to Morning)
@@ -383,7 +383,7 @@ describe('Night Mode, Evening Outings, and Age Transitions Comprehensive Test Su
   });
 
   // 17. Breakfast Syncs with Meal Schedule
-  it('synchronizes big breakfast card target time with calculated mealSchedule.breakfastMins', () => {
+  it('synchronizes big breakfast card target time with calculated mealSchedule[0]', () => {
     const lateWakeSchedule: SleepSchedule = {
       bedtimeHour: 22.81,
       wakeupHour: 8.63, // 08:38 AM
@@ -391,7 +391,7 @@ describe('Night Mode, Evening Outings, and Age Transitions Comprehensive Test Su
       wakeupStr: '08:38',
     };
 
-    // Historical breakfast at 09:35 AM (>= 3 samples for learned schedule)
+    // Historical breakfast at 09:35 AM: one morning meal a day is learned as the first meal
     const activities = [
       act('food', '2026-09-07T09:35:00+02:00', { quantityGrams: 90 }),
       act('food', '2026-09-08T09:35:00+02:00', { quantityGrams: 90 }),

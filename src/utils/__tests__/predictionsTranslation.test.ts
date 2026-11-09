@@ -80,10 +80,7 @@ describe("predictionsTranslation utility", () => {
   });
 
   it("translates daytime meal schedule into French", () => {
-    const enReason = "Meal 2 of 3 (spaced ~5.4h)";
-    expect(translatePredictionReason(enReason, "fr")).toBe(
-      "Repas 2 sur 3 (espacés de ~5\u00a0h\u00a024)"
-    );
+    expect(translatePredictionReason("Meal 2 of 3 (~12:30)", "fr")).toBe("Repas 2 sur 3 (~12:30)");
   });
 
   it("translates food goal reached into French", () => {
@@ -169,7 +166,7 @@ describe("predictionsTranslation utility", () => {
       "Digestive recovery: pause after hard stool",
       "Learned average: ~#h bladder interval",
       "Learned average: ~#h# digestive interval",
-      "Meal # of # (spaced ~#.#h)",
+      "Meal # of # (~#:#)",
       "Morning outing (~#:#)",
       "Night mode: Young puppy mid-night potty break",
       "No pee recorded yet",
