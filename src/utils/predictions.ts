@@ -353,9 +353,10 @@ export function calculateMorningSequenceOffsets(
  * The dog's usual time of each meal of the day, in minutes after midnight (a meal after midnight counts past 24 h):
  * `targetMeals` entries, meal 1 first, learned from the finished days (a day ends at 04:00; today once all its meals
  * are logged) with the same 7-day decay as the other schedules. A day with exactly `targetMeals` meals gives meal k to
- * meal k; any other day gives each meal to the nearest usual time (one meal each), so a missed log, an extra meal or a
- * new meal count never shifts the others. Usual times come from the complete days, else from the waking day: the first
- * meal at wake-up, the last 2.5 h before bedtime (vets: 2-3 h before bed), the others evenly between them.
+ * meal k. Any other day gives its first meal to the first (when it has 2 or more) and each other meal to the nearest
+ * usual time, one meal each, so a missed log, an extra meal or a new meal count never shifts the others. Usual times
+ * come from the complete days, else from the waking day: the first meal at wake-up, the last 2.5 h before bedtime
+ * (vets: 2-3 h before bed), the others evenly between them; a meal never logged sits evenly between its neighbours.
  */
 export function detectMealSchedule(
   activities: Activity[],
@@ -400,19 +401,36 @@ export function detectMealSchedule(
       meals.forEach((meal, index) => samples[index].push(meal));
       continue;
     }
-    const nearest = new Map<number, { mins: number; weight: number }>();
-    for (const meal of meals) {
+    // With 2 or more meals, the first is the day's first meal (breakfast, however late); one meal alone could be any
+    const kept = new Map<number, { mins: number; weight: number }>(meals.length > 1 ? [[0, meals[0]]] : []);
+    const slots = usual.map((_mins, index) => index).filter((index) => !kept.has(0) || index > 0);
+    for (const meal of meals.length > 1 ? meals.slice(1) : meals) {
       const distance = (index: number) => Math.abs(meal.mins - usual[index]);
-      const index = usual.reduce((best, _mins, candidate) => (distance(candidate) < distance(best) ? candidate : best), 0);
-      const kept = nearest.get(index);
-      if (!kept || distance(index) < Math.abs(kept.mins - usual[index])) nearest.set(index, meal);
+      const nearest = slots.reduce<number | undefined>(
+        (best, candidate) => (best === undefined || distance(candidate) < distance(best) ? candidate : best), undefined
+      );
+      if (nearest === undefined) continue;
+      const previous = kept.get(nearest);
+      if (!previous || distance(nearest) < Math.abs(previous.mins - usual[nearest])) kept.set(nearest, meal);
     }
-    nearest.forEach((meal, index) => samples[index].push(meal));
+    kept.forEach((meal, index) => samples[index].push(meal));
   }
 
-  // Medians from different days can cross: keep the meals in order
-  return usual
-    .map((mins, index) => Math.round(calculateWeightedMedian(samples[index], mins)))
+  const learned = samples.map((slot) => (slot.length > 0 ? calculateWeightedMedian(slot, 0) : undefined));
+  learned[0] ??= usual[0];
+  learned[mealCount - 1] ??= usual[mealCount - 1];
+  const learnedIndexes = learned.flatMap((mins, index) => (mins === undefined ? [] : [index]));
+  return learned
+    .map((mins, index) => {
+      if (mins !== undefined) return Math.round(mins);
+      // A meal never logged sits evenly between the learned ones around it
+      const before = learnedIndexes.findLast((learnedIndex) => learnedIndex < index) ?? 0;
+      const after = learnedIndexes.find((learnedIndex) => learnedIndex > index) ?? mealCount - 1;
+      const beforeMins = learned[before] ?? usual[before];
+      const afterMins = learned[after] ?? usual[after];
+      return Math.round(beforeMins + ((afterMins - beforeMins) * (index - before)) / (after - before));
+    })
+    // Medians from different days can cross: keep the meals in order
     .sort((minsA, minsB) => minsA - minsB);
 }
 

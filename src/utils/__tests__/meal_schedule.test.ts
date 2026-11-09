@@ -100,6 +100,22 @@ describe('meal times learned by rank, for any number of meals a day', () => {
       .toEqual(['07:30', '12:00', '18:30']);
   });
 
+  it('with no complete day, a late first meal is still breakfast, never lunch with breakfast overdue at wake-up', () => {
+    const lunchNeverLogged = mealDays(['10:30', '19:00'], 7);
+    const profile = { ...PISTACHE, targetMealsPerDay: 3, dailyFoodGramGoal: 240 };
+
+    expect(clocks(detectMealSchedule(lunchNeverLogged, 3, NIGHT_22_TO_07, TIME_ZONE, new Date('2026-09-08T05:00:00+02:00'))))
+      .toEqual(['10:30', '14:45', '19:00']);
+    const morning = calculatePredictions(newestFirst(lunchNeverLogged), profile, new Date('2026-09-08T09:00:00+02:00'), TIME_ZONE, NIGHT_22_TO_07);
+    expect(morning.foodReason).toBe('Breakfast (~10:30, Meal 1 of 3)');
+    expect(morning.foodUrgency).toBe('safe');
+
+    // Going from 2 meals (12:00, 20:00) to 3: the new meal goes between them
+    const early: SleepSchedule = { bedtimeHour: 22, wakeupHour: 6, bedtimeStr: '22:00', wakeupStr: '06:00' };
+    expect(clocks(detectMealSchedule(mealDays(['12:00', '20:00'], 7), 3, early, TIME_ZONE, new Date('2026-09-08T05:00:00+02:00'))))
+      .toEqual(['12:00', '16:00', '20:00']);
+  });
+
   it('one meal a day: an evening chew logged as food does not move the meal to the evening', () => {
     const mealAndChew = mealDays(['08:00', '20:00'], 7);
 
