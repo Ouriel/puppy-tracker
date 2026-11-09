@@ -353,9 +353,10 @@ export function calculateMorningSequenceOffsets(
  * The dog's usual time of each meal of the day, in minutes after midnight (a meal after midnight counts past 24 h):
  * `targetMeals` entries, meal 1 first. A meal's number is its order in the day, as on the meal card. Learned with the
  * same 7-day decay as the other schedules from the finished days (a day ends at 04:00; today once all its meals are
- * logged) with exactly `targetMeals` meals: the weighted median of each meal's time. With no such day yet (a new dog,
- * a new meal count), the first and last meals come from the days with 2 or more meals, else from the waking day:
- * wake-up and 2.5 h before bedtime (vets: the last meal 2-3 h before bed); the meals between sit evenly.
+ * logged) with exactly `targetMeals` meals: the weighted median of each meal's time. When there is no such day, or the
+ * days usually have more meals (the meals per day were just cut, as a growing puppy goes from 4 to 3 to 2, so an old
+ * day with one log missing is no model), the first and last meals come from the days with 2 or more meals, else from
+ * the waking day: wake-up and 2.5 h before bedtime (vets: the last meal 2-3 h before bed); the meals between sit evenly.
  */
 export function detectMealSchedule(
   activities: Activity[],
@@ -388,7 +389,8 @@ export function detectMealSchedule(
   const medianOf = (meals: { mins: number; weight: number }[]) => Math.round(calculateWeightedMedian(meals, 0));
 
   const completeDays = days.filter((meals) => meals.length === mealCount);
-  if (completeDays.length > 0) {
+  const usualMealsPerDay = medianOf(days.map((meals) => ({ mins: meals.length, weight: meals[0].weight })));
+  if (completeDays.length > 0 && usualMealsPerDay <= mealCount) {
     return Array.from({ length: mealCount }, (_unused, index) => medianOf(completeDays.map((meals) => meals[index])));
   }
 

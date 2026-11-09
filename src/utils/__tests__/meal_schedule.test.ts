@@ -188,6 +188,16 @@ describe('meal times learned by rank, for any number of meals a day', () => {
       .toEqual(['08:00', '18:00']);
   });
 
+  it('cutting the meals per day (4 to 3, 3 to 2): an old day with one log missing is not taken as the new routine', () => {
+    const now = new Date('2026-09-15T05:00:00+02:00');
+    // 14 days of 3 meals, dinner not logged on one of them: that day has exactly 2 meals
+    const threeMeals = mealDays(['08:00', '13:00', '19:00'], 14).filter((log) => log.timestamp !== '2026-09-05T19:00:00+02:00');
+    expect(clocks(detectMealSchedule(threeMeals, 2, NIGHT_22_TO_07, TIME_ZONE, now))).toEqual(['08:00', '19:00']);
+
+    const fourMeals = mealDays(['07:00', '11:00', '15:00', '19:00'], 14).filter((log) => log.timestamp !== '2026-09-05T19:00:00+02:00');
+    expect(clocks(detectMealSchedule(fourMeals, 3, NIGHT_22_TO_07, TIME_ZONE, now))).toEqual(['07:00', '13:00', '19:00']);
+  });
+
   it('going from 3 meals to 2 keeps the usual breakfast and dinner', () => {
     const threeMealDays = mealDays(['08:00', '13:00', '19:00'], 7);
 
