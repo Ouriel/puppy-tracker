@@ -31,7 +31,7 @@ describe('meal times learned by rank, for any number of meals a day', () => {
 
     const predictions = calculatePredictions(logs, balma, new Date('2026-11-09T12:00:00+01:00'), TIME_ZONE, sleep);
 
-    expect(clocks(predictions.mealSchedule!)).toEqual(['09:45', '19:45']);
+    expect(clocks(predictions.mealSchedule!)).toEqual(['09:47', '19:45']); // finished days only
     expect(predictions.foodReason).toBe('Meal 2 of 2 (~19:45)');
     expect(at(predictions.nextFoodExpectedAt!)).toBe('2026-11-09 19:45');
     expect(predictions.foodUrgency).toBe('safe');
@@ -53,16 +53,16 @@ describe('meal times learned by rank, for any number of meals a day', () => {
     expect(afterBreakfast.foodReason).toBe('Meal 2 of 4 (~10:30)');
   });
 
-  it('a late breakfast moves the meals left in their usual proportions, up to the usual last meal', () => {
+  it('a late breakfast shortens the usual gaps as much as the time left until bedtime', () => {
     const history = mealDays(['06:30', '10:30', '14:30', '18:30'], 7);
     const profile = { ...PISTACHE, targetMealsPerDay: 4, dailyFoodGramGoal: 200 };
     const lateBreakfast = act('food', '2026-09-08T09:30:00+02:00', { quantityGrams: 50 });
 
-    // 09:30 + 4 h x (18:30 - 09:30) / (18:30 - 06:30): 12:30, not 10:30 an hour after breakfast
+    // 09:30 + 4 h x (22:00 - 09:30) / (22:00 - 06:30) = 12:43, not 10:30 an hour after breakfast
     const meal2 = calculatePredictions(newestFirst([...history, lateBreakfast]), profile, new Date('2026-09-08T10:00:00+02:00'), TIME_ZONE, NIGHT_22_TO_07);
-    expect(meal2.foodReason).toBe('Meal 2 of 4 (~12:30)');
+    expect(meal2.foodReason).toBe('Meal 2 of 4 (~12:43)');
 
-    // The last meal keeps its usual 18:30
+    // 15:30 + 4 h x (22:00 - 15:30) / (22:00 - 14:30) = 18:58, still 3 h before bedtime
     const meal4 = calculatePredictions(
       newestFirst([...history, lateBreakfast, act('food', '2026-09-08T12:30:00+02:00'), act('food', '2026-09-08T15:30:00+02:00')]),
       profile,
@@ -70,7 +70,48 @@ describe('meal times learned by rank, for any number of meals a day', () => {
       TIME_ZONE,
       NIGHT_22_TO_07
     );
-    expect(meal4.foodReason).toBe('Meal 4 of 4 (~18:30)');
+    expect(meal4.foodReason).toBe('Meal 4 of 4 (~18:58)');
+  });
+
+  it('a very late meal keeps the next one before bedtime, never right after it or the next morning', () => {
+    const history = mealDays(['08:00', '18:00'], 7);
+    const profile = { ...PISTACHE, targetMealsPerDay: 2, dailyFoodGramGoal: 200 };
+    const predictAfter = (clockTime: string) => calculatePredictions(
+      newestFirst([...history, act('food', `2026-09-08T${clockTime}:00+02:00`, { quantityGrams: 100 })]),
+      profile,
+      new Date(`2026-09-08T${clockTime}:00+02:00`),
+      TIME_ZONE,
+      NIGHT_22_TO_07
+    );
+
+    // Breakfast at 17:50: 10 h x (22:00 - 17:50) / (22:00 - 08:00), not 18:00 ten minutes later
+    expect(predictAfter('17:50').foodReason).toBe('Meal 2 of 2 (~20:48)');
+    // Breakfast at 19:00, after the usual dinner: 21:08, not 05:00 the next morning
+    expect(predictAfter('19:00').foodReason).toBe('Meal 2 of 2 (~21:08)');
+  });
+
+  it('days with a meal not logged give each meal to the nearest usual time: dinner never moves to lunch', () => {
+    const complete = mealDays(['07:30', '12:30', '18:30'], 3);
+    const dinnerNotLogged = ['04', '05', '06', '07'].flatMap((day) =>
+      ['07:30', '12:00'].map((clockTime) => act('food', `2026-09-${day}T${clockTime}:00+02:00`))
+    );
+
+    expect(clocks(detectMealSchedule([...complete, ...dinnerNotLogged], 3, NIGHT_22_TO_07, TIME_ZONE, new Date('2026-09-08T05:00:00+02:00'))))
+      .toEqual(['07:30', '12:00', '18:30']);
+  });
+
+  it('one meal a day: an evening chew logged as food does not move the meal to the evening', () => {
+    const mealAndChew = mealDays(['08:00', '20:00'], 7);
+
+    expect(clocks(detectMealSchedule(mealAndChew, 1, NIGHT_22_TO_07, TIME_ZONE, new Date('2026-09-08T05:00:00+02:00')))).toEqual(['08:00']);
+  });
+
+  it("today's meals are learned only once the day is complete: a late breakfast is not learned as dinner", () => {
+    const yesterday = mealDays(['08:00', '18:00'], 1);
+    const lateBreakfast = act('food', '2026-09-02T15:00:00+02:00');
+
+    expect(clocks(detectMealSchedule([...yesterday, lateBreakfast], 2, NIGHT_22_TO_07, TIME_ZONE, new Date('2026-09-02T15:30:00+02:00'))))
+      .toEqual(['08:00', '18:00']);
   });
 
   it('going from 3 meals to 2 keeps the usual breakfast and dinner', () => {
@@ -80,10 +121,10 @@ describe('meal times learned by rank, for any number of meals a day', () => {
       .toEqual(['08:00', '19:00']);
   });
 
-  it('a day with one meal logged gives the first or the last meal, by the half of the waking day it falls in', () => {
+  it('a day with one meal logged gives it to the nearest usual time', () => {
     const now = new Date('2026-09-08T05:00:00+02:00');
 
-    // 07:00-22:00 waking day: 18:30 is in the second half, the dinner; breakfast stays at wake-up
+    // Usual times without complete days: 07:00 (wake-up) and 19:30 (bedtime - 2.5 h)
     expect(clocks(detectMealSchedule(mealDays(['18:30'], 5), 2, NIGHT_22_TO_07, TIME_ZONE, now))).toEqual(['07:00', '18:30']);
     expect(clocks(detectMealSchedule(mealDays(['08:15'], 5), 2, NIGHT_22_TO_07, TIME_ZONE, now))).toEqual(['08:15', '19:30']);
   });

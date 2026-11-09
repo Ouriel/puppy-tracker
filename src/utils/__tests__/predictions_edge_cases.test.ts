@@ -568,7 +568,7 @@ describe('B11: decimal grams are rounded', () => {
 });
 
 describe('B12: meal spacing with a bedtime after midnight', () => {
-  it('bedtime 00:30 and a meal at 00:10, after the usual last meal: the usual gap, not half a day', () => {
+  it('bedtime 00:30 and a meal at 00:10: the next one before bedtime, not half a day later', () => {
     const afterMidnight: SleepSchedule = { bedtimeHour: 0.5, wakeupHour: 7.5, bedtimeStr: '00:30', wakeupStr: '07:30' };
     const profile = { ...adult, targetMealsPerDay: 4, dailyFoodGramGoal: 400 };
     const meals = [
@@ -578,8 +578,8 @@ describe('B12: meal spacing with a bedtime after midnight', () => {
     ];
     const result = predictAt(meals, profile, '2026-09-15', '00:20', afterMidnight);
 
-    // Usual meals: today's 08:00 breakfast to 22:00 (bedtime - 2.5 h), evenly: meal 3 at 17:20, meal 4 at 22:00
-    expect(result.foodReason).toBe('Meal 4 of 4 (~04:50)'); // 00:10 + the 4 h 40 gap; night mode takes over at 00:30
+    // The usual gap shortened to the 20 min left before bedtime; night mode takes over at 00:30
+    expect(result.foodReason).toBe('Meal 4 of 4 (~00:23)');
   });
 });
 
@@ -595,7 +595,7 @@ describe('P7: a missed meal stops at bedtime', () => {
     const result = predictAt(meals, PISTACHE, '2026-09-15', '22:30', NIGHT_22_TO_07);
 
     expect(result.foodMode).toBe('night_sleep');
-    expect(result.foodReason).toBe('Breakfast (~07:30, Meal 1 of 3)');
+    expect(result.foodReason).toBe('Breakfast (~07:00, Meal 1 of 3)'); // wake-up: today is not complete
   });
 });
 
