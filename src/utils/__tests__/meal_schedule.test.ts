@@ -90,17 +90,53 @@ describe('meal times learned by rank, for any number of meals a day', () => {
     expect(predictAfter('19:00').foodReason).toBe('Meal 2 of 2 (~21:08)');
   });
 
-  it('days with a meal not logged give each meal to the nearest usual time: dinner never moves to lunch', () => {
+  it('days with a meal not logged never move the usual times: dinner never moves to lunch', () => {
     const complete = mealDays(['07:30', '12:30', '18:30'], 3);
     const dinnerNotLogged = ['04', '05', '06', '07'].flatMap((day) =>
       ['07:30', '12:00'].map((clockTime) => act('food', `2026-09-${day}T${clockTime}:00+02:00`))
     );
 
     expect(clocks(detectMealSchedule([...complete, ...dinnerNotLogged], 3, NIGHT_22_TO_07, TIME_ZONE, new Date('2026-09-08T05:00:00+02:00'))))
-      .toEqual(['07:30', '12:00', '18:30']);
+      .toEqual(['07:30', '12:30', '18:30']);
   });
 
-  it('with no complete day, a late first meal is still breakfast, never lunch with breakfast overdue at wake-up', () => {
+  it('recent days with breakfast not logged keep breakfast at its usual time, due and overdue in the morning', () => {
+    const complete = mealDays(['08:00', '13:00', '19:00'], 3);
+    const breakfastNotLogged = ['04', '05', '06', '07'].flatMap((day) =>
+      ['13:00', '19:00'].map((clockTime) => act('food', `2026-09-${day}T${clockTime}:00+02:00`))
+    );
+    const morning = calculatePredictions(
+      newestFirst([...complete, ...breakfastNotLogged]),
+      { ...PISTACHE, targetMealsPerDay: 3, dailyFoodGramGoal: 240 },
+      new Date('2026-09-08T08:30:00+02:00'),
+      TIME_ZONE,
+      NIGHT_22_TO_07
+    );
+
+    expect(clocks(morning.mealSchedule!)).toEqual(['08:00', '13:00', '19:00']);
+    expect(morning.foodReason).toBe('Breakfast (~08:00, Meal 1 of 3)');
+    expect(morning.foodUrgency).toBe('overdue');
+  });
+
+  it('recent days with a meal not logged never bring the next meal minutes after breakfast', () => {
+    const complete = mealDays(['07:00', '10:30', '14:00', '18:00'], 7);
+    const lunchNotLogged = ['08', '09', '10', '11'].flatMap((day) =>
+      ['10:00', '14:00', '18:30'].map((clockTime) => act('food', `2026-09-${day}T${clockTime}:00+02:00`))
+    );
+    const afterBreakfast = calculatePredictions(
+      newestFirst([...complete, ...lunchNotLogged, act('food', '2026-09-12T10:00:00+02:00')]),
+      { ...PISTACHE, targetMealsPerDay: 4, dailyFoodGramGoal: 240 },
+      new Date('2026-09-12T10:05:00+02:00'),
+      TIME_ZONE,
+      NIGHT_22_TO_07
+    );
+
+    // Usual 07:00 / 10:30; breakfast 3 h late: 10:00 + 3.5 h x (22:00 - 10:00) / (22:00 - 07:00)
+    expect(afterBreakfast.foodReason).toBe('Meal 2 of 4 (~12:48)');
+    expect(afterBreakfast.foodUrgency).toBe('safe');
+  });
+
+  it('with no complete day, the first and last meals of the logged days set the schedule (late breakfast, new meal count)', () => {
     const lunchNeverLogged = mealDays(['10:30', '19:00'], 7);
     const profile = { ...PISTACHE, targetMealsPerDay: 3, dailyFoodGramGoal: 240 };
 
@@ -159,12 +195,12 @@ describe('meal times learned by rank, for any number of meals a day', () => {
       .toEqual(['08:00', '19:00']);
   });
 
-  it('a day with one meal logged gives it to the nearest usual time', () => {
+  it('days with one meal logged are not read: one meal could be any of them', () => {
     const now = new Date('2026-09-08T05:00:00+02:00');
 
-    // Usual times without complete days: 07:00 (wake-up) and 19:30 (bedtime - 2.5 h)
-    expect(clocks(detectMealSchedule(mealDays(['18:30'], 5), 2, NIGHT_22_TO_07, TIME_ZONE, now))).toEqual(['07:00', '18:30']);
-    expect(clocks(detectMealSchedule(mealDays(['08:15'], 5), 2, NIGHT_22_TO_07, TIME_ZONE, now))).toEqual(['08:15', '19:30']);
+    // The waking day: 07:00 (wake-up) and 19:30 (bedtime - 2.5 h)
+    expect(clocks(detectMealSchedule(mealDays(['18:30'], 5), 2, NIGHT_22_TO_07, TIME_ZONE, now))).toEqual(['07:00', '19:30']);
+    expect(clocks(detectMealSchedule(mealDays(['08:15'], 5), 2, NIGHT_22_TO_07, TIME_ZONE, now))).toEqual(['07:00', '19:30']);
   });
 
   it('without meal logs: from wake-up to 2.5 h before bedtime, evenly', () => {

@@ -350,52 +350,12 @@ export function calculateMorningSequenceOffsets(
 }
 
 /**
- * One day's meals given to the meal slots of `usual` (each slot's usual time, in order). A day with one meal per slot
- * gives them by rank. Any other day: its first meal is breakfast when it has 2 or more (the day's first food, however
- * late), and each other meal goes to the slot whose usual time is nearest, one meal per slot (the nearest wins), so a
- * missed log or an extra meal never shifts the others. One meal alone could be any, so it goes to the nearest too.
- */
-function assignMealsToSlots<T extends { mins: number }>(meals: T[], usual: number[]): Map<number, T> {
-  if (meals.length === usual.length) return new Map(meals.map((meal, index) => [index, meal]));
-  const assigned = new Map<number, T>(meals.length > 1 ? [[0, meals[0]]] : []);
-  const freeSlots = usual.map((_mins, index) => index).filter((index) => !assigned.has(index));
-  for (const meal of meals.length > 1 ? meals.slice(1) : meals) {
-    const distance = (slot: number, mins = meal.mins) => Math.abs(mins - usual[slot]);
-    const nearest = freeSlots.reduce<number | undefined>(
-      (best, slot) => (best === undefined || distance(slot) < distance(best) ? slot : best), undefined
-    );
-    if (nearest === undefined) continue;
-    const taken = assigned.get(nearest);
-    if (!taken || distance(nearest) < distance(nearest, taken.mins)) assigned.set(nearest, meal);
-  }
-  return assigned;
-}
-
-/** Each missing value set evenly between the values around it; the first and the last are given. */
-function fillGapsEvenly(values: (number | undefined)[], first: number, last: number): number[] {
-  const filled = [...values];
-  filled[0] ??= first;
-  filled[filled.length - 1] ??= last;
-  let before = 0;
-  return filled.map((mins, index) => {
-    if (mins !== undefined) {
-      before = index;
-      return mins;
-    }
-    const after = filled.findIndex((next, nextIndex) => nextIndex > index && next !== undefined);
-    const beforeMins = filled[before] ?? first;
-    const afterMins = filled[after] ?? last;
-    return beforeMins + ((afterMins - beforeMins) * (index - before)) / (after - before);
-  });
-}
-
-/**
  * The dog's usual time of each meal of the day, in minutes after midnight (a meal after midnight counts past 24 h):
- * `targetMeals` entries, meal 1 first, learned from the finished days (a day ends at 04:00; today once all its meals
- * are logged) with the same 7-day decay as the other schedules. Each day's meals go to the meal slots as
- * `assignMealsToSlots` says, around usual times from the complete days, else from the waking day: the first meal at
- * wake-up, the last 2.5 h before bedtime (vets: 2-3 h before bed), the others evenly between them. Each slot is the
- * weighted median of its meals; a meal never logged sits evenly between its neighbours.
+ * `targetMeals` entries, meal 1 first. A meal's number is its order in the day, as on the meal card. Learned with the
+ * same 7-day decay as the other schedules from the finished days (a day ends at 04:00; today once all its meals are
+ * logged) with exactly `targetMeals` meals: the weighted median of each meal's time. With no such day yet (a new dog,
+ * a new meal count), the first and last meals come from the days with 2 or more meals, else from the waking day:
+ * wake-up and 2.5 h before bedtime (vets: the last meal 2-3 h before bed); the meals between sit evenly.
  */
 export function detectMealSchedule(
   activities: Activity[],
@@ -425,25 +385,23 @@ export function detectMealSchedule(
       const daysAgo = Math.max(0, (nowTime - date.getTime()) / (1000 * 60 * 60 * 24));
       return { mins: Math.round((hour < 4 ? hour + 24 : hour) * 60), weight: Math.exp(-daysAgo / 7) };
     }));
+  const medianOf = (meals: { mins: number; weight: number }[]) => Math.round(calculateWeightedMedian(meals, 0));
 
   const completeDays = days.filter((meals) => meals.length === mealCount);
-  const wakeupMins = sleepSchedule.wakeupHour * 60;
-  const bedtimeHour = sleepSchedule.bedtimeHour < sleepSchedule.wakeupHour ? sleepSchedule.bedtimeHour + 24 : sleepSchedule.bedtimeHour;
-  const lastMealMins = Math.max(wakeupMins, bedtimeHour * 60 - 150);
-  const usual = completeDays.length > 0
-    ? Array.from({ length: mealCount }, (_unused, index) => calculateWeightedMedian(completeDays.map((meals) => meals[index]), 0))
-    : fillGapsEvenly(Array(mealCount).fill(undefined), wakeupMins, lastMealMins);
-
-  const samples: { mins: number; weight: number }[][] = usual.map(() => []);
-  for (const meals of days) {
-    assignMealsToSlots(meals, usual).forEach((meal, slot) => samples[slot].push(meal));
+  if (completeDays.length > 0) {
+    return Array.from({ length: mealCount }, (_unused, index) => medianOf(completeDays.map((meals) => meals[index])));
   }
-  const learned = samples.map((slot) => (slot.length > 0 ? calculateWeightedMedian(slot, 0) : undefined));
 
-  return fillGapsEvenly(learned, usual[0], usual[mealCount - 1])
-    .map(Math.round)
-    // Medians from different days can cross: keep the meals in order
-    .sort((minsA, minsB) => minsA - minsB);
+  const severalMealDays = days.filter((meals) => meals.length >= 2);
+  const wakeupMins = Math.round(sleepSchedule.wakeupHour * 60);
+  const bedtimeHour = sleepSchedule.bedtimeHour < sleepSchedule.wakeupHour ? sleepSchedule.bedtimeHour + 24 : sleepSchedule.bedtimeHour;
+  const firstMins = severalMealDays.length > 0 ? medianOf(severalMealDays.map((meals) => meals[0])) : wakeupMins;
+  const lastMins = severalMealDays.length > 0
+    ? medianOf(severalMealDays.map((meals) => meals[meals.length - 1]))
+    : Math.max(wakeupMins, Math.round(bedtimeHour * 60 - 150));
+  return Array.from({ length: mealCount }, (_unused, index) =>
+    mealCount === 1 ? firstMins : Math.round(firstMins + ((lastMins - firstMins) * index) / (mealCount - 1))
+  );
 }
 
 /**

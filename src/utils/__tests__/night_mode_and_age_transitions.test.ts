@@ -391,11 +391,11 @@ describe('Night Mode, Evening Outings, and Age Transitions Comprehensive Test Su
       wakeupStr: '08:38',
     };
 
-    // Historical breakfast at 09:35 AM: one morning meal a day is learned as the first meal
+    // Historical breakfast at 09:35 AM, on complete 3-meal days
     const activities = [
-      act('food', '2026-09-07T09:35:00+02:00', { quantityGrams: 90 }),
-      act('food', '2026-09-08T09:35:00+02:00', { quantityGrams: 90 }),
-      act('food', '2026-09-09T09:35:00+02:00', { quantityGrams: 90 }),
+      ...['07', '08', '09'].flatMap((day) => ['09:35', '14:00', '19:30'].map((clockTime) =>
+        act('food', `2026-09-${day}T${clockTime}:00+02:00`, { quantityGrams: 90 })
+      )),
       act('pee', '2026-09-10T08:37:00+02:00'),
     ];
 

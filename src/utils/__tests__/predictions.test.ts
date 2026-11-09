@@ -937,6 +937,7 @@ describe('predictions utility — comprehensive test suite', () => {
         activities.push({ id: `p-${d}`, puppyId: 'pup-1', type: 'pee', timestamp: makeParisIso(17 + d, 7, 20), loggedBy: 'Sam' });
         activities.push({ id: `po-${d}`, puppyId: 'pup-1', type: 'poop', timestamp: makeParisIso(17 + d, 7, 28), loggedBy: 'Sam' });
         activities.push({ id: `f-${d}`, puppyId: 'pup-1', type: 'food', timestamp: makeParisIso(17 + d, 7, 42), quantityGrams: 80, loggedBy: 'Sam' });
+        activities.push(act('food', makeParisIso(17 + d, 12, 30)), act('food', makeParisIso(17 + d, 18, 45)));
         // Evening poop and bedtime pee, so the poop interval is learned under 24 h and bedtime is 22:00
         activities.push(act('poop', makeParisIso(17 + d, 18, 30)), act('pee', makeParisIso(17 + d, 22, 0)));
       }
