@@ -29,7 +29,7 @@ const PATTERNS_FR: [RegExp, (...groups: string[]) => string][] = [
   [/^Digestive alert:.*/, () => `Alerte digestion${NBSP}: sorties fréquentes conseillées`],
   [/^Digestive recovery:.*/, () => `Récupération${NBSP}: pause après selle dure`],
   [/Breakfast \(~(.+?), Meal (\d+) of (\d+)\)/, (time, meal, meals) => `Petit-déjeuner (~${time}, Repas ${meal} sur ${meals})`],
-  [/Meal (\d+) of (\d+) \(spaced ~([0-9.]+)h\)/, (meal, meals, hours) => `Repas ${meal} sur ${meals} (espacés de ~${frenchHours(hours)})`],
+  [/Meal (\d+) of (\d+) \(~(.+?)\)/, (meal, meals, time) => `Repas ${meal} sur ${meals} (~${time})`],
   [/Remaining portion \(spaced ~([0-9.]+)h\)/, (hours) => `Portion restante (espacée de ~${frenchHours(hours)})`],
   [/Daily goal reached \((\d+)g\)/, (grams) => `Objectif du jour atteint (${formatGrams(Number(grams), "fr")})`],
   [/Daily goal reached \((\d+) meals?\)/, (meals) => `Objectif du jour atteint (${meals} repas)`],

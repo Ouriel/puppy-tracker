@@ -102,6 +102,11 @@ export function getRecommendedMealsPerDay(birthDateIso: string, targetDate: Date
   return months < 3 ? 4 : months < 6 ? 3 : 2;
 }
 
+/** The dog's meals per day: its profile's, else the count for its age. */
+function getTargetMealsPerDay(profile: PuppyProfile, date: Date): number {
+  return Math.max(1, profile.targetMealsPerDay || getRecommendedMealsPerDay(profile.birthDate, date));
+}
+
 /**
  * Calculates remaining portion grams for the next meal given daily goal and meals logged today.
  * Undefined for a dog with no gram goal (0): its meals are only counted.
@@ -345,44 +350,60 @@ export function calculateMorningSequenceOffsets(
 }
 
 /**
- * Learns puppy's historical typical meal times (breakfast, lunch, dinner) from food logs
- * using exponential time-decay weighted medians (consistent with all other schedule detectors).
+ * The dog's usual time of each meal of the day, in minutes after midnight (a meal after midnight counts past 24 h):
+ * `targetMeals` entries, meal 1 first. A meal's number is its order in the day, as on the meal card. Learned with the
+ * same 7-day decay as the other schedules from the finished days (a day ends at 04:00; today once all its meals are
+ * logged) with exactly `targetMeals` meals: the weighted median of each meal's time. When there is no such day, or the
+ * days usually have more meals (the meals per day were just cut, as a growing puppy goes from 4 to 3 to 2, so an old
+ * day with one log missing is no model), the first and last meals come from the days with 2 or more meals, else from
+ * the waking day: wake-up and 2.5 h before bedtime (vets: the last meal 2-3 h before bed); the meals between sit evenly.
  */
 export function detectMealSchedule(
   activities: Activity[],
-  timeZone?: string
-): { breakfastMins: number; lunchMins: number; dinnerMins: number } {
-  const defaultMeals = { breakfastMins: 7 * 60 + 30, lunchMins: 12 * 60 + 30, dinnerMins: 19 * 60 + 30 };
-
-  const maxLogTime = activities.reduce((max, act) => Math.max(max, parseIsoDate(act.timestamp).getTime()), 0);
-  const nowTime = maxLogTime > 0 ? maxLogTime : Date.now();
-  const thirtyDaysAgo = new Date(nowTime - 30 * 24 * 60 * 60 * 1000);
-  const foodLogs = activities.filter(
-    (activity) => activity.type === 'food' && parseIsoDate(activity.timestamp) >= thirtyDaysAgo
-  );
-
-  if (foodLogs.length < 3) return defaultMeals;
-
+  targetMeals: number,
+  sleepSchedule: SleepSchedule,
+  timeZone?: string,
+  now: Date = new Date()
+): number[] {
   const tz = timeZone || getUserTimezone();
-  const bfasts: { mins: number; weight: number }[] = [];
-  const lunches: { mins: number; weight: number }[] = [];
-  const dinners: { mins: number; weight: number }[] = [];
+  const mealCount = Math.max(1, targetMeals);
+  const maxLogTime = activities.reduce((max, act) => Math.max(max, parseIsoDate(act.timestamp).getTime()), 0);
+  const nowTime = maxLogTime > 0 ? maxLogTime : now.getTime();
+  const windowStart = nowTime - 30 * 24 * 60 * 60 * 1000;
+  const today = formatLogicalDate(now, tz);
 
-  foodLogs.forEach((f) => {
-    const d = parseIsoDate(f.timestamp);
-    const m = Math.round(getLocalDecimalHour(d, tz) * 60);
-    const daysAgo = Math.max(0, (nowTime - d.getTime()) / (1000 * 60 * 60 * 24));
-    const weight = Math.exp(-daysAgo / 7);
-    if (m >= 5 * 60 && m < 11 * 60) bfasts.push({ mins: m, weight });
-    else if (m >= 11 * 60 && m < 16 * 60) lunches.push({ mins: m, weight });
-    else if (m >= 16 * 60 && m <= 23 * 60 + 59) dinners.push({ mins: m, weight });
-  });
+  const mealsByDay = new Map<string, Date[]>();
+  for (const activity of activities) {
+    const date = parseIsoDate(activity.timestamp);
+    const day = formatLogicalDate(date, tz);
+    if (activity.type !== 'food' || date.getTime() < windowStart || day > today) continue;
+    mealsByDay.set(day, [...(mealsByDay.get(day) ?? []), date]);
+  }
+  const days = [...mealsByDay]
+    .filter(([day, dates]) => day < today || dates.length >= mealCount)
+    .map(([, dates]) => dates.sort((dateA, dateB) => dateA.getTime() - dateB.getTime()).map((date) => {
+      const hour = getLocalDecimalHour(date, tz);
+      const daysAgo = Math.max(0, (nowTime - date.getTime()) / (1000 * 60 * 60 * 24));
+      return { mins: Math.round((hour < 4 ? hour + 24 : hour) * 60), weight: Math.exp(-daysAgo / 7) };
+    }));
+  const medianOf = (meals: { mins: number; weight: number }[]) => Math.round(calculateWeightedMedian(meals, 0));
 
-  const breakfastMins = Math.round(calculateWeightedMedian(bfasts, defaultMeals.breakfastMins));
-  const lunchMins = Math.round(calculateWeightedMedian(lunches, defaultMeals.lunchMins));
-  const dinnerMins = Math.round(calculateWeightedMedian(dinners, defaultMeals.dinnerMins));
+  const completeDays = days.filter((meals) => meals.length === mealCount);
+  const usualMealsPerDay = medianOf(days.map((meals) => ({ mins: meals.length, weight: meals[0].weight })));
+  if (completeDays.length > 0 && usualMealsPerDay <= mealCount) {
+    return Array.from({ length: mealCount }, (_unused, index) => medianOf(completeDays.map((meals) => meals[index])));
+  }
 
-  return { breakfastMins, lunchMins, dinnerMins };
+  const severalMealDays = days.filter((meals) => meals.length >= 2);
+  const wakeupMins = Math.round(sleepSchedule.wakeupHour * 60);
+  const bedtimeHour = sleepSchedule.bedtimeHour < sleepSchedule.wakeupHour ? sleepSchedule.bedtimeHour + 24 : sleepSchedule.bedtimeHour;
+  const firstMins = severalMealDays.length > 0 ? medianOf(severalMealDays.map((meals) => meals[0])) : wakeupMins;
+  const lastMins = severalMealDays.length > 0
+    ? medianOf(severalMealDays.map((meals) => meals[meals.length - 1]))
+    : Math.max(wakeupMins, Math.round(bedtimeHour * 60 - 150));
+  return Array.from({ length: mealCount }, (_unused, index) =>
+    mealCount === 1 ? firstMins : Math.round(firstMins + ((lastMins - firstMins) * index) / (mealCount - 1))
+  );
 }
 
 /**
@@ -993,8 +1014,7 @@ export function predictNextFood(
   const past = activities.filter((a) => parseIsoDate(a.timestamp).getTime() <= maxAllowedTime);
   const sorted = [...past].sort((a, b) => parseIsoDate(b.timestamp).getTime() - parseIsoDate(a.timestamp).getTime());
 
-  const vetRecommendedMeals = getRecommendedMealsPerDay(profile.birthDate, now);
-  const targetMeals = Math.max(1, profile.targetMealsPerDay || vetRecommendedMeals);
+  const targetMeals = getTargetMealsPerDay(profile, now);
 
   const todayMeals = past.filter(
     (a) => a.type === 'food' && isSameLogicalDate(parseIsoDate(a.timestamp), now, tz)
@@ -1004,10 +1024,12 @@ export function predictNextFood(
   const isGoalReached = isGramGoalMet || (profile.dailyFoodGramGoal === 0 && todayMeals.length >= targetMeals);
 
   const isNightTime = isNightTimeMode(now, sorted, sleepSchedule, tz);
-  const mealSchedule = options?.mealSchedule || detectMealSchedule(activities, tz);
+  const mealSchedule = options?.mealSchedule?.length === targetMeals
+    ? options.mealSchedule
+    : detectMealSchedule(past, targetMeals, sleepSchedule, tz, now);
 
   // Today's scheduled breakfast time (for daytime schedule)
-  const scheduledBfastToday = getOccurrenceOfClockTimeInTimezone(now, mealSchedule.breakfastMins / 60, tz, 0);
+  const scheduledBfastToday = getOccurrenceOfClockTimeInTimezone(now, mealSchedule[0] / 60, tz, 0);
 
   const firstMorningPee = findFirstMorningPee(sorted, now, tz);
   // Breakfast comes after the morning pee, or after wake-up while no morning pee is logged
@@ -1024,7 +1046,7 @@ export function predictNextFood(
   const nextWakeup = getNextOccurrenceOfClockTime(now, sleepSchedule.wakeupHour, tz);
   const nextBreakfast = new Date(Math.max(
     nextWakeup.getTime(),
-    getOccurrenceOfClockTimeInTimezone(nextWakeup, mealSchedule.breakfastMins / 60, tz, 0).getTime()
+    getOccurrenceOfClockTimeInTimezone(nextWakeup, mealSchedule[0] / 60, tz, 0).getTime()
   ));
   const nextBfastStr = formatLocalTime(nextBreakfast, tz);
   let nextExpectedAt: Date = todayBreakfast;
@@ -1061,27 +1083,40 @@ export function predictNextFood(
     , todayMeals[0]);
     const lastMealTime = parseIsoDate(lastMealToday.timestamp).getTime();
 
-    const remainingMealsCount = Math.max(1, targetMeals - todayMeals.length);
+    const remainingMealsCount = targetMeals - todayMeals.length;
     const effectiveBedtime = sleepSchedule.bedtimeHour < sleepSchedule.wakeupHour
       ? sleepSchedule.bedtimeHour + 24
       : sleepSchedule.bedtimeHour;
     // A meal after midnight belongs to the evening before (04:00 day): 00:10 is hour 24.17, not 0.17
     const lastMealClockHour = getLocalDecimalHour(new Date(lastMealTime), tz);
     const lastMealHour = lastMealClockHour < 4 ? lastMealClockHour + 24 : lastMealClockHour;
-    const wakingHoursLeft = Math.max(1, effectiveBedtime - lastMealHour);
-    const idealIntervalHours = Math.max(2.5, wakingHoursLeft / (remainingMealsCount + 1));
 
     // An extra 'Remaining portion' meal is a reminder: due now at the latest, never overdue
-    const isExtraPortion = todayMeals.length >= targetMeals;
-    nextExpectedAt = new Date(Math.max(lastMealTime + idealIntervalHours * 60 * 60 * 1000, isExtraPortion ? now.getTime() : 0));
+    const isExtraPortion = remainingMealsCount <= 0;
+    if (isExtraPortion) {
+      const idealIntervalHours = Math.max(2.5, Math.max(1, effectiveBedtime - lastMealHour) / 2);
+      nextExpectedAt = new Date(Math.max(lastMealTime + idealIntervalHours * 60 * 60 * 1000, now.getTime()));
+      reason = `Remaining portion (spaced ~${idealIntervalHours.toFixed(1)}h)`;
+    } else {
+      // Today's occurrence of a usual meal time (the day ends at 04:00: a time past 24 h falls on the next date)
+      const usualTimeToday = (mins: number) => getOccurrenceOfClockTimeInTimezone(
+        new Date(now.getTime() - 4 * 60 * 60 * 1000), (mins / 60) % 24, tz, mins >= 24 * 60 ? 1 : 0
+      ).getTime();
+      const eatenUsual = usualTimeToday(mealSchedule[todayMeals.length - 1]);
+      const nextUsual = usualTimeToday(mealSchedule[todayMeals.length]);
+      const bedtime = lastMealTime + (effectiveBedtime - lastMealHour) * 60 * 60 * 1000;
+      // The next meal's usual time, or after a late meal the usual gap, shortened as much as the time left until
+      // bedtime: a late breakfast does not bring lunch right after it, and a late day still fits before bedtime
+      const timeLeftShare = bedtime > eatenUsual
+        ? Math.min(1, Math.max(0, (bedtime - lastMealTime) / (bedtime - eatenUsual)))
+        : 1;
+      nextExpectedAt = new Date(Math.max(nextUsual, lastMealTime + (nextUsual - eatenUsual) * timeLeftShare));
+      reason = `Meal ${todayMeals.length + 1} of ${targetMeals} (~${formatLocalTime(nextExpectedAt, tz)})`;
+    }
     const minsUntil = (nextExpectedAt.getTime() - now.getTime()) / 60000;
 
     if (minsUntil <= 0 && !isExtraPortion) urgency = 'overdue';
     else if (minsUntil <= 30) urgency = 'soon';
-
-    reason = isExtraPortion
-      ? `Remaining portion (spaced ~${idealIntervalHours.toFixed(1)}h)`
-      : `Meal ${todayMeals.length + 1} of ${targetMeals} (spaced ~${idealIntervalHours.toFixed(1)}h)`;
   }
 
   // ponytail: no UI reads portionGrams (App and PredictorWidget call calculateNextMealPortion themselves); kept only
@@ -1131,7 +1166,7 @@ export function calculatePredictions(
     (activity) => parseIsoDate(activity.timestamp).getTime() >= now.getTime() - 14 * 24 * 60 * 60 * 1000
   );
   const sleepSchedule = customSleepSchedule || detectSleepSchedule(past, tz, profile.birthDate);
-  const mealSchedule = detectMealSchedule(past, tz);
+  const mealSchedule = detectMealSchedule(past, getTargetMealsPerDay(profile, now), sleepSchedule, tz, now);
   const options: PredictorOptions = {
     timeZone: tz,
     sleepSchedule,

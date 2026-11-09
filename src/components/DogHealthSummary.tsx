@@ -100,31 +100,22 @@ export const DogHealthSummary: React.FC<DogHealthSummaryProps> = React.memo(({
     );
     const sleepDurationStr = formatDuration(sleepDurationMins, lang);
 
-    const targetMeals = profile.targetMealsPerDay || 3;
+    // One usual time per meal of the day (the engine's meals per day)
+    const targetMeals = meals.length;
     const dailyGrams = profile.dailyFoodGramGoal; // 0: no gram goal, no grams shown
     const portionGrams = dailyGrams > 0 ? Math.round(dailyGrams / targetMeals) : undefined;
 
-    // Build meal items list based on targetMealsPerDay
-    const mealItems: { name: string; timeStr: string; grams?: number }[] = [];
-    if (targetMeals === 2) {
-      mealItems.push({ name: t.health.breakfast, timeStr: formatMinsToClock(meals.breakfastMins), grams: portionGrams });
-      mealItems.push({ name: t.health.dinner, timeStr: formatMinsToClock(meals.dinnerMins), grams: portionGrams });
-    } else if (targetMeals === 3) {
-      mealItems.push({ name: t.health.breakfast, timeStr: formatMinsToClock(meals.breakfastMins), grams: portionGrams });
-      mealItems.push({ name: t.health.lunch, timeStr: formatMinsToClock(meals.lunchMins), grams: portionGrams });
-      mealItems.push({ name: t.health.dinner, timeStr: formatMinsToClock(meals.dinnerMins), grams: portionGrams });
-    } else if (targetMeals === 4) {
-      const snackMins = Math.round((meals.lunchMins + meals.dinnerMins) / 2);
-      mealItems.push({ name: t.health.breakfast, timeStr: formatMinsToClock(meals.breakfastMins), grams: portionGrams });
-      mealItems.push({ name: t.health.lunch, timeStr: formatMinsToClock(meals.lunchMins), grams: portionGrams });
-      mealItems.push({ name: t.health.afternoonSnack, timeStr: formatMinsToClock(snackMins), grams: portionGrams });
-      mealItems.push({ name: t.health.dinner, timeStr: formatMinsToClock(meals.dinnerMins), grams: portionGrams });
-    } else {
-      mealItems.push({ name: t.health.breakfast, timeStr: formatMinsToClock(meals.breakfastMins), grams: portionGrams });
-      if (targetMeals > 1) {
-        mealItems.push({ name: t.health.dinner, timeStr: formatMinsToClock(meals.dinnerMins), grams: portionGrams });
-      }
-    }
+    // 5 or 6 meals a day show only the first and the last
+    const mealNames = targetMeals === 4
+      ? [t.health.breakfast, t.health.lunch, t.health.afternoonSnack, t.health.dinner]
+      : targetMeals === 3
+        ? [t.health.breakfast, t.health.lunch, t.health.dinner]
+        : targetMeals === 1 ? [t.health.breakfast] : [t.health.breakfast, t.health.dinner];
+    const mealItems: { name: string; timeStr: string; grams?: number }[] = mealNames.map((name, position) => ({
+      name,
+      timeStr: formatMinsToClock(meals[position === mealNames.length - 1 ? targetMeals - 1 : position]),
+      grams: portionGrams,
+    }));
 
     const foodLogsCount = activities.filter((act) => act.type === 'food').length;
     const isLearned = activities.length >= 5 || foodLogsCount >= 3;
@@ -138,7 +129,7 @@ export const DogHealthSummary: React.FC<DogHealthSummaryProps> = React.memo(({
       dailyGrams,
       isLearned,
     };
-  }, [predictions, activities, profile.targetMealsPerDay, profile.dailyFoodGramGoal, t, lang]);
+  }, [predictions, activities, profile.dailyFoodGramGoal, t, lang]);
 
   const localizedBreed = formatBreedName(profile.breed, lang as Language);
 

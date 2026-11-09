@@ -198,21 +198,21 @@ describe('a dog with nothing logged yet', () => {
 
     expect(pee.textContent).toContain('No pee yet. Tap Outside to start.');
     expect(poop.textContent).toContain('No poop yet. Tap Outside to start.');
-    expect(meal.textContent).toContain('Next: breakfast ~7:30 AM');
+    expect(meal.textContent).toContain('Next: breakfast ~7:00 AM'); // the default 07:00 wake-up
     for (const card of [pee, poop, meal]) {
       expect(card.textContent).not.toMatch(/±|Safe Zone|Overdue|—/);
       expect(card.className).not.toMatch(/red|amber/);
     }
   });
 
-  it('French: "Pas encore de pipi. Touche Dehors pour commencer.", "Prochain : petit-déjeuner ~07:30"', async () => {
+  it('French: "Pas encore de pipi. Touche Dehors pour commencer.", "Prochain : petit-déjeuner ~07:00"', async () => {
     localStorage.setItem('puppace_lang_v1', 'fr');
     const container = await renderCards([], {}, { at: sixThirty });
     const [pee, poop, meal] = cards(container);
 
     expect(pee.textContent).toContain('Pas encore de pipi. Touche Dehors pour commencer.');
     expect(poop.textContent).toContain('Pas encore de caca. Touche Dehors pour commencer.');
-    expect(meal.textContent).toContain('Prochain\u00a0: petit-déjeuner ~07:30');
+    expect(meal.textContent).toContain('Prochain\u00a0: petit-déjeuner ~07:00');
     expect(meal.textContent).not.toContain('En retard');
   });
 
