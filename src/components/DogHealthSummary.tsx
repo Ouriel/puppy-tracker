@@ -262,7 +262,7 @@ export const DogHealthSummary: React.FC<DogHealthSummaryProps> = React.memo(({
 
               <div className={`grid gap-2 text-xs pt-0.5 ${scheduleData.mealItems.length === 2 ? 'grid-cols-2' : scheduleData.mealItems.length === 4 ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-3'}`}>
                 {scheduleData.mealItems.map((item, index) => (
-                  <div key={index} className="bg-slate-950/70 p-2 sm:p-2.5 rounded-lg border border-slate-800/70 text-center sm:text-left">
+                  <div key={index} className="bg-slate-950/70 px-1 py-2 sm:p-2.5 rounded-lg border border-slate-800/70 text-center sm:text-left">
                     <div className="text-[11px] text-slate-400 font-medium truncate" title={item.name}>{item.name}</div>
                     <div className="font-extrabold text-emerald-300 text-xs sm:text-sm mt-0.5">~{item.timeStr}</div>
                     {item.grams !== undefined && <div className="text-xs text-slate-400 mt-0.5 font-medium">~{formatGrams(item.grams, lang)}</div>}

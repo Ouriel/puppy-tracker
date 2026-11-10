@@ -28,8 +28,8 @@ export const en = {
     loading: 'Loading…',
   },
   settings: {
-    dogProfiles: 'Dog Profiles',
-    householdMembers: 'Household Members',
+    dogProfiles: 'Dogs',
+    householdMembers: 'Members',
     superAdminPanel: 'Super-Admin Panel',
   },
   errorBoundary: {
