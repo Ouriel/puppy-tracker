@@ -83,7 +83,7 @@ export const en = {
     unsentLogs: { one: '{count} log not sent', other: '{count} logs not sent' },
     discardUnsentTitle: { one: 'Discard {count} log not sent?', other: 'Discard {count} logs not sent?' },
     discardUnsentMessage: { one: 'The server never got it: once discarded, it is lost.', other: 'The server never got them: once discarded, they are lost.' },
-    tapLogEvent: 'Tap "+ Quick Log" above to record your first event.',
+    tapLogEvent: 'Tap "+ Quick Log" above to log an event.',
     today: 'Today',
     yesterday: 'Yesterday',
     targetMealsPerDay: 'Target Meals / Day',
