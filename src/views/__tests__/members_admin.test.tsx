@@ -421,6 +421,30 @@ describe('Admin panel (27, 28)', () => {
     expect(janeRow.textContent).toContain('Admin');
   });
 
+  // Offline, Revoke did nothing and Delete closed its dialog with the account still listed, both without a word
+  it('a Revoke the server never takes says why in a toast, and the account stays active', async () => {
+    const danger = vi.spyOn(toast, 'danger').mockImplementation(() => '');
+    apiMock.updateUser.mockResolvedValueOnce({ ok: false, status: 0, errorKey: 'offline' });
+    await renderAdmin();
+    await click(buttons('Revoke')[0]);
+
+    expect(danger).toHaveBeenCalledWith('No connection, nothing was saved');
+    expect(buttons('Revoke')).toHaveLength(1);
+    danger.mockRestore();
+  });
+
+  it('a Delete the server never takes says why in a toast, and the account stays listed', async () => {
+    const danger = vi.spyOn(toast, 'danger').mockImplementation(() => '');
+    apiMock.deleteUser.mockResolvedValueOnce({ ok: false, status: 0, errorKey: 'offline' });
+    await renderAdmin();
+    await click(document.querySelector<HTMLButtonElement>('button[aria-label="Delete bob.smith@example.com"]')!);
+    await click(buttons('Delete User').at(-1)!);
+
+    expect(danger).toHaveBeenCalledWith('No connection, nothing was saved');
+    expect(document.body.textContent).toContain('bob.smith@example.com');
+    danger.mockRestore();
+  });
+
   // A stale row: a family Admin took the sign-up in since the panel loaded, and the server refuses (409).
   it('reloads the accounts when an approval is refused, so a stale row shows where the account is now', async () => {
     apiMock.updateUser.mockResolvedValueOnce({ ok: false, status: 409, error: 'no longer pending' });
