@@ -467,6 +467,16 @@ describe('Admin panel (27, 28)', () => {
     expect(apiMock.fetchUsers).toHaveBeenCalledTimes(2);
   });
 
+  it('an approval the server never takes says why in a toast', async () => {
+    const danger = vi.spyOn(toast, 'danger').mockImplementation(() => '');
+    apiMock.updateUser.mockResolvedValueOnce({ ok: false, status: 0, errorKey: 'offline' });
+    await renderAdmin();
+    await click(buttons('Approve & Assign')[0]);
+
+    expect(danger).toHaveBeenCalledWith('No connection, nothing was saved');
+    danger.mockRestore();
+  });
+
   it("joining the owner's family is an explicit choice, confirmed first, and creates the same linked badge as an invite", async () => {
     const { onAddCaretaker } = await renderAdmin();
     await setValue(assignSelect(), 'FAMILY-COCKER-2026');

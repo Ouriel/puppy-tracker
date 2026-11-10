@@ -103,6 +103,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail, caretake
         setTimeout(() => setStatusMessage(''), 3500);
       } else {
         // Refused (409) when the row is stale, e.g. a family Admin took the sign-up in since: show where it is now.
+        if (res.status !== 409) toast.danger(t.toasts[res.errorKey]);
         void loadData();
       }
     } catch (err) {
