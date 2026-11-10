@@ -368,6 +368,11 @@ describe('Suggested next dates (pre-fill review items 11, 12, 13; TZ=Europe/Pari
       expect(calculateNextVaccineBooster('2027-07-05', 'chppi_sans_l4', birthDate)).toBe('2030-07-05'); // 18 months old
     });
 
+    it('16 months is on the calendar, as 6 months is, not in average 30.4-day months', () => {
+      expect(calculateNextVaccineBooster('2026-05-15', 'chppi_sans_l4', '2025-01-15')).toBe('2029-05-15'); // exactly 16 months
+      expect(calculateNextVaccineBooster('2026-06-30', 'chppi_sans_l4', '2025-03-01')).toBe('2027-06-30'); // the day before
+    });
+
     it('other vaccines keep their own interval, whatever the age', () => {
       expect(calculateNextVaccineBooster('2026-03-02', 'Rage', birthDate)).toBe('2027-03-02');
       expect(calculateNextVaccineBooster('2026-03-02', 'l4', birthDate)).toBe('2027-03-02');
@@ -388,6 +393,11 @@ describe('Suggested next dates (pre-fill review items 11, 12, 13; TZ=Europe/Pari
     it('from 12 weeks to 6 months monthly, then quarterly', () => {
       expect(calculateNextAntiparasiticDate('2026-03-30', 'Drontal Chiot (Sirop / Comprimés)', birthDate)).toBe('2026-04-30'); // 12 weeks
       expect(calculateNextAntiparasiticDate('2026-08-10', 'Milbemax', birthDate)).toBe('2026-11-10'); // 7 months
+    });
+
+    it('6 months is on the calendar, not in average 30.4-day months', () => {
+      expect(calculateNextAntiparasiticDate('2026-07-01', 'Milbemax', '2026-01-01')).toBe('2026-10-01'); // exactly 6 months
+      expect(calculateNextAntiparasiticDate('2026-09-29', 'Milbemax', '2026-03-31')).toBe('2026-10-29'); // the day before (30 Sep)
     });
 
     it('a monthly product stays +1 month at any age', () => {

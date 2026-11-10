@@ -104,7 +104,7 @@ export function calculateNextVaccineBooster(injectionDate: string, vaccineType: 
   if (birthDate && injectionDate.slice(0, 10) < addMonths(birthDate, 6)) return addMonths(birthDate, 12);
 
   const isViralOnly = matched.id !== 'chppi_l4';
-  return addMonths(injectionDate, isViralOnly && (ageOnInjectionDay?.months ?? 0) >= 16 ? 36 : 12);
+  return addMonths(injectionDate, isViralOnly && !!birthDate && injectionDate.slice(0, 10) >= addMonths(birthDate, 16) ? 36 : 12);
 }
 
 export type HealthRecordDateError = 'dateRequired' | 'dateInFuture' | 'boosterBeforeDate';
@@ -221,6 +221,6 @@ export function calculateNextAntiparasiticDate(lastDate: string, productName: st
 
   const ageOnDoseDay = birthDate ? getPuppyAge(birthDate, lastDate) : undefined;
   if (matched?.frequencyType === 'esccap_age_based' && ageOnDoseDay && ageOnDoseDay.weeks < 12) return addDays(lastDate, 14);
-  if ((ageOnDoseDay?.months ?? 0) < 6) return addMonths(lastDate, matched?.intervalMonthsPuppy ?? 1);
+  if (!birthDate || lastDate.slice(0, 10) < addMonths(birthDate, 6)) return addMonths(lastDate, matched?.intervalMonthsPuppy ?? 1);
   return addMonths(lastDate, matched?.intervalMonthsAdult ?? 3);
 }
