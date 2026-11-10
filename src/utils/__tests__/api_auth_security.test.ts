@@ -53,6 +53,7 @@ vi.mock('drizzle-orm/neon-http', async () => {
       insert: dbMock.insert,
       update: dbMock.update,
       delete: dbMock.delete,
+      batch: (queries: unknown[]) => Promise.all(queries),
     })),
   };
 });
