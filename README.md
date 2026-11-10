@@ -99,7 +99,7 @@ Your logs are stored under your **badge** (Settings > Household Members) linked 
 ## History
 
 - The feed shows the last **7 days**, one collapsed card per day (04:00 to 04:00) with the meals, pees, poops and accidents of that day. "Expand all" opens them.
-- "Load more" goes to 14, 30, 90, 180 days, then everything.
+- "Load more" goes to 14, 30, 90, 180 days, then everything. It stays until everything is loaded, even when a step brings nothing new.
 - Today's meal total is compared to today's goal. Past days show plain totals ("240 g · 3 meals"), since past goals are not stored.
 - Each log can be edited (same rules as the form) or deleted. The badge colour shows who logged it.
 - A one-tap log that could not be saved stays, marked "Not saved", with **Retry** (sends it again, never twice) and **Discard** instead of edit and delete. Its day opens only when you tap it (a closed day shows an amber sign); a line at the bottom of the screen counts the logs not sent, with Retry and Discard.

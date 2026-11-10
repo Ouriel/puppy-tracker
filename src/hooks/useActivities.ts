@@ -149,8 +149,8 @@ export function useActivities(
       }
       setIsLoading(false);
       setKnownPuppyId(puppyId);
-      // A refresh of the same dog never hides "load more"
-      setHasMoreRemote((previous) => (isSamePuppy && previous) || recentActivities.length >= RECENT_LOGS_LIMIT);
+      // A window shorter than its limit ends its 14 days, not the dog's history: only an all-time page hides "load more"
+      setHasMoreRemote((previous) => (isSamePuppy ? previous : true));
     });
   }, []);
 
@@ -226,10 +226,9 @@ export function useActivities(
     }
     if (result.ok && result.data.length > 0) {
       setActivities((previous) => mergeOlderActivities(previous, result.data));
-      setHasMoreRemote(result.data.length >= LOAD_MORE_LIMIT);
-    } else if (result.ok) {
-      setHasMoreRemote(false);
     }
+    // A short page of some days ends those days only: older logs may lie before them (a night with no log, a quiet week)
+    if (result.ok) setHasMoreRemote(!isAllTime || result.data.length >= LOAD_MORE_LIMIT);
     setIsFetchingMore(false);
   }, [activePuppyId, activities, isFetchingMore]);
 
