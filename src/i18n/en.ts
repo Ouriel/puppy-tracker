@@ -78,6 +78,7 @@ export const en = {
     pottyFilter: 'Potty',
     mealsFilter: 'Meals',
     noActivityLogs: 'No activity logs recorded yet.',
+    noLogsInDays: 'No logs in the last {days} days.',
     offlineDataFrom: 'Offline, data from {time}',
     unsentLogs: { one: '{count} log not sent', other: '{count} logs not sent' },
     discardUnsentTitle: { one: 'Discard {count} log not sent?', other: 'Discard {count} logs not sent?' },

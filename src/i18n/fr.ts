@@ -83,6 +83,7 @@ export const fr: TranslationKeys = {
     pottyFilter: 'Besoins',
     mealsFilter: 'Repas',
     noActivityLogs: 'Aucun événement enregistré.',
+    noLogsInDays: 'Aucun événement ces {days} derniers jours.',
     offlineDataFrom: 'Hors ligne, données de {time}',
     unsentLogs: { one: '{count} non envoyé', other: '{count} non envoyés' },
     discardUnsentTitle: { one: 'Abandonner {count} enregistrement non envoyé\u00a0?', other: 'Abandonner {count} enregistrements non envoyés\u00a0?' },

@@ -115,7 +115,8 @@ async function renderApp() {
 
 // The skeleton's card placeholders
 const isSkeletonShown = () => document.querySelector('main .rounded-3xl.motion-safe\\:animate-pulse') !== null;
-const isTimelineEmpty = () => document.body.textContent!.includes(en.dashboard.noActivityLogs);
+// The feed shows 7 days at first
+const isTimelineEmpty = () => document.body.textContent!.includes(en.dashboard.noLogsInDays.replace('{days}', '7'));
 // The cards' lines for a dog with nothing logged yet
 const isPresentedAsNewDog = () => [en.dashboard.noPeeYet, en.dashboard.noPoopYet, 'Next: breakfast', 'Next: first meal'].some((line) => document.body.textContent!.includes(line));
 const isLockScreenShown = () => document.getElementById('sign-in') !== null;

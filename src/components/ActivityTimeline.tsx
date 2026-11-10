@@ -387,7 +387,10 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
         {/* Day-by-day Accordion List */}
         {dayGroups.length === 0 ? (
           <div className="text-center py-10 text-slate-400 bg-slate-950/60 rounded-xl border border-dashed border-slate-800 space-y-1">
-            <p className="text-sm font-semibold">{t.dashboard.noActivityLogs}</p>
+            {/* Older logs may exist before the days shown: say the days are empty, not that nothing was ever logged */}
+            <p className="text-sm font-semibold">
+              {daysLimit === Infinity ? t.dashboard.noActivityLogs : t.dashboard.noLogsInDays.replace('{days}', String(daysLimit))}
+            </p>
             <p className="text-xs text-slate-400">{t.dashboard.tapLogEvent}</p>
           </div>
         ) : (
