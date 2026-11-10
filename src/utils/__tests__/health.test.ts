@@ -216,6 +216,28 @@ describe('Health Passport — French Veterinary Protocol & Dataset Test Suite', 
     }
   });
 
+  it('a typed name saying L4 is CHPPi + L4, even after a brand ("Nobivac DHPPi + L4"); "sans L4" and a bare "Nobivac DHPPi" stay without L4', () => {
+    // 18 months on the injection day: CHPPi + L4 yearly (L4), the without-L4 vaccine every 3 years
+    for (const typedName of ['Nobivac DHPPi + L4', 'Nobivac DHPPi L4', 'Eurican DAPPi-L4', 'Eurican DAPPi + L4']) {
+      expect(calculateNextVaccineBooster('2026-07-22', typedName, '2025-01-22')).toBe('2027-07-22');
+    }
+    for (const typedName of ['CHPPi sans L4', 'Nobivac DHPPi', 'Eurican DAPPi']) {
+      expect(calculateNextVaccineBooster('2026-07-22', typedName, '2025-01-22')).toBe('2029-07-22');
+    }
+    // An L4-only name stays L4
+    expect(calculateNextVaccineBooster('2026-03-02', 'Lepto L4', '2026-01-05')).toBe('2027-03-02');
+
+    const combo: HealthRecord = { id: 'combo', householdId: 'hh-001', puppyId: 'pup-pistache', type: 'vaccination', name: 'CHPPi / DAPPi + L4 (Eurican / Nobivac / Versican / Canigen)', date: '2026-07-22', boosterDate: '2027-07-22' };
+    const typed: HealthRecord = { ...combo, id: 'typed', name: 'Nobivac DHPPi + L4', date: '2027-07-20', boosterDate: '2028-07-20' };
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2027-08-01T10:00:00.000Z'));
+    try {
+      expect(getHealthRecordStatus(combo, [combo, typed])).toBe('fulfilled');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('renews a CHPPi + L4 shot with a later L4-only booster (L4 sets its yearly date; owner decision F2)', () => {
     const combo: HealthRecord = { id: 'combo', householdId: 'hh-001', puppyId: 'pup-pistache', type: 'vaccination', name: 'CHPPi + L4 (Eurican / Nobivac / Versican)', date: '2027-04-03', boosterDate: '2028-04-03' };
     const leptoOnly: HealthRecord = { id: 'l4', householdId: 'hh-001', puppyId: 'pup-pistache', type: 'vaccination', name: 'Leptospirose L4', date: '2028-04-03', boosterDate: '2029-04-03' };
@@ -346,6 +368,11 @@ describe('Suggested next dates (pre-fill review items 11, 12, 13; TZ=Europe/Pari
       expect(calculateNextVaccineBooster('2027-07-05', 'chppi_sans_l4', birthDate)).toBe('2030-07-05'); // 18 months old
     });
 
+    it('16 months is on the calendar, as 6 months is, not in average 30.4-day months', () => {
+      expect(calculateNextVaccineBooster('2026-05-15', 'chppi_sans_l4', '2025-01-15')).toBe('2029-05-15'); // exactly 16 months
+      expect(calculateNextVaccineBooster('2026-06-30', 'chppi_sans_l4', '2025-03-01')).toBe('2027-06-30'); // the day before
+    });
+
     it('other vaccines keep their own interval, whatever the age', () => {
       expect(calculateNextVaccineBooster('2026-03-02', 'Rage', birthDate)).toBe('2027-03-02');
       expect(calculateNextVaccineBooster('2026-03-02', 'l4', birthDate)).toBe('2027-03-02');
@@ -366,6 +393,11 @@ describe('Suggested next dates (pre-fill review items 11, 12, 13; TZ=Europe/Pari
     it('from 12 weeks to 6 months monthly, then quarterly', () => {
       expect(calculateNextAntiparasiticDate('2026-03-30', 'Drontal Chiot (Sirop / Comprimés)', birthDate)).toBe('2026-04-30'); // 12 weeks
       expect(calculateNextAntiparasiticDate('2026-08-10', 'Milbemax', birthDate)).toBe('2026-11-10'); // 7 months
+    });
+
+    it('6 months is on the calendar, not in average 30.4-day months', () => {
+      expect(calculateNextAntiparasiticDate('2026-07-01', 'Milbemax', '2026-01-01')).toBe('2026-10-01'); // exactly 6 months
+      expect(calculateNextAntiparasiticDate('2026-09-29', 'Milbemax', '2026-03-31')).toBe('2026-10-29'); // the day before (30 Sep)
     });
 
     it('a monthly product stays +1 month at any age', () => {
@@ -483,6 +515,13 @@ describe('"À faire": every open next date, overdue first (C6); short vaccine na
         expect(shortName.length).toBeLessThan(vaccine.name.length);
       }
     }
+  });
+
+  it('no antiparasitic label holds a leftover placeholder: the picker shows it as is', () => {
+    for (const product of getHealthProtocols().antiparasitics) {
+      expect(product.label).not.toContain('{');
+    }
+    expect(getHealthProtocols().antiparasitics.find((product) => product.id === 'bravecto')?.label).toBe('Bravecto (puces et tiques • tous les 3\u00a0mois)');
   });
 });
 

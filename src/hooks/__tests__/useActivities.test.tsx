@@ -5,6 +5,7 @@ import { createRoot, type Root } from 'react-dom/client';
 import { toast } from '@heroui/react';
 import { useActivities } from '../useActivities';
 import { clearApiCache } from '../../services/api';
+import { getStoredRecentActivities, getStoredRecentActivitiesTime } from '../../utils/storage';
 import { en } from '../../i18n/en';
 import type { Activity, ActivityType, PuppyProfile } from '../../types';
 
@@ -167,6 +168,42 @@ describe('useActivities: a failed change rolls back only itself (N5)', () => {
   });
 });
 
+// Audit 2026-11-10: opened offline, the phone showed the server's last window without the changes it made since:
+// a pee logged at 08:03 was missing (the pee card counted from 06:30) and a deleted log came back
+describe('useActivities: this phone\'s copy of the recent logs follows the changes the server took', () => {
+  const storedIds = () => getStoredRecentActivities(puppy.id)?.map((activity) => activity.id);
+
+  it('stores an add and a delete the server took, not a refused or unsent log, and keeps the time of the server\'s window', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-14T08:02:00.000Z'));
+    await showRecentLogs([log('act-gone', 1), log('act-old', 2)]);
+    const windowTime = getStoredRecentActivitiesTime(puppy.id);
+    vi.setSystemTime(new Date('2026-10-14T08:03:00.000Z'));
+
+    await start(() => hook.addActivity(newLog('pee')));
+    await posts()[0].answer(201, posts()[0].body);
+    await start(() => hook.addActivity(newLog('food')));
+    await posts()[1].answer(500, { error: 'Internal server error' });
+    await start(() => hook.addActivity(newLog('poop'), { keepUnsaved: true }));
+    await posts()[2].answer(500, { error: 'Internal server error' });
+    await start(() => hook.deleteActivity('act-gone'));
+    await requestFor('act-gone').answer(200, { success: true, deletedId: 'act-gone' });
+
+    expect(storedIds()).toEqual([posts()[0].body!.id, 'act-old']);
+    expect(getStoredRecentActivitiesTime(puppy.id)).toBe(windowTime);
+  });
+
+  it('stores an edit the server took, and not one it refused', async () => {
+    await showRecentLogs([log('act-x', 1), log('act-y', 2)]);
+    await start(() => hook.updateActivity({ id: 'act-x', notes: 'saved' }));
+    await requestFor('act-x').answer(200, { ...log('act-x', 1), notes: 'saved' });
+    await start(() => hook.updateActivity({ id: 'act-y', notes: 'refused' }));
+    await requestFor('act-y').answer(500, { error: 'Internal server error' });
+
+    expect(getStoredRecentActivities(puppy.id)?.map((activity) => [activity.id, activity.notes])).toEqual([['act-x', 'saved'], ['act-y', undefined]]);
+  });
+});
+
 // The edit form closes only once the edit is saved, and keeps what was typed when it is refused
 it('an edit resolves to whether it was saved', async () => {
   await showRecentLogs([log('act-x', 1), log('act-y', 2)]);
@@ -298,17 +335,37 @@ describe('useActivities: history loaded with "load more" (N4 + P3)', () => {
     expect(sentOffset()).toBe('168');
   });
 
-  it('a refresh of the same dog keeps "load more" once a page came back full; a switch to another dog resets it', async () => {
-    const history = serveHistory(everyTwoHours(1440));
+  // Audit 2026-11-10: a short page only ends its days, so "load more" vanished at the dog's night and 90 days, 180 days
+  // and all time could not be reached
+  it('a short window or a short page of some days keeps "load more"; only a short all-time page ends it', async () => {
+    // 40 days, 12 logs a day
+    const history = serveHistory(everyTwoHours(480));
+    await showRecentLogs(lastDays(history, 14));
+    expect(hook.hasMoreRemoteActivities).toBe(true);
+    // Days 14 to 30: 192 logs, under the 500 limit
+    await act(async () => hook.loadMoreActivities(30));
+    expect(hook.hasMoreRemoteActivities).toBe(true);
+
+    // The last 120 logs: the oldest is here
+    await act(async () => hook.loadMoreActivities(Infinity));
+    expect(hook.activities).toHaveLength(480);
+    expect(hook.hasMoreRemoteActivities).toBe(false);
+
+    // A refresh of the same dog keeps it ended; another dog starts with its 14 days only
     await showRecentLogs(lastDays(history, 14));
     expect(hook.hasMoreRemoteActivities).toBe(false);
-    await act(async () => hook.loadMoreActivities(90));
-    expect(hook.hasMoreRemoteActivities).toBe(true);
-
-    await showRecentLogs(lastDays(history, 14));
-    expect(hook.hasMoreRemoteActivities).toBe(true);
-
     await act(async () => hook.setActivitiesForPuppy([{ ...log('other-1', 1), puppyId: 'pup-2' }], 'pup-2'));
+    expect(hook.hasMoreRemoteActivities).toBe(true);
+  });
+
+  it('a full all-time page keeps "load more": the next one continues after it', async () => {
+    // 168 logs in the window, then 500 and 332
+    const history = serveHistory(everyTwoHours(1000));
+    await showRecentLogs(lastDays(history, 14));
+    await act(async () => hook.loadMoreActivities(Infinity));
+    expect(hook.hasMoreRemoteActivities).toBe(true);
+    await act(async () => hook.loadMoreActivities(Infinity));
+    expect(hook.activities).toHaveLength(1000);
     expect(hook.hasMoreRemoteActivities).toBe(false);
   });
 
@@ -327,7 +384,7 @@ describe('useActivities: history loaded with "load more" (N4 + P3)', () => {
 });
 
 describe('useActivities: a dog switch fetches the same recent window as the dashboard', () => {
-  it('asks for 300 logs, shows "load more" only when 300 came back, and "load more" continues after them', async () => {
+  it('asks for 300 logs, keeps "load more" whatever came back, and "load more" continues after them', async () => {
     const logsOf = (dogId: string, count: number) => Array.from({ length: count }, (_unused, index) => ({ ...log(`${dogId}-${index}`, index + 0.5), puppyId: dogId }));
     answerGet = (url) => logsOf(url.searchParams.get('puppyId')!, url.searchParams.get('puppyId') === 'pup-3' ? 300 : 299);
     const switchTo = async (dog: PuppyProfile) => {
@@ -342,7 +399,8 @@ describe('useActivities: a dog switch fetches the same recent window as the dash
     const switchRequest = new URL(sent.filter((request) => !request.url.includes('type=')).at(-1)!.url, 'http://localhost');
     expect(switchRequest.searchParams.get('puppyId')).toBe('pup-2');
     expect(switchRequest.searchParams.get('limit')).toBe('300');
-    expect(hook.hasMoreRemoteActivities).toBe(false);
+    // 299 logs end the 14 days only, not the dog's history
+    expect(hook.hasMoreRemoteActivities).toBe(true);
     await act(async () => hook.loadMoreActivities(30));
     expect(new URL(sent.at(-1)!.url, 'http://localhost').searchParams.get('offset')).toBe('299');
 

@@ -387,7 +387,10 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
         {/* Day-by-day Accordion List */}
         {dayGroups.length === 0 ? (
           <div className="text-center py-10 text-slate-400 bg-slate-950/60 rounded-xl border border-dashed border-slate-800 space-y-1">
-            <p className="text-sm font-semibold">{t.dashboard.noActivityLogs}</p>
+            {/* Older logs may exist before the days shown: say the days are empty, not that nothing was ever logged */}
+            <p className="text-sm font-semibold">
+              {daysLimit === Infinity ? t.dashboard.noActivityLogs : t.dashboard.noLogsInDays.replace('{days}', String(daysLimit))}
+            </p>
             <p className="text-xs text-slate-400">{t.dashboard.tapLogEvent}</p>
           </div>
         ) : (
@@ -681,28 +684,28 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
                 </div>
               );
             })}
+          </div>
+        )}
 
-            {/* Load More Button for earlier logs */}
-            {hasMorePriorLogs && (
-              <div className="pt-2 text-center">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onPress={handleLoadMore}
-                  isDisabled={isLoadingMore}
-                  className="w-full min-h-11 text-xs font-bold text-slate-300 border-slate-800 hover:bg-slate-950"
-                >
-                  <ChevronDown className={`w-4 h-4 mr-1 inline ${isLoadingMore ? 'animate-spin' : ''}`} />
-                  <span>
-                    {isLoadingMore
-                      ? t.dashboard.loadingEarlier
-                      : nextDaysLimit === Infinity
-                      ? t.dashboard.loadAllLogs
-                      : t.dashboard.loadEarlier.replace('{days}', String(nextDaysLimit))}
-                  </span>
-                </Button>
-              </div>
-            )}
+        {/* Load More Button for earlier logs, also under an empty feed (back after a week away) */}
+        {hasMorePriorLogs && (
+          <div className="pt-2 text-center">
+            <Button
+              variant="outline"
+              size="sm"
+              onPress={handleLoadMore}
+              isDisabled={isLoadingMore}
+              className="w-full min-h-11 text-xs font-bold text-slate-300 border-slate-800 hover:bg-slate-950"
+            >
+              <ChevronDown className={`w-4 h-4 mr-1 inline ${isLoadingMore ? 'animate-spin' : ''}`} />
+              <span>
+                {isLoadingMore
+                  ? t.dashboard.loadingEarlier
+                  : nextDaysLimit === Infinity
+                  ? t.dashboard.loadAllLogs
+                  : t.dashboard.loadEarlier.replace('{days}', String(nextDaysLimit))}
+              </span>
+            </Button>
           </div>
         )}
 

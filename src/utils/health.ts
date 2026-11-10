@@ -48,6 +48,8 @@ function containsWords(text: string, words: string): boolean {
  * Protocol vaccine for a record name: by id, exact alias, words of a protocol name, then partial alias.
  * Partial alias: the longest matching alias wins ('chppi sans l4' is CHPPi sans L4, not the first 'chppi'),
  * short aliases (r, l4, kc) only match as whole words ('Herpès' is not a rabies shot), and a bare brand never does.
+ * A name saying L4 (the whole word, without "sans") is never the without-L4 vaccine: 'Nobivac DHPPi + L4' is CHPPi + L4,
+ * though the without-L4 alias 'nobivac dhppi' is longer than 'dhppi'.
  * A name typed under "Autre…" matching none of them is a vaccine of its own: 12 months, its own renewal key.
  */
 function findVaccineProtocol(vaccineType: string) {
@@ -58,7 +60,9 @@ function findVaccineProtocol(vaccineType: string) {
     if (aliasLower.length < 3) return containsWords(typeLower, aliasLower);
     return typeLower.includes(aliasLower) || (typeLower.length >= 3 && aliasLower.includes(typeLower));
   };
+  const saysL4 = containsWords(typeLower, 'l4') && !containsWords(typeLower, 'sans');
   const bestPartialMatch = healthProtocols.vaccines
+    .filter((vaccine) => !(saysL4 && vaccine.id === 'chppi_sans_l4'))
     .flatMap((vaccine) => (vaccine.aliases ?? []).filter(matchesPartially).map((alias) => ({ vaccine, aliasLength: alias.length })))
     .sort((first, second) => second.aliasLength - first.aliasLength)[0];
   return (
@@ -100,7 +104,7 @@ export function calculateNextVaccineBooster(injectionDate: string, vaccineType: 
   if (birthDate && injectionDate.slice(0, 10) < addMonths(birthDate, 6)) return addMonths(birthDate, 12);
 
   const isViralOnly = matched.id !== 'chppi_l4';
-  return addMonths(injectionDate, isViralOnly && (ageOnInjectionDay?.months ?? 0) >= 16 ? 36 : 12);
+  return addMonths(injectionDate, isViralOnly && !!birthDate && injectionDate.slice(0, 10) >= addMonths(birthDate, 16) ? 36 : 12);
 }
 
 export type HealthRecordDateError = 'dateRequired' | 'dateInFuture' | 'boosterBeforeDate';
@@ -217,6 +221,6 @@ export function calculateNextAntiparasiticDate(lastDate: string, productName: st
 
   const ageOnDoseDay = birthDate ? getPuppyAge(birthDate, lastDate) : undefined;
   if (matched?.frequencyType === 'esccap_age_based' && ageOnDoseDay && ageOnDoseDay.weeks < 12) return addDays(lastDate, 14);
-  if ((ageOnDoseDay?.months ?? 0) < 6) return addMonths(lastDate, matched?.intervalMonthsPuppy ?? 1);
+  if (!birthDate || lastDate.slice(0, 10) < addMonths(birthDate, 6)) return addMonths(lastDate, matched?.intervalMonthsPuppy ?? 1);
   return addMonths(lastDate, matched?.intervalMonthsAdult ?? 3);
 }

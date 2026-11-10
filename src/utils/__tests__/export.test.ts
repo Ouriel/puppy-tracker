@@ -184,6 +184,14 @@ describe('export utilities — CSV and PDF export test suite', () => {
       expect(text).toContain(`"${fr.potty.normal}"`);
       expect(text).not.toMatch(/diarrhea|runny/);
     });
+
+    it('a log is on its calendar day, with its clock time: a 01:30 dose is not on the day before (as in the health CSV and the print)', async () => {
+      const lateDose: Activity = { id: 'm-late', puppyId: 'pup-1', type: 'medication', timestamp: '2026-10-01T23:30:00.000Z', medicationName: 'Métacam', loggedBy: 'Sam' };
+      exportActivitiesToCSV([lateDose], mockProfile, 'fr', mockCaretakers);
+      const text = await (createdBlob as Blob).text();
+      expect(text).toContain('"2026-10-02","01:30","Médicament"');
+      expect(text).not.toContain('2026-10-01');
+    });
   });
 
   describe('printActivitiesReport', () => {

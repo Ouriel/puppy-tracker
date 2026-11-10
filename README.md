@@ -99,7 +99,7 @@ Your logs are stored under your **badge** (Settings > Household Members) linked 
 ## History
 
 - The feed shows the last **7 days**, one collapsed card per day (04:00 to 04:00) with the meals, pees, poops and accidents of that day. "Expand all" opens them.
-- "Load more" goes to 14, 30, 90, 180 days, then everything.
+- "Load more" goes to 14, 30, 90, 180 days, then everything. It stays until everything is loaded, even when a step brings nothing new.
 - Today's meal total is compared to today's goal. Past days show plain totals ("240 g · 3 meals"), since past goals are not stored.
 - Each log can be edited (same rules as the form) or deleted. The badge colour shows who logged it.
 - A one-tap log that could not be saved stays, marked "Not saved", with **Retry** (sends it again, never twice) and **Discard** instead of edit and delete. Its day opens only when you tap it (a closed day shows an amber sign); a line at the bottom of the screen counts the logs not sent, with Retry and Discard.
@@ -152,8 +152,8 @@ Open it from the health summary, or at `/health-passport`. Under its title, one 
 ## Phone install, offline and updates
 
 - **Install**: open the site in the phone's browser and use "Add to Home Screen". It opens full screen like an app.
-- **Offline**: the app still opens and shows the last data it loaded (dogs, badges, recent logs, vaccines and dewormings), with "Offline, data from HH:mm" (the time of that load) at the bottom of the dashboard and the passport; older weigh-ins need a connection. Logging needs a connection, and there is no offline queue: a one-tap log made offline stays in the history marked "Not saved" for Retry, and a log typed in the form stays in the form. Failed changes say so in the app's language ("No connection, nothing was saved" when offline).
-- **Updates**: after a new version is published, the next time the app is opened it downloads it in the background. It never reloads while you are using it: it switches to the new version (one reload) once you leave the app, so the next time you look, it is up to date.
+- **Offline**: the app still opens and shows the last data it loaded (dogs, badges, recent logs with the changes this phone saved since, vaccines and dewormings), with "Offline, data from HH:mm" (the time of that load) at the bottom of the dashboard and the passport; older weigh-ins need a connection. Logging needs a connection, and there is no offline queue: a one-tap log made offline stays in the history marked "Not saved" for Retry, and a log typed in the form stays in the form. Failed changes say so in the app's language ("No connection, nothing was saved" when offline).
+- **Updates**: after a new version is published, the next time the app is opened it downloads it in the background. It never reloads while you are using it: it switches to the new version (one reload) once you leave the app, so the next time you look, it is up to date. While a log is not sent or a log form is open, it waits, so the reload never loses them.
 - **Languages**: English and French. A new phone gets French when it is set to French; the EN/FR button in the top bar switches, and the choice is remembered. The cards' explanations are translated too.
 
 ---

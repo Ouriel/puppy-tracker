@@ -1,6 +1,6 @@
 import type { Activity, PuppyProfile, Caretaker, HealthRecord } from '../types';
 import type { TranslationKeys } from '../i18n/types';
-import { formatLocalDate, formatLocalTime, parseIsoDate, formatLogicalDate, getUserTimezone } from './date';
+import { formatLocalDate, formatLocalTime, parseIsoDate, getUserTimezone } from './date';
 import { resolveCaretakerName } from './caretakers';
 import { formatBreedName } from '../data/breedsCatalog';
 import { formatGrams, formatKg } from './weight';
@@ -105,13 +105,10 @@ export function exportActivitiesToCSV(
   };
 
   const rows = sortedActivities.map((activity) => {
+    // Its calendar day and clock time, as the health CSV and the print: a 01:30 log is not the day before's
     const activityDate = parseIsoDate(activity.timestamp);
-    const dateStr = formatLogicalDate(activity.timestamp, tz);
-    const timeStr = activityDate.toLocaleTimeString(isFrench ? 'fr-FR' : 'en-US', {
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false,
-    });
+    const dateStr = formatLocalDate(activityDate, tz);
+    const timeStr = formatLocalTime(activityDate, tz);
     const resolvedCaretaker = resolveCaretakerName(activity.loggedBy, caretakers);
 
     return [

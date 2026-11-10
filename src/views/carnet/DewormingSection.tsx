@@ -53,6 +53,8 @@ export const DewormingSection: React.FC<DewormingSectionProps> = ({
   const [weightError, setWeightError] = useState<'weightInvalid' | 'dateTimeInFuture' | undefined>();
   const [confirmDelete, setConfirmDelete] = useState<{id: string; type: string} | null>(null);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  // A request in flight: a second tap on Save must not add the dose twice
+  const [isSaving, setIsSaving] = useState(false);
 
   // Edit Deworming state
   const [editingDewormingId, setEditingDewormingId] = useState<string | null>(null);
@@ -109,7 +111,7 @@ export const DewormingSection: React.FC<DewormingSectionProps> = ({
 
   const handleAddDewormingSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (addDateError || !dewormNextDate || !savedProductName) return;
+    if (isSaving || addDateError || !dewormNextDate || !savedProductName) return;
 
     // Optional: empty saves no weight; typed, it is checked before anything is saved
     const weighIn = buildVetWeighIn({ puppyId: activePuppy.id, date: dewormAdminDate, weightText, loggedBy: currentUser });
@@ -128,7 +130,9 @@ export const DewormingSection: React.FC<DewormingSectionProps> = ({
       notes: notes.trim() || undefined,
     };
 
+    setIsSaving(true);
     const result = await createHealthRecord(newEntry);
+    setIsSaving(false);
     if (result.ok) {
       // A deworming never stores a weight: the weigh-in is a weight event of its own
       if (weighIn.activity) onAddActivity(weighIn.activity);
@@ -165,7 +169,8 @@ export const DewormingSection: React.FC<DewormingSectionProps> = ({
   };
 
   const handleUpdateDewormingSubmit = async (id: string) => {
-    if (editDateError || !savedEditName) return;
+    if (isSaving || editDateError || !savedEditName) return;
+    setIsSaving(true);
     const result = await updateHealthRecord({
       id,
       puppyId: activePuppy.id,
@@ -177,6 +182,7 @@ export const DewormingSection: React.FC<DewormingSectionProps> = ({
       boosterDate: editDewormingBoosterDate || null,
       notes: editNotes.trim() || null,
     });
+    setIsSaving(false);
 
     if (result.ok) {
       setHealthRecords((previous) => previous.map((record) => (record.id === id ? { ...record, ...result.data } : record)));
@@ -327,7 +333,7 @@ export const DewormingSection: React.FC<DewormingSectionProps> = ({
             </div>
 
             <div className="flex justify-end">
-              <Button type="submit" size="sm" className="min-h-11 bg-amber-700 hover:bg-amber-600 text-white font-bold">
+              <Button type="submit" size="sm" isDisabled={isSaving} className="min-h-11 bg-amber-700 hover:bg-amber-600 text-white font-bold">
                 {t.health.saveDeworming}
               </Button>
             </div>
@@ -450,7 +456,7 @@ export const DewormingSection: React.FC<DewormingSectionProps> = ({
                     >
                       {t.potty.cancel}
                     </Button>
-                    <Button type="submit" size="sm" className="min-h-11 bg-amber-700 hover:bg-amber-600 text-white font-bold">
+                    <Button type="submit" size="sm" isDisabled={isSaving} className="min-h-11 bg-amber-700 hover:bg-amber-600 text-white font-bold">
                       <Check className="w-3.5 h-3.5 mr-1 inline" />
                       {t.potty.saveChanges}
                     </Button>

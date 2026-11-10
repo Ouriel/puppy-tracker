@@ -115,6 +115,24 @@ describe('Canine Weight Prediction & WALTHAM Growth Engine', () => {
       expect(result.projectedAdultKg).toBe(14.9);
     });
 
+    it('leaves weigh-ins before 4 weeks out of the projection: the curve says nothing there (a newborn is 1-3 % of its adult weight)', () => {
+      // Made-up female cocker born 1 Aug 2026, birth weights logged with two weigh-ins at 8 and 9 weeks; today 10 Oct 2026
+      const weighIn = (date: string, weightKg: number): Activity => ({ id: `w-${date}`, puppyId: 'pup-1', type: 'weight', timestamp: `${date}T10:00:00.000Z`, weightKg, loggedBy: 'Sam' });
+      const newborn = [weighIn('2026-08-01', 0.3), weighIn('2026-08-08', 0.55), weighIn('2026-08-15', 0.8)];
+      const later = [weighIn('2026-09-26', 2.6), weighIn('2026-10-03', 3.0)];
+      vi.useFakeTimers({ toFake: ['Date'] });
+      vi.setSystemTime(new Date('2026-10-10T10:00:00.000Z'));
+      try {
+        const project = (logs: Activity[]) => calculateProjectedAdultWeightRange('English Cocker Spaniel', logs, '2026-08-01', 'female');
+        expect(project([...newborn, ...later])).toMatchObject({ projectedAdultKg: 10.8, minAdultKg: 9.7, maxAdultKg: 11.9, isTrajectoryBased: true });
+        expect(project([...newborn, ...later])).toEqual(project(later));
+        // Only newborn weigh-ins: the breed baseline, as with none
+        expect(project(newborn)).toEqual(project([]));
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
     it('without weigh-ins, projects the breed baseline with a -12% / +15% range', () => {
       expect(calculateProjectedAdultWeightRange('English Cocker Spaniel', [], 20, 'female')).toMatchObject({
         projectedAdultKg: 13,

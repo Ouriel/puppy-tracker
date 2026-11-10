@@ -322,9 +322,11 @@ export function calculateProjectedAdultWeightRange(
   const validLogs = (weightLogs || []).filter(
     (log): log is Activity | UnifiedWeightEntry =>
       Boolean(log && typeof log.weightKg === 'number' && log.weightKg > 0)
+      // Before 4 weeks the curve says nothing (a newborn is 1–3 % of its adult weight, the curve 6 %): it would pull the estimate down
+      && !(typeof ageWeeksOrBirthDate === 'string' && getAgeInWeeks(ageWeeksOrBirthDate, log.timestamp) < 4)
   );
 
-  // Before the first weigh-in: the breed baseline. Never the profile weight: legacy, an older dog's is a made-up 4.5 kg (a new dog has none).
+  // Before the first weigh-in (from 4 weeks when the birth date is known): the breed baseline. Never the profile weight: legacy, an older dog's is a made-up 4.5 kg (a new dog has none).
   if (validLogs.length === 0) {
     const adultTarget = breedBaselineKg;
     const minAdultKg = Math.round(adultTarget * 0.88 * 10) / 10;

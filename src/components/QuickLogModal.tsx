@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import type { Activity, ActivityType, PottyLocation, StoolConsistency } from '../types';
 import { Droplet, Utensils, Scale, Pill, X, Calendar, FileText } from 'lucide-react';
 import { PoopIcon } from './common/PoopIcon';
@@ -8,6 +8,7 @@ import { getLocalDatetimeString } from '../utils/date';
 import { buildQuickLogActivity, validateQuickLogForm, type QuickLogFormError } from '../utils/activityPayloads';
 import type { GrowthProfile, UnifiedWeightEntry } from '../utils/weight';
 import { WeightHint } from './common/WeightHint';
+import { holdUpdate } from '../registerServiceWorker';
 
 interface QuickLogModalProps {
   isOpen: boolean;
@@ -83,6 +84,9 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
 
   // New log: the signed-in user; edit: who logged it. The server sets it either way.
   const loggedBy = activityToEdit?.loggedBy || currentUser;
+
+  // What is typed lives only here: an app update waits until the form is closed
+  useEffect(() => (isOpen ? holdUpdate() : undefined), [isOpen]);
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -380,6 +384,7 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
                     <input
                       id="quicklog-medication-name"
                       type="text"
+                      maxLength={80}
                       className="w-full bg-slate-950 border border-slate-800 text-slate-100 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-indigo-500 transition-colors"
                       value={medicationName}
                       aria-invalid={medicationError ? true : undefined}
@@ -423,6 +428,7 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
                   <input
                     id="quicklog-notes"
                     type="text"
+                    maxLength={2000}
                     className="w-full bg-slate-950 border border-slate-800 text-slate-100 rounded-xl px-3.5 py-2.5 text-xs focus:outline-none focus:border-indigo-500 transition-colors"
                     placeholder={t.potty.notesPlaceholder}
                     value={notes}

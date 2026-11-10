@@ -225,7 +225,7 @@
     {
       "id": "bravecto",
       "name": "Bravecto",
-      "label": "Bravecto (puces et tiques • tous les 3{NB}mois)",
+      "label": "Bravecto (puces et tiques • tous les 3 mois)",
       "category": "flea_tick_only",
       "minAgeWeeks": 8,
       "minWeightKg": 2.0,

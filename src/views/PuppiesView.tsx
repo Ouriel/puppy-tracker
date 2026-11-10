@@ -17,6 +17,7 @@ const inputErrorClass = 'mt-1.5 text-xs font-semibold text-red-400';
 const FIELD_IDS: Record<DogFormError['field'], string> = {
   name: 'dog-name',
   breed: 'dog-breed',
+  expectedAdultWeightKg: 'dog-adult-weight',
   birthDate: 'dog-birth-date',
   dailyFoodGramGoal: 'dog-food-goal',
   targetMealsPerDay: 'dog-meals-per-day',
@@ -36,10 +37,11 @@ interface PuppiesViewProps {
 const DogGenderAndWeightFields: React.FC<{
   breed: string;
   gender?: 'female' | 'male';
-  expectedWeightKg?: number;
-  onChange: (patch: { gender?: 'female' | 'male'; expectedAdultWeightKg?: number }) => void;
+  expectedWeightKg: string;
+  weightError: string | null;
+  onChange: (patch: { gender?: 'female' | 'male'; expectedAdultWeightKg?: string }) => void;
   t: ReturnType<typeof useI18n>['t'];
-}> = ({ breed, gender, expectedWeightKg, onChange, t }) => {
+}> = ({ breed, gender, expectedWeightKg, weightError, onChange, t }) => {
   const { lang } = useI18n();
   const isCustomOrMixed = BREEDS_WITH_TYPED_ADULT_WEIGHT.includes(breed);
 
@@ -82,17 +84,19 @@ const DogGenderAndWeightFields: React.FC<{
           <label htmlFor="dog-adult-weight" className="block text-xs font-semibold text-slate-400 mb-1">
             {t.puppies.expectedAdultWeight} (kg)
           </label>
+          {/* Text, not a number box: a French keyboard types "8,5", which Chromium read as 85 and Safari as nothing */}
           <Input
             id="dog-adult-weight"
-            type="number"
-            step="0.5"
-            min="1"
-            max="100"
+            type="text"
+            inputMode="decimal"
             placeholder={t.puppies.adultWeightPlaceholder}
             className="bg-slate-950 border-slate-800 text-slate-100"
-            value={expectedWeightKg ?? ''}
-            onChange={(event) => onChange({ expectedAdultWeightKg: event.target.valueAsNumber || undefined })}
+            value={expectedWeightKg}
+            onChange={(event) => onChange({ expectedAdultWeightKg: event.target.value })}
+            aria-invalid={weightError ? true : undefined}
+            aria-describedby={weightError ? 'dog-adult-weight-error' : undefined}
           />
+          {weightError && <p id="dog-adult-weight-error" role="alert" className={inputErrorClass}>{weightError}</p>}
           <p className="text-xs text-slate-400 mt-1">{t.puppies.expectedWeightHint}</p>
         </div>
       )}
@@ -179,6 +183,7 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
   };
   const nameError = errorFor('name');
   const breedError = errorFor('breed');
+  const adultWeightError = errorFor('expectedAdultWeightKg');
   const birthDateError = errorFor('birthDate');
   const goalError = errorFor('dailyFoodGramGoal');
   const mealsError = errorFor('targetMealsPerDay');
@@ -247,6 +252,7 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
         breed={formData.breed}
         gender={formData.gender}
         expectedWeightKg={formData.expectedAdultWeightKg}
+        weightError={adultWeightError}
         onChange={(patch) => setFormData((previous) => ({ ...previous, ...patch }))}
         t={t}
       />

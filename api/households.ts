@@ -2,7 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { neon } from '@neondatabase/serverless';
 import { drizzle } from 'drizzle-orm/neon-http';
 import { eq, and } from 'drizzle-orm';
-import { caretakersTable, householdsTable } from '../src/db/schema.js';
+import { activitiesTable, caretakersTable, householdsTable } from '../src/db/schema.js';
 import { CaretakerInputSchema } from '../src/utils/schemas.js';
 import { verifyAuth, sendAuthError, setCorsHeaders, canDeleteHouseholdData, type AuthContext } from './_auth.js';
 import { getDatabaseUrl } from './_db.js';
@@ -157,7 +157,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       const updatedRole = body.role || existing.role || 'Member';
 
-      const [updated] = await db
+      const updateBadge = db
         .update(caretakersTable)
         .set({
           name: body.name,
@@ -167,6 +167,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         })
         .where(and(eq(caretakersTable.id, body.id), eq(caretakersTable.householdId, householdId)))
         .returning();
+
+      // Logs store the badge name (loggedBy), unique in the household: a rename carries them along, in the same batch.
+      const [[updated]] = body.name !== undefined && body.name !== existing.name
+        ? await db.batch([
+          updateBadge,
+          db.update(activitiesTable)
+            .set({ loggedBy: body.name })
+            .where(and(eq(activitiesTable.householdId, householdId), eq(activitiesTable.loggedBy, existing.name))),
+        ])
+        : [await updateBadge];
 
       return res.status(200).json(updated);
     }

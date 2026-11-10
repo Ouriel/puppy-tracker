@@ -2,7 +2,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import type { RegisterSWOptions } from 'vite-plugin-pwa/types';
 import viteConfigSource from '../../vite.config.ts?raw';
-import { registerServiceWorker } from '../registerServiceWorker';
+import { holdUpdate, registerServiceWorker } from '../registerServiceWorker';
 
 const pwa = vi.hoisted(() => ({
   options: null as RegisterSWOptions | null,
@@ -102,5 +102,49 @@ describe('registerServiceWorker: an update never reloads the screen someone is l
   it('does nothing without service worker support (plain http, old browsers)', () => {
     vi.stubGlobal('navigator', {});
     expect(() => registerServiceWorker()).not.toThrow();
+  });
+});
+
+// Audit 2026-11-10: a reload in the background dropped a pee kept as not sent, or a meal note being typed, with no message
+describe('registerServiceWorker: logs not sent or an open log form hold the update', () => {
+  it('a hide while held neither switches nor reloads; once nothing holds it, the next hide does', () => {
+    registerServiceWorker();
+    const releaseForm = holdUpdate();
+    const releaseUnsent = holdUpdate();
+    pwa.options?.onNeedRefresh?.();
+    serviceWorker.dispatchEvent(new Event('controllerchange'));
+
+    setVisibility('hidden');
+    expect(pwa.updateServiceWorker).not.toHaveBeenCalled();
+    expect(reload).not.toHaveBeenCalled();
+
+    // The form is closed, a log is still not sent
+    setVisibility('visible');
+    releaseForm();
+    setVisibility('hidden');
+    expect(pwa.updateServiceWorker).not.toHaveBeenCalled();
+
+    // Released on screen: still never a reload of a visible page
+    setVisibility('visible');
+    releaseUnsent();
+    expect(pwa.updateServiceWorker).not.toHaveBeenCalled();
+    expect(reload).not.toHaveBeenCalled();
+
+    setVisibility('hidden');
+    expect(pwa.updateServiceWorker).toHaveBeenCalledTimes(1);
+    expect(reload).toHaveBeenCalledTimes(1);
+  });
+
+  it('a new version found while the app is held in the background waits for the next hide after the release', () => {
+    visibility = 'hidden';
+    const release = holdUpdate();
+    registerServiceWorker();
+    pwa.options?.onNeedRefresh?.();
+    expect(pwa.updateServiceWorker).not.toHaveBeenCalled();
+
+    release();
+    setVisibility('visible');
+    setVisibility('hidden');
+    expect(pwa.updateServiceWorker).toHaveBeenCalledTimes(1);
   });
 });
