@@ -4,7 +4,7 @@ import type { Activity, PuppyProfile } from '../types';
 import { fetchActivities, createActivity, updateActivity as apiUpdateActivity, deleteActivity as apiDeleteActivity, type ApiErrorKey } from '../services/api';
 import { useI18n } from '../i18n';
 import type { TranslationKeys } from '../i18n/types';
-import { getStoredRecentActivities, setStoredRecentActivities } from '../utils/storage';
+import { getStoredRecentActivities, getStoredRecentActivitiesTime, setStoredRecentActivities } from '../utils/storage';
 
 // Construct sanitized optimistic activity without stale fields from previous types
 export function sanitizeActivityUpdate(target: Activity, updatedFields: Partial<Activity> & { id: string }): Activity {
@@ -72,6 +72,17 @@ function quickLogName(t: TranslationKeys, activity: Activity): string {
   if (activity.type === 'poop') return isAccident ? t.potty.poopAccident : t.potty.poopedOutside;
   return isAccident ? t.potty.peeAccident : t.potty.peedOutside;
 }
+
+/** After a change the server took, this phone's copy of the dog's recent logs (shown when the app opens offline) gets it too, with its time unchanged. */
+function storeAcceptedChange(puppyId: string | undefined, change: (rows: Activity[]) => Activity[]) {
+  if (!puppyId) return;
+  const rows = getStoredRecentActivities(puppyId);
+  const savedAt = getStoredRecentActivitiesTime(puppyId);
+  if (rows && savedAt !== null) setStoredRecentActivities(puppyId, change(rows), savedAt);
+}
+
+/** `rows` with `saved` first, in place of an earlier copy. */
+const withSavedLog = (saved: Activity) => (rows: Activity[]) => [saved, ...rows.filter((row) => row.id !== saved.id)];
 
 /** Counts an add, edit or delete from its request to its answer: a dashboard answer read meanwhile may miss it. */
 async function trackMutation<T>(mutations: { version: number; pending: number }, request: Promise<T>): Promise<T> {
@@ -240,6 +251,7 @@ export function useActivities(
 
     const result = await trackMutation(mutationsRef.current, apiDeleteActivity(id));
     if (result.ok) {
+      storeAcceptedChange((removed ?? removedWeight)?.puppyId, (rows) => rows.filter((row) => row.id !== id));
       toast(t.toasts.activityDeleted);
     } else {
       locallyDeletedIdsRef.current.delete(id);
@@ -260,6 +272,7 @@ export function useActivities(
       return;
     }
     pendingAddIdsRef.current.delete(unsaved.id);
+    storeAcceptedChange(result.data.puppyId, withSavedLog(result.data));
     setUnsavedIds((previous) => new Set([...previous].filter((unsavedId) => unsavedId !== unsaved.id)));
     startTransition(() => {
       setActivities((previous) => previous.map((activity) => (activity.id === unsaved.id ? result.data : activity)));
@@ -308,6 +321,7 @@ export function useActivities(
       const result = await trackMutation(mutationsRef.current, createActivity(newActivity));
       if (result.ok || !options?.keepUnsaved) pendingAddIdsRef.current.delete(newActivity.id);
       if (result.ok) {
+        storeAcceptedChange(result.data.puppyId, withSavedLog(result.data));
         startTransition(() => {
           setActivities((previous) => previous.map((activity) => (activity.id === newActivity.id ? result.data : activity)));
           setAllTimeActivities((previous) => replaceAllTimeRow(previous, newActivity.id, result.data));
@@ -369,6 +383,7 @@ export function useActivities(
 
     const result = await trackMutation(mutationsRef.current, apiUpdateActivity(updatedFields));
     if (result.ok) {
+      storeAcceptedChange(result.data.puppyId, (rows) => rows.map((row) => (row.id === result.data.id ? result.data : row)));
       setActivities((previous) => previous.map((activity) => (activity.id === updatedFields.id ? result.data : activity)));
       setAllTimeActivities((previous) => replaceAllTimeRow(previous, updatedFields.id, result.data));
       toast.success(t.toasts.activityUpdated);

@@ -5,6 +5,7 @@ import { createRoot, type Root } from 'react-dom/client';
 import { toast } from '@heroui/react';
 import { useActivities } from '../useActivities';
 import { clearApiCache } from '../../services/api';
+import { getStoredRecentActivities, getStoredRecentActivitiesTime } from '../../utils/storage';
 import { en } from '../../i18n/en';
 import type { Activity, ActivityType, PuppyProfile } from '../../types';
 
@@ -164,6 +165,42 @@ describe('useActivities: a failed change rolls back only itself (N5)', () => {
     await requestFor('act-x').answer(500, { error: 'Internal server error' });
 
     expect(ids()).toEqual(['act-x']);
+  });
+});
+
+// Audit 2026-11-10: opened offline, the phone showed the server's last window without the changes it made since:
+// a pee logged at 08:03 was missing (the pee card counted from 06:30) and a deleted log came back
+describe('useActivities: this phone\'s copy of the recent logs follows the changes the server took', () => {
+  const storedIds = () => getStoredRecentActivities(puppy.id)?.map((activity) => activity.id);
+
+  it('stores an add and a delete the server took, not a refused or unsent log, and keeps the time of the server\'s window', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-14T08:02:00.000Z'));
+    await showRecentLogs([log('act-gone', 1), log('act-old', 2)]);
+    const windowTime = getStoredRecentActivitiesTime(puppy.id);
+    vi.setSystemTime(new Date('2026-10-14T08:03:00.000Z'));
+
+    await start(() => hook.addActivity(newLog('pee')));
+    await posts()[0].answer(201, posts()[0].body);
+    await start(() => hook.addActivity(newLog('food')));
+    await posts()[1].answer(500, { error: 'Internal server error' });
+    await start(() => hook.addActivity(newLog('poop'), { keepUnsaved: true }));
+    await posts()[2].answer(500, { error: 'Internal server error' });
+    await start(() => hook.deleteActivity('act-gone'));
+    await requestFor('act-gone').answer(200, { success: true, deletedId: 'act-gone' });
+
+    expect(storedIds()).toEqual([posts()[0].body!.id, 'act-old']);
+    expect(getStoredRecentActivitiesTime(puppy.id)).toBe(windowTime);
+  });
+
+  it('stores an edit the server took, and not one it refused', async () => {
+    await showRecentLogs([log('act-x', 1), log('act-y', 2)]);
+    await start(() => hook.updateActivity({ id: 'act-x', notes: 'saved' }));
+    await requestFor('act-x').answer(200, { ...log('act-x', 1), notes: 'saved' });
+    await start(() => hook.updateActivity({ id: 'act-y', notes: 'refused' }));
+    await requestFor('act-y').answer(500, { error: 'Internal server error' });
+
+    expect(getStoredRecentActivities(puppy.id)?.map((activity) => [activity.id, activity.notes])).toEqual([['act-x', 'saved'], ['act-y', undefined]]);
   });
 });
 
