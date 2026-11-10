@@ -181,6 +181,19 @@ describe('Members tab invite (19, 20, 42)', () => {
     danger.mockRestore();
   });
 
+  it('a second tap on Send while the invite is in flight sends nothing more', async () => {
+    let answer!: (result: unknown) => void;
+    apiMock.createUser.mockReturnValueOnce(new Promise((resolve) => { answer = resolve; }));
+    const { onAddCaretaker } = await renderMembers(owner);
+    await inviteFromMembersTab('jane.doe@example.com');
+    await click(buttons('Send Authorization')[0]);
+
+    expect(apiMock.createUser).toHaveBeenCalledTimes(1);
+    expect(buttons('Send Authorization')[0].disabled).toBe(true);
+    await act(async () => answer({ ok: true, data: {} }));
+    expect(onAddCaretaker).toHaveBeenCalledTimes(1);
+  });
+
   it('opens "Add Member" on the first colour no badge uses', async () => {
     await renderMembers(owner);
     await click(buttons('Add Member')[0]);

@@ -199,6 +199,27 @@ describe('the antiparasitic forms speak of doses, not injections', () => {
   });
 });
 
+// Each POST makes a new record: on slow 4G a double tap showed the shot twice in "À faire", the passport and the print
+describe('a double tap on Save adds one record', () => {
+  it.each([
+    ['Ajouter un vaccin', 'Enregistrer le vaccin'],
+    ['Ajouter un antiparasitaire', "Enregistrer l'antiparasitaire"],
+  ])('"%s" then two quick "%s": one POST, Save disabled until it answers', async (openLabel, saveLabel) => {
+    let answer!: (response: Response) => void;
+    const fetchMock = vi.fn(() => new Promise<Response>((resolve) => { answer = resolve; }));
+    vi.stubGlobal('fetch', fetchMock);
+    await renderPassport();
+    await act(async () => buttonWithText(openLabel)!.click());
+    const save = buttonWithText(saveLabel)!;
+    await act(async () => save.form!.requestSubmit());
+    await act(async () => save.form!.requestSubmit());
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(save.disabled).toBe(true);
+    await act(async () => answer(new Response(JSON.stringify(shot), { status: 200 })));
+  });
+});
+
 describe('vaccine add form', () => {
   it('every field is named: the vaccine, its dates, clinic, the sticker\'s product and lot', async () => {
     await renderPassport();

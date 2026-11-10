@@ -29,6 +29,8 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
   const [isInvitingEmail, setIsInvitingEmail] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteSuccess, setInviteSuccess] = useState('');
+  // An invite in flight: a second tap on Send must not send it twice
+  const [isInviting, setIsInviting] = useState(false);
   const [emailToMove, setEmailToMove] = useState<string | null>(null);
   const [badgeToDelete, setBadgeToDelete] = useState<Caretaker | null>(null);
 
@@ -50,7 +52,10 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
   // Into the inviter's own household (the server's default): the account keeps its Google name, and the badge
   // carries the invited email.
   const inviteMember = async (email: string, confirmMove = false) => {
+    if (isInviting) return;
+    setIsInviting(true);
     const result = await createUser({ email, role: 'Member', status: 'ACTIVE', ...(confirmMove ? { confirmMove } : {}) });
+    setIsInviting(false);
 
     if (result.ok) {
       setInviteSuccess(t.household.inviteAuthorized.replace('{email}', email));
@@ -178,6 +183,7 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
                   type="submit"
                   variant="primary"
                   size="sm"
+                  isDisabled={isInviting}
                 >
                   <Send className="w-3.5 h-3.5 mr-1 inline" />
                   {t.household.sendInvite}
