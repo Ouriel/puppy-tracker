@@ -165,6 +165,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(403).json({ error: 'Only SuperAdmin can reassign households.' });
       }
 
+      // As in POST: an Admin's family members are Members.
+      if (body.role && body.role !== 'Member' && !isSuperAdmin) {
+        return res.status(403).json({ error: 'Only SuperAdmin can choose a role.' });
+      }
+
       const updateFields: Record<string, any> = {};
       if (body.role) updateFields.role = body.role;
       if (body.status) updateFields.status = body.status;
