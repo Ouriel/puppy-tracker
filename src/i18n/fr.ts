@@ -356,6 +356,7 @@ export const fr: TranslationKeys = {
     chooseBreed: 'Choisir une race',
     nameRequired: 'Indique le nom',
     breedRequired: 'Choisis une race, ou Autre / croisé',
+    adultWeightInvalid: 'Indique 1 à 100\u00a0kg, ou laisse vide',
     birthDateRequired: 'Indique la date de naissance',
     birthDateInFuture: 'La date de naissance est dans le futur',
     mealsPerDayInvalid: 'Indique 1 à 6 repas',

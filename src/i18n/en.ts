@@ -350,6 +350,7 @@ export const en = {
     chooseBreed: 'Pick a breed',
     nameRequired: 'Enter the name',
     breedRequired: 'Pick a breed, or Other / Mixed',
+    adultWeightInvalid: 'Enter 1 to 100 kg, or leave it empty',
     birthDateRequired: 'Enter the birth date',
     birthDateInFuture: 'The birth date is in the future',
     mealsPerDayInvalid: 'Enter 1 to 6 meals',

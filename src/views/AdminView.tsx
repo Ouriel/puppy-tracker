@@ -9,7 +9,7 @@ import {
 } from '../services/api';
 import type { Caretaker, RegisteredUserItem } from '../types';
 import { useI18n } from '../i18n';
-import { Button, Input, Card, Chip, Modal } from '@heroui/react';
+import { Button, Input, Card, Chip, Modal, toast } from '@heroui/react';
 import { SUPER_ADMIN_EMAIL, isSuperAdminEmail } from '../utils/auth';
 import { buildInviteBadge } from '../utils/caretakers';
 import { ConfirmationModal } from '../components/common/ConfirmationModal';
@@ -127,6 +127,8 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail, caretake
         );
         setStatusMessage(t.admin.movedAccount.replace('{email}', email).replace('{household}', householdName(newHouseholdId)));
         setTimeout(() => setStatusMessage(''), 3500);
+      } else {
+        toast.danger(t.toasts[res.errorKey]);
       }
     } catch (err) {
       console.error('Failed to move user household', err);
@@ -147,6 +149,8 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail, caretake
         );
         setStatusMessage(t.admin.revokedAccess.replace('{email}', email));
         setTimeout(() => setStatusMessage(''), 3500);
+      } else {
+        toast.danger(t.toasts[res.errorKey]);
       }
     } catch (err) {
       console.error('Failed to deactivate user', err);
@@ -165,6 +169,8 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail, caretake
       if (res.ok) {
         setUsers((previous) => previous.filter((registeredUser) => registeredUser.email !== userToDelete.email));
         setStatusMessage(t.admin.deletedAccount.replace('{email}', userToDelete.email));
+      } else {
+        toast.danger(t.toasts[res.errorKey]);
       }
     } catch (err) {
       console.error('Failed to delete user', err);
@@ -188,6 +194,8 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail, caretake
         setTimeout(() => setStatusMessage(''), 3500);
       } else if (res.status === 409) {
         setInviteToMove({ email, householdId });
+      } else {
+        toast.danger(t.toasts[res.errorKey]);
       }
     } catch (err) {
       console.error('Failed to pre-approve user', err);

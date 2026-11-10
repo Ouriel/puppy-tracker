@@ -681,28 +681,28 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
                 </div>
               );
             })}
+          </div>
+        )}
 
-            {/* Load More Button for earlier logs */}
-            {hasMorePriorLogs && (
-              <div className="pt-2 text-center">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onPress={handleLoadMore}
-                  isDisabled={isLoadingMore}
-                  className="w-full min-h-11 text-xs font-bold text-slate-300 border-slate-800 hover:bg-slate-950"
-                >
-                  <ChevronDown className={`w-4 h-4 mr-1 inline ${isLoadingMore ? 'animate-spin' : ''}`} />
-                  <span>
-                    {isLoadingMore
-                      ? t.dashboard.loadingEarlier
-                      : nextDaysLimit === Infinity
-                      ? t.dashboard.loadAllLogs
-                      : t.dashboard.loadEarlier.replace('{days}', String(nextDaysLimit))}
-                  </span>
-                </Button>
-              </div>
-            )}
+        {/* Load More Button for earlier logs, also under an empty feed (back after a week away) */}
+        {hasMorePriorLogs && (
+          <div className="pt-2 text-center">
+            <Button
+              variant="outline"
+              size="sm"
+              onPress={handleLoadMore}
+              isDisabled={isLoadingMore}
+              className="w-full min-h-11 text-xs font-bold text-slate-300 border-slate-800 hover:bg-slate-950"
+            >
+              <ChevronDown className={`w-4 h-4 mr-1 inline ${isLoadingMore ? 'animate-spin' : ''}`} />
+              <span>
+                {isLoadingMore
+                  ? t.dashboard.loadingEarlier
+                  : nextDaysLimit === Infinity
+                  ? t.dashboard.loadAllLogs
+                  : t.dashboard.loadEarlier.replace('{days}', String(nextDaysLimit))}
+              </span>
+            </Button>
           </div>
         )}
 

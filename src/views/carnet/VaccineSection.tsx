@@ -58,6 +58,8 @@ export const VaccineSection: React.FC<VaccineSectionProps> = ({
   const [weightError, setWeightError] = useState<'weightInvalid' | 'dateTimeInFuture' | undefined>();
   const [confirmDelete, setConfirmDelete] = useState<{id: string; type: string} | null>(null);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  // A request in flight: a second tap on Save must not add the shot twice
+  const [isSaving, setIsSaving] = useState(false);
 
   // Edit Vaccine state
   const [editingVaccineId, setEditingVaccineId] = useState<string | null>(null);
@@ -113,7 +115,7 @@ export const VaccineSection: React.FC<VaccineSectionProps> = ({
 
   const handleAddVaccineSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (addDateError || !nextDueDate || !savedVaccineName) return;
+    if (isSaving || addDateError || !nextDueDate || !savedVaccineName) return;
     // Optional: empty saves no weight; typed, it is checked before anything is saved
     const weighIn = buildVetWeighIn({ puppyId: activePuppy.id, date: administeredDate, weightText, loggedBy: currentUser });
     if (weighIn.error) {
@@ -133,7 +135,9 @@ export const VaccineSection: React.FC<VaccineSectionProps> = ({
       notes: notes.trim() || undefined,
     };
 
+    setIsSaving(true);
     const result = await createHealthRecord(newEntry);
+    setIsSaving(false);
     if (result.ok) {
       // A vaccination never stores a weight: the weigh-in is a weight event of its own
       if (weighIn.activity) onAddActivity(weighIn.activity);
@@ -176,7 +180,8 @@ export const VaccineSection: React.FC<VaccineSectionProps> = ({
   };
 
   const handleUpdateVaccineSubmit = async (id: string) => {
-    if (editDateError || !savedEditName) return;
+    if (isSaving || editDateError || !savedEditName) return;
+    setIsSaving(true);
     const result = await updateHealthRecord({
       id,
       puppyId: activePuppy.id,
@@ -190,6 +195,7 @@ export const VaccineSection: React.FC<VaccineSectionProps> = ({
       productName: editStickerProduct.trim() || null,
       notes: editNotes.trim() || null,
     });
+    setIsSaving(false);
 
     if (result.ok) {
       setHealthRecords((previous) => previous.map((record) => (record.id === id ? { ...record, ...result.data } : record)));
@@ -383,7 +389,7 @@ export const VaccineSection: React.FC<VaccineSectionProps> = ({
             </div>
 
             <div className="flex justify-end">
-              <Button type="submit" size="sm" className="min-h-11 bg-teal-700 hover:bg-teal-600 text-white font-bold">
+              <Button type="submit" size="sm" isDisabled={isSaving} className="min-h-11 bg-teal-700 hover:bg-teal-600 text-white font-bold">
                 {t.health.saveVaccine}
               </Button>
             </div>
@@ -539,7 +545,7 @@ export const VaccineSection: React.FC<VaccineSectionProps> = ({
                     >
                       {t.potty.cancel}
                     </Button>
-                    <Button type="submit" size="sm" className="min-h-11 bg-teal-700 hover:bg-teal-600 text-white font-bold">
+                    <Button type="submit" size="sm" isDisabled={isSaving} className="min-h-11 bg-teal-700 hover:bg-teal-600 text-white font-bold">
                       <Check className="w-3.5 h-3.5 mr-1 inline" />
                       {t.potty.saveChanges}
                     </Button>

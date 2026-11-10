@@ -181,6 +181,19 @@ describe('Members tab invite (19, 20, 42)', () => {
     danger.mockRestore();
   });
 
+  it('a second tap on Send while the invite is in flight sends nothing more', async () => {
+    let answer!: (result: unknown) => void;
+    apiMock.createUser.mockReturnValueOnce(new Promise((resolve) => { answer = resolve; }));
+    const { onAddCaretaker } = await renderMembers(owner);
+    await inviteFromMembersTab('jane.doe@example.com');
+    await click(buttons('Send Authorization')[0]);
+
+    expect(apiMock.createUser).toHaveBeenCalledTimes(1);
+    expect(buttons('Send Authorization')[0].disabled).toBe(true);
+    await act(async () => answer({ ok: true, data: {} }));
+    expect(onAddCaretaker).toHaveBeenCalledTimes(1);
+  });
+
   it('opens "Add Member" on the first colour no badge uses', async () => {
     await renderMembers(owner);
     await click(buttons('Add Member')[0]);
@@ -366,6 +379,18 @@ describe('Members tab name limits', () => {
       expect(CaretakerInputSchema.safeParse({ name: 'a'.repeat(box.maxLength + 1) }).success).toBe(false);
     }
   });
+
+  it('"Save changes" with the name emptied says the name is needed and saves nothing', async () => {
+    const { onUpdateCaretaker } = await renderMembers(owner);
+    await click(document.querySelector<HTMLButtonElement>('[aria-label="Edit Alice"]')!);
+    const nameBox = document.querySelector<HTMLInputElement>('input[aria-label="Member Name"]')!;
+    await setValue(nameBox, '  ');
+    await click(buttons('Save Changes')[0]);
+
+    expect(onUpdateCaretaker).not.toHaveBeenCalled();
+    expect(nameBox.getAttribute('aria-invalid')).toBe('true');
+    expect(document.getElementById(nameBox.getAttribute('aria-describedby')!)!.textContent).toBe('Enter the name');
+  });
 });
 
 describe('Admin panel (27, 28)', () => {
@@ -406,6 +431,30 @@ describe('Admin panel (27, 28)', () => {
 
     const janeRow = [...document.querySelectorAll('.font-mono')].find((element) => element.textContent === pendingStranger.email)!.parentElement!;
     expect(janeRow.textContent).toContain('Admin');
+  });
+
+  // Offline, Revoke did nothing and Delete closed its dialog with the account still listed, both without a word
+  it('a Revoke the server never takes says why in a toast, and the account stays active', async () => {
+    const danger = vi.spyOn(toast, 'danger').mockImplementation(() => '');
+    apiMock.updateUser.mockResolvedValueOnce({ ok: false, status: 0, errorKey: 'offline' });
+    await renderAdmin();
+    await click(buttons('Revoke')[0]);
+
+    expect(danger).toHaveBeenCalledWith('No connection, nothing was saved');
+    expect(buttons('Revoke')).toHaveLength(1);
+    danger.mockRestore();
+  });
+
+  it('a Delete the server never takes says why in a toast, and the account stays listed', async () => {
+    const danger = vi.spyOn(toast, 'danger').mockImplementation(() => '');
+    apiMock.deleteUser.mockResolvedValueOnce({ ok: false, status: 0, errorKey: 'offline' });
+    await renderAdmin();
+    await click(document.querySelector<HTMLButtonElement>('button[aria-label="Delete bob.smith@example.com"]')!);
+    await click(buttons('Delete User').at(-1)!);
+
+    expect(danger).toHaveBeenCalledWith('No connection, nothing was saved');
+    expect(document.body.textContent).toContain('bob.smith@example.com');
+    danger.mockRestore();
   });
 
   // A stale row: a family Admin took the sign-up in since the panel loaded, and the server refuses (409).

@@ -1,5 +1,6 @@
 import type { PuppyProfile } from '../types';
 import { DOG_BREEDS } from '../data/breedsCatalog';
+import { parseDecimalInput } from './activityPayloads';
 
 /** Breeds with no standard to read the adult weight from: the owner types it. */
 export const BREEDS_WITH_TYPED_ADULT_WEIGHT = ['Other', 'Mixed Breed', 'Unknown Breed'];
@@ -10,7 +11,7 @@ export interface DogForm {
   breed: string; // a DOG_BREEDS entry, '' until one is picked
   customBreed: string;
   gender?: 'female' | 'male';
-  expectedAdultWeightKg?: number;
+  expectedAdultWeightKg: string; // as typed ('8,5' is 8.5 kg), '' for none
   birthDate: string; // YYYY-MM-DD, '' until entered
   hasGramGoal: boolean; // false: 'No gram goal', meals are only counted (stored as 0)
   dailyFoodGramGoal: string; // as typed
@@ -23,6 +24,7 @@ export const NEW_DOG_FORM: DogForm = {
   name: '',
   breed: '',
   customBreed: '',
+  expectedAdultWeightKg: '',
   birthDate: '',
   hasGramGoal: true,
   dailyFoodGramGoal: '',
@@ -38,7 +40,7 @@ export function dogFormFromProfile(puppy: PuppyProfile): DogForm {
     breed: isStandard ? puppy.breed : 'Other',
     customBreed: isStandard ? '' : puppy.breed,
     gender: puppy.gender || undefined,
-    expectedAdultWeightKg: puppy.expectedAdultWeightKg ?? undefined,
+    expectedAdultWeightKg: puppy.expectedAdultWeightKg ? String(puppy.expectedAdultWeightKg) : '',
     birthDate: puppy.birthDate,
     hasGramGoal: puppy.dailyFoodGramGoal > 0,
     dailyFoodGramGoal: puppy.dailyFoodGramGoal > 0 ? String(puppy.dailyFoodGramGoal) : '',
@@ -48,8 +50,8 @@ export function dogFormFromProfile(puppy: PuppyProfile): DogForm {
 }
 
 export interface DogFormError {
-  field: 'name' | 'breed' | 'birthDate' | 'dailyFoodGramGoal' | 'targetMealsPerDay';
-  messageKey: 'nameRequired' | 'breedRequired' | 'birthDateRequired' | 'birthDateInFuture' | 'gramGoalInvalid' | 'mealsPerDayInvalid';
+  field: 'name' | 'breed' | 'expectedAdultWeightKg' | 'birthDate' | 'dailyFoodGramGoal' | 'targetMealsPerDay';
+  messageKey: 'nameRequired' | 'breedRequired' | 'adultWeightInvalid' | 'birthDateRequired' | 'birthDateInFuture' | 'gramGoalInvalid' | 'mealsPerDayInvalid';
 }
 
 const isWholeNumberBetween = (text: string, min: number, max: number) =>
@@ -60,6 +62,11 @@ export function validateDogForm(form: DogForm, today: string): DogFormError[] {
   const errors: DogFormError[] = [];
   if (!form.name.trim()) errors.push({ field: 'name', messageKey: 'nameRequired' });
   if (!form.breed) errors.push({ field: 'breed', messageKey: 'breedRequired' });
+  // Empty clears it; the box takes 1 to 100 kg
+  const adultWeightKg = parseDecimalInput(form.expectedAdultWeightKg);
+  if (BREEDS_WITH_TYPED_ADULT_WEIGHT.includes(form.breed) && form.expectedAdultWeightKg.trim() && !(adultWeightKg >= 1 && adultWeightKg <= 100)) {
+    errors.push({ field: 'expectedAdultWeightKg', messageKey: 'adultWeightInvalid' });
+  }
   if (!form.birthDate) errors.push({ field: 'birthDate', messageKey: 'birthDateRequired' });
   else if (form.birthDate > today) errors.push({ field: 'birthDate', messageKey: 'birthDateInFuture' });
   if (form.hasGramGoal && !isWholeNumberBetween(form.dailyFoodGramGoal, 10, 2000)) {
@@ -81,7 +88,7 @@ export function buildDogPayload(form: DogForm, storedPuppy?: PuppyProfile): Omit
     name: form.name.trim(),
     breed,
     gender: form.gender ?? null, // null, not undefined: an edit that unselects the sex must clear it
-    ...(keepsStoredAdultWeight ? {} : { expectedAdultWeightKg: hasTypedAdultWeight ? form.expectedAdultWeightKg ?? null : null }),
+    ...(keepsStoredAdultWeight ? {} : { expectedAdultWeightKg: hasTypedAdultWeight && form.expectedAdultWeightKg.trim() ? parseDecimalInput(form.expectedAdultWeightKg) : null }),
     birthDate: form.birthDate,
     dailyFoodGramGoal: form.hasGramGoal ? Number(form.dailyFoodGramGoal) : 0,
     targetMealsPerDay: Number(form.targetMealsPerDay),

@@ -14,7 +14,7 @@ const stored: PuppyProfile = {
 
 describe('buildDogPayload: the adult weight is saved only for Other, Mixed or Unknown breed', () => {
   it('a new dog of a standard breed saves no adult weight typed before switching breed', () => {
-    const form = { ...NEW_DOG_FORM, name: 'Rex', breed: 'Beagle', expectedAdultWeightKg: 20, birthDate: '2026-05-01', dailyFoodGramGoal: '200', targetMealsPerDay: '2' };
+    const form = { ...NEW_DOG_FORM, name: 'Rex', breed: 'Beagle', expectedAdultWeightKg: '20', birthDate: '2026-05-01', dailyFoodGramGoal: '200', targetMealsPerDay: '2' };
     expect(buildDogPayload(form).expectedAdultWeightKg ?? null).toBeNull();
   });
 
