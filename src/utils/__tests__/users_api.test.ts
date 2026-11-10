@@ -349,3 +349,53 @@ describe("PUT /api/users: the owner's approval (Admin panel 'Approve & Assign')"
     expect(dbMock.updatedValues[0]).not.toHaveProperty('role');
   });
 });
+
+// As POST: an Admin's family members are Members; only the owner chooses another role.
+describe('PUT /api/users: only the owner sets a role', () => {
+  const originalSecret = process.env.SESSION_SECRET;
+  const put = (request: { method: string }) => ({ ...request, method: 'PUT' });
+  const memberRow = { id: 'usr-member', email: 'member@example.com', name: 'Member', householdId: adminRow.householdId, role: 'Member', status: 'ACTIVE' };
+
+  beforeEach(() => {
+    process.env.SESSION_SECRET = 'test-secret-key-1234567890-very-secure';
+    dbMock.users = [adminRow, { ...memberRow }];
+    dbMock.updatedValues = [];
+  });
+
+  afterEach(() => {
+    process.env.SESSION_SECRET = originalSecret;
+  });
+
+  it.each(['Admin', 'Sitter'])('refuses (403) the %s role set by an admin who is not the super admin, and changes nothing', async (role) => {
+    const response = createMockResponse();
+    await usersHandler(put(asAdmin({ email: memberRow.email, role })) as any, response);
+
+    expect(response.statusCode).toBe(403);
+    expect(dbMock.updatedValues).toEqual([]);
+  });
+
+  it('lets an admin send the Member role', async () => {
+    const response = createMockResponse();
+    await usersHandler(put(asAdmin({ email: memberRow.email, role: 'Member' })) as any, response);
+
+    expect(response.statusCode).toBe(200);
+    expect(response.body).toMatchObject({ email: memberRow.email, role: 'Member' });
+  });
+
+  it('lets the owner make a member an Admin', async () => {
+    const response = createMockResponse();
+    await usersHandler(put(asOwner({ email: memberRow.email, role: 'Admin' })) as any, response);
+
+    expect(response.statusCode).toBe(200);
+    expect(dbMock.updatedValues).toEqual([{ role: 'Admin' }]);
+    expect(response.body).toMatchObject({ email: memberRow.email, role: 'Admin' });
+  });
+
+  it('refuses (400) a role outside the known roles, even from the owner, and changes nothing', async () => {
+    const response = createMockResponse();
+    await usersHandler(put(asOwner({ email: adminRow.email, role: 'Boss' })) as any, response);
+
+    expect(response.statusCode).toBe(400);
+    expect(dbMock.updatedValues).toEqual([]);
+  });
+});
