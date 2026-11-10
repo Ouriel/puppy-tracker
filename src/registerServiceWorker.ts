@@ -1,9 +1,25 @@
 import { registerSW } from 'virtual:pwa-register';
 
-// Now if the page is hidden, else the next time it is: from visible, the next change is to hidden
+// Logs not sent and an open log form live only in memory: while one holds it, an update neither switches nor reloads
+let holdCount = 0;
+
+/** Holds updates until the returned release is called; once nothing holds them, the next hide switches, as before. */
+export function holdUpdate(): () => void {
+  holdCount += 1;
+  return () => {
+    holdCount -= 1;
+  };
+}
+
+// Now if the page is hidden and nothing holds the update, else at the first hide after that
 function whenHidden(action: () => void) {
-  if (document.visibilityState === 'hidden') action();
-  else document.addEventListener('visibilitychange', action, { once: true });
+  const runIfFree = () => {
+    if (document.visibilityState !== 'hidden' || holdCount > 0) return;
+    document.removeEventListener('visibilitychange', runIfFree);
+    action();
+  };
+  document.addEventListener('visibilitychange', runIfFree);
+  runIfFree();
 }
 
 // An update never reloads the screen someone is looking at (owner decision 2026-10-15): the new

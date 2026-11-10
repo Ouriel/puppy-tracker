@@ -19,6 +19,17 @@ vi.mock('../components/AuthLockScreen', () => ({
   ),
 }));
 
+// Holds on an app update (a reload would drop what lives only in the page): taken and not released yet
+const updateHolds = vi.hoisted(() => ({ count: 0 }));
+vi.mock('../registerServiceWorker', () => ({
+  holdUpdate: () => {
+    updateHolds.count += 1;
+    return () => {
+      updateHolds.count -= 1;
+    };
+  },
+}));
+
 // Renders let through by the same shallow prop comparison as the real React.memo components
 const renderCounts = vi.hoisted(() => ({ predictorWidget: 0, healthSummary: 0 }));
 const countRender = vi.hoisted(() => (name: 'predictorWidget' | 'healthSummary') => {
@@ -1642,5 +1653,27 @@ describe('adding a dog', () => {
 
     expect(document.body.textContent).toContain(`${en.settings.dogProfiles} (2)`);
     expect(window.location.pathname).toBe('/settings');
+  });
+});
+
+// Audit 2026-11-10: an update found meanwhile reloaded the page once it was in the background, and the log was gone.
+// At the end of the file: one more test before "the first load's skeleton" makes one of those fail, on main too.
+describe('a quick log not sent and app updates', () => {
+  it('holds an app update until it is sent: a reload would lose it', async () => {
+    signedInWithCachedDogOnly();
+    const connection = { isOnline: false };
+    stubOfflineSaves(connection);
+    await renderApp();
+    expect(updateHolds.count).toBe(0);
+
+    await tapPeeOutside();
+    expect(updateHolds.count).toBe(1);
+
+    connection.isOnline = true;
+    await openToday();
+    const rowRetry = [...document.querySelectorAll<HTMLButtonElement>('.group button')].find((button) => button.textContent === en.potty.retry)!;
+    await act(async () => rowRetry.click());
+    await settle();
+    expect(updateHolds.count).toBe(0);
   });
 });

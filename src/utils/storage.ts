@@ -87,12 +87,13 @@ export function getStoredRecentActivitiesTime(puppyId: string): number | null {
   return getStoredActivitiesPayload(puppyId)?.savedAt ?? null;
 }
 
-export function setStoredRecentActivities(puppyId: string, activities: import('../types').Activity[]): void {
+/** `savedAt`: when the server sent them; a change this phone made keeps the time of the logs it changes. */
+export function setStoredRecentActivities(puppyId: string, activities: import('../types').Activity[], savedAt = Date.now()): void {
   if (typeof localStorage === 'undefined' || !puppyId || !activities) return;
   try {
     localStorage.setItem(
       STORAGE_KEY_CACHED_ACTIVITIES,
-      JSON.stringify({ puppyId, activities: activities.slice(0, 300), savedAt: Date.now() })
+      JSON.stringify({ puppyId, activities: activities.slice(0, 300), savedAt })
     );
   } catch {}
 }

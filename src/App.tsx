@@ -30,6 +30,7 @@ import { usePuppies } from './hooks/usePuppies';
 import { useCaretakers } from './hooks/useCaretakers';
 import { useActivities, mergeOlderActivities } from './hooks/useActivities';
 import { getUnifiedWeightEntries } from './utils/weight';
+import { holdUpdate } from './registerServiceWorker';
 
 import { getActivePuppyId, getStoredHealthRecords, getStoredRecentActivities, getStoredRecentActivitiesTime, setStoredHealthRecords } from './utils/storage';
 
@@ -337,6 +338,7 @@ function App() {
     () => activityState.activities.filter((activity) => activityState.unsavedActivityIds.has(activity.id)),
     [activityState.activities, activityState.unsavedActivityIds]
   );
+  const hasUnsentLogs = unsavedActivities.length > 0;
 
   const lastWeighIn = useMemo(() => getUnifiedWeightEntries(activePuppyWeights).at(-1), [activePuppyWeights]);
 
@@ -438,6 +440,9 @@ function App() {
   }, [addPuppy, hasNoDog, handleNavigate]);
 
   const handleOpenHealthPassport = useCallback(() => handleNavigate('carnetdesante'), [handleNavigate]);
+
+  // A log not sent lives only in this page: an app update waits until it is sent or discarded
+  useEffect(() => (hasUnsentLogs ? holdUpdate() : undefined), [hasUnsentLogs]);
 
   // The lock screen shows its own busy state during the exchange, so a refused sign-in keeps its message there
   const handleUnlockWithSSO = async (email: string, name: string, token: string): Promise<SignInOutcome> => {
