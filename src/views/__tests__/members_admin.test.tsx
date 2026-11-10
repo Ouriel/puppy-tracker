@@ -379,6 +379,18 @@ describe('Members tab name limits', () => {
       expect(CaretakerInputSchema.safeParse({ name: 'a'.repeat(box.maxLength + 1) }).success).toBe(false);
     }
   });
+
+  it('"Save changes" with the name emptied says the name is needed and saves nothing', async () => {
+    const { onUpdateCaretaker } = await renderMembers(owner);
+    await click(document.querySelector<HTMLButtonElement>('[aria-label="Edit Alice"]')!);
+    const nameBox = document.querySelector<HTMLInputElement>('input[aria-label="Member Name"]')!;
+    await setValue(nameBox, '  ');
+    await click(buttons('Save Changes')[0]);
+
+    expect(onUpdateCaretaker).not.toHaveBeenCalled();
+    expect(nameBox.getAttribute('aria-invalid')).toBe('true');
+    expect(document.getElementById(nameBox.getAttribute('aria-describedby')!)!.textContent).toBe('Enter the name');
+  });
 });
 
 describe('Admin panel (27, 28)', () => {

@@ -380,6 +380,7 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
                     <input
                       id="quicklog-medication-name"
                       type="text"
+                      maxLength={80}
                       className="w-full bg-slate-950 border border-slate-800 text-slate-100 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-indigo-500 transition-colors"
                       value={medicationName}
                       aria-invalid={medicationError ? true : undefined}
@@ -423,6 +424,7 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
                   <input
                     id="quicklog-notes"
                     type="text"
+                    maxLength={2000}
                     className="w-full bg-slate-950 border border-slate-800 text-slate-100 rounded-xl px-3.5 py-2.5 text-xs focus:outline-none focus:border-indigo-500 transition-colors"
                     placeholder={t.potty.notesPlaceholder}
                     value={notes}

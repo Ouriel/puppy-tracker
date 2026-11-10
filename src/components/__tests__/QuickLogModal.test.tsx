@@ -5,6 +5,7 @@ import { createRoot, type Root } from 'react-dom/client';
 import { QuickLogModal } from '../QuickLogModal';
 import { getLocalDatetimeString } from '../../utils/date';
 import { en } from '../../i18n/en';
+import { ActivityInputSchema } from '../../utils/schemas';
 
 let root: Root | null = null;
 
@@ -202,6 +203,18 @@ describe('QuickLogModal labels and notes', () => {
     await renderModal({ initialType: 'food' });
     expect(field('quicklog-notes').placeholder).toBe('Optional');
     expect(document.querySelector('label[for="quicklog-quantity-grams"]')!.textContent).toBe('Quantity (g)');
+  });
+
+  // A long prescription typed as the name was refused on every Save with only "Not saved, try again"
+  it('the medication name and notes boxes stop at the lengths the server accepts', async () => {
+    await renderModal({ initialType: 'medication' });
+
+    for (const [id, key] of [['quicklog-medication-name', 'medicationName'], ['quicklog-notes', 'notes']] as const) {
+      const limit = field(id).maxLength;
+      expect(limit, id).toBeGreaterThan(0);
+      expect(ActivityInputSchema.partial().safeParse({ [key]: 'a'.repeat(limit) }).success, id).toBe(true);
+      expect(ActivityInputSchema.partial().safeParse({ [key]: 'a'.repeat(limit + 1) }).success, id).toBe(false);
+    }
   });
 });
 

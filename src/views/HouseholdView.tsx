@@ -41,11 +41,14 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
   const [editName, setEditName] = useState('');
   const [editColor, setEditColor] = useState('#EC4899');
   const [editIsMe, setEditIsMe] = useState(false);
+  // From the first Save on, an emptied name shows its error (and loses it once typed again)
+  const [hasTriedEditSave, setHasTriedEditSave] = useState(false);
 
   const myEmail = user.email.toLowerCase();
   // The same rule as logged-by: the chip and the delete guard follow the email link, never a name guess.
   const linkedCaretaker = findLinkedCaretaker(user, caretakers);
   const isOwner = isSuperAdminEmail(user.email);
+  const isEditNameMissing = hasTriedEditSave && !editName.trim();
   // The owner and a family's Admin pre-approve into their own family: the server refuses members.
   const canPreApprove = isOwner || user.role === 'Admin';
 
@@ -295,9 +298,14 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
                         onChange={(event) => setEditName(event.target.value)}
                         placeholder={t.household.memberName}
                         aria-label={t.household.memberName}
+                        aria-invalid={isEditNameMissing ? true : undefined}
+                        aria-describedby={isEditNameMissing ? 'edit-member-name-error' : undefined}
                         autoFocus
                       />
                     </div>
+                    {isEditNameMissing && (
+                      <p id="edit-member-name-error" role="alert" className="-mt-1.5 text-xs font-semibold text-red-400">{t.puppies.nameRequired}</p>
+                    )}
 
                     {canClaim && (
                       <label className="flex items-center gap-2 min-h-11 text-xs font-semibold text-slate-300 cursor-pointer">
@@ -316,6 +324,7 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
                         variant="primary"
                         size="sm"
                         onPress={() => {
+                          setHasTriedEditSave(true);
                           if (!editName.trim()) return;
                           onUpdateCaretaker(caretaker.id, {
                             name: editName.trim(),
@@ -374,6 +383,7 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
                       type="button"
                       onClick={() => {
                         setEditingId(caretaker.id);
+                        setHasTriedEditSave(false);
                         setEditName(caretaker.name);
                         setEditColor(caretaker.color);
                         setEditIsMe(caretaker.email?.toLowerCase() === myEmail);
