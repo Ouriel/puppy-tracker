@@ -216,6 +216,28 @@ describe('Health Passport — French Veterinary Protocol & Dataset Test Suite', 
     }
   });
 
+  it('a typed name saying L4 is CHPPi + L4, even after a brand ("Nobivac DHPPi + L4"); "sans L4" and a bare "Nobivac DHPPi" stay without L4', () => {
+    // 18 months on the injection day: CHPPi + L4 yearly (L4), the without-L4 vaccine every 3 years
+    for (const typedName of ['Nobivac DHPPi + L4', 'Nobivac DHPPi L4', 'Eurican DAPPi-L4', 'Eurican DAPPi + L4']) {
+      expect(calculateNextVaccineBooster('2026-07-22', typedName, '2025-01-22')).toBe('2027-07-22');
+    }
+    for (const typedName of ['CHPPi sans L4', 'Nobivac DHPPi', 'Eurican DAPPi']) {
+      expect(calculateNextVaccineBooster('2026-07-22', typedName, '2025-01-22')).toBe('2029-07-22');
+    }
+    // An L4-only name stays L4
+    expect(calculateNextVaccineBooster('2026-03-02', 'Lepto L4', '2026-01-05')).toBe('2027-03-02');
+
+    const combo: HealthRecord = { id: 'combo', householdId: 'hh-001', puppyId: 'pup-pistache', type: 'vaccination', name: 'CHPPi / DAPPi + L4 (Eurican / Nobivac / Versican / Canigen)', date: '2026-07-22', boosterDate: '2027-07-22' };
+    const typed: HealthRecord = { ...combo, id: 'typed', name: 'Nobivac DHPPi + L4', date: '2027-07-20', boosterDate: '2028-07-20' };
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2027-08-01T10:00:00.000Z'));
+    try {
+      expect(getHealthRecordStatus(combo, [combo, typed])).toBe('fulfilled');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('renews a CHPPi + L4 shot with a later L4-only booster (L4 sets its yearly date; owner decision F2)', () => {
     const combo: HealthRecord = { id: 'combo', householdId: 'hh-001', puppyId: 'pup-pistache', type: 'vaccination', name: 'CHPPi + L4 (Eurican / Nobivac / Versican)', date: '2027-04-03', boosterDate: '2028-04-03' };
     const leptoOnly: HealthRecord = { id: 'l4', householdId: 'hh-001', puppyId: 'pup-pistache', type: 'vaccination', name: 'Leptospirose L4', date: '2028-04-03', boosterDate: '2029-04-03' };
