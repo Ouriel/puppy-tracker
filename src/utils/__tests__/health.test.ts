@@ -506,6 +506,13 @@ describe('"À faire": every open next date, overdue first (C6); short vaccine na
       }
     }
   });
+
+  it('no antiparasitic label holds a leftover placeholder: the picker shows it as is', () => {
+    for (const product of getHealthProtocols().antiparasitics) {
+      expect(product.label).not.toContain('{');
+    }
+    expect(getHealthProtocols().antiparasitics.find((product) => product.id === 'bravecto')?.label).toBe('Bravecto (puces et tiques • tous les 3\u00a0mois)');
+  });
 });
 
 describe('a vaccine typed under "Autre…" (C13) takes a protocol\'s rules only from its exact name, never from a brand or a few letters', () => {
