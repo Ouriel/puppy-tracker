@@ -316,6 +316,27 @@ describe('API Security & Session Token Validation Test Suite', () => {
       expect(auth.role).toBe('Member');
     });
 
+    // The Google ID token path (first sign-in) follows the same rule: SuperAdmin comes from the owner's email only.
+    it.each([
+      ['demotes a SuperAdmin users row whose email is not the owner email', 'user@example.com', 'SuperAdmin', 'Member'],
+      ['grants SuperAdmin to the owner email whatever its users row says', SUPER_ADMIN_EMAIL, 'Member', 'SuperAdmin'],
+    ])('Google sign-in %s', async (_label, email, storedRole, expectedRole) => {
+      vi.stubEnv('VITE_GOOGLE_CLIENT_ID', 'test-client-id');
+      const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+        new Response(JSON.stringify({ aud: 'test-client-id', email, email_verified: 'true', name: 'Sam' }))
+      );
+      dbMock.rowsByTable.users = [{ ...activeUserRow, email, role: storedRole }];
+      try {
+        const auth = await verifyAuth(bearerRequest('google-id-token'));
+
+        expect(fetchSpy).toHaveBeenCalledTimes(1);
+        expect(auth.role).toBe(expectedRole);
+      } finally {
+        fetchSpy.mockRestore();
+        vi.unstubAllEnvs();
+      }
+    });
+
     it('exempts the SuperAdmin email from the users-row check', async () => {
       dbMock.rowsByTable.users = [];
       const token = signAppSessionToken(

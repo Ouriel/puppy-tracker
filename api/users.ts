@@ -4,7 +4,7 @@ import { neon } from '@neondatabase/serverless';
 import { drizzle } from 'drizzle-orm/neon-http';
 import { eq, and, ne } from 'drizzle-orm';
 import { puppiesTable, usersTable } from '../src/db/schema.js';
-import { SUPER_ADMIN_EMAIL } from '../src/utils/auth.js';
+import { isSuperAdminEmail } from '../src/utils/auth.js';
 import { UserInputSchema } from '../src/utils/schemas.js';
 import { verifyAuth, sendAuthError, setCorsHeaders } from './_auth.js';
 import { getDatabaseUrl } from './_db.js';
@@ -93,12 +93,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
       const targetHouseholdId = body.householdId || householdId;
 
-      if (body.role === 'SuperAdmin' && email !== SUPER_ADMIN_EMAIL) {
+      if (body.role === 'SuperAdmin' && !isSuperAdminEmail(email)) {
         return res.status(403).json({ error: 'SuperAdmin role assignment is restricted.' });
       }
 
       // As in PUT: only the owner manages the owner's account.
-      if (email === SUPER_ADMIN_EMAIL && auth.email.toLowerCase() !== SUPER_ADMIN_EMAIL) {
+      if (isSuperAdminEmail(email) && !isSuperAdminEmail(auth.email)) {
         return res.status(403).json({ error: 'This person already has an account. Ask the owner to add them.' });
       }
 
@@ -153,11 +153,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const body = parsed.data;
       const targetEmail = body.email.toLowerCase();
 
-      if (targetEmail === SUPER_ADMIN_EMAIL && auth.email.toLowerCase() !== SUPER_ADMIN_EMAIL) {
+      if (isSuperAdminEmail(targetEmail) && !isSuperAdminEmail(auth.email)) {
         return res.status(403).json({ error: 'SuperAdmin account can only be managed by SuperAdmin.' });
       }
 
-      if (body.role === 'SuperAdmin' && targetEmail !== SUPER_ADMIN_EMAIL) {
+      if (body.role === 'SuperAdmin' && !isSuperAdminEmail(targetEmail)) {
         return res.status(403).json({ error: 'SuperAdmin role assignment is restricted.' });
       }
 
@@ -212,7 +212,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (!rawEmail) return res.status(400).json({ error: 'email is required' });
       const targetEmail = rawEmail.toLowerCase();
 
-      if (targetEmail === SUPER_ADMIN_EMAIL) {
+      if (isSuperAdminEmail(targetEmail)) {
         return res.status(403).json({ error: 'SuperAdmin account cannot be deleted.' });
       }
 
