@@ -581,7 +581,7 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
                     variant="secondary"
                     aria-label={`${t.puppies.restoreDog} ${puppy.name}`}
                     onPress={() => onRestorePuppy(puppy.id)}
-                    className="font-bold text-xs shrink-0"
+                    className="min-h-11 font-bold text-xs shrink-0"
                   >
                     <RotateCcw className="w-4 h-4 mr-1 inline" />
                     {t.puppies.restoreDog}
