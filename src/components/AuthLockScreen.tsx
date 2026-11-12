@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useEffectEvent, useRef } from 'react';
-import { Lock, ShieldCheck, CheckCircle2, FileText, Shield, Sparkles, ChevronDown, ChevronUp, Clock } from 'lucide-react';
+import { Lock, ShieldCheck, FileText, Shield, Sparkles, ChevronDown, ChevronUp, Clock } from 'lucide-react';
 import { Card, Button } from '@heroui/react';
 import { PrivacyPolicyModal } from './PrivacyPolicyModal';
 import { TermsOfServiceModal } from './TermsOfServiceModal';
@@ -38,7 +38,6 @@ export const AuthLockScreen: React.FC<AuthLockScreenProps> = ({
   // A key of t.auth, so the message follows the language
   const [error, setError] = useState<'' | 'ssoFailed' | 'googleScriptFailed'>('');
   const [pendingEmail, setPendingEmail] = useState(readPendingEmail);
-  const [success] = useState('');
   const [isSigningIn, setIsSigningIn] = useState(false);
   const [showAboutDetails, setShowAboutDetails] = useState(false);
 
@@ -207,13 +206,6 @@ export const AuthLockScreen: React.FC<AuthLockScreenProps> = ({
                   {t.auth.retry}
                 </Button>
               )}
-            </div>
-          )}
-
-          {success && (
-            <div className="bg-emerald-950/40 border border-emerald-800/50 text-emerald-300 p-3.5 rounded-xl text-xs font-medium text-left leading-relaxed flex items-start gap-2">
-              <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
-              <div>{success}</div>
             </div>
           )}
 
