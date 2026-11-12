@@ -106,6 +106,11 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({
     exportHealthPassportToCSV(activePuppy, vaccinations, dewormingLogs, [...weightActivities, ...medicationActivities], lang as 'en' | 'fr', caretakers);
   }, [activePuppy, vaccinations, dewormingLogs, weightActivities, medicationActivities, lang, caretakers]);
 
+  // ?add= is read once: dropped from the address so a reload or a shared link does not reopen the form
+  useEffect(() => {
+    if (window.location.search) window.history.replaceState(window.history.state, '', window.location.pathname);
+  }, []);
+
   // Fallback only: the records come with /api/dashboard
   useEffect(() => {
     const puppyId = activePuppy?.id;

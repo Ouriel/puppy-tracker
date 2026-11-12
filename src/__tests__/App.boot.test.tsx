@@ -1704,7 +1704,8 @@ describe('"Done" on the dashboard card', () => {
     await act(async () => document.querySelector<HTMLButtonElement>('[aria-label^="Done: Rabies"]')!.click());
     await settleUntil(() => document.getElementById('vaccine-date') !== null);
 
-    expect(window.location.pathname + window.location.search).toBe(`/health-passport?add=${dueRabies.id}`);
+    // Read once, then dropped from the address: a reload does not reopen the form
+    expect(window.location.pathname + window.location.search).toBe('/health-passport');
     const form = document.getElementById('vaccine-date')!.closest('form')!;
     expect(form.querySelector('[data-slot="select-value"]')!.textContent).toBe(dueRabies.name);
     expect((document.getElementById('vaccine-date') as HTMLInputElement).value).toBe(formatLocalDate());
