@@ -805,3 +805,20 @@ describe('useActivities: Undo after a one-tap log', () => {
     expect(success).toHaveBeenCalledWith(en.toasts.activityLogged);
   });
 });
+
+describe('useActivities: a quick dog switch and back (audit)', () => {
+  it('A → B → A before B\'s answer: the dashboard is not left loading', async () => {
+    const secondDog: PuppyProfile = { ...puppy, id: 'pup-2', name: 'Second' };
+    const show = async (dog: PuppyProfile) => act(async () => root!.render(<DogProbe dog={dog} onRender={(state) => { hook = state; }} />));
+    answerGet = () => [];
+    await show(puppy);
+    await settle();
+    answerGet = null;
+
+    await show(secondDog);
+    expect(hook.isLoadingActivities).toBe(true);
+    await show(puppy);
+
+    expect(hook.isLoadingActivities).toBe(false);
+  });
+});

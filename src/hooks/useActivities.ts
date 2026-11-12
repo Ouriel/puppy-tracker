@@ -178,7 +178,9 @@ export function useActivities(
       }
     }
 
+    // Back to the loaded dog before another dog's answer (A → B → A): that load was dropped, so nothing else ends its dimming
     if (loadedPuppyIdRef.current === activePuppy.id) {
+      setIsLoading(false);
       return;
     }
 
