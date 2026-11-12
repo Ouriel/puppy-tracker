@@ -363,7 +363,11 @@ describe('App boot and sign-in data loading', () => {
     await act(async () => document.getElementById('sign-in')!.click());
     await settle();
 
-    expect(requestedUrls).toEqual(['/api/auth/session', '/api/dashboard?days=14', '/api/dogs', '/api/households']);
+    // No dog at boot, and no dashboard to bring its logs: the dog's own load fetches them
+    expect(requestedUrls).toEqual([
+      '/api/auth/session', '/api/dashboard?days=14', '/api/dogs', '/api/households',
+      '/api/activities?puppyId=pup-1&days=14&limit=300', '/api/activities?puppyId=pup-1&type=weight', '/api/activities?puppyId=pup-1&type=medication',
+    ]);
     expect(document.body.textContent).not.toContain(en.dashboard.welcomeTitle);
   });
 });
@@ -1642,6 +1646,8 @@ describe('adding a dog', () => {
 
     expect(window.location.pathname).toBe('/');
     expect(document.querySelector('h1')?.textContent).toBe('Biscuit');
+    // Audit: its cards read "No pee yet", not "—" (logs unknown) until the next return to the app
+    expect(isPresentedAsNewDog()).toBe(true);
   });
 
   it('a second dog keeps Settings open', async () => {

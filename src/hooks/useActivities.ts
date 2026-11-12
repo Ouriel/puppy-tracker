@@ -167,15 +167,16 @@ export function useActivities(
 
   // Fetch activities when active puppy changes (skips duplicate fetch if already loaded via dashboard BFF)
   useEffect(() => {
+    // The skip covers the dog shown at mount only: on an account with no dog, the first dog added must be fetched
+    const isInitialMount = isInitialMountRef.current;
+    isInitialMountRef.current = false;
+
     if (!activePuppy?.id) {
       return;
     }
 
-    if (isInitialMountRef.current) {
-      isInitialMountRef.current = false;
-      if (options?.skipInitialFetch) {
-        return;
-      }
+    if (isInitialMount && options?.skipInitialFetch) {
+      return;
     }
 
     // Back to the loaded dog before another dog's answer (A → B → A): that load was dropped, so nothing else ends its dimming
