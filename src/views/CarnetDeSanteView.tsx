@@ -14,6 +14,7 @@ import { MedicationSection } from './carnet/MedicationSection';
 import { printHealthPassportReport, exportHealthPassportToCSV } from '../utils/export';
 import { getUnifiedWeightEntries } from '../utils/weight';
 import { getPuppyAge } from '../utils/predictions';
+import { useCloseOnOutsidePress } from '../hooks/useCloseOnOutsidePress';
 
 interface CarnetDeSanteViewProps {
   activePuppy: PuppyProfile | null;
@@ -114,31 +115,7 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({
   }, [isDashboardDown, activePuppy?.id, setHealthRecords]);
 
   // Close Export dropdown on outside click or Escape key
-  useEffect(() => {
-    if (!isExportMenuOpen) return;
-
-    const handlePointerDown = (event: MouseEvent | TouchEvent) => {
-      if (exportMenuRef.current && !exportMenuRef.current.contains(event.target as Node)) {
-        setIsExportMenuOpen(false);
-      }
-    };
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        setIsExportMenuOpen(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handlePointerDown);
-    document.addEventListener('touchstart', handlePointerDown);
-    document.addEventListener('keydown', handleKeyDown);
-
-    return () => {
-      document.removeEventListener('mousedown', handlePointerDown);
-      document.removeEventListener('touchstart', handlePointerDown);
-      document.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [isExportMenuOpen]);
+  useCloseOnOutsidePress(exportMenuRef, isExportMenuOpen, setIsExportMenuOpen);
 
   if (!activePuppy) {
     return (
