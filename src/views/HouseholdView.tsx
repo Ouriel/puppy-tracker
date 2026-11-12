@@ -354,7 +354,7 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
                 );
               }
 
-              // A fixed action column: the pencil, then the trash, or an empty slot on your own badge. The email goes
+              // A fixed action column: the trash, or an empty slot on your own badge, then the pencil at the edge. The email goes
               // under the name and runs under the actions too, so a long one keeps some width on a phone.
               return (
                 <li
@@ -379,6 +379,19 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
                   )}
 
                   <div className="col-start-3 row-start-1 flex items-center gap-1.5">
+                    {isSelected ? (
+                      <div aria-hidden="true" className="w-11 h-11" />
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setBadgeToDelete(caretaker)}
+                        aria-label={t.common.deleteItem.replace('{item}', caretaker.name)}
+                        className="p-2 min-h-11 min-w-11 flex items-center justify-center text-slate-400 hover:text-red-400 hover:bg-slate-800 rounded-xl border border-slate-800 bg-slate-950 transition-colors"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
+
                     <button
                       type="button"
                       onClick={() => {
@@ -393,19 +406,6 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
                     >
                       <Pencil className="w-4 h-4" />
                     </button>
-
-                    {isSelected ? (
-                      <div aria-hidden="true" className="w-11 h-11" />
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => setBadgeToDelete(caretaker)}
-                        aria-label={t.common.deleteItem.replace('{item}', caretaker.name)}
-                        className="p-2 min-h-11 min-w-11 flex items-center justify-center text-slate-400 hover:text-red-400 hover:bg-slate-800 rounded-xl border border-slate-800 bg-slate-950 transition-colors"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    )}
                   </div>
                 </li>
               );

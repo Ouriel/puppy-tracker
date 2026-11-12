@@ -306,16 +306,17 @@ describe('Members list layout', () => {
     expect(rowOf('Guest').textContent).not.toContain('@');
   });
 
-  it('every row ends with the same action column: the pencil, then the trash or an empty 44 px slot on your own row', async () => {
+  // The pencil at the row's edge: before it, on your own row, an empty slot looked like a missing button
+  it('every row ends with the same action column: the trash or an empty 44 px slot on your own row, then the pencil', async () => {
     await renderMembers(owner);
 
     for (const name of ['Sam', 'Alice']) {
       const column = actions(rowOf(name));
       expect(column.children, name).toHaveLength(2);
-      expect(column.children[0].getAttribute('aria-label')).toBe(`Edit ${name}`);
+      expect(column.children[1].getAttribute('aria-label')).toBe(`Edit ${name}`);
     }
-    expect(actions(rowOf('Alice')).children[1].getAttribute('aria-label')).toBe('Delete Alice');
-    const ownSlot = actions(rowOf('Sam')).children[1];
+    expect(actions(rowOf('Alice')).children[0].getAttribute('aria-label')).toBe('Delete Alice');
+    const ownSlot = actions(rowOf('Sam')).children[0];
     expect(ownSlot.getAttribute('aria-hidden')).toBe('true');
     expect(ownSlot.classList).toContain('w-11');
     // "Active" sits next to the name, not in the action column

@@ -359,7 +359,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail, caretake
                     </div>
 
                     <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-900">
-                      <div className="flex items-center gap-2 flex-1 min-w-0">
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 w-full sm:w-auto sm:flex-1 min-w-0">
                         <label htmlFor={`assign-${userItem.id}`} className="text-xs text-slate-400 shrink-0">{t.admin.assignTo}</label>
                         <select
                           id={`assign-${userItem.id}`}
