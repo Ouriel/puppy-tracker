@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef, lazy, Suspense, startTransition, type ReactNode, type SetStateAction } from 'react';
-import type { Activity, UserAccount, ActivityType, PottyLocation, FamilyRole, HealthRecord, HealthRecordsLoadState, PuppyProfile, SignInOutcome } from './types';
+import type { Activity, UserAccount, ActivityType, PottyLocation, FamilyRole, HealthRecord, HealthRecordsLoadState, PuppyProfile, RegisteredUserItem, SignInOutcome } from './types';
 import { getAuthToken, setAuthToken, getStoredAuthUser, setStoredAuthUser } from './utils/auth';
 import { isSuperAdminEmail } from './utils/auth';
 import {
@@ -37,6 +37,15 @@ import { getActivePuppyId, getStoredHealthRecords, getStoredRecentActivities, ge
 
 // One list for the sign-in and the deferred session exchange, so a returning Admin keeps the role the sign-in test pins.
 const FAMILY_ROLES: readonly string[] = ['Husband', 'Wife', 'Partner', 'Child', 'Dog Walker', 'Sitter', 'Relative', 'Member', 'Admin', 'SuperAdmin'];
+
+/** The session's user as the app keeps it: a role the app does not know is a Member. */
+function toUserAccount(sessionUser: RegisteredUserItem): UserAccount {
+  return {
+    email: sessionUser.email,
+    name: sessionUser.name,
+    role: (FAMILY_ROLES.includes(sessionUser.role) ? sessionUser.role : 'Member') as FamilyRole,
+  };
+}
 // A screen left open (a tablet in the kitchen) reloads data this old, so it shows the others' logs
 const DASHBOARD_RELOAD_MS = 15 * 60 * 1000;
 
@@ -245,11 +254,7 @@ function App() {
           setTimeout(() => {
             exchangeSessionToken(currentToken).then((sessionResult) => {
               if (sessionResult.ok && sessionResult.data?.user) {
-                const userAccount: UserAccount = {
-                  email: sessionResult.data.user.email,
-                  name: sessionResult.data.user.name,
-                  role: (FAMILY_ROLES.includes(sessionResult.data.user.role) ? sessionResult.data.user.role : 'Member') as FamilyRole,
-                };
+                const userAccount = toUserAccount(sessionResult.data.user);
                 setUser(userAccount);
                 setStoredAuthUser(userAccount);
               }
@@ -440,11 +445,7 @@ function App() {
     const sessionRes = await exchangeSessionToken(token);
     if (sessionRes.ok && sessionRes.data?.user && sessionRes.data.sessionToken) {
       setAuthToken(sessionRes.data.sessionToken);
-      const userAccount: UserAccount = {
-        email: sessionRes.data.user.email,
-        name: sessionRes.data.user.name,
-        role: (FAMILY_ROLES.includes(sessionRes.data.user.role) ? sessionRes.data.user.role : 'Member') as FamilyRole,
-      };
+      const userAccount = toUserAccount(sessionRes.data.user);
       setIsLoading(true);
       setUser(userAccount);
       setStoredAuthUser(userAccount);
