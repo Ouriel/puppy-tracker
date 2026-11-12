@@ -1,5 +1,7 @@
 import type { Caretaker, HealthRecord, PuppyProfile } from '../types';
 
+// Where storage is blocked (Safari "Block All Cookies"), any touch of it, `typeof` included, throws: every access sits in a try
+
 const STORAGE_KEY_ACTIVE_PUPPY = 'puppace_active_puppy';
 
 export const DEFAULT_PUPPIES: PuppyProfile[] = [];
@@ -10,7 +12,6 @@ const STORAGE_KEY_CACHED_PUPPIES = 'puppace_cached_puppies';
 const STORAGE_KEY_CACHED_CARETAKERS = 'puppace_cached_caretakers';
 
 export function getStoredPuppies(): PuppyProfile[] {
-  if (typeof localStorage === 'undefined') return DEFAULT_PUPPIES;
   try {
     const raw = localStorage.getItem(STORAGE_KEY_CACHED_PUPPIES);
     return raw ? JSON.parse(raw) : DEFAULT_PUPPIES;
@@ -20,15 +21,12 @@ export function getStoredPuppies(): PuppyProfile[] {
 }
 
 export function setStoredPuppies(puppies: PuppyProfile[]): void {
-  if (typeof localStorage !== 'undefined') {
-    try {
-      localStorage.setItem(STORAGE_KEY_CACHED_PUPPIES, JSON.stringify(puppies));
-    } catch {}
-  }
+  try {
+    localStorage.setItem(STORAGE_KEY_CACHED_PUPPIES, JSON.stringify(puppies));
+  } catch {}
 }
 
 export function getStoredCaretakers(): Caretaker[] {
-  if (typeof localStorage === 'undefined') return DEFAULT_CARETAKERS;
   try {
     const raw = localStorage.getItem(STORAGE_KEY_CACHED_CARETAKERS);
     return raw ? JSON.parse(raw) : DEFAULT_CARETAKERS;
@@ -38,22 +36,23 @@ export function getStoredCaretakers(): Caretaker[] {
 }
 
 export function setStoredCaretakers(caretakers: Caretaker[]): void {
-  if (typeof localStorage !== 'undefined') {
-    try {
-      localStorage.setItem(STORAGE_KEY_CACHED_CARETAKERS, JSON.stringify(caretakers));
-    } catch {}
-  }
+  try {
+    localStorage.setItem(STORAGE_KEY_CACHED_CARETAKERS, JSON.stringify(caretakers));
+  } catch {}
 }
 
 export function getActivePuppyId(): string {
-  if (typeof localStorage === 'undefined') return '';
-  return localStorage.getItem(STORAGE_KEY_ACTIVE_PUPPY) || '';
+  try {
+    return localStorage.getItem(STORAGE_KEY_ACTIVE_PUPPY) || '';
+  } catch {
+    return '';
+  }
 }
 
 export function setActivePuppyId(id: string): void {
-  if (typeof localStorage !== 'undefined') {
+  try {
     localStorage.setItem(STORAGE_KEY_ACTIVE_PUPPY, id);
-  }
+  } catch {}
 }
 
 const STORAGE_KEY_CACHED_ACTIVITIES = 'puppace_cached_activities_recent';
@@ -66,7 +65,7 @@ interface StoredActivitiesPayload {
 }
 
 function getStoredActivitiesPayload(puppyId: string): StoredActivitiesPayload | null {
-  if (typeof localStorage === 'undefined' || !puppyId) return null;
+  if (!puppyId) return null;
   try {
     const raw = localStorage.getItem(STORAGE_KEY_CACHED_ACTIVITIES);
     if (!raw) return null;
@@ -89,7 +88,7 @@ export function getStoredRecentActivitiesTime(puppyId: string): number | null {
 
 /** `savedAt`: when the server sent them; a change this phone made keeps the time of the logs it changes. */
 export function setStoredRecentActivities(puppyId: string, activities: import('../types').Activity[], savedAt = Date.now()): void {
-  if (typeof localStorage === 'undefined' || !puppyId || !activities) return;
+  if (!puppyId || !activities) return;
   try {
     localStorage.setItem(
       STORAGE_KEY_CACHED_ACTIVITIES,
@@ -102,7 +101,6 @@ const STORAGE_KEY_CACHED_HEALTH_RECORDS = 'puppace_cached_health_records';
 
 /** The household's health records as last loaded, or null: the To do lists paint from them before the network answers. */
 export function getStoredHealthRecords(): HealthRecord[] | null {
-  if (typeof localStorage === 'undefined') return null;
   try {
     const raw = localStorage.getItem(STORAGE_KEY_CACHED_HEALTH_RECORDS);
     return raw ? JSON.parse(raw) : null;
@@ -112,7 +110,6 @@ export function getStoredHealthRecords(): HealthRecord[] | null {
 }
 
 export function setStoredHealthRecords(records: HealthRecord[]): void {
-  if (typeof localStorage === 'undefined') return;
   try {
     localStorage.setItem(STORAGE_KEY_CACHED_HEALTH_RECORDS, JSON.stringify(records));
   } catch {}
