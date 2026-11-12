@@ -68,6 +68,7 @@ describe('Dashboard BFF API Service Suite', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(fetchMock).toHaveBeenCalledWith('/api/dashboard?puppyId=pup-1&days=14', {
       headers: { 'Content-Type': 'application/json', Authorization: 'Bearer t' },
+      signal: expect.any(AbortSignal),
     });
   });
 
@@ -209,6 +210,31 @@ describe('Dashboard BFF API Service Suite', () => {
       pendingResponses[2]?.(emptyDashboard());
       await readAfterSave;
     });
+  });
+
+  it('a request with no answer gives up after 15 s as offline, so a log tapped on dead Wi-Fi is marked not sent', async () => {
+    vi.useFakeTimers();
+    // Like fetch on a stalled network: no answer until the request is aborted
+    global.fetch = vi.fn((_url: RequestInfo | URL, init?: RequestInit) => new Promise<Response>((_resolve, reject) => {
+      init?.signal?.addEventListener('abort', () => reject(init.signal?.reason));
+    }));
+    setAuthToken('t');
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    try {
+      let settled = false;
+      const save = createActivity({ id: 'act-1', puppyId: 'pup-1', type: 'pee', timestamp: '2026-01-10T12:00:00.000Z', loggedBy: 'Owner' });
+      save.then(() => { settled = true; });
+
+      await vi.advanceTimersByTimeAsync(14_900);
+      expect(settled).toBe(false);
+
+      await vi.advanceTimersByTimeAsync(100);
+      expect(await save).toEqual({ ok: false, errorKey: 'offline', status: 0 });
+    } finally {
+      vi.useRealTimers();
+      vi.restoreAllMocks();
+    }
   });
 
   it('allows immediate fresh dashboard fetch when clearApiCache is invoked', async () => {
