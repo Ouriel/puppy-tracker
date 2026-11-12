@@ -376,7 +376,7 @@ export function useActivities(
   /** Whether the edit was saved; refused, the row gets its old values back. */
   const updateActivity = useCallback(async (updatedFields: Partial<Activity> & { id: string }): Promise<boolean> => {
     // A weigh-in older than the loaded logs is only in the weight list
-    const target = activities.find((act) => act.id === updatedFields.id) ?? allTimeActivities.find((weight) => weight.id === updatedFields.id);
+    const target = activities.find((activity) => activity.id === updatedFields.id) ?? allTimeActivities.find((weight) => weight.id === updatedFields.id);
     if (!target) return false;
 
     const optimisticActivity = sanitizeActivityUpdate(target, updatedFields);

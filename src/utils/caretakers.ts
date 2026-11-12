@@ -13,25 +13,25 @@ export function resolveCaretakerName(rawNameOrEmail: string, caretakers: Caretak
   const cleanInput = rawNameOrEmail.trim().toLowerCase();
 
   // 1. Direct exact name match
-  const exact = caretakers.find((c) => c.name.trim().toLowerCase() === cleanInput);
+  const exact = caretakers.find((caretaker) => caretaker.name.trim().toLowerCase() === cleanInput);
   if (exact) return exact.name;
 
   // 2. First name match (e.g. "Sam Taylor" -> "Sam")
   const firstName = cleanInput.split(/\s+/)[0];
-  const firstNameMatch = caretakers.find((c) => c.name.trim().toLowerCase() === firstName);
+  const firstNameMatch = caretakers.find((caretaker) => caretaker.name.trim().toLowerCase() === firstName);
   if (firstNameMatch) return firstNameMatch.name;
 
   // 3. Caretaker name starts with clean input or clean input starts with caretaker name
   const prefixMatch = caretakers.find(
-    (c) =>
-      cleanInput.startsWith(c.name.trim().toLowerCase()) ||
-      c.name.trim().toLowerCase().startsWith(cleanInput)
+    (caretaker) =>
+      cleanInput.startsWith(caretaker.name.trim().toLowerCase()) ||
+      caretaker.name.trim().toLowerCase().startsWith(cleanInput)
   );
   if (prefixMatch) return prefixMatch.name;
 
   // 4. Email username match (e.g. "alice@example.com" -> "Alice")
   const emailUsername = cleanInput.split('@')[0].split('.')[0];
-  const emailMatch = caretakers.find((c) => c.name.trim().toLowerCase() === emailUsername);
+  const emailMatch = caretakers.find((caretaker) => caretaker.name.trim().toLowerCase() === emailUsername);
   if (emailMatch) return emailMatch.name;
 
   // Fallback to first word of input (e.g. "Sam" from "Sam Taylor")

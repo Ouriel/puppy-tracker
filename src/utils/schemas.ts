@@ -12,9 +12,9 @@ const emailText = (message: string) =>
   z.string().max(254).email(message).refine((email) => email.split('@')[0].length <= 64, message);
 
 export const DashboardQuerySchema = z.object({
-  puppyId: z.string().optional().transform((val) => (val && val.trim().length > 0 ? val.trim() : undefined)),
+  puppyId: z.string().optional().transform((value) => (value && value.trim().length > 0 ? value.trim() : undefined)),
   days: z.preprocess(
-    (val) => (val === undefined || val === null || val === '' ? 14 : Number(val)),
+    (value) => (value === undefined || value === null || value === '' ? 14 : Number(value)),
     z.number().int().min(1).max(90).catch(14)
   ),
 });

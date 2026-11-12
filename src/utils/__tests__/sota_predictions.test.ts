@@ -182,6 +182,6 @@ describe('SOTA Prediction Engine & Age-Decay Test Suite', () => {
     const merged = mergeOlderActivities(initialBatch, olderBatch);
 
     expect(merged.length).toBe(4);
-    expect(merged.map((a) => a.id)).toEqual(['act-10', 'act-9', 'act-6', 'act-5']);
+    expect(merged.map((activity) => activity.id)).toEqual(['act-10', 'act-9', 'act-6', 'act-5']);
   });
 });

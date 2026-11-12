@@ -249,8 +249,8 @@ export const VaccineSection: React.FC<VaccineSectionProps> = ({
                 <Select
                   aria-labelledby="vaccine-name-label"
                   value={vaccineType}
-                  onChange={(val) => {
-                    setSelectedVaccineName(val as string);
+                  onChange={(value) => {
+                    setSelectedVaccineName(value as string);
                     setCustomNextDueDate(null);
                   }}
                 >
@@ -420,7 +420,7 @@ export const VaccineSection: React.FC<VaccineSectionProps> = ({
                   <div className="grid grid-cols-1 sm:grid-cols-4 gap-2">
                     <div className="sm:col-span-2 min-w-0">
                       <label id="vaccine-edit-name-label" className={labelClass}>{t.health.vaccineName}</label>
-                      <Select aria-labelledby="vaccine-edit-name-label" value={editVaccineName} onChange={(val) => setEditVaccineName(val as string)}>
+                      <Select aria-labelledby="vaccine-edit-name-label" value={editVaccineName} onChange={(value) => setEditVaccineName(value as string)}>
                         <Select.Trigger ref={editVaccineTriggerRef} className="w-full bg-slate-900 border-slate-700/80 text-slate-100 min-w-0 flex items-center justify-between">
                           <Select.Value className="truncate block text-left" />
                           <Select.Indicator />

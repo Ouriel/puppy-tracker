@@ -236,8 +236,8 @@ export const DewormingSection: React.FC<DewormingSectionProps> = ({
                 <Select
                   aria-labelledby="deworming-product-label"
                   value={productName}
-                  onChange={(val) => {
-                    setSelectedProductName(val as string);
+                  onChange={(value) => {
+                    setSelectedProductName(value as string);
                     setCustomDewormNextDate(null);
                   }}
                 >
@@ -365,7 +365,7 @@ export const DewormingSection: React.FC<DewormingSectionProps> = ({
                   <div className="grid grid-cols-1 sm:grid-cols-4 gap-2">
                     <div className="sm:col-span-2 min-w-0">
                       <label id="deworming-edit-product-label" className={labelClass}>{t.health.productName}</label>
-                      <Select aria-labelledby="deworming-edit-product-label" value={editDewormingName} onChange={(val) => setEditDewormingName(val as string)}>
+                      <Select aria-labelledby="deworming-edit-product-label" value={editDewormingName} onChange={(value) => setEditDewormingName(value as string)}>
                         <Select.Trigger ref={editProductTriggerRef} className="w-full bg-slate-900 border-slate-700/80 text-slate-100 min-w-0 flex items-center justify-between">
                           <Select.Value className="truncate block text-left" />
                           <Select.Indicator />

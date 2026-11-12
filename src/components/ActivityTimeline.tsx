@@ -12,7 +12,7 @@ import { formatGrams, formatKg, getUnifiedWeightEntries, getWeighInNeighbours } 
 import { ConfirmationModal } from './common/ConfirmationModal';
 import { useCloseOnOutsidePress } from '../hooks/useCloseOnOutsidePress';
 
-const QuickLogModal = lazy(() => import('./QuickLogModal').then((m) => ({ default: m.QuickLogModal })));
+const QuickLogModal = lazy(() => import('./QuickLogModal').then((module) => ({ default: module.QuickLogModal })));
 
 interface ActivityTimelineProps {
   activities: Activity[];
@@ -133,8 +133,8 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
   // Filter to core activities sorted chronologically descending
   const sortedCoreActivities = useMemo(() => {
     return activities
-      .filter((act) => act.type === 'pee' || act.type === 'poop' || act.type === 'food' || act.type === 'medication' || act.type === 'weight')
-      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+      .filter((activity) => activity.type === 'pee' || activity.type === 'poop' || activity.type === 'food' || activity.type === 'medication' || activity.type === 'weight')
+      .sort((first, second) => new Date(second.timestamp).getTime() - new Date(first.timestamp).getTime());
   }, [activities]);
 
   // Progression steps: 7 -> 14 -> 30 -> 90 -> 180 -> All Time (Infinity)
@@ -155,7 +155,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
 
   const visibleActivities = useMemo(() => {
     if (!cutoffDateKey) return sortedCoreActivities;
-    return sortedCoreActivities.filter((act) => formatLogicalDate(act.timestamp, tz) >= cutoffDateKey);
+    return sortedCoreActivities.filter((activity) => formatLogicalDate(activity.timestamp, tz) >= cutoffDateKey);
   }, [sortedCoreActivities, cutoffDateKey, tz]);
 
   const hasMorePriorLogs = sortedCoreActivities.length > visibleActivities.length || hasMoreRemote;

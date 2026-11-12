@@ -142,7 +142,7 @@ function createDateInTimezone(dateStr: string, timeStr: string, timeZone?: strin
     });
 
     const parts = formatter.formatToParts(utcDate);
-    const getPart = (type: string) => parseInt(parts.find((p) => p.type === type)?.value || '0', 10);
+    const getPart = (type: string) => parseInt(parts.find((part) => part.type === type)?.value || '0', 10);
 
     let formattedHour = getPart('hour');
     if (formattedHour === 24) formattedHour = 0;

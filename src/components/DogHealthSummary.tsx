@@ -98,7 +98,7 @@ export const DogHealthSummary: React.FC<DogHealthSummaryProps> = React.memo(({
       grams: portionGrams,
     }));
 
-    const foodLogsCount = activities.filter((act) => act.type === 'food').length;
+    const foodLogsCount = activities.filter((activity) => activity.type === 'food').length;
     const isLearned = activities.length >= 5 || foodLogsCount >= 3;
 
     return {

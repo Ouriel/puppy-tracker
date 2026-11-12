@@ -56,7 +56,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             <div className="flex-1 min-w-0 max-w-48">
               <Select
                 value={activePuppy.id}
-                onChange={(val) => onSelectPuppy(val as string)}
+                onChange={(value) => onSelectPuppy(value as string)}
                 aria-label={t.nav.selectDog}
               >
                 <Select.Trigger className="bg-slate-950/80 border-slate-700/80 min-h-0 h-11 py-0 items-center font-bold text-xs text-slate-100 ps-2 sm:ps-3 pe-7">
