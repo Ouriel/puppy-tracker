@@ -346,7 +346,7 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
             variant="primary"
             size="sm"
             onPress={isAdding ? resetForm : handleStartAdd}
-            className="font-bold text-xs shadow-sm"
+            className="min-h-11 font-bold text-xs shadow-sm"
           >
             {isAdding ? <X className="w-4 h-4 mr-1 inline" /> : <Plus className="w-4 h-4 mr-1 inline" />}
             {isAdding ? t.potty.cancel : t.puppies.addDog}
@@ -429,7 +429,7 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
                           size="sm"
                           type="button"
                           onPress={resetForm}
-                          className="bg-slate-950 border border-slate-800 text-slate-300 font-bold"
+                          className="min-h-11 bg-slate-950 border border-slate-800 text-slate-300 font-bold"
                         >
                           {t.potty.cancel}
                         </Button>
@@ -438,6 +438,7 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
                           type="submit"
                           variant="primary"
                           isDisabled={isSaving}
+                          className="min-h-11"
                         >
                           {t.puppies.updateProfile}
                         </Button>
@@ -498,7 +499,7 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
                           size="sm"
                           variant="secondary"
                           onPress={() => onSelectPuppy(pup.id)}
-                          className="font-bold text-xs"
+                          className="min-h-11 font-bold text-xs"
                         >
                           {t.puppies.select}
                         </Button>
