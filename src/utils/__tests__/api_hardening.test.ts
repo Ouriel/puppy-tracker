@@ -174,6 +174,13 @@ describe('API input, error and pagination hardening', () => {
     expect(new Map(signedOut.setHeader.mock.calls).get('Cache-Control')).toBe('no-store');
   });
 
+  it('GET /api/households returns the badges only (the households table is never read)', async () => {
+    const response = createMockResponse();
+    await householdsHandler(getRequest(), response);
+    expect(response.body).toEqual({ caretakers: [{ id: 'c-1', name: 'Sam', role: 'Member', color: '#EC4899', email: 'user@example.com' }] });
+    expect(dbMock.selectCount).toBe(2); // the auth lookup, then the badges
+  });
+
   it.each(['POST', 'PUT'])('%s /api/activities with an unparseable timestamp returns 400', async (method) => {
     const response = createMockResponse();
     const body = { id: 'act-1', puppyId: 'pup-1', type: 'pee', timestamp: 'not-a-date', loggedBy: 'Alice' };
