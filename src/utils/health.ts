@@ -1,4 +1,5 @@
 import healthProtocols from '../data/healthProtocols.json';
+import { containsWords } from '../data/breedsCatalog';
 import type { HealthRecord } from '../types';
 import { getPuppyAge } from './predictions';
 import { formatLocalDate } from './date';
@@ -38,11 +39,6 @@ export function getHealthProtocols(): HealthProtocolData {
 
 // A brand makes many vaccines ('Eurican Herpes 205', 'Versican Plus Pi'): alone it means CHPPi + L4, within a longer name nothing
 const BRAND_ALIASES = new Set(['eurican', 'nobivac', 'versican', 'canigen']);
-
-/** `words` in `text` as whole words: 'l4' in 'Lepto L4', not 'can' in 'Eurican'. */
-function containsWords(text: string, words: string): boolean {
-  return new RegExp(`(^|[^\\p{L}\\p{N}])${words.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}([^\\p{L}\\p{N}]|$)`, 'u').test(text);
-}
 
 /**
  * Protocol vaccine for a record name: by id, exact alias, words of a protocol name, then partial alias.

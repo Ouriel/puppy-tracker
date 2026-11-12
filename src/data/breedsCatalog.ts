@@ -691,8 +691,8 @@ export function findBreed(query: string): BreedEntry | undefined {
   return BREED_CATALOG.find((b) => b.aliases.some((alias) => containsWords(q, alias) || containsWords(alias, q)));
 }
 
-/** True when `words` appears in `text` with no letter or digit glued on either side. */
-function containsWords(text: string, words: string): boolean {
+/** True when `words` appears in `text` with no letter or digit glued on either side: 'l4' in 'Lepto L4', not 'can' in 'Eurican'. */
+export function containsWords(text: string, words: string): boolean {
   const escaped = words.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   return new RegExp(`(^|[^\\p{L}\\p{N}])${escaped}($|[^\\p{L}\\p{N}])`, 'u').test(text);
 }
