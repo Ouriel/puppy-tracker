@@ -196,6 +196,7 @@ export const en = {
     dailyGain: '{grams} g/day',
     ageInWeeks: '({weeks}w)',
     addToCalendar: 'Add to calendar',
+    markDone: 'Done',
     calendarEventTitle: '{dog}: {name} due',
     noVaccineRecords: 'No vaccine records logged yet.',
     noDewormingRecords: 'No deworming records logged yet.',

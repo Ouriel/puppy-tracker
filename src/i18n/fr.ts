@@ -201,6 +201,7 @@ export const fr: TranslationKeys = {
     dailyGain: '{grams}\u00a0g/j',
     ageInWeeks: '({weeks}\u00a0sem.)',
     addToCalendar: 'Ajouter au calendrier',
+    markDone: 'Fait',
     calendarEventTitle: '{dog}\u00a0: {name} à faire',
     noVaccineRecords: 'Aucun vaccin enregistré.',
     noDewormingRecords: 'Aucun antiparasitaire enregistré.',

@@ -23,6 +23,7 @@ interface DewormingSectionProps {
   currentUser: string;
   onAddActivity: (activity: Omit<Activity, 'id'>) => void;
   t: TranslationKeys;
+  doneName?: string; // a due line's "Done": the add form starts open on this product, dated today
 }
 
 const labelClass = 'block text-xs font-semibold text-slate-400 mb-1';
@@ -33,6 +34,13 @@ const HISTORY_SHOWN = 3;
 // The picker's "Autre…": the product is typed, and an unknown product gets the generic schedule
 const OTHER = '__other__';
 
+/** The add form's pick for a stored product: its list name, else "Autre…" with the name typed. */
+function productChoice(name: string): { listName: string; typedName: string } {
+  return getHealthProtocols().antiparasitics.some((productOption) => productOption.name === name)
+    ? { listName: name, typedName: '' }
+    : { listName: OTHER, typedName: name };
+}
+
 export const DewormingSection: React.FC<DewormingSectionProps> = ({
   activePuppy,
   dewormingLogs,
@@ -41,11 +49,12 @@ export const DewormingSection: React.FC<DewormingSectionProps> = ({
   currentUser,
   onAddActivity,
   t,
+  doneName,
 }) => {
-  const [isAddingDeworming, setIsAddingDeworming] = useState(false);
+  const [isAddingDeworming, setIsAddingDeworming] = useState(Boolean(doneName));
   // null: the user has not picked one yet, the form shows the default
-  const [selectedProductName, setSelectedProductName] = useState<string | null>(null);
-  const [otherProductName, setOtherProductName] = useState('');
+  const [selectedProductName, setSelectedProductName] = useState<string | null>(() => (doneName ? productChoice(doneName).listName : null));
+  const [otherProductName, setOtherProductName] = useState(() => (doneName ? productChoice(doneName).typedName : ''));
   const [dewormAdminDate, setDewormAdminDate] = useState(() => formatLocalDate());
   const [customDewormNextDate, setCustomDewormNextDate] = useState<string | null>(null);
   const [weightText, setWeightText] = useState('');
@@ -235,6 +244,8 @@ export const DewormingSection: React.FC<DewormingSectionProps> = ({
                 <label id="deworming-product-label" className={labelClass}>{t.health.productName}</label>
                 <Select
                   aria-labelledby="deworming-product-label"
+                  // Opened by "Done" from the list at the top: focus brings the form into view
+                  autoFocus={Boolean(doneName)}
                   value={productName}
                   onChange={(val) => {
                     setSelectedProductName(val as string);

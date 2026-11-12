@@ -17,7 +17,7 @@ interface DogHealthSummaryProps {
   predictions?: PredictionResult | null;
   healthRecords?: HealthRecord[];
   healthRecordsState?: HealthRecordsLoadState;
-  onOpenHealthPassport: () => void;
+  onOpenHealthPassport: (addRecordId?: string) => void; // with a record: its add form opens there (a due line's "Done")
 }
 
 export const DogHealthSummary: React.FC<DogHealthSummaryProps> = React.memo(({
@@ -256,14 +256,14 @@ export const DogHealthSummary: React.FC<DogHealthSummaryProps> = React.memo(({
 
         {/* Every open next date, overdue first: the passport opens on the same list */}
         <div className="bg-slate-950/60 p-3 sm:p-4 rounded-xl border border-slate-800">
-          <HealthDueList records={puppyRecords} dogName={profile.name} state={healthRecordsState} />
+          <HealthDueList records={puppyRecords} dogName={profile.name} state={healthRecordsState} onDone={(record) => onOpenHealthPassport(record.id)} />
         </div>
 
         {/* Button: View Full Health Passport */}
         <Button
           variant="primary"
           size="sm"
-          onPress={onOpenHealthPassport}
+          onPress={() => onOpenHealthPassport()}
           className="w-full min-h-11 font-bold text-xs shadow"
         >
           <ExternalLink className="w-3.5 h-3.5 mr-1.5 inline" />
