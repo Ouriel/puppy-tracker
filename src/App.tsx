@@ -12,6 +12,7 @@ import {
 import { calculatePredictions, excludeFutureLogs, suggestNextMealGrams } from './utils/predictions';
 import { buildQuickActionActivity } from './utils/activityPayloads';
 import { formatLocalTime, isSameLogicalDate } from './utils/date';
+import { VIEW_ROUTES, getViewFromPath } from './utils/route';
 import { Navbar } from './components/Navbar';
 import { PredictorWidget } from './components/PredictorWidget';
 import { ActivityTimeline } from './components/ActivityTimeline';
@@ -38,8 +39,6 @@ import { getActivePuppyId, getStoredHealthRecords, getStoredRecentActivities, ge
 const FAMILY_ROLES: readonly string[] = ['Husband', 'Wife', 'Partner', 'Child', 'Dog Walker', 'Sitter', 'Relative', 'Member', 'Admin', 'SuperAdmin'];
 // A screen left open (a tablet in the kitchen) reloads data this old, so it shows the others' logs
 const DASHBOARD_RELOAD_MS = 15 * 60 * 1000;
-// The route Speed Insights files each metric under: the screen shown when the metric is sent
-const SPEED_INSIGHTS_ROUTES = { dashboard: '/dashboard', carnetdesante: '/health-passport', settings: '/settings' } as const;
 
 function App() {
   const { t, lang } = useI18n();
@@ -68,14 +67,6 @@ function App() {
     const cached = puppyState.activePuppy?.id ? getStoredRecentActivities(puppyState.activePuppy.id) : null;
     return !cached || cached.length === 0;
   });
-
-  // URL-driven view routing helper
-  const getViewFromPath = (): 'dashboard' | 'carnetdesante' | 'settings' => {
-    const path = window.location.pathname.toLowerCase();
-    if (path.includes('health-passport') || path.includes('passport') || path.includes('carnetdesante')) return 'carnetdesante';
-    if (path.includes('settings')) return 'settings';
-    return 'dashboard';
-  };
 
   // Navigation & Modals
   const [currentView, setCurrentView] = useState<'dashboard' | 'carnetdesante' | 'settings'>(getViewFromPath);
@@ -525,7 +516,7 @@ function App() {
   // a remount finds the script already there and could no longer change the route.
   const withSpeedInsights = (screen: ReactNode) => (
     <>
-      <SpeedInsights route={SPEED_INSIGHTS_ROUTES[currentView]} />
+      <SpeedInsights route={VIEW_ROUTES[currentView]} />
       {screen}
     </>
   );
