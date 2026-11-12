@@ -1,4 +1,4 @@
-import React, { useState, useMemo, lazy, Suspense, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useMemo, lazy, Suspense, useRef, useCallback } from 'react';
 import type { Activity, ActivityType, Caretaker, PuppyProfile } from '../types';
 import { Droplet, Utensils, Trash2, Pencil, User, ChevronDown, Calendar, CheckCircle2, ChevronsUpDown, AlertTriangle, Download, FileSpreadsheet, Printer, Pill, Scale, RotateCw, X } from 'lucide-react';
 import { PoopIcon } from './common/PoopIcon';
@@ -10,6 +10,7 @@ import { exportActivitiesToCSV, printActivitiesReport } from '../utils/export';
 import { getDayFoodPill } from '../utils/dayFoodPill';
 import { formatGrams, formatKg } from '../utils/weight';
 import { ConfirmationModal } from './common/ConfirmationModal';
+import { useCloseOnOutsidePress } from '../hooks/useCloseOnOutsidePress';
 
 const QuickLogModal = lazy(() => import('./QuickLogModal').then((m) => ({ default: m.QuickLogModal })));
 
@@ -260,31 +261,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
   }, [activePuppy, exportableActivities, cutoffDateKey, dayGroups, todayDateKey, lang, t, caretakers]);
 
   // Close Export dropdown on outside click or Escape key
-  useEffect(() => {
-    if (!isExportMenuOpen) return;
-
-    const handlePointerDown = (event: MouseEvent | TouchEvent) => {
-      if (exportMenuRef.current && !exportMenuRef.current.contains(event.target as Node)) {
-        setIsExportMenuOpen(false);
-      }
-    };
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        setIsExportMenuOpen(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handlePointerDown);
-    document.addEventListener('touchstart', handlePointerDown);
-    document.addEventListener('keydown', handleKeyDown);
-
-    return () => {
-      document.removeEventListener('mousedown', handlePointerDown);
-      document.removeEventListener('touchstart', handlePointerDown);
-      document.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [isExportMenuOpen]);
+  useCloseOnOutsidePress(exportMenuRef, isExportMenuOpen, setIsExportMenuOpen);
 
   const hasLogsToExport = exportableActivities.length > 0 && !!activePuppy;
 

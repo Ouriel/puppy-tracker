@@ -9,7 +9,7 @@ import {
 } from '../services/api';
 import type { Caretaker, RegisteredUserItem } from '../types';
 import { useI18n } from '../i18n';
-import { Button, Input, Card, Chip, Modal, toast } from '@heroui/react';
+import { Button, Input, Card, Chip, toast } from '@heroui/react';
 import { SUPER_ADMIN_EMAIL, isSuperAdminEmail } from '../utils/auth';
 import { buildInviteBadge } from '../utils/caretakers';
 import { ConfirmationModal } from '../components/common/ConfirmationModal';
@@ -292,33 +292,14 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail, caretake
         onClose={() => setAccountToMove(null)}
       />
 
-      {/* Delete User Confirmation Modal */}
-      <Modal isOpen={!!userToDelete} onOpenChange={(isOpen) => !isOpen && setUserToDelete(null)}>
-        <Modal.Backdrop>
-          <Modal.Container>
-            <Modal.Dialog className="bg-slate-900 border border-slate-800 text-slate-100 shadow-2xl">
-              <Modal.CloseTrigger />
-              <Modal.Header>
-                <Modal.Heading className="flex items-center gap-3">
-                  <AlertCircle className="w-5 h-5 text-red-400" />
-                  <span>{t.admin.confirmDeletionFor.replace('{email}', String(userToDelete?.email))}</span>
-                </Modal.Heading>
-              </Modal.Header>
-              <Modal.Body className="p-4">
-                <p className="text-sm text-slate-400">{t.admin.deleteConfirmBody}</p>
-              </Modal.Body>
-              <Modal.Footer className="border-t border-slate-800 pt-3">
-                <Button onPress={() => setUserToDelete(null)} className="bg-slate-950 border border-slate-800 text-slate-300 font-bold hover:bg-slate-800">
-                  {t.potty.cancel}
-                </Button>
-                <Button variant="danger" onPress={confirmDeleteUser} className="font-bold">
-                  {t.admin.deleteUserBtn}
-                </Button>
-              </Modal.Footer>
-            </Modal.Dialog>
-          </Modal.Container>
-        </Modal.Backdrop>
-      </Modal>
+      <ConfirmationModal
+        isOpen={!!userToDelete}
+        title={t.admin.confirmDeletionFor.replace('{email}', String(userToDelete?.email))}
+        message={t.admin.deleteConfirmBody}
+        confirmLabel={t.admin.deleteUserBtn}
+        onConfirm={() => void confirmDeleteUser()}
+        onClose={() => setUserToDelete(null)}
+      />
 
       {/* Pending Activations List */}
       <Card className="bg-slate-900 border-slate-800 text-slate-100">

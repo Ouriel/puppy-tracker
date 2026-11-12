@@ -61,7 +61,6 @@ export const DogInputSchema = z.object({
     .refine((goal) => goal === 0 || (goal >= 10 && goal <= 2000), 'dailyFoodGramGoal is 0 (no gram goal) or 10 to 2000 g')
     .optional(),
   targetMealsPerDay: z.number().int().min(1).max(6).optional(),
-  careInstructions: longText.nullable().optional(),
   // No avatarUrl: no form sets it, and a stored picture is a path, not a URL. An edit re-sending it never rewrites it.
   notes: longText.nullable().optional(),
   // null clears a stored value: the API returns null for a dog without one
