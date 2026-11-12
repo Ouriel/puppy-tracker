@@ -220,46 +220,6 @@ export function isSameLogicalDate(
 }
 
 /**
- * Formats timestamps for timeline activity feeds with precise local start-of-day boundaries
- */
-export function formatRelativeTime(
-  isoString: string | Date,
-  lang: 'en' | 'fr' = 'en',
-  labels = { today: 'Today', yesterday: 'Yesterday' }
-): string {
-  const date = parseIsoDate(isoString);
-  if (isNaN(date.getTime())) {
-    const locale = lang === 'fr' ? 'fr-FR' : 'en-US';
-    const nowTime = new Date().toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit', hour12: false });
-    return `${labels.today} ${nowTime}`;
-  }
-  const now = new Date();
-
-  const locale = lang === 'fr' ? 'fr-FR' : 'en-US';
-  const timeStr = date.toLocaleTimeString(locale, {
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: lang !== 'fr',
-  });
-
-  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-  const startOfYesterday = startOfToday - 24 * 60 * 60 * 1000;
-  const dateTime = date.getTime();
-
-  if (dateTime >= startOfToday) {
-    return `${labels.today} ${timeStr}`;
-  } else if (dateTime >= startOfYesterday) {
-    return `${labels.yesterday} ${timeStr}`;
-  } else {
-    const dateStr = date.toLocaleDateString(locale, {
-      month: 'short',
-      day: 'numeric',
-    });
-    return `${dateStr} ${timeStr}`;
-  }
-}
-
-/**
  * Formats a Date object or ISO string into localized short date format (e.g. 'Nov 12' or '12 nov.'),
  * with the year when it is not this year ('1 juil. 2027')
  */

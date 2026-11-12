@@ -183,34 +183,6 @@ export function getWalthamGrowthFraction(category: WalthamCategory, ageWeeks: nu
 }
 
 /**
- * Gompertz Growth Velocity Parameters by WALTHAM category.
- * dW/dt = W(t) * B * exp(-B * (t - M)) (kg/week)
- */
-const GOMPERTZ_PARAMS: Record<WalthamCategory, { B: number; M: number }> = {
-  I:   { B: 0.110, M: 9.0 },
-  II:  { B: 0.098, M: 11.0 },
-  III: { B: 0.088, M: 13.0 },
-  IV:  { B: 0.078, M: 15.5 },
-  V:   { B: 0.068, M: 18.0 },
-};
-
-/**
- * Calculates current growth velocity in grams per day based on Gompertz first derivative.
- */
-export function getWalthamGrowthVelocity(adultKg: number, ageWeeks: number): number {
-  if (ageWeeks >= 56) return 0;
-  const category = getWalthamCategory(adultKg);
-  const { B, M } = GOMPERTZ_PARAMS[category];
-  const fraction = getWalthamGrowthFraction(category, ageWeeks);
-  const currentWeightKg = adultKg * fraction;
-
-  // Gompertz derivative in kg/week:
-  const weeklyGainKg = currentWeightKg * B * Math.exp(-B * (ageWeeks - M));
-  const dailyGainGrams = Math.round((weeklyGainKg / 7) * 1000);
-  return Math.max(0, dailyGainGrams);
-}
-
-/**
  * Every weight event (an activity of type 'weight'), oldest first. Each weigh-in is its own
  * event, a vet visit's included: nothing is merged, and health records hold no weight.
  */
@@ -336,9 +308,7 @@ export function calculateProjectedAdultWeightRange(
       minAdultKg,
       maxAdultKg,
       isTrajectoryBased: false,
-      confidencePercent: 50,
       walthamCategory: getWalthamCategory(adultTarget),
-      growthVelocityGramsPerDay: getWalthamGrowthVelocity(adultTarget, typeof ageWeeksOrBirthDate === 'number' ? ageWeeksOrBirthDate : 20),
     };
   }
 
@@ -356,13 +326,11 @@ export function calculateProjectedAdultWeightRange(
   const now = Date.now();
   let weightedSum = 0;
   let totalWeights = 0;
-  let latestAgeWeeks = 8;
   const impliedAdults: number[] = [];
 
   for (const log of validLogs) {
     const logTime = new Date(log.timestamp).getTime();
     const logAgeWeeks = Math.max(4, (logTime - birthTimestamp) / (7 * 24 * 3600 * 1000));
-    latestAgeWeeks = Math.max(latestAgeWeeks, logAgeWeeks);
 
     const fraction = getWalthamGrowthFraction(initialCategory, logAgeWeeks);
     const impliedAdult = log.weightKg! / fraction;
@@ -393,9 +361,6 @@ export function calculateProjectedAdultWeightRange(
   const blendedAdultKg = Math.round(((breedBaselineKg * (1 - empiricalWeight)) + (empiricalAdultKg * empiricalWeight)) * 10) / 10;
   const finalCategory = getWalthamCategory(blendedAdultKg);
 
-  // Confidence increases with age and number of logs
-  const confidencePercent = Math.min(95, Math.round(50 + Math.min(validLogs.length * 5, 30) + Math.min(latestAgeWeeks * 0.5, 15)));
-
   // Bounded adult range (+/- 7% to 10%)
   const marginFactor = Math.max(0.06, 0.12 - (validLogs.length * 0.01));
   const minAdultKg = Math.round(blendedAdultKg * (1 - marginFactor) * 10) / 10;
@@ -406,9 +371,7 @@ export function calculateProjectedAdultWeightRange(
     minAdultKg,
     maxAdultKg,
     isTrajectoryBased: true,
-    confidencePercent,
     walthamCategory: finalCategory,
-    growthVelocityGramsPerDay: getWalthamGrowthVelocity(blendedAdultKg, latestAgeWeeks),
   };
 }
 

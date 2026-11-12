@@ -12,7 +12,7 @@ export function usePuppies(initialPuppies?: PuppyProfile[]) {
     if (initialPuppies && initialPuppies.length > 0) return initialPuppies;
     return getStoredPuppies();
   });
-  const [activePuppyId, setActivePuppyIdState] = useState<string>(getActivePuppyId());
+  const [activePuppyId, setActivePuppyIdState] = useState<string>(getActivePuppyId);
   // The owner's deleted dogs (the server hides them from everyone), listed in Settings to restore one
   const [deletedPuppies, setDeletedPuppies] = useState<PuppyProfile[]>([]);
 

@@ -321,7 +321,6 @@ describe('Zod Schemas Validation', () => {
       const cases: Array<[ZodType, object, string]> = [
         [ActivityInputSchema, activity, 'notes'],
         [DogInputSchema, dog, 'notes'],
-        [DogInputSchema, dog, 'careInstructions'],
         [HealthRecordInputSchema, record, 'notes'],
       ];
       for (const [schema, base, field] of cases) {

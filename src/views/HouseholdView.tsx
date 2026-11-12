@@ -113,7 +113,7 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
               variant="primary"
               size="sm"
               onPress={() => setIsInvitingEmail(!isInvitingEmail)}
-              className="font-bold text-xs shadow-sm"
+              className="min-h-11 font-bold text-xs shadow-sm"
             >
               <Mail className="w-4 h-4 mr-1.5 inline" />
               {t.household.preApproveBtn}
@@ -163,7 +163,7 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
                   <button
                     type="button"
                     onClick={copyAppUrl}
-                    className="inline-flex items-center gap-1 text-slate-300 hover:text-white bg-slate-900 border border-slate-700 px-2.5 py-1 rounded-lg text-xs"
+                    className="inline-flex items-center gap-1 min-h-11 text-slate-300 hover:text-white bg-slate-900 border border-slate-700 px-2.5 py-1 rounded-lg text-xs"
                   >
                     <Copy className="w-3.5 h-3.5 text-indigo-400" />
                     <span>{t.household.copyLink}</span>
@@ -187,6 +187,7 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
                   variant="primary"
                   size="sm"
                   isDisabled={isInviting}
+                  className="min-h-11"
                 >
                   <Send className="w-3.5 h-3.5 mr-1 inline" />
                   {t.household.sendInvite}
@@ -214,7 +215,7 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
                 if (!isAdding) setColor(firstFreeBadgeColor(caretakers));
                 setIsAdding(!isAdding);
               }}
-              className="text-xs border-slate-800"
+              className="min-h-11 text-xs border-slate-800"
             >
               {isAdding ? <X className="w-3.5 h-3.5 mr-1 inline" /> : <UserPlus className="w-3.5 h-3.5 mr-1 inline" />}
               {isAdding ? t.potty.cancel : t.household.addMember}
@@ -256,6 +257,7 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
                   type="submit"
                   variant="primary"
                   size="sm"
+                  className="min-h-11"
                 >
                   <UserPlus className="w-3.5 h-3.5 mr-1 inline" />
                   {t.household.addMemberBadge}
@@ -323,6 +325,7 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
                       <Button
                         variant="primary"
                         size="sm"
+                        className="min-h-11"
                         onPress={() => {
                           setHasTriedEditSave(true);
                           if (!editName.trim()) return;

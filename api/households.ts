@@ -70,7 +70,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const householdId = auth.householdId;
 
   try {
-    // GET /api/households — Fetch household details & members (or all households for SuperAdmin)
+    // GET /api/households — The household's badges (or all households for SuperAdmin)
     if (req.method === 'GET') {
       
       if (req.query.all === 'true' && auth.role === 'SuperAdmin') {
@@ -83,20 +83,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(200).json({ households: list });
       }
 
-      const [household] = await db
-        .select()
-        .from(householdsTable)
-        .where(eq(householdsTable.id, householdId));
-
       const caretakers = await db
         .select()
         .from(caretakersTable)
         .where(eq(caretakersTable.householdId, householdId));
 
-      return res.status(200).json({
-        household: household || { id: householdId, name: 'Family Pack' },
-        caretakers,
-      });
+      return res.status(200).json({ caretakers });
     }
 
     // POST /api/households — Add a new caretaker

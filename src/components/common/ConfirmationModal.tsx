@@ -26,8 +26,9 @@ export function ConfirmationModal({ isOpen, onClose, onConfirm, title, message, 
           <Modal.Dialog className="bg-slate-900 border border-slate-800 text-slate-100 shadow-2xl rounded-2xl max-w-sm w-full overflow-hidden">
             <Modal.Header className="p-5 pb-0">
               <Modal.Heading className={`flex items-center gap-2 text-base font-extrabold ${isDanger ? 'text-red-400' : 'text-slate-100'}`}>
-                {isDanger && <AlertTriangle className="w-5 h-5" aria-hidden="true" />}
-                {title}
+                {isDanger && <AlertTriangle className="w-5 h-5 shrink-0" aria-hidden="true" />}
+                {/* An email in the title is one long word: it wraps instead of running past the dialog */}
+                <span className="min-w-0 break-words">{title}</span>
               </Modal.Heading>
             </Modal.Header>
             <Modal.Body className="px-5 py-4">
