@@ -210,6 +210,25 @@ describe('QuickLogModal labels and notes', () => {
     expect(onSave.mock.calls[0][0].notes).toBeNull();
   });
 
+  // The time box shows minutes only: saving 08:15:00 put this pee before a poop logged at 08:15:10
+  it('an edit that only changes the note keeps the exact time, seconds included', async () => {
+    const { onSave } = await renderModal({
+      activityToEdit: { id: 'act-1', puppyId: 'pup-1', type: 'pee', timestamp: '2026-10-13T08:15:42.317Z', loggedBy: 'Tester' },
+    });
+    await setValue('quicklog-notes', 'after the walk');
+    await submit();
+    expect(onSave.mock.calls[0][0]).toMatchObject({ notes: 'after the walk', timestamp: '2026-10-13T08:15:42.317Z' });
+  });
+
+  it('an edit that changes the time saves the time typed', async () => {
+    const { onSave } = await renderModal({
+      activityToEdit: { id: 'act-1', puppyId: 'pup-1', type: 'pee', timestamp: '2026-10-13T08:15:42.317Z', loggedBy: 'Tester' },
+    });
+    await setValue('quicklog-timestamp', '2026-10-13T09:30');
+    await submit();
+    expect(onSave.mock.calls[0][0].timestamp).toBe(new Date('2026-10-13T09:30').toISOString());
+  });
+
   it('the notes placeholder is neutral and the grams label names its unit once', async () => {
     await renderModal({ initialType: 'food' });
     expect(field('quicklog-notes').placeholder).toBe('Optional');

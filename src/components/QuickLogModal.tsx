@@ -110,7 +110,12 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
 
     setIsSaving(true);
     setIsSaveFailed(false);
-    const isSaved = await onSave(buildQuickLogActivity(form), { id: clientId });
+    const activity = buildQuickLogActivity(form);
+    // The box shows minutes only: while it shows the stored minute, keep the stored seconds (two logs in a minute keep their order)
+    if (activityToEdit && timestamp === getLocalDatetimeString(new Date(activityToEdit.timestamp))) {
+      activity.timestamp = activityToEdit.timestamp;
+    }
+    const isSaved = await onSave(activity, { id: clientId });
     setIsSaving(false);
     if (isSaved) onClose();
     else setIsSaveFailed(true);
