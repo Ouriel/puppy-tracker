@@ -46,6 +46,14 @@ describe('ConfirmationModal', () => {
     expect(document.body.textContent).not.toMatch(/Cancel|Delete/);
   });
 
+  // At 320 px, "Confirmer la suppression de claire.member@example.com ?" ran past the dialog's edge
+  it('a long word in the title (an email) wraps inside the dialog', async () => {
+    await render(<ConfirmationModal isOpen onClose={vi.fn()} onConfirm={vi.fn()} title="Supprimer claire.member@example.com ?" message="Sûr ?" />, 'fr');
+    const titleText = [...document.querySelectorAll('[role="dialog"] span')].find((span) => span.textContent === 'Supprimer claire.member@example.com ?')!;
+    expect(titleText.className).toContain('min-w-0');
+    expect(titleText.className).toContain('break-words');
+  });
+
   it('in English: "Cancel" / "Delete"', async () => {
     await render(<ConfirmationModal isOpen onClose={vi.fn()} onConfirm={vi.fn()} title="Delete" message="Sure?" />, 'en');
     expect(dialogButtons()).toEqual(['Cancel', 'Delete']);
