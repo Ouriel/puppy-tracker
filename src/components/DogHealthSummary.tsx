@@ -4,16 +4,8 @@ import { Dog, Scale, ExternalLink, Moon, Sunrise, Utensils, Clock, Sparkles } fr
 import { Card, Button, Chip } from '@heroui/react';
 import { useI18n, type Language } from '../i18n';
 import { formatBreedName } from '../data/breedsCatalog';
-import {
-  calculateProjectedAdultWeightRange,
-  formatChange,
-  formatGrams,
-  formatKg,
-  formatKgRange,
-  getEffectivePuppyWeight,
-  getMeasuredPace,
-  getTrustedWeightEntries,
-} from '../utils/weight';
+import { formatChange, formatGrams, formatKg, formatKgRange } from '../utils/weight';
+import { getWeightChartModel } from '../utils/weightChartGeometry';
 import { getPuppyAge } from '../utils/predictions';
 import { formatDuration, formatShortDate } from '../utils/date';
 import { HealthDueList } from './HealthDueList';
@@ -52,30 +44,19 @@ export const DogHealthSummary: React.FC<DogHealthSummaryProps> = React.memo(({
 
   // Extract weight metrics (Last Logged, Assumed Current, Probable Adult Range via empirical trajectory)
   const weightData = useMemo(() => {
-    // A weigh-in that looks like a typo stays out until edited, as on the passport's chart
-    const unifiedLogs = getTrustedWeightEntries(weightActivities, profile);
-    const lastEntry = unifiedLogs.length > 0 ? unifiedLogs[unifiedLogs.length - 1] : null;
+    // The passport chart's model: a weigh-in that looks like a typo stays out until edited
+    const { trusted, projection, effective, pace } = getWeightChartModel(weightActivities, profile);
+    const lastEntry = trusted.length > 0 ? trusted[trusted.length - 1] : null;
     const lastLogDateStr = lastEntry ? formatShortDate(lastEntry.timestamp, lang as 'en' | 'fr') : null;
     const lastLogAgeWeeks = lastEntry && profile.birthDate ? getPuppyAge(profile.birthDate, lastEntry.timestamp).weeks : null;
 
-    const projectedWeight = calculateProjectedAdultWeightRange(
-      profile.breed,
-      unifiedLogs,
-      profile.birthDate,
-      profile.gender,
-      profile.expectedAdultWeightKg
-    );
-    const weightInfo = getEffectivePuppyWeight(profile, weightActivities);
-
     return {
-      lastWeightKg: weightInfo.lastLoggedWeight,
+      lastWeightKg: effective.lastLoggedWeight,
       lastLogDateStr,
       lastLogAgeWeeks,
-      assumedCurrentKg: weightInfo.estimatedCurrentWeight,
-      adultTargetKg: projectedWeight.projectedAdultKg,
-      adultRangeStr: formatKgRange(projectedWeight.minAdultKg, projectedWeight.maxAdultKg, lang),
-      pace: getMeasuredPace(unifiedLogs),
-      walthamCategory: projectedWeight.walthamCategory,
+      assumedCurrentKg: effective.estimatedCurrentWeight,
+      adultRangeStr: formatKgRange(projection.minAdultKg, projection.maxAdultKg, lang),
+      pace,
     };
   }, [weightActivities, profile, lang]);
 
