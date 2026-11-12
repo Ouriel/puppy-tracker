@@ -5,7 +5,7 @@ import { Scale, Plus, Trash2, Pencil } from 'lucide-react';
 import { useI18n } from '../i18n';
 import { formatShortDate, getCalendarDaysAgo } from '../utils/date';
 import { ConfirmationModal } from './common/ConfirmationModal';
-import { formatChange, formatKg, formatKgRange, getAgeInWeeks, type UnifiedWeightEntry } from '../utils/weight';
+import { formatChange, formatKg, formatKgRange, getAgeInWeeks, getWeighInNeighbours, type UnifiedWeightEntry } from '../utils/weight';
 import { buildDogWeightChart, findNearestPoint, getFullViewEndWeeks, getWeightChartModel } from '../utils/weightChartGeometry';
 
 const QuickLogModal = lazy(() => import('./QuickLogModal').then((module) => ({ default: module.QuickLogModal })));
@@ -115,11 +115,6 @@ export const WeightGrowthChart: React.FC<WeightGrowthChartProps> = ({
     if (next === undefined || entries.length === 0) return;
     event.preventDefault();
     setSelectedId(entries[Math.max(0, Math.min(entries.length - 1, next))].id);
-  };
-
-  const neighboursOf = (entry: UnifiedWeightEntry) => {
-    const index = entries.findIndex((other) => other.id === entry.id);
-    return [entries[index - 1], entries[index + 1]].filter((neighbour) => neighbour !== undefined);
   };
 
   const checkBadge = (
@@ -422,7 +417,7 @@ export const WeightGrowthChart: React.FC<WeightGrowthChartProps> = ({
               key={`edit-${editingWeight.id}`}
               isOpen={true}
               activityToEdit={editingWeight}
-              weighInNeighbours={neighboursOf(editingWeight)}
+              weighInNeighbours={getWeighInNeighbours(entries, editingWeight.id)}
               profile={profile}
               dailyFoodGramGoal={profile.dailyFoodGramGoal}
               currentUser={editingWeight.loggedBy}

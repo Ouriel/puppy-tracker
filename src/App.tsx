@@ -692,6 +692,7 @@ function App() {
             {/* Main Activity Timeline & Log History */}
             <ActivityTimeline
               activities={activePuppyActivities}
+              weightActivities={activePuppyWeights}
               caretakers={caretakerState.caretakers}
               activePuppy={puppyState.activePuppy}
               onDeleteActivity={activityState.deleteActivity}

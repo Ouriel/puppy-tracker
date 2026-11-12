@@ -192,6 +192,13 @@ export function getUnifiedWeightEntries(activities: Activity[] = []): UnifiedWei
     .sort((entryA, entryB) => Date.parse(entryA.timestamp) - Date.parse(entryB.timestamp));
 }
 
+/** The weigh-ins either side of one (`entries` oldest first): an edited weight is checked against them. */
+export function getWeighInNeighbours(entries: UnifiedWeightEntry[], entryId: string): UnifiedWeightEntry[] {
+  const index = entries.findIndex((entry) => entry.id === entryId);
+  if (index === -1) return [];
+  return [entries[index - 1], entries[index + 1]].filter((neighbour) => neighbour !== undefined);
+}
+
 const DAY_MS = 24 * 3600 * 1000;
 
 /**

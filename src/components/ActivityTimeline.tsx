@@ -8,7 +8,7 @@ import { formatLocalTime, formatLogicalDate, getUserTimezone } from '../utils/da
 import { resolveCaretakerName } from '../utils/caretakers';
 import { exportActivitiesToCSV, printActivitiesReport } from '../utils/export';
 import { getDayFoodPill } from '../utils/dayFoodPill';
-import { formatGrams, formatKg } from '../utils/weight';
+import { formatGrams, formatKg, getUnifiedWeightEntries, getWeighInNeighbours } from '../utils/weight';
 import { ConfirmationModal } from './common/ConfirmationModal';
 import { useCloseOnOutsidePress } from '../hooks/useCloseOnOutsidePress';
 
@@ -16,6 +16,8 @@ const QuickLogModal = lazy(() => import('./QuickLogModal').then((m) => ({ defaul
 
 interface ActivityTimelineProps {
   activities: Activity[];
+  // Every weigh-in of the dog, whatever its date: an edited weight is checked against the ones either side
+  weightActivities?: Activity[];
   caretakers: Caretaker[];
   activePuppy?: PuppyProfile | null;
   onDeleteActivity: (id: string) => void;
@@ -70,6 +72,7 @@ function formatDayHeading(
 
 export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
   activities,
+  weightActivities,
   caretakers,
   activePuppy,
   onDeleteActivity,
@@ -692,6 +695,8 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
               key={`edit-${editingActivity.id}`}
               isOpen={true}
               activityToEdit={editingActivity}
+              weighInNeighbours={editingActivity.type === 'weight' ? getWeighInNeighbours(getUnifiedWeightEntries(weightActivities ?? activities), editingActivity.id) : undefined}
+              profile={activePuppy ?? undefined}
               dailyFoodGramGoal={activePuppy?.dailyFoodGramGoal}
               currentUser={editingActivity.loggedBy}
               onClose={() => setEditingActivity(null)}
