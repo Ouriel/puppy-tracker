@@ -177,7 +177,5 @@ export interface WeightProjectionResult {
   minAdultKg: number;
   maxAdultKg: number;
   isTrajectoryBased: boolean;
-  confidencePercent?: number;
   walthamCategory?: 'I' | 'II' | 'III' | 'IV' | 'V';
-  growthVelocityGramsPerDay?: number;
 }
