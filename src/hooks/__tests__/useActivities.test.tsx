@@ -429,7 +429,6 @@ describe('useActivities: a dog switch fetches the same recent window as the dash
 
   it('a log deleted while its request ran does not come back with the answer', async () => {
     const secondDog: PuppyProfile = { ...puppy, id: 'pup-2', name: 'Second' };
-    const pee = { ...log('act-2', 1), puppyId: 'pup-2' };
     answerGet = () => [];
     await act(async () => root!.render(<DogProbe dog={puppy} onRender={(state) => { hook = state; }} />));
     await settle();
@@ -437,13 +436,15 @@ describe('useActivities: a dog switch fetches the same recent window as the dash
     await act(async () => root!.render(<DogProbe dog={secondDog} onRender={(state) => { hook = state; }} />));
     const switchRequests = sent.filter((request) => request.method === 'GET' && request.url.includes('puppyId=pup-2'));
 
-    // A row of the second dog on screen (the passport, a log made at once) deleted before the answer
-    await act(async () => hook.setActivities((previous) => [pee, ...previous]));
-    await start(() => hook.deleteActivity('act-2'));
-    await requestFor('act-2').answer(200, { success: true, deletedId: 'act-2' });
+    // A row of the second dog on screen (a log made at once) deleted before the answer
+    await start(() => hook.addActivity({ ...newLog('pee'), puppyId: 'pup-2' }));
+    const pee = posts()[0].body!;
+    await posts()[0].answer(201, pee);
+    await start(() => hook.deleteActivity(pee.id));
+    await sent.find((request) => request.method === 'DELETE')!.answer(200, { success: true, deletedId: pee.id });
     for (const request of switchRequests) await request.answer(200, request.url.includes('type=weight') ? [] : [pee]);
 
-    expect(ids()).not.toContain('act-2');
+    expect(ids()).not.toContain(pee.id);
   });
 });
 

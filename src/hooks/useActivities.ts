@@ -403,7 +403,6 @@ export function useActivities(
   return {
     activities,
     allTimeActivities,
-    setActivities,
     getMutationVersion,
     setActivitiesForPuppy,
     isLoadingActivities: isLoading,
