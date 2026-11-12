@@ -255,6 +255,8 @@ export const fr: TranslationKeys = {
     authorizeInstructions: 'Saisis l\'e-mail d\'un membre de ton foyer. Son compte sera activé dès sa première connexion avec Google.',
     copiedSuccess: 'Lien copié\u00a0!',
     copyLink: 'Copier le lien',
+    shareLink: 'Partager',
+    shareInviteText: 'Rejoins notre famille sur PupPace pour suivre notre chiot.',
     emailPlaceholder: 'ex.\u00a0: conjoint@famille.com',
     inviteAuthorized: '{email} peut maintenant se connecter.',
     sendInvite: 'Envoyer l\'autorisation',

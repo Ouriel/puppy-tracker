@@ -249,6 +249,8 @@ export const en = {
     authorizeInstructions: 'Enter the email address of a family member. They will be automatically approved when signing in with Google SSO.',
     copiedSuccess: 'App URL copied to clipboard!',
     copyLink: 'Copy Link',
+    shareLink: 'Share',
+    shareInviteText: 'Join our family on PupPace to follow our puppy.',
     emailPlaceholder: 'e.g. partner@family.com',
     inviteAuthorized: '{email} can now sign in.',
     sendInvite: 'Send Authorization',

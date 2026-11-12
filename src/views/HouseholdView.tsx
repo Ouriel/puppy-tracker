@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import type { Caretaker, UserAccount } from '../types';
-import { Home, Users, UserPlus, Trash2, Mail, Send, CheckCircle2, UserCheck, Copy, Pencil, X, Check } from 'lucide-react';
+import { Home, Users, UserPlus, Trash2, Mail, Send, CheckCircle2, UserCheck, Copy, Share2, Pencil, X, Check } from 'lucide-react';
 import { createUser } from '../services/api';
 import { buildInviteBadge, findLinkedCaretaker, firstFreeBadgeColor } from '../utils/caretakers';
 import { isSuperAdminEmail } from '../utils/auth';
@@ -100,6 +100,16 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
     toast.success(t.household.copiedSuccess);
   };
 
+  // The phone's share sheet (WhatsApp, SMS…) with the link Copy link copies; a refused share copies it instead
+  const shareAppUrl = async () => {
+    try {
+      await navigator.share({ title: 'PupPace', text: t.household.shareInviteText, url: window.location.origin });
+    } catch (error) {
+      // AbortError: the user closed the share sheet
+      if ((error as Error).name !== 'AbortError') copyAppUrl();
+    }
+  };
+
   return (
     <div className="space-y-4 sm:space-y-6 w-full">
       {/* Header */}
@@ -160,14 +170,26 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
                     <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
                     <span>{inviteSuccess}</span>
                   </div>
-                  <button
-                    type="button"
-                    onClick={copyAppUrl}
-                    className="inline-flex items-center gap-1 min-h-11 text-slate-300 hover:text-white bg-slate-900 border border-slate-700 px-2.5 py-1 rounded-lg text-xs"
-                  >
-                    <Copy className="w-3.5 h-3.5 text-indigo-400" />
-                    <span>{t.household.copyLink}</span>
-                  </button>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={copyAppUrl}
+                      className="inline-flex items-center gap-1 min-h-11 text-slate-300 hover:text-white bg-slate-900 border border-slate-700 px-2.5 py-1 rounded-lg text-xs"
+                    >
+                      <Copy className="w-3.5 h-3.5 text-indigo-400" />
+                      <span>{t.household.copyLink}</span>
+                    </button>
+                    {'share' in navigator && (
+                      <button
+                        type="button"
+                        onClick={() => void shareAppUrl()}
+                        className="inline-flex items-center gap-1 min-h-11 text-slate-300 hover:text-white bg-slate-900 border border-slate-700 px-2.5 py-1 rounded-lg text-xs"
+                      >
+                        <Share2 className="w-3.5 h-3.5 text-indigo-400" />
+                        <span>{t.household.shareLink}</span>
+                      </button>
+                    )}
+                  </div>
                 </div>
               )}
 
