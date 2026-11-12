@@ -23,6 +23,7 @@ interface VaccineSectionProps {
   currentUser: string;
   onAddActivity: (activity: Omit<Activity, 'id'>) => void;
   t: TranslationKeys;
+  doneName?: string; // a due line's "Done": the add form starts open on this vaccine, dated today
 }
 
 const labelClass = 'block text-xs font-semibold text-slate-400 mb-1';
@@ -35,6 +36,12 @@ const HISTORY_SHOWN = 3;
 // The picker's "Autre…": the name is typed, and an unknown vaccine gets the generic booster
 const OTHER = '__other__';
 
+/** The add form's pick for a stored vaccine name: its list name (an earlier spelling too), else "Autre…" with the name typed. */
+function vaccineChoice(name: string): { listName: string; typedName: string } {
+  const listName = getHealthProtocols().vaccines.find((vaccineOption) => vaccineOption.name === name || vaccineOption.formerNames?.includes(name))?.name;
+  return listName ? { listName, typedName: '' } : { listName: OTHER, typedName: name };
+}
+
 export const VaccineSection: React.FC<VaccineSectionProps> = ({
   activePuppy,
   vaccinations,
@@ -43,11 +50,12 @@ export const VaccineSection: React.FC<VaccineSectionProps> = ({
   currentUser,
   onAddActivity,
   t,
+  doneName,
 }) => {
-  const [isAddingVaccine, setIsAddingVaccine] = useState(false);
+  const [isAddingVaccine, setIsAddingVaccine] = useState(Boolean(doneName));
   // null: the user has not picked one yet, the form shows the default
-  const [selectedVaccineName, setSelectedVaccineName] = useState<string | null>(null);
-  const [otherVaccineName, setOtherVaccineName] = useState('');
+  const [selectedVaccineName, setSelectedVaccineName] = useState<string | null>(() => (doneName ? vaccineChoice(doneName).listName : null));
+  const [otherVaccineName, setOtherVaccineName] = useState(() => (doneName ? vaccineChoice(doneName).typedName : ''));
   const [administeredDate, setAdministeredDate] = useState(() => formatLocalDate());
   const [customNextDueDate, setCustomNextDueDate] = useState<string | null>(null);
   const [customVetClinic, setCustomVetClinic] = useState<string | null>(null);
@@ -248,6 +256,8 @@ export const VaccineSection: React.FC<VaccineSectionProps> = ({
                 <label id="vaccine-name-label" className={labelClass}>{t.health.vaccineType}</label>
                 <Select
                   aria-labelledby="vaccine-name-label"
+                  // Opened by "Done" from the list at the top: focus brings the form into view
+                  autoFocus={Boolean(doneName)}
                   value={vaccineType}
                   onChange={(value) => {
                     setSelectedVaccineName(value as string);

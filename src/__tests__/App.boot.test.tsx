@@ -8,6 +8,7 @@ import { en } from '../i18n/en';
 import { setAuthToken, clearAuthToken, setStoredAuthUser } from '../utils/auth';
 import { setStoredPuppies, setActivePuppyId, getActivePuppyId, getStoredPuppies, setStoredRecentActivities } from '../utils/storage';
 import { clearApiCache } from '../services/api';
+import { formatLocalDate } from '../utils/date';
 import type { Activity, HealthRecord, PuppyProfile, UserAccount } from '../types';
 
 // The real lock screen loads Google's script; this one signs in with a Google ID token at once.
@@ -681,15 +682,17 @@ describe('a quick log that could not be saved', () => {
   });
 
   // Layout-shift hunt 2026-10-20: its day opened by itself on the failure and closed on the save, moving the whole page
-  it('leaves the days as they were: the failure opens none, a Retry that works closes none', async () => {
+  it('leaves the days as they were: the failure closes none, a Retry that works closes none', async () => {
     signedInWithCachedDogOnly();
     const connection = { isOnline: false };
     stubOfflineSaves(connection);
     await renderApp();
 
     await tapPeeOutside();
-    expect(todayHeader().getAttribute('aria-expanded')).toBe('false');
-    // Its closed header says it holds one
+    // Today starts open, and the failure leaves it so
+    expect(todayHeader().getAttribute('aria-expanded')).toBe('true');
+    // Closed by hand, its header says it holds one
+    await act(async () => todayHeader().click());
     expect(todayHeader().textContent).toContain('1 log not sent');
 
     await openToday();
@@ -1007,7 +1010,7 @@ describe('a log form whose save fails', () => {
       '/api/activities': () => Promise.reject(new TypeError('Load failed')),
     });
     await renderApp();
-    await act(async () => document.querySelector<HTMLButtonElement>(`button[title="${en.dashboard.expandAll}"]`)!.click());
+    await openToday();
     await act(async () => document.querySelector<HTMLElement>('[aria-label^="Edit "]')!.click());
     await settleUntil(() => notesBox() !== null);
     await typeNotes('edited');
@@ -1126,7 +1129,7 @@ describe('the health passport while its data loads', () => {
     answerRecords(new Response(JSON.stringify([overdueRabies])));
     await settleUntil(() => !isPassportBusy());
     const toDoLine = [...document.querySelectorAll('h3')].find((title) => title.textContent === en.health.toDo)!.closest('section')!.querySelector('li')!;
-    expect(toDoLine.textContent).toMatch(new RegExp(`^Rabies.*${en.potty.overdue}$`));
+    expect(toDoLine.textContent).toMatch(new RegExp(`^Rabies.*${en.potty.overdue}${en.health.markDone}$`));
   });
 
   it('a dashboard 500 and no records either: the line says so, with no offline line to explain it', async () => {
@@ -1188,7 +1191,7 @@ describe('the health passport while its data loads', () => {
 
     const toDo = [...document.querySelectorAll('h3')].find((title) => title.textContent === en.health.toDo)!.closest('section')!;
     expect(toDo.getAttribute('aria-busy')).toBeNull();
-    expect(toDo.querySelector('li')!.textContent).toMatch(new RegExp(`^Rabies.*${en.potty.overdue}$`));
+    expect(toDo.querySelector('li')!.textContent).toMatch(new RegExp(`^Rabies.*${en.potty.overdue}${en.health.markDone}$`));
   });
 
   it('a record deleted in the passport stays deleted in the records kept on the phone', async () => {
@@ -1517,7 +1520,7 @@ describe('switching dogs', () => {
 
     expect(document.querySelector('h1')!.textContent).toBe('Second');
     expect(getActivePuppyId()).toBe(second.id);
-    await act(async () => document.querySelector<HTMLElement>(`[aria-label="${en.dashboard.expandAll}"]`)!.click());
+    await openToday();
     expect(document.querySelector('[aria-label^="Delete poop "]')).not.toBeNull();
     expect(document.querySelector('[aria-label^="Delete pee "]')).toBeNull();
   });
@@ -1551,7 +1554,7 @@ describe('switching dogs', () => {
     expect(document.querySelector('h1')!.textContent).toBe('Second');
     expect(getActivePuppyId()).toBe(second.id);
     expect(heldRefreshes.map((refresh) => refresh.url)).toEqual([`/api/dashboard?puppyId=${second.id}&days=14`]);
-    await act(async () => document.querySelector<HTMLElement>(`[aria-label="${en.dashboard.expandAll}"]`)!.click());
+    await openToday();
     expect(document.querySelector('[aria-label^="Delete poop "]')).not.toBeNull();
     expect(document.querySelector('[aria-label^="Delete pee "]')).toBeNull();
   });
@@ -1682,5 +1685,28 @@ describe('a quick log not sent and app updates', () => {
     await act(async () => rowRetry.click());
     await settle();
     expect(updateHolds.count).toBe(0);
+  });
+});
+
+// A due line's "Done" on the dashboard card: the passport opens on that record's add form
+describe('"Done" on the dashboard card', () => {
+  const dueRabies: HealthRecord = {
+    id: 'hr-rabies', householdId: 'hh-1', puppyId: puppy.id, type: 'vaccination',
+    name: 'Rage (Eurican LR / Nobivac Rabies / Versiguard / Rabisin)', date: '2025-01-10', boosterDate: '2026-01-10',
+  };
+
+  it('opens the passport on that vaccine\'s add form, dated today', async () => {
+    signedInWithCachedDogOnly();
+    stubApi({ '/api/dashboard': () => respond({ ...dashboardPayload(), healthRecords: [dueRabies] }) });
+    await renderApp();
+    await settleUntil(() => document.querySelector('[aria-label^="Done: Rabies"]') !== null);
+
+    await act(async () => document.querySelector<HTMLButtonElement>('[aria-label^="Done: Rabies"]')!.click());
+    await settleUntil(() => document.getElementById('vaccine-date') !== null);
+
+    expect(window.location.pathname + window.location.search).toBe(`/health-passport?add=${dueRabies.id}`);
+    const form = document.getElementById('vaccine-date')!.closest('form')!;
+    expect(form.querySelector('[data-slot="select-value"]')!.textContent).toBe(dueRabies.name);
+    expect((document.getElementById('vaccine-date') as HTMLInputElement).value).toBe(formatLocalDate());
   });
 });

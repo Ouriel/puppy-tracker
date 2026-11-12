@@ -4,6 +4,7 @@ import { act, type ReactElement } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { CarnetDeSanteView } from '../CarnetDeSanteView';
 import { WeightGrowthChart } from '../../components/WeightGrowthChart';
+import { DogHealthSummary } from '../../components/DogHealthSummary';
 import type { HealthRecord, PuppyProfile } from '../../types';
 
 // Health passport review 2026-10-16, section 5 items 2 to 9, in French, on a made-up dog. Today: 15 Oct 2026, Paris.
@@ -230,6 +231,39 @@ describe('vaccine add form', () => {
     expect(fieldName(fields[0])).toMatch(/ Vaccin$/);
     expect(fields.slice(1).map(fieldName)).toEqual(["Date d'injection", 'Date du prochain rappel', 'Clinique vétérinaire', 'Produit (vignette)', 'Numéro de lot', 'Poids (kg)']);
     expect(fields.every((field) => fieldName(field))).toBe(true);
+  });
+});
+
+// A due line's "Fait": the record given again today, from the passport or the dashboard card
+describe('"Fait" on a due line', () => {
+  const addForm = (title: string) => section(title).querySelector('form')!;
+
+  it('on the passport, opens the vaccine add form on that vaccine, dated today', async () => {
+    await renderPassport();
+    expect(section('Vaccins').querySelector('form')).toBeNull();
+    expect(is44(button('Fait\u00a0: Rage du 1 juil.'))).toBe(true);
+
+    await act(async () => button('Fait\u00a0: Rage du 1 juil.')!.click());
+
+    expect(addForm('Vaccins').querySelector('[data-slot="select-value"]')!.textContent).toBe(shot.name);
+    expect(addForm('Vaccins').querySelector<HTMLInputElement>('#vaccine-date')!.value).toBe('2026-10-15');
+  });
+
+  it('on the dashboard card, opens the passport at ?add=<record id>, whose deworming form opens on that product', async () => {
+    const onOpenHealthPassport = vi.fn();
+    await render(<DogHealthSummary profile={puppy} activities={[]} weightActivities={[]} healthRecords={[shot, dose]} onOpenHealthPassport={onOpenHealthPassport} />);
+    await act(async () => button('Fait\u00a0: Bravecto du 10 sept.')!.click());
+    expect(onOpenHealthPassport).toHaveBeenCalledWith(dose.id);
+    await act(async () => root?.unmount());
+
+    window.history.replaceState(null, '', `/health-passport?add=${dose.id}`);
+    try {
+      await renderPassport();
+      expect(addForm('Antiparasitaires').querySelector('[data-slot="select-value"]')!.textContent).toMatch(/^Bravecto /);
+      expect(section('Vaccins').querySelector('form')).toBeNull();
+    } finally {
+      window.history.replaceState(null, '', '/');
+    }
   });
 });
 

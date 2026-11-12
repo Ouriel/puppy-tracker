@@ -90,7 +90,8 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
   const [confirmDelete, setConfirmDelete] = useState<{ id: string; type: string } | null>(null);
   const [daysLimit, setDaysLimit] = useState<number>(7);
   const [isExportMenuOpen, setIsExportMenuOpen] = useState<boolean>(false);
-  const [expandedDays, setExpandedDays] = useState<Set<string>>(() => new Set());
+  // Today's logical day starts open; the others wait for a tap or "Expand all"
+  const [expandedDays, setExpandedDays] = useState<Set<string>>(() => new Set([formatLogicalDate(referenceTime ?? new Date(), getUserTimezone())]));
 
   const exportMenuRef = useRef<HTMLDivElement>(null);
   const tz = getUserTimezone();

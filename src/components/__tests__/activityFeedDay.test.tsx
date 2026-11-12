@@ -46,8 +46,9 @@ async function renderFeed(lang: 'en' | 'fr', list: Activity[] = activities, care
   await act(async () => root!.render(
     <ActivityTimeline activities={list} caretakers={caretakers} activePuppy={puppy} onDeleteActivity={vi.fn()} referenceTime={new Date()} />
   ));
-  const expandAll = [...container.querySelectorAll('button')].find((button) => button.textContent === (lang === 'fr' ? 'Tout déplier' : 'Expand All'))!;
-  await act(async () => expandAll.click());
+  const expandAll = [...container.querySelectorAll('button')].find((button) => button.textContent === (lang === 'fr' ? 'Tout déplier' : 'Expand All'));
+  // Today starts open: a feed of today only has nothing left to expand
+  if (expandAll) await act(async () => expandAll.click());
   return container;
 }
 
@@ -99,6 +100,23 @@ describe('activity feed day groups (backlog item 26)', () => {
 
     expect(headers.map((header) => header.textContent)).toEqual(['Aujourd\'hui • jeu. 15 oct.', 'Hier • mer. 14 oct.', 'Mardi 13 oct.']);
     expect(headers.some((header) => header.classList.contains('capitalize'))).toBe(false);
+  });
+
+  it('opens today\'s day at first, by the 04:00 rule: the 08:15 poop shows, the 00:30 pee stays in yesterday\'s closed day', async () => {
+    localStorage.setItem('puppace_lang_v1', 'en');
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    root = createRoot(container);
+    await act(async () => root!.render(
+      <ActivityTimeline activities={activities} caretakers={[]} activePuppy={puppy} onDeleteActivity={vi.fn()} referenceTime={new Date()} />
+    ));
+    const headers = () => [...container.querySelectorAll<HTMLButtonElement>('button[aria-expanded]')].filter((button) => button.textContent!.includes('•'));
+
+    expect(headers().map((header) => header.getAttribute('aria-expanded'))).toEqual(['true', 'false']);
+    expect(rowTimes(container)).toEqual(['08:15']);
+    // A tap closes it like any other day
+    await act(async () => headers()[0].click());
+    expect(rowTimes(container)).toEqual([]);
   });
 
   // App review 2026-10-16, section 3: a dark badge colour made the name unreadable (1.95:1); the colour stays on the dot and the outline

@@ -199,6 +199,40 @@ describe('Members tab invite (19, 20, 42)', () => {
     await click(buttons('Add Member')[0]);
     expect(document.querySelector<HTMLInputElement>('form input[type="color"]')!.value.toUpperCase()).toBe(FIRST_FREE_COLOR);
   });
+
+  describe('sharing the invite', () => {
+    afterEach(() => {
+      Reflect.deleteProperty(navigator, 'share');
+      Reflect.deleteProperty(navigator, 'clipboard');
+    });
+
+    it('Share sends the link Copy Link copies to the share sheet; closing the sheet copies nothing', async () => {
+      const share = vi.fn().mockResolvedValue(undefined);
+      const writeText = vi.fn();
+      Object.defineProperty(navigator, 'share', { value: share, configurable: true });
+      Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+      await renderMembers(owner);
+      await inviteFromMembersTab('jane.doe@example.com');
+
+      await click(buttons('Share')[0]);
+      expect(share).toHaveBeenCalledWith({ title: 'PupPace', text: 'Join our family on PupPace to follow our puppy.', url: window.location.origin });
+
+      share.mockRejectedValueOnce(new DOMException('Share canceled', 'AbortError'));
+      await click(buttons('Share')[0]);
+      expect(writeText).not.toHaveBeenCalled();
+
+      await click(buttons('Copy Link')[0]);
+      expect(writeText).toHaveBeenCalledWith(window.location.origin);
+    });
+
+    it('a browser with no share sheet shows Copy Link only', async () => {
+      await renderMembers(owner);
+      await inviteFromMembersTab('jane.doe@example.com');
+
+      expect(buttons('Copy Link')).toHaveLength(1);
+      expect(buttons('Share')).toHaveLength(0);
+    });
+  });
 });
 
 describe('Members tab identity (22)', () => {
