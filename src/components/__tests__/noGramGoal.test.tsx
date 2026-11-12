@@ -106,8 +106,7 @@ describe('a dog with no gram goal: no goal in grams on any screen', () => {
     await render(
       <ActivityTimeline activities={meals} caretakers={[]} activePuppy={noGoal} onDeleteActivity={vi.fn()} onUpdateActivity={onUpdateActivity} referenceTime={now} />
     );
-    const dayHeader = [...document.querySelectorAll<HTMLButtonElement>('button[aria-expanded]')].find((button) => button.textContent?.includes('80\u00a0g'))!;
-    await act(async () => dayHeader.click());
+    // Today's day starts open
     await act(async () => document.querySelector<HTMLButtonElement>('button[aria-label^="Edit food "]')!.click());
     // The edit form is a lazy chunk
     await act(async () => { await import('../QuickLogModal'); });

@@ -677,15 +677,17 @@ describe('a quick log that could not be saved', () => {
   });
 
   // Layout-shift hunt 2026-10-20: its day opened by itself on the failure and closed on the save, moving the whole page
-  it('leaves the days as they were: the failure opens none, a Retry that works closes none', async () => {
+  it('leaves the days as they were: the failure closes none, a Retry that works closes none', async () => {
     signedInWithCachedDogOnly();
     const connection = { isOnline: false };
     stubOfflineSaves(connection);
     await renderApp();
 
     await tapPeeOutside();
-    expect(todayHeader().getAttribute('aria-expanded')).toBe('false');
-    // Its closed header says it holds one
+    // Today starts open, and the failure leaves it so
+    expect(todayHeader().getAttribute('aria-expanded')).toBe('true');
+    // Closed by hand, its header says it holds one
+    await act(async () => todayHeader().click());
     expect(todayHeader().textContent).toContain('1 log not sent');
 
     await openToday();
@@ -1003,7 +1005,7 @@ describe('a log form whose save fails', () => {
       '/api/activities': () => Promise.reject(new TypeError('Load failed')),
     });
     await renderApp();
-    await act(async () => document.querySelector<HTMLButtonElement>(`button[title="${en.dashboard.expandAll}"]`)!.click());
+    await openToday();
     await act(async () => document.querySelector<HTMLElement>('[aria-label^="Edit "]')!.click());
     await settleUntil(() => notesBox() !== null);
     await typeNotes('edited');
@@ -1513,7 +1515,7 @@ describe('switching dogs', () => {
 
     expect(document.querySelector('h1')!.textContent).toBe('Second');
     expect(getActivePuppyId()).toBe(second.id);
-    await act(async () => document.querySelector<HTMLElement>(`[aria-label="${en.dashboard.expandAll}"]`)!.click());
+    await openToday();
     expect(document.querySelector('[aria-label^="Delete poop "]')).not.toBeNull();
     expect(document.querySelector('[aria-label^="Delete pee "]')).toBeNull();
   });
@@ -1547,7 +1549,7 @@ describe('switching dogs', () => {
     expect(document.querySelector('h1')!.textContent).toBe('Second');
     expect(getActivePuppyId()).toBe(second.id);
     expect(heldRefreshes.map((refresh) => refresh.url)).toEqual([`/api/dashboard?puppyId=${second.id}&days=14`]);
-    await act(async () => document.querySelector<HTMLElement>(`[aria-label="${en.dashboard.expandAll}"]`)!.click());
+    await openToday();
     expect(document.querySelector('[aria-label^="Delete poop "]')).not.toBeNull();
     expect(document.querySelector('[aria-label^="Delete pee "]')).toBeNull();
   });
