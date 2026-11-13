@@ -90,8 +90,9 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
   const [confirmDelete, setConfirmDelete] = useState<{ id: string; type: string } | null>(null);
   const [daysLimit, setDaysLimit] = useState<number>(7);
   const [isExportMenuOpen, setIsExportMenuOpen] = useState<boolean>(false);
-  // Today's logical day starts open; the others wait for a tap or "Expand all"
-  const [expandedDays, setExpandedDays] = useState<Set<string>>(() => new Set([formatLogicalDate(referenceTime ?? new Date(), getUserTimezone())]));
+  // Today's logical day opens by itself (set below); the others wait for a tap or "Expand all"
+  const [expandedDays, setExpandedDays] = useState<Set<string>>(() => new Set());
+  const [openedToday, setOpenedToday] = useState<string | null>(null);
 
   const exportMenuRef = useRef<HTMLDivElement>(null);
   const tz = getUserTimezone();
@@ -101,6 +102,12 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
     const baseDate = targetTime ? new Date(targetTime) : new Date();
     return formatLogicalDate(baseDate, tz);
   }, [targetTime, tz]);
+
+  // At mount, and when a feed left open passes 04:00: the new day opens, the days already open stay so
+  if (openedToday !== todayDateKey) {
+    setOpenedToday(todayDateKey);
+    setExpandedDays((previous) => new Set(previous).add(todayDateKey));
+  }
 
   const yesterdayDateKey = useMemo(() => {
     const baseDate = targetTime ? new Date(targetTime) : new Date();

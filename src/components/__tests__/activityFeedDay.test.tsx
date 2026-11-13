@@ -119,6 +119,28 @@ describe('activity feed day groups (backlog item 26)', () => {
     expect(rowTimes(container)).toEqual([]);
   });
 
+  it('a feed left open past 04:00 opens the new day too', async () => {
+    localStorage.setItem('puppace_lang_v1', 'en');
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    root = createRoot(container);
+    const renderAt = (referenceTime: Date) => act(async () => root!.render(
+      <ActivityTimeline activities={activities} caretakers={[]} activePuppy={puppy} onDeleteActivity={vi.fn()} referenceTime={referenceTime} />
+    ));
+    const isOpen = (dayText: string) => [...container.querySelectorAll<HTMLButtonElement>('button[aria-expanded]')]
+      .find((button) => button.textContent!.includes(dayText))!.getAttribute('aria-expanded');
+
+    // The evening of 14 Oct: that day is open
+    vi.setSystemTime(new Date('2026-10-14T22:00:00+02:00'));
+    await renderAt(new Date());
+    expect(isOpen('Oct 14')).toBe('true');
+
+    // The app comes back the next morning, still mounted: 15 Oct opens as well
+    vi.setSystemTime(new Date('2026-10-15T12:00:00+02:00'));
+    await renderAt(new Date());
+    expect(isOpen('Oct 15')).toBe('true');
+  });
+
   // App review 2026-10-16, section 3: a dark badge colour made the name unreadable (1.95:1); the colour stays on the dot and the outline
   it('the caretaker\'s name is written in the feed\'s text colour; the badge colour marks the dot and the outline', async () => {
     const darkBadge: Caretaker = { id: 'c-1', name: 'Sam', role: 'Member', color: '#1E3A8A' };
