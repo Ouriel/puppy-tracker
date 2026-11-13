@@ -17,6 +17,7 @@ const inputErrorClass = 'mt-1.5 text-xs font-semibold text-red-400';
 const FIELD_IDS: Record<DogFormError['field'], string> = {
   name: 'dog-name',
   breed: 'dog-breed',
+  expectedAdultWeightKg: 'dog-adult-weight',
   birthDate: 'dog-birth-date',
   dailyFoodGramGoal: 'dog-food-goal',
   targetMealsPerDay: 'dog-meals-per-day',
@@ -36,10 +37,11 @@ interface PuppiesViewProps {
 const DogGenderAndWeightFields: React.FC<{
   breed: string;
   gender?: 'female' | 'male';
-  expectedWeightKg?: number;
-  onChange: (patch: { gender?: 'female' | 'male'; expectedAdultWeightKg?: number }) => void;
+  expectedWeightKg: string;
+  weightError: string | null;
+  onChange: (patch: { gender?: 'female' | 'male'; expectedAdultWeightKg?: string }) => void;
   t: ReturnType<typeof useI18n>['t'];
-}> = ({ breed, gender, expectedWeightKg, onChange, t }) => {
+}> = ({ breed, gender, expectedWeightKg, weightError, onChange, t }) => {
   const { lang } = useI18n();
   const isCustomOrMixed = BREEDS_WITH_TYPED_ADULT_WEIGHT.includes(breed);
 
@@ -50,22 +52,22 @@ const DogGenderAndWeightFields: React.FC<{
       <div>
         <label className="block text-xs font-semibold text-slate-400 mb-1">{t.puppies.sex}</label>
         <div className="grid grid-cols-2 gap-2">
-          {(['female', 'male'] as const).map((s) => (
+          {(['female', 'male'] as const).map((sex) => (
             <button
-              key={s}
+              key={sex}
               type="button"
-              aria-pressed={gender === s}
-              onClick={() => onChange({ gender: gender === s ? undefined : s })}
+              aria-pressed={gender === sex}
+              onClick={() => onChange({ gender: gender === sex ? undefined : sex })}
               className={`min-h-11 px-3 rounded-xl text-xs font-bold border transition-colors flex items-center justify-center gap-1.5 ${
-                gender === s
-                  ? s === 'female'
+                gender === sex
+                  ? sex === 'female'
                     ? 'bg-pink-950/60 border-pink-500 text-pink-300 ring-2 ring-pink-500/20'
                     : 'bg-blue-950/60 border-blue-500 text-blue-300 ring-2 ring-blue-500/20'
                   : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-slate-200'
               }`}
             >
-              <span>{s === 'female' ? '♀' : '♂'}</span>
-              <span>{s === 'female' ? t.puppies.female : t.puppies.male}</span>
+              <span>{sex === 'female' ? '♀' : '♂'}</span>
+              <span>{sex === 'female' ? t.puppies.female : t.puppies.male}</span>
             </button>
           ))}
         </div>
@@ -82,17 +84,19 @@ const DogGenderAndWeightFields: React.FC<{
           <label htmlFor="dog-adult-weight" className="block text-xs font-semibold text-slate-400 mb-1">
             {t.puppies.expectedAdultWeight} (kg)
           </label>
+          {/* Text, not a number box: a French keyboard types "8,5", which Chromium read as 85 and Safari as nothing */}
           <Input
             id="dog-adult-weight"
-            type="number"
-            step="0.5"
-            min="1"
-            max="100"
+            type="text"
+            inputMode="decimal"
             placeholder={t.puppies.adultWeightPlaceholder}
             className="bg-slate-950 border-slate-800 text-slate-100"
-            value={expectedWeightKg ?? ''}
-            onChange={(event) => onChange({ expectedAdultWeightKg: event.target.valueAsNumber || undefined })}
+            value={expectedWeightKg}
+            onChange={(event) => onChange({ expectedAdultWeightKg: event.target.value })}
+            aria-invalid={weightError ? true : undefined}
+            aria-describedby={weightError ? 'dog-adult-weight-error' : undefined}
           />
+          {weightError && <p id="dog-adult-weight-error" role="alert" className={inputErrorClass}>{weightError}</p>}
           <p className="text-xs text-slate-400 mt-1">{t.puppies.expectedWeightHint}</p>
         </div>
       )}
@@ -136,10 +140,10 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
     setIsAdding(true);
   };
 
-  const handleStartEdit = (pup: PuppyProfile) => {
+  const handleStartEdit = (puppy: PuppyProfile) => {
     setIsAdding(false);
-    setEditingPuppy(pup);
-    setFormData(dogFormFromProfile(pup));
+    setEditingPuppy(puppy);
+    setFormData(dogFormFromProfile(puppy));
     setHasTriedSave(false);
   };
 
@@ -179,6 +183,7 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
   };
   const nameError = errorFor('name');
   const breedError = errorFor('breed');
+  const adultWeightError = errorFor('expectedAdultWeightKg');
   const birthDateError = errorFor('birthDate');
   const goalError = errorFor('dailyFoodGramGoal');
   const mealsError = errorFor('targetMealsPerDay');
@@ -247,6 +252,7 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
         breed={formData.breed}
         gender={formData.gender}
         expectedWeightKg={formData.expectedAdultWeightKg}
+        weightError={adultWeightError}
         onChange={(patch) => setFormData((previous) => ({ ...previous, ...patch }))}
         t={t}
       />
@@ -340,7 +346,7 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
             variant="primary"
             size="sm"
             onPress={isAdding ? resetForm : handleStartAdd}
-            className="font-bold text-xs shadow-sm"
+            className="min-h-11 font-bold text-xs shadow-sm"
           >
             {isAdding ? <X className="w-4 h-4 mr-1 inline" /> : <Plus className="w-4 h-4 mr-1 inline" />}
             {isAdding ? t.potty.cancel : t.puppies.addDog}
@@ -398,18 +404,18 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
         )
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {puppies.map((pup) => {
-            const isActive = pup.id === activePuppyId;
-            const isEditingThis = editingPuppy?.id === pup.id;
+          {puppies.map((puppy) => {
+            const isActive = puppy.id === activePuppyId;
+            const isEditingThis = editingPuppy?.id === puppy.id;
 
             if (isEditingThis) {
               return (
-                <Card key={pup.id} className="bg-slate-900 border-indigo-500/80 text-slate-100 ring-2 ring-indigo-500/20">
+                <Card key={puppy.id} className="bg-slate-900 border-indigo-500/80 text-slate-100 ring-2 ring-indigo-500/20">
                   <Card.Content className="p-5 space-y-4">
                     <div className="flex items-center justify-between border-b border-slate-800 pb-3">
                       <h3 className="text-sm font-bold text-white flex items-center gap-2">
                         <Pencil className="w-4 h-4 text-indigo-400" />
-                        <span>{t.puppies.editProfileTitle.replace('{name}', pup.name)}</span>
+                        <span>{t.puppies.editProfileTitle.replace('{name}', puppy.name)}</span>
                       </h3>
                     </div>
 
@@ -423,7 +429,7 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
                           size="sm"
                           type="button"
                           onPress={resetForm}
-                          className="bg-slate-950 border border-slate-800 text-slate-300 font-bold"
+                          className="min-h-11 bg-slate-950 border border-slate-800 text-slate-300 font-bold"
                         >
                           {t.potty.cancel}
                         </Button>
@@ -432,6 +438,7 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
                           type="submit"
                           variant="primary"
                           isDisabled={isSaving}
+                          className="min-h-11"
                         >
                           {t.puppies.updateProfile}
                         </Button>
@@ -444,7 +451,7 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
 
             return (
               <Card
-                key={pup.id}
+                key={puppy.id}
                 className={`bg-slate-900 border-slate-800 text-slate-100 ${
                   isActive ? 'border-indigo-500/80 ring-2 ring-indigo-500/20' : ''
                 }`}
@@ -452,28 +459,28 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
                 <Card.Content className="p-3.5 sm:p-5 space-y-4">
                   <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
                     <div className="flex items-center gap-3 min-w-0">
-                      {pup.avatarUrl ? (
+                      {puppy.avatarUrl ? (
                         <img
-                          src={pup.avatarUrl}
-                          alt={pup.name}
+                          src={puppy.avatarUrl}
+                          alt={puppy.name}
                           className="w-12 h-12 sm:w-14 sm:h-14 rounded-full object-cover ring-2 ring-indigo-500/50 shadow shrink-0"
                         />
                       ) : (
                         // No photo: the dog's initial (the cocker mascot looked like every dog's photo)
                         <div
-                          id={`dog-avatar-${pup.id}`}
+                          id={`dog-avatar-${puppy.id}`}
                           aria-hidden="true"
                           className="w-12 h-12 sm:w-14 sm:h-14 rounded-full flex items-center justify-center bg-gradient-to-br from-indigo-500 to-purple-600 text-white text-lg font-black ring-2 ring-indigo-500/50 shadow shrink-0"
                         >
-                          {pup.name.charAt(0).toUpperCase()}
+                          {puppy.name.charAt(0).toUpperCase()}
                         </div>
                       )}
                       <div className="min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <h3 className="text-base sm:text-lg font-bold text-white truncate">{pup.name}</h3>
-                          {pup.gender && (
-                            <span className={`text-xs font-bold ${pup.gender === 'female' ? 'text-pink-400' : 'text-blue-400'}`}>
-                              {pup.gender === 'female' ? '♀' : '♂'}
+                          <h3 className="text-base sm:text-lg font-bold text-white truncate">{puppy.name}</h3>
+                          {puppy.gender && (
+                            <span className={`text-xs font-bold ${puppy.gender === 'female' ? 'text-pink-400' : 'text-blue-400'}`}>
+                              {puppy.gender === 'female' ? '♀' : '♂'}
                             </span>
                           )}
                           {isActive && (
@@ -482,7 +489,7 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
                             </Chip>
                           )}
                         </div>
-                        <p className="text-xs text-slate-400 truncate">{formatBreedName(pup.breed, lang)}</p>
+                        <p className="text-xs text-slate-400 truncate">{formatBreedName(puppy.breed, lang)}</p>
                       </div>
                     </div>
 
@@ -491,8 +498,8 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
                         <Button
                           size="sm"
                           variant="secondary"
-                          onPress={() => onSelectPuppy(pup.id)}
-                          className="font-bold text-xs"
+                          onPress={() => onSelectPuppy(puppy.id)}
+                          className="min-h-11 font-bold text-xs"
                         >
                           {t.puppies.select}
                         </Button>
@@ -500,8 +507,8 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
 
                       <button
                         type="button"
-                        onClick={() => handleStartEdit(pup)}
-                        aria-label={t.common.editItem.replace('{item}', pup.name)}
+                        onClick={() => handleStartEdit(puppy)}
+                        aria-label={t.common.editItem.replace('{item}', puppy.name)}
                         className="p-2 min-h-11 min-w-11 flex items-center justify-center text-slate-400 hover:text-indigo-300 hover:bg-slate-800 rounded-xl border border-slate-800 bg-slate-950 transition-colors"
                       >
                         <Pencil className="w-4 h-4" />
@@ -509,8 +516,8 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
 
                       <button
                         type="button"
-                        onClick={() => setConfirmDelete({ id: pup.id, type: 'dog' })}
-                        aria-label={t.common.deleteItem.replace('{item}', pup.name)}
+                        onClick={() => setConfirmDelete({ id: puppy.id, type: 'dog' })}
+                        aria-label={t.common.deleteItem.replace('{item}', puppy.name)}
                         className="p-2 min-h-11 min-w-11 flex items-center justify-center text-slate-400 hover:text-red-400 hover:bg-slate-800 rounded-xl border border-slate-800 bg-slate-950 transition-colors"
                       >
                         <Trash2 className="w-4 h-4" />
@@ -523,12 +530,12 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
                       <Utensils className="w-4 h-4 text-purple-400 shrink-0" />
                       <div>
                         <div className="text-xs text-slate-400 font-semibold">
-                          {pup.dailyFoodGramGoal > 0 ? t.puppies.foodGramGoal : t.puppies.mealsPerDay}
+                          {puppy.dailyFoodGramGoal > 0 ? t.puppies.foodGramGoal : t.puppies.mealsPerDay}
                         </div>
                         <div className="font-bold text-slate-200">
-                          {pup.dailyFoodGramGoal > 0
-                            ? `${formatGrams(pup.dailyFoodGramGoal, lang)} (${mealsText(pup.targetMealsPerDay || 3)})`
-                            : mealsText(pup.targetMealsPerDay || 3)}
+                          {puppy.dailyFoodGramGoal > 0
+                            ? `${formatGrams(puppy.dailyFoodGramGoal, lang)} (${mealsText(puppy.targetMealsPerDay || 3)})`
+                            : mealsText(puppy.targetMealsPerDay || 3)}
                         </div>
                       </div>
                     </div>
@@ -537,14 +544,14 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
                       <Calendar className="w-4 h-4 text-indigo-400 shrink-0" />
                       <div>
                         <div className="text-xs text-slate-400 font-semibold">{t.puppies.birthDate}</div>
-                        <div className="font-bold text-slate-200">{pup.birthDate ? formatShortDate(pup.birthDate, lang) : t.puppies.unknownDate}</div>
+                        <div className="font-bold text-slate-200">{puppy.birthDate ? formatShortDate(puppy.birthDate, lang) : t.puppies.unknownDate}</div>
                       </div>
                     </div>
                   </div>
 
-                  {pup.notes && (
+                  {puppy.notes && (
                     <p className="text-xs text-slate-400 bg-slate-950/40 p-2.5 rounded-lg border border-slate-800/80 italic font-mono">
-                      "{pup.notes}"
+                      "{puppy.notes}"
                     </p>
                   )}
                 </Card.Content>
@@ -574,7 +581,7 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
                     variant="secondary"
                     aria-label={`${t.puppies.restoreDog} ${puppy.name}`}
                     onPress={() => onRestorePuppy(puppy.id)}
-                    className="font-bold text-xs shrink-0"
+                    className="min-h-11 font-bold text-xs shrink-0"
                   >
                     <RotateCcw className="w-4 h-4 mr-1 inline" />
                     {t.puppies.restoreDog}

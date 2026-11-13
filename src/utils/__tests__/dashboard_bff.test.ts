@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { fetchDashboard, clearApiCache, createActivity } from '../../services/api';
+import { fetchDashboard, fetchActivities, clearApiCache, createActivity } from '../../services/api';
 import { setAuthToken, clearAuthToken } from '../auth';
 
 describe('Dashboard BFF API Service Suite', () => {
@@ -68,6 +68,7 @@ describe('Dashboard BFF API Service Suite', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(fetchMock).toHaveBeenCalledWith('/api/dashboard?puppyId=pup-1&days=14', {
       headers: { 'Content-Type': 'application/json', Authorization: 'Bearer t' },
+      signal: expect.any(AbortSignal),
     });
   });
 
@@ -209,6 +210,52 @@ describe('Dashboard BFF API Service Suite', () => {
       pendingResponses[2]?.(emptyDashboard());
       await readAfterSave;
     });
+
+    // Audit: a pee logged on dog B while B's switch request ran; that answer, read before the pee was stored, came after
+    // the save's and was cached, so switching back to B within 60 s showed the list without the pee
+    it('a request answered after the save is answered is not cached', async () => {
+      const pendingResponses: Array<(response: Response) => void> = [];
+      const fetchMock = vi.fn(() => new Promise<Response>((resolve) => { pendingResponses.push(resolve); }));
+      global.fetch = fetchMock;
+      setAuthToken('t');
+
+      const switchRead = fetchActivities('pup-1', { days: 14, limit: 300 });
+      const save = saveLog();
+      pendingResponses[1](new Response('{}', { status: 201 }));
+      await save;
+      pendingResponses[0](new Response('[]', { status: 200 }));
+      await switchRead;
+      const switchBackRead = fetchActivities('pup-1', { days: 14, limit: 300 });
+
+      expect(fetchMock).toHaveBeenCalledTimes(3);
+      pendingResponses[2]?.(new Response('[]', { status: 200 }));
+      await switchBackRead;
+    });
+  });
+
+  it('a request with no answer gives up after 15 s as offline, so a log tapped on dead Wi-Fi is marked not sent', async () => {
+    vi.useFakeTimers();
+    // Like fetch on a stalled network: no answer until the request is aborted
+    global.fetch = vi.fn((_url: RequestInfo | URL, init?: RequestInit) => new Promise<Response>((_resolve, reject) => {
+      init?.signal?.addEventListener('abort', () => reject(init.signal?.reason));
+    }));
+    setAuthToken('t');
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    try {
+      let settled = false;
+      const save = createActivity({ id: 'act-1', puppyId: 'pup-1', type: 'pee', timestamp: '2026-01-10T12:00:00.000Z', loggedBy: 'Owner' });
+      save.then(() => { settled = true; });
+
+      await vi.advanceTimersByTimeAsync(14_900);
+      expect(settled).toBe(false);
+
+      await vi.advanceTimersByTimeAsync(100);
+      expect(await save).toEqual({ ok: false, errorKey: 'offline', status: 0 });
+    } finally {
+      vi.useRealTimers();
+      vi.restoreAllMocks();
+    }
   });
 
   it('allows immediate fresh dashboard fetch when clearApiCache is invoked', async () => {

@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import type { PuppyProfile, HealthRecord, Activity } from '../../types';
 import { Pill, Plus, Trash2, Pencil, Check, X, ChevronDown } from 'lucide-react';
@@ -23,6 +23,7 @@ interface DewormingSectionProps {
   currentUser: string;
   onAddActivity: (activity: Omit<Activity, 'id'>) => void;
   t: TranslationKeys;
+  doneName?: string; // a due line's "Done": the add form starts open on this product, dated today
 }
 
 const labelClass = 'block text-xs font-semibold text-slate-400 mb-1';
@@ -33,6 +34,13 @@ const HISTORY_SHOWN = 3;
 // The picker's "Autre…": the product is typed, and an unknown product gets the generic schedule
 const OTHER = '__other__';
 
+/** The add form's pick for a stored product: its list name, else "Autre…" with the name typed. */
+function productChoice(name: string): { listName: string; typedName: string } {
+  return getHealthProtocols().antiparasitics.some((productOption) => productOption.name === name)
+    ? { listName: name, typedName: '' }
+    : { listName: OTHER, typedName: name };
+}
+
 export const DewormingSection: React.FC<DewormingSectionProps> = ({
   activePuppy,
   dewormingLogs,
@@ -41,11 +49,12 @@ export const DewormingSection: React.FC<DewormingSectionProps> = ({
   currentUser,
   onAddActivity,
   t,
+  doneName,
 }) => {
-  const [isAddingDeworming, setIsAddingDeworming] = useState(false);
+  const [isAddingDeworming, setIsAddingDeworming] = useState(Boolean(doneName));
   // null: the user has not picked one yet, the form shows the default
-  const [selectedProductName, setSelectedProductName] = useState<string | null>(null);
-  const [otherProductName, setOtherProductName] = useState('');
+  const [selectedProductName, setSelectedProductName] = useState<string | null>(() => (doneName ? productChoice(doneName).listName : null));
+  const [otherProductName, setOtherProductName] = useState(() => (doneName ? productChoice(doneName).typedName : ''));
   const [dewormAdminDate, setDewormAdminDate] = useState(() => formatLocalDate());
   const [customDewormNextDate, setCustomDewormNextDate] = useState<string | null>(null);
   const [weightText, setWeightText] = useState('');
@@ -53,6 +62,8 @@ export const DewormingSection: React.FC<DewormingSectionProps> = ({
   const [weightError, setWeightError] = useState<'weightInvalid' | 'dateTimeInFuture' | undefined>();
   const [confirmDelete, setConfirmDelete] = useState<{id: string; type: string} | null>(null);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  // A request in flight: a second tap on Save must not add the dose twice
+  const [isSaving, setIsSaving] = useState(false);
 
   // Edit Deworming state
   const [editingDewormingId, setEditingDewormingId] = useState<string | null>(null);
@@ -63,6 +74,7 @@ export const DewormingSection: React.FC<DewormingSectionProps> = ({
   const [editNotes, setEditNotes] = useState('');
 
   const editProductTriggerRef = useRef<HTMLButtonElement>(null);
+  const addFormRef = useRef<HTMLFormElement>(null);
   const { lang } = useI18n();
 
   // dewormingLogs is sorted newest first. Default product: the last one given, else Credelio Plus.
@@ -109,7 +121,7 @@ export const DewormingSection: React.FC<DewormingSectionProps> = ({
 
   const handleAddDewormingSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (addDateError || !dewormNextDate || !savedProductName) return;
+    if (isSaving || addDateError || !dewormNextDate || !savedProductName) return;
 
     // Optional: empty saves no weight; typed, it is checked before anything is saved
     const weighIn = buildVetWeighIn({ puppyId: activePuppy.id, date: dewormAdminDate, weightText, loggedBy: currentUser });
@@ -128,7 +140,9 @@ export const DewormingSection: React.FC<DewormingSectionProps> = ({
       notes: notes.trim() || undefined,
     };
 
+    setIsSaving(true);
     const result = await createHealthRecord(newEntry);
+    setIsSaving(false);
     if (result.ok) {
       // A deworming never stores a weight: the weigh-in is a weight event of its own
       if (weighIn.activity) onAddActivity(weighIn.activity);
@@ -165,7 +179,8 @@ export const DewormingSection: React.FC<DewormingSectionProps> = ({
   };
 
   const handleUpdateDewormingSubmit = async (id: string) => {
-    if (editDateError || !savedEditName) return;
+    if (isSaving || editDateError || !savedEditName) return;
+    setIsSaving(true);
     const result = await updateHealthRecord({
       id,
       puppyId: activePuppy.id,
@@ -177,6 +192,7 @@ export const DewormingSection: React.FC<DewormingSectionProps> = ({
       boosterDate: editDewormingBoosterDate || null,
       notes: editNotes.trim() || null,
     });
+    setIsSaving(false);
 
     if (result.ok) {
       setHealthRecords((previous) => previous.map((record) => (record.id === id ? { ...record, ...result.data } : record)));
@@ -203,6 +219,11 @@ export const DewormingSection: React.FC<DewormingSectionProps> = ({
     </ListBoxItem>
   ));
 
+  // Opened by a due line's "Done", below the fold: brought into view (the Select's focus does not scroll the page)
+  useEffect(() => {
+    if (doneName) addFormRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+  }, [doneName]);
+
   return (
     <Card className="bg-slate-900 border border-slate-800 text-slate-100 shadow-xl">
       <Card.Content className="p-4 sm:p-6 space-y-4">
@@ -223,15 +244,17 @@ export const DewormingSection: React.FC<DewormingSectionProps> = ({
         </div>
 
         {isAddingDeworming && (
-          <form onSubmit={handleAddDewormingSubmit} className="rounded-xl bg-slate-950/90 border border-slate-800 p-3 sm:p-4 space-y-3">
+          <form ref={addFormRef} onSubmit={handleAddDewormingSubmit} className="scroll-mt-4 rounded-xl bg-slate-950/90 border border-slate-800 p-3 sm:p-4 space-y-3">
             <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
               <div className="sm:col-span-2 min-w-0">
                 <label id="deworming-product-label" className={labelClass}>{t.health.productName}</label>
                 <Select
                   aria-labelledby="deworming-product-label"
+                  // Opened by "Done": focus starts on the pick, already made
+                  autoFocus={Boolean(doneName)}
                   value={productName}
-                  onChange={(val) => {
-                    setSelectedProductName(val as string);
+                  onChange={(value) => {
+                    setSelectedProductName(value as string);
                     setCustomDewormNextDate(null);
                   }}
                 >
@@ -327,7 +350,7 @@ export const DewormingSection: React.FC<DewormingSectionProps> = ({
             </div>
 
             <div className="flex justify-end">
-              <Button type="submit" size="sm" className="min-h-11 bg-amber-700 hover:bg-amber-600 text-white font-bold">
+              <Button type="submit" size="sm" isDisabled={isSaving} className="min-h-11 bg-amber-700 hover:bg-amber-600 text-white font-bold">
                 {t.health.saveDeworming}
               </Button>
             </div>
@@ -359,7 +382,7 @@ export const DewormingSection: React.FC<DewormingSectionProps> = ({
                   <div className="grid grid-cols-1 sm:grid-cols-4 gap-2">
                     <div className="sm:col-span-2 min-w-0">
                       <label id="deworming-edit-product-label" className={labelClass}>{t.health.productName}</label>
-                      <Select aria-labelledby="deworming-edit-product-label" value={editDewormingName} onChange={(val) => setEditDewormingName(val as string)}>
+                      <Select aria-labelledby="deworming-edit-product-label" value={editDewormingName} onChange={(value) => setEditDewormingName(value as string)}>
                         <Select.Trigger ref={editProductTriggerRef} className="w-full bg-slate-900 border-slate-700/80 text-slate-100 min-w-0 flex items-center justify-between">
                           <Select.Value className="truncate block text-left" />
                           <Select.Indicator />
@@ -450,7 +473,7 @@ export const DewormingSection: React.FC<DewormingSectionProps> = ({
                     >
                       {t.potty.cancel}
                     </Button>
-                    <Button type="submit" size="sm" className="min-h-11 bg-amber-700 hover:bg-amber-600 text-white font-bold">
+                    <Button type="submit" size="sm" isDisabled={isSaving} className="min-h-11 bg-amber-700 hover:bg-amber-600 text-white font-bold">
                       <Check className="w-3.5 h-3.5 mr-1 inline" />
                       {t.potty.saveChanges}
                     </Button>

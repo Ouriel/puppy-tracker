@@ -1,4 +1,4 @@
-import React, { useState, useMemo, lazy, Suspense, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useMemo, lazy, Suspense, useRef, useCallback } from 'react';
 import type { Activity, ActivityType, Caretaker, PuppyProfile } from '../types';
 import { Droplet, Utensils, Trash2, Pencil, User, ChevronDown, Calendar, CheckCircle2, ChevronsUpDown, AlertTriangle, Download, FileSpreadsheet, Printer, Pill, Scale, RotateCw, X } from 'lucide-react';
 import { PoopIcon } from './common/PoopIcon';
@@ -8,13 +8,16 @@ import { formatLocalTime, formatLogicalDate, getUserTimezone } from '../utils/da
 import { resolveCaretakerName } from '../utils/caretakers';
 import { exportActivitiesToCSV, printActivitiesReport } from '../utils/export';
 import { getDayFoodPill } from '../utils/dayFoodPill';
-import { formatGrams, formatKg } from '../utils/weight';
+import { formatGrams, formatKg, getUnifiedWeightEntries, getWeighInNeighbours } from '../utils/weight';
 import { ConfirmationModal } from './common/ConfirmationModal';
+import { useCloseOnOutsidePress } from '../hooks/useCloseOnOutsidePress';
 
-const QuickLogModal = lazy(() => import('./QuickLogModal').then((m) => ({ default: m.QuickLogModal })));
+const QuickLogModal = lazy(() => import('./QuickLogModal').then((module) => ({ default: module.QuickLogModal })));
 
 interface ActivityTimelineProps {
   activities: Activity[];
+  // Every weigh-in of the dog, whatever its date: an edited weight is checked against the ones either side
+  weightActivities?: Activity[];
   caretakers: Caretaker[];
   activePuppy?: PuppyProfile | null;
   onDeleteActivity: (id: string) => void;
@@ -69,6 +72,7 @@ function formatDayHeading(
 
 export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
   activities,
+  weightActivities,
   caretakers,
   activePuppy,
   onDeleteActivity,
@@ -86,7 +90,9 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
   const [confirmDelete, setConfirmDelete] = useState<{ id: string; type: string } | null>(null);
   const [daysLimit, setDaysLimit] = useState<number>(7);
   const [isExportMenuOpen, setIsExportMenuOpen] = useState<boolean>(false);
+  // Today's logical day opens by itself (set below); the others wait for a tap or "Expand all"
   const [expandedDays, setExpandedDays] = useState<Set<string>>(() => new Set());
+  const [openedToday, setOpenedToday] = useState<string | null>(null);
 
   const exportMenuRef = useRef<HTMLDivElement>(null);
   const tz = getUserTimezone();
@@ -96,6 +102,12 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
     const baseDate = targetTime ? new Date(targetTime) : new Date();
     return formatLogicalDate(baseDate, tz);
   }, [targetTime, tz]);
+
+  // At mount, and when a feed left open passes 04:00: the new day opens, the days already open stay so
+  if (openedToday !== todayDateKey) {
+    setOpenedToday(todayDateKey);
+    setExpandedDays((previous) => new Set(previous).add(todayDateKey));
+  }
 
   const yesterdayDateKey = useMemo(() => {
     const baseDate = targetTime ? new Date(targetTime) : new Date();
@@ -129,8 +141,8 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
   // Filter to core activities sorted chronologically descending
   const sortedCoreActivities = useMemo(() => {
     return activities
-      .filter((act) => act.type === 'pee' || act.type === 'poop' || act.type === 'food' || act.type === 'medication' || act.type === 'weight')
-      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+      .filter((activity) => activity.type === 'pee' || activity.type === 'poop' || activity.type === 'food' || activity.type === 'medication' || activity.type === 'weight')
+      .sort((first, second) => new Date(second.timestamp).getTime() - new Date(first.timestamp).getTime());
   }, [activities]);
 
   // Progression steps: 7 -> 14 -> 30 -> 90 -> 180 -> All Time (Infinity)
@@ -151,7 +163,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
 
   const visibleActivities = useMemo(() => {
     if (!cutoffDateKey) return sortedCoreActivities;
-    return sortedCoreActivities.filter((act) => formatLogicalDate(act.timestamp, tz) >= cutoffDateKey);
+    return sortedCoreActivities.filter((activity) => formatLogicalDate(activity.timestamp, tz) >= cutoffDateKey);
   }, [sortedCoreActivities, cutoffDateKey, tz]);
 
   const hasMorePriorLogs = sortedCoreActivities.length > visibleActivities.length || hasMoreRemote;
@@ -260,31 +272,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
   }, [activePuppy, exportableActivities, cutoffDateKey, dayGroups, todayDateKey, lang, t, caretakers]);
 
   // Close Export dropdown on outside click or Escape key
-  useEffect(() => {
-    if (!isExportMenuOpen) return;
-
-    const handlePointerDown = (event: MouseEvent | TouchEvent) => {
-      if (exportMenuRef.current && !exportMenuRef.current.contains(event.target as Node)) {
-        setIsExportMenuOpen(false);
-      }
-    };
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        setIsExportMenuOpen(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handlePointerDown);
-    document.addEventListener('touchstart', handlePointerDown);
-    document.addEventListener('keydown', handleKeyDown);
-
-    return () => {
-      document.removeEventListener('mousedown', handlePointerDown);
-      document.removeEventListener('touchstart', handlePointerDown);
-      document.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [isExportMenuOpen]);
+  useCloseOnOutsidePress(exportMenuRef, isExportMenuOpen, setIsExportMenuOpen);
 
   const hasLogsToExport = exportableActivities.length > 0 && !!activePuppy;
 
@@ -387,7 +375,10 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
         {/* Day-by-day Accordion List */}
         {dayGroups.length === 0 ? (
           <div className="text-center py-10 text-slate-400 bg-slate-950/60 rounded-xl border border-dashed border-slate-800 space-y-1">
-            <p className="text-sm font-semibold">{t.dashboard.noActivityLogs}</p>
+            {/* Older logs may exist before the days shown: say the days are empty, not that nothing was ever logged */}
+            <p className="text-sm font-semibold">
+              {daysLimit === Infinity ? t.dashboard.noActivityLogs : t.dashboard.noLogsInDays.replace('{days}', String(daysLimit))}
+            </p>
             <p className="text-xs text-slate-400">{t.dashboard.tapLogEvent}</p>
           </div>
         ) : (
@@ -681,28 +672,28 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
                 </div>
               );
             })}
+          </div>
+        )}
 
-            {/* Load More Button for earlier logs */}
-            {hasMorePriorLogs && (
-              <div className="pt-2 text-center">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onPress={handleLoadMore}
-                  isDisabled={isLoadingMore}
-                  className="w-full min-h-11 text-xs font-bold text-slate-300 border-slate-800 hover:bg-slate-950"
-                >
-                  <ChevronDown className={`w-4 h-4 mr-1 inline ${isLoadingMore ? 'animate-spin' : ''}`} />
-                  <span>
-                    {isLoadingMore
-                      ? t.dashboard.loadingEarlier
-                      : nextDaysLimit === Infinity
-                      ? t.dashboard.loadAllLogs
-                      : t.dashboard.loadEarlier.replace('{days}', String(nextDaysLimit))}
-                  </span>
-                </Button>
-              </div>
-            )}
+        {/* Load More Button for earlier logs, also under an empty feed (back after a week away) */}
+        {hasMorePriorLogs && (
+          <div className="pt-2 text-center">
+            <Button
+              variant="outline"
+              size="sm"
+              onPress={handleLoadMore}
+              isDisabled={isLoadingMore}
+              className="w-full min-h-11 text-xs font-bold text-slate-300 border-slate-800 hover:bg-slate-950"
+            >
+              <ChevronDown className={`w-4 h-4 mr-1 inline ${isLoadingMore ? 'animate-spin' : ''}`} />
+              <span>
+                {isLoadingMore
+                  ? t.dashboard.loadingEarlier
+                  : nextDaysLimit === Infinity
+                  ? t.dashboard.loadAllLogs
+                  : t.dashboard.loadEarlier.replace('{days}', String(nextDaysLimit))}
+              </span>
+            </Button>
           </div>
         )}
 
@@ -712,6 +703,8 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
               key={`edit-${editingActivity.id}`}
               isOpen={true}
               activityToEdit={editingActivity}
+              weighInNeighbours={editingActivity.type === 'weight' ? getWeighInNeighbours(getUnifiedWeightEntries(weightActivities ?? activities), editingActivity.id) : undefined}
+              profile={activePuppy ?? undefined}
               dailyFoodGramGoal={activePuppy?.dailyFoodGramGoal}
               currentUser={editingActivity.loggedBy}
               onClose={() => setEditingActivity(null)}

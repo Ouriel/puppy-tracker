@@ -134,7 +134,7 @@ describe('predictions utility — comprehensive test suite', () => {
     });
 
     const utcSchedule = { bedtimeHour: 22, wakeupHour: 7, bedtimeStr: '22:00', wakeupStr: '07:00' };
-    const logsAt = (type: 'pee' | 'poop', isoTimes: string[]) => newestFirst(isoTimes.map((iso) => act(type, iso)));
+    const logsAt = (type: 'pee' | 'poop', isoTimes: string[]) => newestFirst(isoTimes.map((isoTime) => act(type, isoTime)));
 
     const peesEveryDay = (clockTimes: string[]) =>
       logsAt('pee', ['15', '16', '17'].flatMap((day) => clockTimes.map((time) => `2026-08-${day}T${time}:00Z`)));
@@ -425,7 +425,7 @@ describe('predictions utility — comprehensive test suite', () => {
       it('hands over from the hard-stool pause to "due now", not to "overdue by hours"', () => {
         const dayOnly = { bedtimeHour: 23.5, wakeupHour: 6, bedtimeStr: '23:30', wakeupStr: '06:00' };
         const hardStool = [act('poop', '2026-08-17T08:00:00Z', { stoolConsistency: 'hard' })];
-        const predictAt = (iso: string) => calculatePredictions(hardStool, PISTACHE, new Date(iso), 'UTC', dayOnly);
+        const predictAt = (isoTime: string) => calculatePredictions(hardStool, PISTACHE, new Date(isoTime), 'UTC', dayOnly);
 
         // Pause ends at 08:00 + max(1.4 x 6 h, 8 h) = 16:24
         const lastMinuteOfPause = predictAt('2026-08-17T16:23:00Z');
@@ -533,24 +533,24 @@ describe('predictions utility — comprehensive test suite', () => {
         expect(predictions.foodUrgency).toBe('overdue');
       });
 
-      it('spaces remaining daytime meals evenly when partial meals have been logged today', () => {
+      it('expects the next meal at its learned time when partial meals have been logged today', () => {
         const referenceTime = new Date('2026-08-14T10:00:00+02:00'); // 10:00 AM Paris, only the 07:00 breakfast is logged today
 
         const predictions = calculatePredictions(dataset, mockProfile, referenceTime, 'Europe/Paris');
         expect(predictions.foodMode).toBe('daytime_schedule');
-        // (22:30 bedtime - 07:00) / 3 = 5.2h after the 07:00 breakfast
-        expect(predictions.foodReason).toBe('Meal 2 of 3 (spaced ~5.2h)');
-        expect(at(predictions.nextFoodExpectedAt!)).toBe('2026-08-14 12:10');
+        // The learned 12:00 lunch, not the middle of the time left until bedtime
+        expect(predictions.foodReason).toBe('Meal 2 of 3 (~12:00)');
+        expect(at(predictions.nextFoodExpectedAt!)).toBe('2026-08-14 12:00');
       });
 
-      it('flags breakfast as soon within 15 min of it (07:18 for the 07:30 breakfast)', () => {
-        const predictions = calculatePredictions([act('pee', '2026-08-17T07:00:00Z')], PISTACHE, new Date('2026-08-17T07:18:00Z'), 'UTC');
+      it('flags breakfast as soon within 15 min of it (07:03 for the 07:15 breakfast, 15 min after the 07:00 pee)', () => {
+        const predictions = calculatePredictions([act('pee', '2026-08-17T07:00:00Z')], PISTACHE, new Date('2026-08-17T07:03:00Z'), 'UTC');
 
-        expect(predictions.nextFoodExpectedAt!.toISOString()).toBe('2026-08-17T07:30:00.000Z');
+        expect(predictions.nextFoodExpectedAt!.toISOString()).toBe('2026-08-17T07:15:00.000Z');
         expect(predictions.foodUrgency).toBe('soon');
       });
 
-      it('spaces meal 2 halfway between the 08:00 breakfast and the 22:00 bedtime, with no 5.5 h cap', () => {
+      it('without meal history, expects the last of 2 meals 2.5 h before the 22:00 bedtime, not halfway from breakfast', () => {
         const predictions = calculatePredictions(
           [act('food', '2026-08-17T08:00:00Z')],
           { ...PISTACHE, targetMealsPerDay: 2 },
@@ -558,9 +558,9 @@ describe('predictions utility — comprehensive test suite', () => {
           'UTC'
         );
 
-        // (22:00 - 08:00) / 2 = 7 h
-        expect(predictions.foodReason).toBe('Meal 2 of 2 (spaced ~7.0h)');
-        expect(predictions.nextFoodExpectedAt!.toISOString()).toBe('2026-08-17T15:00:00.000Z');
+        // Usual 07:00 and 19:30; breakfast an hour late: 12.5 h x (22:00 - 08:00) / (22:00 - 07:00) later
+        expect(predictions.foodReason).toBe('Meal 2 of 2 (~19:40)');
+        expect(predictions.nextFoodExpectedAt!.toISOString()).toBe('2026-08-17T19:40:00.000Z');
 
         // The missed meal stops at bedtime: at 23:00 (bedtime + 1 h) the card shows tomorrow's breakfast
         const pastBedtime = calculatePredictions(
@@ -570,12 +570,12 @@ describe('predictions utility — comprehensive test suite', () => {
           'UTC'
         );
         expect(pastBedtime.foodMode).toBe('night_sleep');
-        expect(pastBedtime.foodReason).toBe('Breakfast (~07:30, Meal 1 of 2)');
-        expect(pastBedtime.nextFoodExpectedAt!.toISOString()).toBe('2026-08-18T07:30:00.000Z');
+        expect(pastBedtime.foodReason).toBe('Breakfast (~07:00, Meal 1 of 2)'); // wake-up: today is not complete
+        expect(pastBedtime.nextFoodExpectedAt!.toISOString()).toBe('2026-08-18T07:00:00.000Z');
         expect(pastBedtime.foodUrgency).toBe('safe');
       });
 
-      it('keeps meal 2 safe at 15:30 after a 09:45 breakfast (bedtime 23:30): due ~16:37, not overdue since 15:15', () => {
+      it('keeps meal 2 safe at 15:30 after a 09:45 breakfast (bedtime 23:30): due ~21:16, about 2 h before bedtime', () => {
         const predictions = calculatePredictions(
           [act('food', '2026-08-17T09:45:00+02:00', { quantityGrams: 100 })],
           { ...PISTACHE, targetMealsPerDay: 2, dailyFoodGramGoal: 200 },
@@ -584,9 +584,9 @@ describe('predictions utility — comprehensive test suite', () => {
           { bedtimeHour: 23.5, wakeupHour: 8, bedtimeStr: '23:30', wakeupStr: '08:00' }
         );
 
-        // (23:30 - 09:45) / 2 = 6 h 52 min
-        expect(predictions.foodReason).toBe('Meal 2 of 2 (spaced ~6.9h)');
-        expect(at(predictions.nextFoodExpectedAt!)).toBe('2026-08-17 16:37');
+        // Usual 08:00 and 21:00 (bedtime - 2.5 h); breakfast 1 h 45 late shortens the 13 h gap a little
+        expect(predictions.foodReason).toBe('Meal 2 of 2 (~21:16)');
+        expect(at(predictions.nextFoodExpectedAt!)).toBe('2026-08-17 21:16');
         expect(predictions.foodUrgency).toBe('safe');
       });
 
@@ -746,10 +746,10 @@ describe('predictions utility — comprehensive test suite', () => {
         );
 
         expect([predictions.peeMode, predictions.poopMode, predictions.foodMode]).toEqual(['night_sleep', 'night_sleep', 'night_sleep']);
-        // 07:00 wake-up, + default 10-min poop offset, default 07:30 breakfast, all on the upcoming morning
+        // 07:00 wake-up, + default 10-min poop offset, breakfast at wake-up (no meal logged), all on the upcoming morning
         expect(at(predictions.nextPeeExpectedAt!)).toBe('2027-03-28 07:00');
         expect(at(predictions.nextPoopExpectedAt!)).toBe('2027-03-28 07:10');
-        expect(at(predictions.nextFoodExpectedAt!)).toBe('2027-03-28 07:30');
+        expect(at(predictions.nextFoodExpectedAt!)).toBe('2027-03-28 07:00');
       });
     });
   });
@@ -858,7 +858,7 @@ describe('predictions utility — comprehensive test suite', () => {
 
       const clean = calculatePredictions(newestFirst(routine), mockProfile, refTime, 'Europe/Paris');
       expect(clean.sleepSchedule?.bedtimeStr).toBe('23:00');
-      expect(clean.mealSchedule?.breakfastMins).toBe(8 * 60);
+      expect(clean.mealSchedule?.[0]).toBe(8 * 60);
       expect(at(clean.nextFoodExpectedAt!)).toBe('2026-08-22 08:00');
       expect(at(clean.nextPoopExpectedAt!)).toBe('2026-08-22 08:20');
 
@@ -902,14 +902,14 @@ describe('predictions utility — comprehensive test suite', () => {
       expect(poopResult.deltaMins).toBe(30);
     });
 
-    it('predictNextFood executes independently: third meal of 80 g, spaced from the 12:00 lunch', () => {
+    it('predictNextFood executes independently: third meal of 80 g at the learned 19:00 dinner', () => {
       const dataset = generateRealisticMultiDayDataset();
       const refTime = new Date('2026-08-14T14:00:00+02:00');
       const foodResult = predictNextFood(dataset, mockProfile, refTime, { timeZone: 'Europe/Paris' });
 
       expect(foodResult.mode).toBe('daytime_schedule');
-      expect(foodResult.reason).toBe('Meal 3 of 3 (spaced ~5.3h)');
-      expect(at(foodResult.nextExpectedAt!)).toBe('2026-08-14 17:15');
+      expect(foodResult.reason).toBe('Meal 3 of 3 (~19:00)');
+      expect(at(foodResult.nextExpectedAt!)).toBe('2026-08-14 19:00');
       expect(foodResult.portionGrams).toBe(80);
     });
 
@@ -937,6 +937,7 @@ describe('predictions utility — comprehensive test suite', () => {
         activities.push({ id: `p-${d}`, puppyId: 'pup-1', type: 'pee', timestamp: makeParisIso(17 + d, 7, 20), loggedBy: 'Sam' });
         activities.push({ id: `po-${d}`, puppyId: 'pup-1', type: 'poop', timestamp: makeParisIso(17 + d, 7, 28), loggedBy: 'Sam' });
         activities.push({ id: `f-${d}`, puppyId: 'pup-1', type: 'food', timestamp: makeParisIso(17 + d, 7, 42), quantityGrams: 80, loggedBy: 'Sam' });
+        activities.push(act('food', makeParisIso(17 + d, 12, 30)), act('food', makeParisIso(17 + d, 18, 45)));
         // Evening poop and bedtime pee, so the poop interval is learned under 24 h and bedtime is 22:00
         activities.push(act('poop', makeParisIso(17 + d, 18, 30)), act('pee', makeParisIso(17 + d, 22, 0)));
       }
@@ -1020,8 +1021,9 @@ describe('predictions utility — comprehensive test suite', () => {
       const foodPrediction = predictNextFood(activities, mockProfile, refTime, { sleepSchedule, timeZone: 'Europe/Paris' });
 
       expect(foodPrediction.mode).toBe('daytime_schedule');
-      // From 18:00 to 01:00 (7 waking hours left) for 1 remaining meal -> 7 / 2 = 3.5h interval
-      expect(foodPrediction.reason).toContain('spaced ~3.5h');
+      // No meal history: usual 07:00, 14:45, 22:30 (01:00 bedtime - 2.5 h); the late lunch shortens the gap, same evening
+      expect(foodPrediction.reason).toBe('Meal 3 of 3 (~23:17)');
+      expect(at(foodPrediction.nextExpectedAt!)).toBe('2026-08-17 23:17');
     });
 
     it('accurately learns ~9h45m digestive intervals for 2x/day pooping patterns without 8h cutoff suppression', () => {
@@ -1300,9 +1302,9 @@ describe('predictions utility — comprehensive test suite', () => {
       expect(predictions.poopMode).toBe('daytime_baseline');
       expect(predictions.poopReason).toBe('First poop of the day (~07:10)');
       expect(predictions.poopUrgency).toBe('overdue');
-      expect(at(predictions.nextFoodExpectedAt!)).toBe('2026-08-14 07:30');
+      expect(at(predictions.nextFoodExpectedAt!)).toBe('2026-08-14 07:15'); // 07:00 wake-up pee + 15 min
       expect(predictions.foodMode).toBe('daytime_schedule');
-      expect(predictions.foodReason).toBe('Breakfast (~07:30, Meal 1 of 3)');
+      expect(predictions.foodReason).toBe('Breakfast (~07:15, Meal 1 of 3)');
       expect(predictions.foodUrgency).toBe('overdue');
     });
 

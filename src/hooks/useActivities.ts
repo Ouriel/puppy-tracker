@@ -1,10 +1,11 @@
-import { useState, useCallback, useEffect, useRef, startTransition } from 'react';
+import { useState, useCallback, useEffect, useRef, startTransition, createElement } from 'react';
 import { toast } from '@heroui/react';
-import type { Activity, PuppyProfile } from '../types';
+import type { Activity, PuppyProfile, StoolConsistency } from '../types';
 import { fetchActivities, createActivity, updateActivity as apiUpdateActivity, deleteActivity as apiDeleteActivity, type ApiErrorKey } from '../services/api';
 import { useI18n } from '../i18n';
 import type { TranslationKeys } from '../i18n/types';
-import { getStoredRecentActivities, setStoredRecentActivities } from '../utils/storage';
+import { getStoredRecentActivities, getStoredRecentActivitiesTime, setStoredRecentActivities } from '../utils/storage';
+import { StoolToastChoice } from '../components/common/StoolToastChoice';
 
 // Construct sanitized optimistic activity without stale fields from previous types
 export function sanitizeActivityUpdate(target: Activity, updatedFields: Partial<Activity> & { id: string }): Activity {
@@ -72,6 +73,17 @@ function quickLogName(t: TranslationKeys, activity: Activity): string {
   if (activity.type === 'poop') return isAccident ? t.potty.poopAccident : t.potty.poopedOutside;
   return isAccident ? t.potty.peeAccident : t.potty.peedOutside;
 }
+
+/** After a change the server took, this phone's copy of the dog's recent logs (shown when the app opens offline) gets it too, with its time unchanged. */
+function storeAcceptedChange(puppyId: string | undefined, change: (rows: Activity[]) => Activity[]) {
+  if (!puppyId) return;
+  const rows = getStoredRecentActivities(puppyId);
+  const savedAt = getStoredRecentActivitiesTime(puppyId);
+  if (rows && savedAt !== null) setStoredRecentActivities(puppyId, change(rows), savedAt);
+}
+
+/** `rows` with `saved` first, in place of an earlier copy. */
+const withSavedLog = (saved: Activity) => (rows: Activity[]) => [saved, ...rows.filter((row) => row.id !== saved.id)];
 
 /** Counts an add, edit or delete from its request to its answer: a dashboard answer read meanwhile may miss it. */
 async function trackMutation<T>(mutations: { version: number; pending: number }, request: Promise<T>): Promise<T> {
@@ -149,25 +161,28 @@ export function useActivities(
       }
       setIsLoading(false);
       setKnownPuppyId(puppyId);
-      // A refresh of the same dog never hides "load more"
-      setHasMoreRemote((previous) => (isSamePuppy && previous) || recentActivities.length >= RECENT_LOGS_LIMIT);
+      // A window shorter than its limit ends its 14 days, not the dog's history: only an all-time page hides "load more"
+      setHasMoreRemote((previous) => (isSamePuppy ? previous : true));
     });
   }, []);
 
   // Fetch activities when active puppy changes (skips duplicate fetch if already loaded via dashboard BFF)
   useEffect(() => {
+    // The skip covers the dog shown at mount only: on an account with no dog, the first dog added must be fetched
+    const isInitialMount = isInitialMountRef.current;
+    isInitialMountRef.current = false;
+
     if (!activePuppy?.id) {
       return;
     }
 
-    if (isInitialMountRef.current) {
-      isInitialMountRef.current = false;
-      if (options?.skipInitialFetch) {
-        return;
-      }
+    if (isInitialMount && options?.skipInitialFetch) {
+      return;
     }
 
+    // Back to the loaded dog before another dog's answer (A → B → A): that load was dropped, so nothing else ends its dimming
     if (loadedPuppyIdRef.current === activePuppy.id) {
+      setIsLoading(false);
       return;
     }
 
@@ -226,10 +241,9 @@ export function useActivities(
     }
     if (result.ok && result.data.length > 0) {
       setActivities((previous) => mergeOlderActivities(previous, result.data));
-      setHasMoreRemote(result.data.length >= LOAD_MORE_LIMIT);
-    } else if (result.ok) {
-      setHasMoreRemote(false);
     }
+    // A short page of some days ends those days only: older logs may lie before them (a night with no log, a quiet week)
+    if (result.ok) setHasMoreRemote(!isAllTime || result.data.length >= LOAD_MORE_LIMIT);
     setIsFetchingMore(false);
   }, [activePuppyId, activities, isFetchingMore]);
 
@@ -241,6 +255,7 @@ export function useActivities(
 
     const result = await trackMutation(mutationsRef.current, apiDeleteActivity(id));
     if (result.ok) {
+      storeAcceptedChange((removed ?? removedWeight)?.puppyId, (rows) => rows.filter((row) => row.id !== id));
       toast(t.toasts.activityDeleted);
     } else {
       locallyDeletedIdsRef.current.delete(id);
@@ -261,6 +276,7 @@ export function useActivities(
       return;
     }
     pendingAddIdsRef.current.delete(unsaved.id);
+    storeAcceptedChange(result.data.puppyId, withSavedLog(result.data));
     setUnsavedIds((previous) => new Set([...previous].filter((unsavedId) => unsavedId !== unsaved.id)));
     startTransition(() => {
       setActivities((previous) => previous.map((activity) => (activity.id === unsaved.id ? result.data : activity)));
@@ -268,6 +284,27 @@ export function useActivities(
     });
     toast.success(t.toasts.activityLogged);
     return result.data;
+  }, [t]);
+
+  /** Whether the edit of `target` (the row as shown) was saved; refused, the row gets its old values back. */
+  const saveEdit = useCallback(async (target: Activity, updatedFields: Partial<Activity> & { id: string }): Promise<boolean> => {
+    const optimisticActivity = sanitizeActivityUpdate(target, updatedFields);
+
+    setActivities((previous) => previous.map((activity) => (activity.id === updatedFields.id ? optimisticActivity : activity)));
+    setAllTimeActivities((previous) => replaceAllTimeRow(previous, updatedFields.id, optimisticActivity));
+
+    const result = await trackMutation(mutationsRef.current, apiUpdateActivity(updatedFields));
+    if (result.ok) {
+      storeAcceptedChange(result.data.puppyId, (rows) => rows.map((row) => (row.id === result.data.id ? result.data : row)));
+      setActivities((previous) => previous.map((activity) => (activity.id === updatedFields.id ? result.data : activity)));
+      setAllTimeActivities((previous) => replaceAllTimeRow(previous, updatedFields.id, result.data));
+      toast.success(t.toasts.activityUpdated);
+      return true;
+    }
+    setActivities((previous) => previous.map((activity) => (activity.id === updatedFields.id ? target : activity)));
+    setAllTimeActivities((previous) => replaceAllTimeRow(previous, updatedFields.id, target));
+    toast.danger(t.toasts[result.errorKey]);
+    return false;
   }, [t]);
 
   /**
@@ -309,6 +346,7 @@ export function useActivities(
       const result = await trackMutation(mutationsRef.current, createActivity(newActivity));
       if (result.ok || !options?.keepUnsaved) pendingAddIdsRef.current.delete(newActivity.id);
       if (result.ok) {
+        storeAcceptedChange(result.data.puppyId, withSavedLog(result.data));
         startTransition(() => {
           setActivities((previous) => previous.map((activity) => (activity.id === newActivity.id ? result.data : activity)));
           setAllTimeActivities((previous) => replaceAllTimeRow(previous, newActivity.id, result.data));
@@ -320,6 +358,13 @@ export function useActivities(
         // App review decision 7: one tap logged it, one tap undoes it. The toast says what was logged.
         const saved = result.data;
         const key = toast.success(t.toasts.quickLogged.replace('{log}', quickLogName(t, saved)), {
+          // Logged "normal" at one tap: a softer stool is one more tap, saved as an edit of this log
+          description: saved.type === 'poop' ? createElement(StoolToastChoice, {
+            onPick: (stoolConsistency: StoolConsistency) => {
+              toast.close(key);
+              void saveEdit(saved, { id: saved.id, stoolConsistency });
+            },
+          }) : undefined,
           actionProps: {
             children: t.common.undo,
             onPress: () => {
@@ -346,7 +391,7 @@ export function useActivities(
         toast.danger(t.toasts[result.errorKey]);
       }
     },
-    [activePuppy, t, retryActivity, removeActivity]
+    [activePuppy, t, retryActivity, removeActivity, saveEdit]
   );
 
   /** Drops a log kept as not saved, without sending anything. */
@@ -360,26 +405,10 @@ export function useActivities(
   /** Whether the edit was saved; refused, the row gets its old values back. */
   const updateActivity = useCallback(async (updatedFields: Partial<Activity> & { id: string }): Promise<boolean> => {
     // A weigh-in older than the loaded logs is only in the weight list
-    const target = activities.find((act) => act.id === updatedFields.id) ?? allTimeActivities.find((weight) => weight.id === updatedFields.id);
+    const target = activities.find((activity) => activity.id === updatedFields.id) ?? allTimeActivities.find((weight) => weight.id === updatedFields.id);
     if (!target) return false;
-
-    const optimisticActivity = sanitizeActivityUpdate(target, updatedFields);
-
-    setActivities((previous) => previous.map((activity) => (activity.id === updatedFields.id ? optimisticActivity : activity)));
-    setAllTimeActivities((previous) => replaceAllTimeRow(previous, updatedFields.id, optimisticActivity));
-
-    const result = await trackMutation(mutationsRef.current, apiUpdateActivity(updatedFields));
-    if (result.ok) {
-      setActivities((previous) => previous.map((activity) => (activity.id === updatedFields.id ? result.data : activity)));
-      setAllTimeActivities((previous) => replaceAllTimeRow(previous, updatedFields.id, result.data));
-      toast.success(t.toasts.activityUpdated);
-      return true;
-    }
-    setActivities((previous) => previous.map((activity) => (activity.id === updatedFields.id ? target : activity)));
-    setAllTimeActivities((previous) => replaceAllTimeRow(previous, updatedFields.id, target));
-    toast.danger(t.toasts[result.errorKey]);
-    return false;
-  }, [activities, allTimeActivities, t]);
+    return saveEdit(target, updatedFields);
+  }, [activities, allTimeActivities, saveEdit]);
 
   const deleteActivity = useCallback(
     (id: string) => removeActivity(id, activities.find((activity) => activity.id === id), allTimeActivities.find((weight) => weight.id === id)),
@@ -389,7 +418,6 @@ export function useActivities(
   return {
     activities,
     allTimeActivities,
-    setActivities,
     getMutationVersion,
     setActivitiesForPuppy,
     isLoadingActivities: isLoading,

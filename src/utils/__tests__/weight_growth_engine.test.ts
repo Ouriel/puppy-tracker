@@ -2,7 +2,6 @@ import { describe, it, expect, vi } from 'vitest';
 import {
   getWalthamCategory,
   getWalthamGrowthFraction,
-  getWalthamGrowthVelocity,
   getUnifiedWeightEntries,
   calculateProjectedAdultWeightRange,
   estimateCurrentWeightFromLastLog,
@@ -72,7 +71,6 @@ describe('Canine Weight Prediction & WALTHAM Growth Engine', () => {
       // Min and max bounds encompass standard healthy Cocker range
       expect(result.minAdultKg).toBeGreaterThanOrEqual(12.5);
       expect(result.maxAdultKg).toBeLessThanOrEqual(16.0);
-      expect(result.confidencePercent).toBeGreaterThanOrEqual(80);
     });
 
     it('fixes timestamp desynchronization bug (projection does not decay over elapsed time)', () => {
@@ -115,51 +113,35 @@ describe('Canine Weight Prediction & WALTHAM Growth Engine', () => {
       expect(result.projectedAdultKg).toBe(14.9);
     });
 
+    it('leaves weigh-ins before 4 weeks out of the projection: the curve says nothing there (a newborn is 1-3 % of its adult weight)', () => {
+      // Made-up female cocker born 1 Aug 2026, birth weights logged with two weigh-ins at 8 and 9 weeks; today 10 Oct 2026
+      const weighIn = (date: string, weightKg: number): Activity => ({ id: `w-${date}`, puppyId: 'pup-1', type: 'weight', timestamp: `${date}T10:00:00.000Z`, weightKg, loggedBy: 'Sam' });
+      const newborn = [weighIn('2026-08-01', 0.3), weighIn('2026-08-08', 0.55), weighIn('2026-08-15', 0.8)];
+      const later = [weighIn('2026-09-26', 2.6), weighIn('2026-10-03', 3.0)];
+      vi.useFakeTimers({ toFake: ['Date'] });
+      vi.setSystemTime(new Date('2026-10-10T10:00:00.000Z'));
+      try {
+        const project = (logs: Activity[]) => calculateProjectedAdultWeightRange('English Cocker Spaniel', logs, '2026-08-01', 'female');
+        expect(project([...newborn, ...later])).toMatchObject({ projectedAdultKg: 10.8, minAdultKg: 9.7, maxAdultKg: 11.9, isTrajectoryBased: true });
+        expect(project([...newborn, ...later])).toEqual(project(later));
+        // Only newborn weigh-ins: the breed baseline, as with none
+        expect(project(newborn)).toEqual(project([]));
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
     it('without weigh-ins, projects the breed baseline with a -12% / +15% range', () => {
       expect(calculateProjectedAdultWeightRange('English Cocker Spaniel', [], 20, 'female')).toMatchObject({
         projectedAdultKg: 13,
         minAdultKg: 11.4,
         maxAdultKg: 15,
         isTrajectoryBased: false,
-        confidencePercent: 50,
       });
     });
   });
 
-  describe('Gompertz Growth Velocity (dW/dt)', () => {
-    it('computes realistic physiological daily weight gain for 20-22 week medium puppy (~50-65 g/day)', () => {
-      const dailyGain = getWalthamGrowthVelocity(14.4, 21.6);
-      expect(dailyGain).toBeGreaterThanOrEqual(45);
-      expect(dailyGain).toBeLessThanOrEqual(65);
-    });
-
-    it('peaks between 10 and 14 weeks and never increases from week 16 toward adulthood', () => {
-      const weeks = Array.from({ length: 53 }, (_, index) => index + 4); // 4..56 weeks
-      const gains = weeks.map((week) => getWalthamGrowthVelocity(14.4, week));
-
-      const peakWeek = weeks[gains.indexOf(Math.max(...gains))];
-      expect(peakWeek).toBeGreaterThanOrEqual(10);
-      expect(peakWeek).toBeLessThanOrEqual(14);
-
-      const gainsFromWeek16 = gains.slice(weeks.indexOf(16));
-      gainsFromWeek16.slice(1).forEach((gain, index) => {
-        expect(gain).toBeLessThanOrEqual(gainsFromWeek16[index]);
-      });
-
-      const gainAt8w = getWalthamGrowthVelocity(14.4, 8);
-      const gainAt13w = getWalthamGrowthVelocity(14.4, 13);
-      const gainAt26w = getWalthamGrowthVelocity(14.4, 26);
-      const gainAt48w = getWalthamGrowthVelocity(14.4, 48);
-      expect(gainAt13w).toBeGreaterThanOrEqual(gainAt8w);
-      expect(gainAt13w).toBeGreaterThan(gainAt26w);
-      expect(gainAt26w).toBeGreaterThan(gainAt48w);
-      expect(gainAt48w).toBeLessThan(15); // < 15 g/day near adulthood
-
-      // Growth stops at 56 weeks
-      expect(getWalthamGrowthVelocity(14.4, 55)).toBe(4);
-      expect(getWalthamGrowthVelocity(14.4, 56)).toBe(0);
-    });
-
+  describe('Current weight estimate along the dog\'s own track', () => {
     it('estimates today along the dog\'s own track: the last weigh-in × f(today) / f(last weigh-in)', () => {
       // Last weigh-in: 9.5 kg at 21.7 weeks. Target: 5 days later.
       // Pin changed on purpose: it was the Gompertz velocity at today's age × 5 days (9.70–9.82); now the dog stays

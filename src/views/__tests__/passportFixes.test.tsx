@@ -4,6 +4,7 @@ import { act, type ReactElement } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { CarnetDeSanteView } from '../CarnetDeSanteView';
 import { WeightGrowthChart } from '../../components/WeightGrowthChart';
+import { DogHealthSummary } from '../../components/DogHealthSummary';
 import type { HealthRecord, PuppyProfile } from '../../types';
 
 // Health passport review 2026-10-16, section 5 items 2 to 9, in French, on a made-up dog. Today: 15 Oct 2026, Paris.
@@ -17,6 +18,8 @@ const shot = record({ id: 'hr-shot', type: 'vaccination', name: 'Rage (Eurican L
 let root: Root | null = null;
 
 beforeAll(() => {
+  // jsdom has no scrolling: a due line's "Done" scrolls its form into view
+  Element.prototype.scrollIntoView = vi.fn();
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
   globalThis.ResizeObserver ??= class {
     observe() {}
@@ -199,6 +202,27 @@ describe('the antiparasitic forms speak of doses, not injections', () => {
   });
 });
 
+// Each POST makes a new record: on slow 4G a double tap showed the shot twice in "À faire", the passport and the print
+describe('a double tap on Save adds one record', () => {
+  it.each([
+    ['Ajouter un vaccin', 'Enregistrer le vaccin'],
+    ['Ajouter un antiparasitaire', "Enregistrer l'antiparasitaire"],
+  ])('"%s" then two quick "%s": one POST, Save disabled until it answers', async (openLabel, saveLabel) => {
+    let answer!: (response: Response) => void;
+    const fetchMock = vi.fn(() => new Promise<Response>((resolve) => { answer = resolve; }));
+    vi.stubGlobal('fetch', fetchMock);
+    await renderPassport();
+    await act(async () => buttonWithText(openLabel)!.click());
+    const save = buttonWithText(saveLabel)!;
+    await act(async () => save.form!.requestSubmit());
+    await act(async () => save.form!.requestSubmit());
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(save.disabled).toBe(true);
+    await act(async () => answer(new Response(JSON.stringify(shot), { status: 200 })));
+  });
+});
+
 describe('vaccine add form', () => {
   it('every field is named: the vaccine, its dates, clinic, the sticker\'s product and lot', async () => {
     await renderPassport();
@@ -209,6 +233,43 @@ describe('vaccine add form', () => {
     expect(fieldName(fields[0])).toMatch(/ Vaccin$/);
     expect(fields.slice(1).map(fieldName)).toEqual(["Date d'injection", 'Date du prochain rappel', 'Clinique vétérinaire', 'Produit (vignette)', 'Numéro de lot', 'Poids (kg)']);
     expect(fields.every((field) => fieldName(field))).toBe(true);
+  });
+});
+
+// A due line's "Fait": the record given again today, from the passport or the dashboard card
+describe('"Fait" on a due line', () => {
+  const addForm = (title: string) => section(title).querySelector('form')!;
+
+  it('on the passport, opens the vaccine add form on that vaccine, dated today', async () => {
+    await renderPassport();
+    expect(section('Vaccins').querySelector('form')).toBeNull();
+    expect(is44(button('Fait\u00a0: Rage du 1 juil.'))).toBe(true);
+
+    vi.mocked(Element.prototype.scrollIntoView).mockClear();
+    await act(async () => button('Fait\u00a0: Rage du 1 juil.')!.click());
+
+    // Below the list, so brought into view: the Select's focus does not scroll the page
+    expect(Element.prototype.scrollIntoView).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(Element.prototype.scrollIntoView).mock.contexts[0]).toBe(addForm('Vaccins'));
+    expect(addForm('Vaccins').querySelector('[data-slot="select-value"]')!.textContent).toBe(shot.name);
+    expect(addForm('Vaccins').querySelector<HTMLInputElement>('#vaccine-date')!.value).toBe('2026-10-15');
+  });
+
+  it('on the dashboard card, opens the passport at ?add=<record id>, whose deworming form opens on that product', async () => {
+    const onOpenHealthPassport = vi.fn();
+    await render(<DogHealthSummary profile={puppy} activities={[]} weightActivities={[]} healthRecords={[shot, dose]} onOpenHealthPassport={onOpenHealthPassport} />);
+    await act(async () => button('Fait\u00a0: Bravecto du 10 sept.')!.click());
+    expect(onOpenHealthPassport).toHaveBeenCalledWith(dose.id);
+    await act(async () => root?.unmount());
+
+    window.history.replaceState(null, '', `/health-passport?add=${dose.id}`);
+    try {
+      await renderPassport();
+      expect(addForm('Antiparasitaires').querySelector('[data-slot="select-value"]')!.textContent).toMatch(/^Bravecto /);
+      expect(section('Vaccins').querySelector('form')).toBeNull();
+    } finally {
+      window.history.replaceState(null, '', '/');
+    }
   });
 });
 

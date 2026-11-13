@@ -7,6 +7,7 @@ import App from './App.tsx';
 import { I18nProvider } from './i18n';
 import { AppToastProvider } from './components/common/AppToastProvider';
 import { registerServiceWorker } from './registerServiceWorker';
+import { VIEW_ROUTES, getViewFromPath } from './utils/route';
 
 registerServiceWorker();
 
@@ -51,14 +52,6 @@ class ErrorBoundary extends Component<{ children: ReactNode }, ErrorBoundaryStat
   }
 }
 
-function getAppRoute(): string {
-  if (typeof window === 'undefined') return '/dashboard';
-  const path = window.location.pathname.toLowerCase();
-  if (path.includes('health-passport') || path.includes('passport') || path.includes('carnetdesante')) return '/health-passport';
-  if (path.includes('settings')) return '/settings';
-  return '/dashboard';
-}
-
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ErrorBoundary>
@@ -67,13 +60,7 @@ createRoot(document.getElementById('root')!).render(
         <App />
       </I18nProvider>
       <Analytics
-        beforeSend={(event) => {
-          const route = getAppRoute();
-          return {
-            ...event,
-            url: window.location.origin + route,
-          };
-        }}
+        beforeSend={(event) => ({ ...event, url: window.location.origin + VIEW_ROUTES[getViewFromPath()] })}
       />
     </ErrorBoundary>
   </StrictMode>,

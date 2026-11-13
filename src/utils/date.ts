@@ -142,7 +142,7 @@ function createDateInTimezone(dateStr: string, timeStr: string, timeZone?: strin
     });
 
     const parts = formatter.formatToParts(utcDate);
-    const getPart = (type: string) => parseInt(parts.find((p) => p.type === type)?.value || '0', 10);
+    const getPart = (type: string) => parseInt(parts.find((part) => part.type === type)?.value || '0', 10);
 
     let formattedHour = getPart('hour');
     if (formattedHour === 24) formattedHour = 0;
@@ -217,46 +217,6 @@ export function isSameLogicalDate(
   cutoffHours: number = LOGICAL_DAY_CUTOFF_HOURS
 ): boolean {
   return formatLogicalDate(dateA, timeZone, cutoffHours) === formatLogicalDate(dateB, timeZone, cutoffHours);
-}
-
-/**
- * Formats timestamps for timeline activity feeds with precise local start-of-day boundaries
- */
-export function formatRelativeTime(
-  isoString: string | Date,
-  lang: 'en' | 'fr' = 'en',
-  labels = { today: 'Today', yesterday: 'Yesterday' }
-): string {
-  const date = parseIsoDate(isoString);
-  if (isNaN(date.getTime())) {
-    const locale = lang === 'fr' ? 'fr-FR' : 'en-US';
-    const nowTime = new Date().toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit', hour12: false });
-    return `${labels.today} ${nowTime}`;
-  }
-  const now = new Date();
-
-  const locale = lang === 'fr' ? 'fr-FR' : 'en-US';
-  const timeStr = date.toLocaleTimeString(locale, {
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: lang !== 'fr',
-  });
-
-  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-  const startOfYesterday = startOfToday - 24 * 60 * 60 * 1000;
-  const dateTime = date.getTime();
-
-  if (dateTime >= startOfToday) {
-    return `${labels.today} ${timeStr}`;
-  } else if (dateTime >= startOfYesterday) {
-    return `${labels.yesterday} ${timeStr}`;
-  } else {
-    const dateStr = date.toLocaleDateString(locale, {
-      month: 'short',
-      day: 'numeric',
-    });
-    return `${dateStr} ${timeStr}`;
-  }
 }
 
 /**

@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import type { PuppyProfile, HealthRecord, Activity } from '../../types';
 import { Syringe, ShieldCheck, Plus, Trash2, Pencil, Check, X, ChevronDown } from 'lucide-react';
@@ -23,6 +23,7 @@ interface VaccineSectionProps {
   currentUser: string;
   onAddActivity: (activity: Omit<Activity, 'id'>) => void;
   t: TranslationKeys;
+  doneName?: string; // a due line's "Done": the add form starts open on this vaccine, dated today
 }
 
 const labelClass = 'block text-xs font-semibold text-slate-400 mb-1';
@@ -35,6 +36,12 @@ const HISTORY_SHOWN = 3;
 // The picker's "Autre…": the name is typed, and an unknown vaccine gets the generic booster
 const OTHER = '__other__';
 
+/** The add form's pick for a stored vaccine name: its list name (an earlier spelling too), else "Autre…" with the name typed. */
+function vaccineChoice(name: string): { listName: string; typedName: string } {
+  const listName = getHealthProtocols().vaccines.find((vaccineOption) => vaccineOption.name === name || vaccineOption.formerNames?.includes(name))?.name;
+  return listName ? { listName, typedName: '' } : { listName: OTHER, typedName: name };
+}
+
 export const VaccineSection: React.FC<VaccineSectionProps> = ({
   activePuppy,
   vaccinations,
@@ -43,11 +50,12 @@ export const VaccineSection: React.FC<VaccineSectionProps> = ({
   currentUser,
   onAddActivity,
   t,
+  doneName,
 }) => {
-  const [isAddingVaccine, setIsAddingVaccine] = useState(false);
+  const [isAddingVaccine, setIsAddingVaccine] = useState(Boolean(doneName));
   // null: the user has not picked one yet, the form shows the default
-  const [selectedVaccineName, setSelectedVaccineName] = useState<string | null>(null);
-  const [otherVaccineName, setOtherVaccineName] = useState('');
+  const [selectedVaccineName, setSelectedVaccineName] = useState<string | null>(() => (doneName ? vaccineChoice(doneName).listName : null));
+  const [otherVaccineName, setOtherVaccineName] = useState(() => (doneName ? vaccineChoice(doneName).typedName : ''));
   const [administeredDate, setAdministeredDate] = useState(() => formatLocalDate());
   const [customNextDueDate, setCustomNextDueDate] = useState<string | null>(null);
   const [customVetClinic, setCustomVetClinic] = useState<string | null>(null);
@@ -58,6 +66,8 @@ export const VaccineSection: React.FC<VaccineSectionProps> = ({
   const [weightError, setWeightError] = useState<'weightInvalid' | 'dateTimeInFuture' | undefined>();
   const [confirmDelete, setConfirmDelete] = useState<{id: string; type: string} | null>(null);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  // A request in flight: a second tap on Save must not add the shot twice
+  const [isSaving, setIsSaving] = useState(false);
 
   // Edit Vaccine state
   const [editingVaccineId, setEditingVaccineId] = useState<string | null>(null);
@@ -71,6 +81,7 @@ export const VaccineSection: React.FC<VaccineSectionProps> = ({
   const [editNotes, setEditNotes] = useState('');
 
   const editVaccineTriggerRef = useRef<HTMLButtonElement>(null);
+  const addFormRef = useRef<HTMLFormElement>(null);
   const { lang } = useI18n();
 
   // vaccinations is sorted newest first. Default vaccine: the last one given (an earlier spelling is its list vaccine), else CHPPi + L4.
@@ -113,7 +124,7 @@ export const VaccineSection: React.FC<VaccineSectionProps> = ({
 
   const handleAddVaccineSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (addDateError || !nextDueDate || !savedVaccineName) return;
+    if (isSaving || addDateError || !nextDueDate || !savedVaccineName) return;
     // Optional: empty saves no weight; typed, it is checked before anything is saved
     const weighIn = buildVetWeighIn({ puppyId: activePuppy.id, date: administeredDate, weightText, loggedBy: currentUser });
     if (weighIn.error) {
@@ -133,7 +144,9 @@ export const VaccineSection: React.FC<VaccineSectionProps> = ({
       notes: notes.trim() || undefined,
     };
 
+    setIsSaving(true);
     const result = await createHealthRecord(newEntry);
+    setIsSaving(false);
     if (result.ok) {
       // A vaccination never stores a weight: the weigh-in is a weight event of its own
       if (weighIn.activity) onAddActivity(weighIn.activity);
@@ -176,7 +189,8 @@ export const VaccineSection: React.FC<VaccineSectionProps> = ({
   };
 
   const handleUpdateVaccineSubmit = async (id: string) => {
-    if (editDateError || !savedEditName) return;
+    if (isSaving || editDateError || !savedEditName) return;
+    setIsSaving(true);
     const result = await updateHealthRecord({
       id,
       puppyId: activePuppy.id,
@@ -190,6 +204,7 @@ export const VaccineSection: React.FC<VaccineSectionProps> = ({
       productName: editStickerProduct.trim() || null,
       notes: editNotes.trim() || null,
     });
+    setIsSaving(false);
 
     if (result.ok) {
       setHealthRecords((previous) => previous.map((record) => (record.id === id ? { ...record, ...result.data } : record)));
@@ -216,6 +231,11 @@ export const VaccineSection: React.FC<VaccineSectionProps> = ({
     </ListBoxItem>
   ));
 
+  // Opened by a due line's "Done", below the fold: brought into view (the Select's focus does not scroll the page)
+  useEffect(() => {
+    if (doneName) addFormRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+  }, [doneName]);
+
   return (
     <Card className="bg-slate-900 border border-slate-800 text-slate-100 shadow-xl">
       <Card.Content className="p-4 sm:p-6 space-y-4">
@@ -236,15 +256,17 @@ export const VaccineSection: React.FC<VaccineSectionProps> = ({
         </div>
 
         {isAddingVaccine && (
-          <form onSubmit={handleAddVaccineSubmit} className="rounded-xl bg-slate-950/90 border border-slate-800 p-3 sm:p-4 space-y-3">
+          <form ref={addFormRef} onSubmit={handleAddVaccineSubmit} className="scroll-mt-4 rounded-xl bg-slate-950/90 border border-slate-800 p-3 sm:p-4 space-y-3">
             <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
               <div className="sm:col-span-2 min-w-0">
                 <label id="vaccine-name-label" className={labelClass}>{t.health.vaccineType}</label>
                 <Select
                   aria-labelledby="vaccine-name-label"
+                  // Opened by "Done": focus starts on the pick, already made
+                  autoFocus={Boolean(doneName)}
                   value={vaccineType}
-                  onChange={(val) => {
-                    setSelectedVaccineName(val as string);
+                  onChange={(value) => {
+                    setSelectedVaccineName(value as string);
                     setCustomNextDueDate(null);
                   }}
                 >
@@ -383,7 +405,7 @@ export const VaccineSection: React.FC<VaccineSectionProps> = ({
             </div>
 
             <div className="flex justify-end">
-              <Button type="submit" size="sm" className="min-h-11 bg-teal-700 hover:bg-teal-600 text-white font-bold">
+              <Button type="submit" size="sm" isDisabled={isSaving} className="min-h-11 bg-teal-700 hover:bg-teal-600 text-white font-bold">
                 {t.health.saveVaccine}
               </Button>
             </div>
@@ -414,7 +436,7 @@ export const VaccineSection: React.FC<VaccineSectionProps> = ({
                   <div className="grid grid-cols-1 sm:grid-cols-4 gap-2">
                     <div className="sm:col-span-2 min-w-0">
                       <label id="vaccine-edit-name-label" className={labelClass}>{t.health.vaccineName}</label>
-                      <Select aria-labelledby="vaccine-edit-name-label" value={editVaccineName} onChange={(val) => setEditVaccineName(val as string)}>
+                      <Select aria-labelledby="vaccine-edit-name-label" value={editVaccineName} onChange={(value) => setEditVaccineName(value as string)}>
                         <Select.Trigger ref={editVaccineTriggerRef} className="w-full bg-slate-900 border-slate-700/80 text-slate-100 min-w-0 flex items-center justify-between">
                           <Select.Value className="truncate block text-left" />
                           <Select.Indicator />
@@ -539,7 +561,7 @@ export const VaccineSection: React.FC<VaccineSectionProps> = ({
                     >
                       {t.potty.cancel}
                     </Button>
-                    <Button type="submit" size="sm" className="min-h-11 bg-teal-700 hover:bg-teal-600 text-white font-bold">
+                    <Button type="submit" size="sm" isDisabled={isSaving} className="min-h-11 bg-teal-700 hover:bg-teal-600 text-white font-bold">
                       <Check className="w-3.5 h-3.5 mr-1 inline" />
                       {t.potty.saveChanges}
                     </Button>

@@ -89,7 +89,7 @@ export interface SleepSchedule {
 export interface PredictorOptions {
   timeZone?: string;
   sleepSchedule?: SleepSchedule;
-  mealSchedule?: { breakfastMins: number; lunchMins: number; dinnerMins: number };
+  mealSchedule?: number[]; // usual time of each meal of the day, minutes after midnight (detectMealSchedule)
 }
 
 export interface SinglePredictionResult {
@@ -132,7 +132,7 @@ export interface PredictionResult {
   foodReason: string;
 
   sleepSchedule?: SleepSchedule;
-  mealSchedule?: { breakfastMins: number; lunchMins: number; dinnerMins: number };
+  mealSchedule?: number[]; // usual time of each meal of the day, minutes after midnight (detectMealSchedule)
   portionGrams?: number;
 }
 
@@ -177,7 +177,5 @@ export interface WeightProjectionResult {
   minAdultKg: number;
   maxAdultKg: number;
   isTrajectoryBased: boolean;
-  confidencePercent?: number;
   walthamCategory?: 'I' | 'II' | 'III' | 'IV' | 'V';
-  growthVelocityGramsPerDay?: number;
 }

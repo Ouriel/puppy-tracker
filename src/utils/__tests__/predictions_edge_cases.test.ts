@@ -458,9 +458,9 @@ describe('B7: breakfast is never expected before wake-up', () => {
     expect(result.foodUrgency).toBe('overdue');
   });
 
-  it('goal reached: tomorrow\'s breakfast at wake-up, 08:30', () => {
+  it('goal reached: tomorrow\'s breakfast at wake-up, 08:30, not at today\'s 07:45', () => {
     const noGramGoal = { ...adult, targetMealsPerDay: 2, dailyFoodGramGoal: 0 };
-    const meals = [logAt('food', '2026-09-15', '09:00'), logAt('food', '2026-09-15', '15:00')];
+    const meals = [logAt('food', '2026-09-15', '07:45'), logAt('food', '2026-09-15', '15:00')];
     const result = predictAt([...logs, ...meals], noGramGoal, '2026-09-15', '20:00', lateRiser);
 
     expect(result.foodMode).toBe('goal_reached');
@@ -568,7 +568,7 @@ describe('B11: decimal grams are rounded', () => {
 });
 
 describe('B12: meal spacing with a bedtime after midnight', () => {
-  it('bedtime 00:30 and a meal at 00:10: spaced 2.5 h, not half a day', () => {
+  it('bedtime 00:30 and a meal at 00:10: the next one before bedtime, not half a day later', () => {
     const afterMidnight: SleepSchedule = { bedtimeHour: 0.5, wakeupHour: 7.5, bedtimeStr: '00:30', wakeupStr: '07:30' };
     const profile = { ...adult, targetMealsPerDay: 4, dailyFoodGramGoal: 400 };
     const meals = [
@@ -578,7 +578,8 @@ describe('B12: meal spacing with a bedtime after midnight', () => {
     ];
     const result = predictAt(meals, profile, '2026-09-15', '00:20', afterMidnight);
 
-    expect(result.foodReason).toBe('Meal 4 of 4 (spaced ~2.5h)');
+    // The usual gap shortened to the 20 min left before bedtime; night mode takes over at 00:30
+    expect(result.foodReason).toBe('Meal 4 of 4 (~00:23)');
   });
 });
 
@@ -594,7 +595,7 @@ describe('P7: a missed meal stops at bedtime', () => {
     const result = predictAt(meals, PISTACHE, '2026-09-15', '22:30', NIGHT_22_TO_07);
 
     expect(result.foodMode).toBe('night_sleep');
-    expect(result.foodReason).toBe('Breakfast (~07:30, Meal 1 of 3)');
+    expect(result.foodReason).toBe('Breakfast (~07:00, Meal 1 of 3)'); // wake-up: today is not complete
   });
 });
 

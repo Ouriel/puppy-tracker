@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import type { FamilyRole } from '../types/index.js';
 
 const PottyLocationSchema = z.enum(['outside', 'indoor_accident']);
 
@@ -11,9 +12,9 @@ const emailText = (message: string) =>
   z.string().max(254).email(message).refine((email) => email.split('@')[0].length <= 64, message);
 
 export const DashboardQuerySchema = z.object({
-  puppyId: z.string().optional().transform((val) => (val && val.trim().length > 0 ? val.trim() : undefined)),
+  puppyId: z.string().optional().transform((value) => (value && value.trim().length > 0 ? value.trim() : undefined)),
   days: z.preprocess(
-    (val) => (val === undefined || val === null || val === '' ? 14 : Number(val)),
+    (value) => (value === undefined || value === null || value === '' ? 14 : Number(value)),
     z.number().int().min(1).max(90).catch(14)
   ),
 });
@@ -60,7 +61,6 @@ export const DogInputSchema = z.object({
     .refine((goal) => goal === 0 || (goal >= 10 && goal <= 2000), 'dailyFoodGramGoal is 0 (no gram goal) or 10 to 2000 g')
     .optional(),
   targetMealsPerDay: z.number().int().min(1).max(6).optional(),
-  careInstructions: longText.nullable().optional(),
   // No avatarUrl: no form sets it, and a stored picture is a path, not a URL. An edit re-sending it never rewrites it.
   notes: longText.nullable().optional(),
   // null clears a stored value: the API returns null for a dog without one
@@ -94,7 +94,7 @@ export const CaretakerInputSchema = z.object({
 export const UserInputSchema = z.object({
   email: emailText('Valid email is required'),
   name: shortText.optional(),
-  role: shortText.optional(),
+  role: z.enum(['Husband', 'Wife', 'Partner', 'Child', 'Dog Walker', 'Sitter', 'Relative', 'Member', 'Admin', 'SuperAdmin'] satisfies FamilyRole[]).optional(),
   status: z.enum(['ACTIVE', 'PENDING_APPROVAL']).optional(),
   householdId: idText.optional(),
   // POST only: the inviter confirmed moving an account that lives in another household

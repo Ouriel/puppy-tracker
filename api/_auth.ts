@@ -73,6 +73,12 @@ export function canDeleteHouseholdData(auth: AuthContext): boolean {
   return isSuperAdminEmail(auth.email);
 }
 
+/** The role a request acts with: SuperAdmin for the owner's email only, never from a stored or claimed role. */
+function verifiedRole(email: string, role: string | undefined): string {
+  if (isSuperAdminEmail(email)) return 'SuperAdmin';
+  return role === 'SuperAdmin' ? 'Member' : (role || 'Member');
+}
+
 /**
  * Generates a signed, long-lived PupPace App Session Token (default 90-day longevity)
  */
@@ -125,17 +131,11 @@ export function verifyAppSessionToken(token: string): AuthContext | null {
 
     if (!payload.email || !payload.householdId) return null;
 
-    const userEmail = payload.email.toLowerCase();
-    const isSuperAdmin = isSuperAdminEmail(userEmail);
-    const verifiedRole = isSuperAdmin
-      ? 'SuperAdmin'
-      : (payload.role === 'SuperAdmin' ? 'Member' : (payload.role || 'Member'));
-
     return {
       email: payload.email,
       name: payload.name || payload.email.split('@')[0],
       householdId: payload.householdId,
-      role: verifiedRole,
+      role: verifiedRole(payload.email, payload.role),
     };
   } catch {
     return null;
@@ -180,7 +180,7 @@ export async function verifyAuth(req: VercelRequest): Promise<AuthContext> {
       email: appSession.email,
       name: user.name || appSession.name,
       householdId: user.householdId,
-      role: user.role === 'SuperAdmin' ? 'Member' : user.role,
+      role: verifiedRole(appSession.email, user.role),
     };
   }
 
@@ -256,6 +256,6 @@ export async function verifyAuth(req: VercelRequest): Promise<AuthContext> {
     email: user.email,
     name: user.name,
     householdId: user.householdId,
-    role: user.role,
+    role: verifiedRole(user.email, user.role),
   };
 }

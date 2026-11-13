@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import type { Caretaker, UserAccount } from '../types';
-import { Home, Users, UserPlus, Trash2, Mail, Send, CheckCircle2, UserCheck, Copy, Pencil, X, Check } from 'lucide-react';
+import { Home, Users, UserPlus, Trash2, Mail, Send, CheckCircle2, UserCheck, Copy, Share2, Pencil, X, Check } from 'lucide-react';
 import { createUser } from '../services/api';
 import { buildInviteBadge, findLinkedCaretaker, firstFreeBadgeColor } from '../utils/caretakers';
 import { isSuperAdminEmail } from '../utils/auth';
@@ -29,6 +29,8 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
   const [isInvitingEmail, setIsInvitingEmail] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteSuccess, setInviteSuccess] = useState('');
+  // An invite in flight: a second tap on Send must not send it twice
+  const [isInviting, setIsInviting] = useState(false);
   const [emailToMove, setEmailToMove] = useState<string | null>(null);
   const [badgeToDelete, setBadgeToDelete] = useState<Caretaker | null>(null);
 
@@ -39,18 +41,24 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
   const [editName, setEditName] = useState('');
   const [editColor, setEditColor] = useState('#EC4899');
   const [editIsMe, setEditIsMe] = useState(false);
+  // From the first Save on, an emptied name shows its error (and loses it once typed again)
+  const [hasTriedEditSave, setHasTriedEditSave] = useState(false);
 
   const myEmail = user.email.toLowerCase();
   // The same rule as logged-by: the chip and the delete guard follow the email link, never a name guess.
   const linkedCaretaker = findLinkedCaretaker(user, caretakers);
   const isOwner = isSuperAdminEmail(user.email);
+  const isEditNameMissing = hasTriedEditSave && !editName.trim();
   // The owner and a family's Admin pre-approve into their own family: the server refuses members.
   const canPreApprove = isOwner || user.role === 'Admin';
 
   // Into the inviter's own household (the server's default): the account keeps its Google name, and the badge
   // carries the invited email.
   const inviteMember = async (email: string, confirmMove = false) => {
+    if (isInviting) return;
+    setIsInviting(true);
     const result = await createUser({ email, role: 'Member', status: 'ACTIVE', ...(confirmMove ? { confirmMove } : {}) });
+    setIsInviting(false);
 
     if (result.ok) {
       setInviteSuccess(t.household.inviteAuthorized.replace('{email}', email));
@@ -92,6 +100,16 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
     toast.success(t.household.copiedSuccess);
   };
 
+  // The phone's share sheet (WhatsApp, SMS…) with the link Copy link copies; a refused share copies it instead
+  const shareAppUrl = async () => {
+    try {
+      await navigator.share({ title: 'PupPace', text: t.household.shareInviteText, url: window.location.origin });
+    } catch (error) {
+      // AbortError: the user closed the share sheet
+      if ((error as Error).name !== 'AbortError') copyAppUrl();
+    }
+  };
+
   return (
     <div className="space-y-4 sm:space-y-6 w-full">
       {/* Header */}
@@ -105,7 +123,7 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
               variant="primary"
               size="sm"
               onPress={() => setIsInvitingEmail(!isInvitingEmail)}
-              className="font-bold text-xs shadow-sm"
+              className="min-h-11 font-bold text-xs shadow-sm"
             >
               <Mail className="w-4 h-4 mr-1.5 inline" />
               {t.household.preApproveBtn}
@@ -152,14 +170,26 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
                     <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
                     <span>{inviteSuccess}</span>
                   </div>
-                  <button
-                    type="button"
-                    onClick={copyAppUrl}
-                    className="inline-flex items-center gap-1 text-slate-300 hover:text-white bg-slate-900 border border-slate-700 px-2.5 py-1 rounded-lg text-xs"
-                  >
-                    <Copy className="w-3.5 h-3.5 text-indigo-400" />
-                    <span>{t.household.copyLink}</span>
-                  </button>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={copyAppUrl}
+                      className="inline-flex items-center gap-1 min-h-11 text-slate-300 hover:text-white bg-slate-900 border border-slate-700 px-2.5 py-1 rounded-lg text-xs"
+                    >
+                      <Copy className="w-3.5 h-3.5 text-indigo-400" />
+                      <span>{t.household.copyLink}</span>
+                    </button>
+                    {'share' in navigator && (
+                      <button
+                        type="button"
+                        onClick={() => void shareAppUrl()}
+                        className="inline-flex items-center gap-1 min-h-11 text-slate-300 hover:text-white bg-slate-900 border border-slate-700 px-2.5 py-1 rounded-lg text-xs"
+                      >
+                        <Share2 className="w-3.5 h-3.5 text-indigo-400" />
+                        <span>{t.household.shareLink}</span>
+                      </button>
+                    )}
+                  </div>
                 </div>
               )}
 
@@ -178,6 +208,8 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
                   type="submit"
                   variant="primary"
                   size="sm"
+                  isDisabled={isInviting}
+                  className="min-h-11"
                 >
                   <Send className="w-3.5 h-3.5 mr-1 inline" />
                   {t.household.sendInvite}
@@ -205,7 +237,7 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
                 if (!isAdding) setColor(firstFreeBadgeColor(caretakers));
                 setIsAdding(!isAdding);
               }}
-              className="text-xs border-slate-800"
+              className="min-h-11 text-xs border-slate-800"
             >
               {isAdding ? <X className="w-3.5 h-3.5 mr-1 inline" /> : <UserPlus className="w-3.5 h-3.5 mr-1 inline" />}
               {isAdding ? t.potty.cancel : t.household.addMember}
@@ -247,6 +279,7 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
                   type="submit"
                   variant="primary"
                   size="sm"
+                  className="min-h-11"
                 >
                   <UserPlus className="w-3.5 h-3.5 mr-1 inline" />
                   {t.household.addMemberBadge}
@@ -289,9 +322,14 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
                         onChange={(event) => setEditName(event.target.value)}
                         placeholder={t.household.memberName}
                         aria-label={t.household.memberName}
+                        aria-invalid={isEditNameMissing ? true : undefined}
+                        aria-describedby={isEditNameMissing ? 'edit-member-name-error' : undefined}
                         autoFocus
                       />
                     </div>
+                    {isEditNameMissing && (
+                      <p id="edit-member-name-error" role="alert" className="-mt-1.5 text-xs font-semibold text-red-400">{t.puppies.nameRequired}</p>
+                    )}
 
                     {canClaim && (
                       <label className="flex items-center gap-2 min-h-11 text-xs font-semibold text-slate-300 cursor-pointer">
@@ -309,7 +347,9 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
                       <Button
                         variant="primary"
                         size="sm"
+                        className="min-h-11"
                         onPress={() => {
+                          setHasTriedEditSave(true);
                           if (!editName.trim()) return;
                           onUpdateCaretaker(caretaker.id, {
                             name: editName.trim(),
@@ -339,7 +379,7 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
                 );
               }
 
-              // A fixed action column: the pencil, then the trash, or an empty slot on your own badge. The email goes
+              // A fixed action column: the trash, or an empty slot on your own badge, then the pencil at the edge. The email goes
               // under the name and runs under the actions too, so a long one keeps some width on a phone.
               return (
                 <li
@@ -364,20 +404,6 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
                   )}
 
                   <div className="col-start-3 row-start-1 flex items-center gap-1.5">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setEditingId(caretaker.id);
-                        setEditName(caretaker.name);
-                        setEditColor(caretaker.color);
-                        setEditIsMe(caretaker.email?.toLowerCase() === myEmail);
-                      }}
-                      aria-label={t.common.editItem.replace('{item}', caretaker.name)}
-                      className="p-2 min-h-11 min-w-11 flex items-center justify-center text-slate-400 hover:text-indigo-300 hover:bg-slate-800 rounded-xl border border-slate-800 bg-slate-950 transition-colors"
-                    >
-                      <Pencil className="w-4 h-4" />
-                    </button>
-
                     {isSelected ? (
                       <div aria-hidden="true" className="w-11 h-11" />
                     ) : (
@@ -390,6 +416,21 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
                         <Trash2 className="w-4 h-4" />
                       </button>
                     )}
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditingId(caretaker.id);
+                        setHasTriedEditSave(false);
+                        setEditName(caretaker.name);
+                        setEditColor(caretaker.color);
+                        setEditIsMe(caretaker.email?.toLowerCase() === myEmail);
+                      }}
+                      aria-label={t.common.editItem.replace('{item}', caretaker.name)}
+                      className="p-2 min-h-11 min-w-11 flex items-center justify-center text-slate-400 hover:text-indigo-300 hover:bg-slate-800 rounded-xl border border-slate-800 bg-slate-950 transition-colors"
+                    >
+                      <Pencil className="w-4 h-4" />
+                    </button>
                   </div>
                 </li>
               );

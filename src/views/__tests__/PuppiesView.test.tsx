@@ -256,6 +256,29 @@ describe('PuppiesView expected adult weight (Other, Mixed or Unknown breed only)
     expect(onUpdatePuppy.mock.calls[0][0].expectedAdultWeightKg).toBeNull();
   });
 
+  // A French keyboard types a comma: in a number box Chromium read "8,5" as 85 kg and Safari as nothing
+  it('"8,5" typed with a comma saves 8.5 kg, and the box keeps what was typed', async () => {
+    const { onUpdatePuppy } = await renderView({ puppies: [{ ...REX, breed: 'Mixed Breed' }] });
+    await click(editButton());
+    await setValue('dog-adult-weight', '8,');
+    expect(field('dog-adult-weight').value).toBe('8,');
+    await setValue('dog-adult-weight', '8,5');
+    await submit();
+
+    expect(onUpdatePuppy.mock.calls[0][0].expectedAdultWeightKg).toBe(8.5);
+  });
+
+  it.each(['abc', '150', '0,5'])('an adult weight of %j blocks Save with a message under the box', async (typed) => {
+    const { onUpdatePuppy } = await renderView({ puppies: [{ ...REX, breed: 'Mixed Breed' }] });
+    await click(editButton());
+    await setValue('dog-adult-weight', typed);
+    await submit();
+
+    expect(onUpdatePuppy).not.toHaveBeenCalled();
+    expect(field('dog-adult-weight').getAttribute('aria-describedby')).toBe('dog-adult-weight-error');
+    expect(field('dog-adult-weight-error').textContent).toBe('Enter 1 to 100 kg, or leave it empty');
+  });
+
   it('a standard-breed dog keeps the adult weight it already stores', async () => {
     const { onUpdatePuppy } = await renderView({ puppies: [{ ...REX, breed: 'English Cocker Spaniel', expectedAdultWeightKg: 14.5 }] });
     await click(editButton());

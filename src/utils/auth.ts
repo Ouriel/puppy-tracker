@@ -18,28 +18,31 @@ export function isSuperAdminEmail(email?: string | null): boolean {
 const TOKEN_KEY = 'puppace_auth_token';
 const USER_KEY = 'puppace_auth_user';
 
-let _authToken: string | null = typeof localStorage !== 'undefined' ? localStorage.getItem(TOKEN_KEY) : null;
+// Read on first use: where storage is blocked (Safari "Block All Cookies"), any touch of it, `typeof` included, throws,
+// so every access sits in a try and the session then lasts until the page closes
+let _authToken: string | null = null;
 
 export function getAuthToken(): string | null {
-  if (!_authToken && typeof localStorage !== 'undefined') {
-    _authToken = localStorage.getItem(TOKEN_KEY);
+  if (!_authToken) {
+    try {
+      _authToken = localStorage.getItem(TOKEN_KEY);
+    } catch {}
   }
   return _authToken;
 }
 
 export function setAuthToken(token: string | null): void {
   _authToken = token;
-  if (typeof localStorage !== 'undefined') {
+  try {
     if (token) {
       localStorage.setItem(TOKEN_KEY, token);
     } else {
       localStorage.removeItem(TOKEN_KEY);
     }
-  }
+  } catch {}
 }
 
 export function getStoredAuthUser(): UserAccount | null {
-  if (typeof localStorage === 'undefined') return null;
   try {
     const raw = localStorage.getItem(USER_KEY);
     return raw ? JSON.parse(raw) : null;
@@ -49,18 +52,19 @@ export function getStoredAuthUser(): UserAccount | null {
 }
 
 export function setStoredAuthUser(user: UserAccount | null): void {
-  if (typeof localStorage === 'undefined') return;
-  if (user) {
-    localStorage.setItem(USER_KEY, JSON.stringify(user));
-  } else {
-    localStorage.removeItem(USER_KEY);
-  }
+  try {
+    if (user) {
+      localStorage.setItem(USER_KEY, JSON.stringify(user));
+    } else {
+      localStorage.removeItem(USER_KEY);
+    }
+  } catch {}
 }
 
 export function clearAuthToken(): void {
   _authToken = null;
-  if (typeof localStorage !== 'undefined') {
+  try {
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(USER_KEY);
-  }
+  } catch {}
 }

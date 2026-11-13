@@ -5,6 +5,18 @@ import { createRoot, type Root } from 'react-dom/client';
 import { QuickLogModal } from '../QuickLogModal';
 import { getLocalDatetimeString } from '../../utils/date';
 import { en } from '../../i18n/en';
+import { ActivityInputSchema } from '../../utils/schemas';
+
+// Holds on an app update (a reload would drop what is typed): taken and not released yet
+const updateHolds = vi.hoisted(() => ({ count: 0 }));
+vi.mock('../../registerServiceWorker', () => ({
+  holdUpdate: () => {
+    updateHolds.count += 1;
+    return () => {
+      updateHolds.count -= 1;
+    };
+  },
+}));
 
 let root: Root | null = null;
 
@@ -198,10 +210,41 @@ describe('QuickLogModal labels and notes', () => {
     expect(onSave.mock.calls[0][0].notes).toBeNull();
   });
 
+  // The time box shows minutes only: saving 08:15:00 put this pee before a poop logged at 08:15:10
+  it('an edit that only changes the note keeps the exact time, seconds included', async () => {
+    const { onSave } = await renderModal({
+      activityToEdit: { id: 'act-1', puppyId: 'pup-1', type: 'pee', timestamp: '2026-10-13T08:15:42.317Z', loggedBy: 'Tester' },
+    });
+    await setValue('quicklog-notes', 'after the walk');
+    await submit();
+    expect(onSave.mock.calls[0][0]).toMatchObject({ notes: 'after the walk', timestamp: '2026-10-13T08:15:42.317Z' });
+  });
+
+  it('an edit that changes the time saves the time typed', async () => {
+    const { onSave } = await renderModal({
+      activityToEdit: { id: 'act-1', puppyId: 'pup-1', type: 'pee', timestamp: '2026-10-13T08:15:42.317Z', loggedBy: 'Tester' },
+    });
+    await setValue('quicklog-timestamp', '2026-10-13T09:30');
+    await submit();
+    expect(onSave.mock.calls[0][0].timestamp).toBe(new Date('2026-10-13T09:30').toISOString());
+  });
+
   it('the notes placeholder is neutral and the grams label names its unit once', async () => {
     await renderModal({ initialType: 'food' });
     expect(field('quicklog-notes').placeholder).toBe('Optional');
     expect(document.querySelector('label[for="quicklog-quantity-grams"]')!.textContent).toBe('Quantity (g)');
+  });
+
+  // A long prescription typed as the name was refused on every Save with only "Not saved, try again"
+  it('the medication name and notes boxes stop at the lengths the server accepts', async () => {
+    await renderModal({ initialType: 'medication' });
+
+    for (const [id, key] of [['quicklog-medication-name', 'medicationName'], ['quicklog-notes', 'notes']] as const) {
+      const limit = field(id).maxLength;
+      expect(limit, id).toBeGreaterThan(0);
+      expect(ActivityInputSchema.partial().safeParse({ [key]: 'a'.repeat(limit) }).success, id).toBe(true);
+      expect(ActivityInputSchema.partial().safeParse({ [key]: 'a'.repeat(limit + 1) }).success, id).toBe(false);
+    }
   });
 });
 
@@ -378,5 +421,19 @@ describe('QuickLogModal stool options, in French', () => {
     } finally {
       localStorage.removeItem('puppace_lang_v1');
     }
+  });
+});
+
+// Audit 2026-11-10: an update reloaded the page once in the background and dropped a meal note being typed
+describe('QuickLogModal and app updates', () => {
+  it('holds an app update while open, a new log or an edit, and lets it go once closed', async () => {
+    await renderModal({ initialType: 'food' });
+    expect(updateHolds.count).toBe(1);
+    await act(async () => root?.unmount());
+    root = null;
+    expect(updateHolds.count).toBe(0);
+
+    await renderModal({ activityToEdit: { id: 'act-1', puppyId: 'pup-1', type: 'food', timestamp: new Date().toISOString(), loggedBy: 'Tester', quantityGrams: 80 } });
+    expect(updateHolds.count).toBe(1);
   });
 });

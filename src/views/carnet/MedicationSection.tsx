@@ -27,8 +27,8 @@ export const MedicationSection: React.FC<MedicationSectionProps> = ({
 
   const medicationLogs = useMemo(() => {
     return activities
-      .filter((act) => act.type === "medication")
-      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+      .filter((activity) => activity.type === "medication")
+      .sort((first, second) => new Date(second.timestamp).getTime() - new Date(first.timestamp).getTime());
   }, [activities]);
 
   // 'Doliprane du 1 juin': names a row's buttons

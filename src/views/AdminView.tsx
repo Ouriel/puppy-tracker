@@ -9,7 +9,7 @@ import {
 } from '../services/api';
 import type { Caretaker, RegisteredUserItem } from '../types';
 import { useI18n } from '../i18n';
-import { Button, Input, Card, Chip, Modal } from '@heroui/react';
+import { Button, Input, Card, Chip, toast } from '@heroui/react';
 import { SUPER_ADMIN_EMAIL, isSuperAdminEmail } from '../utils/auth';
 import { buildInviteBadge } from '../utils/caretakers';
 import { ConfirmationModal } from '../components/common/ConfirmationModal';
@@ -103,6 +103,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail, caretake
         setTimeout(() => setStatusMessage(''), 3500);
       } else {
         // Refused (409) when the row is stale, e.g. a family Admin took the sign-up in since: show where it is now.
+        if (res.status !== 409) toast.danger(t.toasts[res.errorKey]);
         void loadData();
       }
     } catch (err) {
@@ -127,6 +128,8 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail, caretake
         );
         setStatusMessage(t.admin.movedAccount.replace('{email}', email).replace('{household}', householdName(newHouseholdId)));
         setTimeout(() => setStatusMessage(''), 3500);
+      } else {
+        toast.danger(t.toasts[res.errorKey]);
       }
     } catch (err) {
       console.error('Failed to move user household', err);
@@ -147,6 +150,8 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail, caretake
         );
         setStatusMessage(t.admin.revokedAccess.replace('{email}', email));
         setTimeout(() => setStatusMessage(''), 3500);
+      } else {
+        toast.danger(t.toasts[res.errorKey]);
       }
     } catch (err) {
       console.error('Failed to deactivate user', err);
@@ -165,6 +170,8 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail, caretake
       if (res.ok) {
         setUsers((previous) => previous.filter((registeredUser) => registeredUser.email !== userToDelete.email));
         setStatusMessage(t.admin.deletedAccount.replace('{email}', userToDelete.email));
+      } else {
+        toast.danger(t.toasts[res.errorKey]);
       }
     } catch (err) {
       console.error('Failed to delete user', err);
@@ -188,6 +195,8 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail, caretake
         setTimeout(() => setStatusMessage(''), 3500);
       } else if (res.status === 409) {
         setInviteToMove({ email, householdId });
+      } else {
+        toast.danger(t.toasts[res.errorKey]);
       }
     } catch (err) {
       console.error('Failed to pre-approve user', err);
@@ -283,33 +292,14 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail, caretake
         onClose={() => setAccountToMove(null)}
       />
 
-      {/* Delete User Confirmation Modal */}
-      <Modal isOpen={!!userToDelete} onOpenChange={(isOpen) => !isOpen && setUserToDelete(null)}>
-        <Modal.Backdrop>
-          <Modal.Container>
-            <Modal.Dialog className="bg-slate-900 border border-slate-800 text-slate-100 shadow-2xl">
-              <Modal.CloseTrigger />
-              <Modal.Header>
-                <Modal.Heading className="flex items-center gap-3">
-                  <AlertCircle className="w-5 h-5 text-red-400" />
-                  <span>{t.admin.confirmDeletionFor.replace('{email}', String(userToDelete?.email))}</span>
-                </Modal.Heading>
-              </Modal.Header>
-              <Modal.Body className="p-4">
-                <p className="text-sm text-slate-400">{t.admin.deleteConfirmBody}</p>
-              </Modal.Body>
-              <Modal.Footer className="border-t border-slate-800 pt-3">
-                <Button onPress={() => setUserToDelete(null)} className="bg-slate-950 border border-slate-800 text-slate-300 font-bold hover:bg-slate-800">
-                  {t.potty.cancel}
-                </Button>
-                <Button variant="danger" onPress={confirmDeleteUser} className="font-bold">
-                  {t.admin.deleteUserBtn}
-                </Button>
-              </Modal.Footer>
-            </Modal.Dialog>
-          </Modal.Container>
-        </Modal.Backdrop>
-      </Modal>
+      <ConfirmationModal
+        isOpen={!!userToDelete}
+        title={t.admin.confirmDeletionFor.replace('{email}', String(userToDelete?.email))}
+        message={t.admin.deleteConfirmBody}
+        confirmLabel={t.admin.deleteUserBtn}
+        onConfirm={() => void confirmDeleteUser()}
+        onClose={() => setUserToDelete(null)}
+      />
 
       {/* Pending Activations List */}
       <Card className="bg-slate-900 border-slate-800 text-slate-100">
@@ -350,7 +340,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail, caretake
                     </div>
 
                     <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-900">
-                      <div className="flex items-center gap-2 flex-1 min-w-0">
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 w-full sm:w-auto sm:flex-1 min-w-0">
                         <label htmlFor={`assign-${userItem.id}`} className="text-xs text-slate-400 shrink-0">{t.admin.assignTo}</label>
                         <select
                           id={`assign-${userItem.id}`}

@@ -38,10 +38,8 @@ describe('Dog Routine & Schedule Dataset Test Suite', () => {
   });
 
   it('learns breakfast, lunch, and dinner times accurately', () => {
-    const meals = detectMealSchedule(dataset, 'UTC');
-    expect(meals.breakfastMins).toBe(8 * 60);       // 08:00 UTC = 480 mins
-    expect(meals.lunchMins).toBe(13 * 60);         // 13:00 UTC = 780 mins
-    expect(meals.dinnerMins).toBe(19 * 60 + 30);    // 19:30 UTC = 1170 mins
+    const meals = detectMealSchedule(dataset, 3, detectSleepSchedule(dataset, 'UTC'), 'UTC', new Date('2026-08-22T10:00:00Z'));
+    expect(meals).toEqual([8 * 60, 13 * 60, 19 * 60 + 30]); // 08:00, 13:00, 19:30 UTC
   });
 
   it('passes single-source-of-truth metadata through calculatePredictions', () => {
@@ -58,9 +56,7 @@ describe('Dog Routine & Schedule Dataset Test Suite', () => {
     expect(predictions.sleepSchedule?.wakeupStr).toBe('07:30');
 
     expect(predictions.mealSchedule).toBeDefined();
-    expect(predictions.mealSchedule?.breakfastMins).toBe(480);
-    expect(predictions.mealSchedule?.lunchMins).toBe(780);
-    expect(predictions.mealSchedule?.dinnerMins).toBe(1170);
+    expect(predictions.mealSchedule).toEqual([480, 780, 1170]);
 
     // (240g goal - 100g eaten today) / 2 remaining meals = 70g
     expect(predictions.portionGrams).toBe(70);

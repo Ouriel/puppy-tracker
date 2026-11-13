@@ -129,8 +129,6 @@ describe('screen readers hear the app language (French)', () => {
 
   it('activity feed: edit and delete buttons', async () => {
     await render(<ActivityTimeline activities={[pee]} caretakers={[]} activePuppy={PISTACHE} onDeleteActivity={vi.fn()} onUpdateActivity={vi.fn()} referenceTime={now} />, 'fr');
-    const todayHeader = [...document.querySelectorAll<HTMLButtonElement>('button[aria-expanded="false"]')].find((button) => button.textContent!.includes("Aujourd'hui"))!;
-    await act(async () => todayHeader.click());
     expect(ariaLabels()).toEqual(expect.arrayContaining(['Modifier pipi 11:50', 'Supprimer pipi 11:50']));
   });
 
@@ -220,17 +218,16 @@ describe('row buttons named after their row, 44 px targets (French)', () => {
 
   it('activity feed: "Modifier pipi 11:50" and "Supprimer pipi 11:50", each 44 px', async () => {
     await render(<ActivityTimeline activities={[pee]} caretakers={[]} activePuppy={PISTACHE} onDeleteActivity={vi.fn()} onUpdateActivity={vi.fn()} referenceTime={now} />, 'fr');
-    const todayHeader = [...document.querySelectorAll<HTMLButtonElement>('button[aria-expanded="false"]')].find((header) => header.textContent!.includes("Aujourd'hui"))!;
-    await act(async () => todayHeader.click());
     expect(is44(button('Modifier pipi 11:50'))).toBe(true);
     expect(is44(button('Supprimer pipi 11:50'))).toBe(true);
   });
 
-  it('activity feed: Export and "Tout déplier" are named and 44 px; Export opens no menu role', async () => {
+  it('activity feed: Export and "Tout replier" are named and 44 px; Export opens no menu role', async () => {
+    // Today starts open: a feed of today only offers "Tout replier"
     await render(<ActivityTimeline activities={[pee]} caretakers={[]} activePuppy={PISTACHE} onDeleteActivity={vi.fn()} referenceTime={now} />, 'fr');
     expect(is44(button('Exporter'))).toBe(true);
     expect(button('Exporter')!.hasAttribute('aria-haspopup')).toBe(false);
-    expect(is44(button('Tout déplier'))).toBe(true);
+    expect(is44(button('Tout replier'))).toBe(true);
   });
 
   it('activity feed day header: a visible focus ring, and the counts spoken as words, not bare numbers', async () => {
@@ -358,8 +355,6 @@ describe('readable text is at least 12 px (French)', () => {
     const meal = log('food', new Date(now.getTime() - 20 * 60 * 1000).toISOString(), { quantityGrams: 80, loggedBy: 'Marie' });
     const outsidePee = log('pee', new Date(now.getTime() - 10 * 60 * 1000).toISOString(), { pottyLocation: 'outside' });
     await render(<ActivityTimeline activities={[outsidePee, meal]} caretakers={[]} activePuppy={PISTACHE} onDeleteActivity={vi.fn()} referenceTime={now} />, 'fr');
-    const todayHeader = [...document.querySelectorAll<HTMLButtonElement>('button[aria-expanded="false"]')].find((header) => header.textContent!.includes("Aujourd'hui"))!;
-    await act(async () => todayHeader.click());
     const chip = (text: string) => [...document.querySelectorAll('span')].find((span) => span.textContent!.trim() === text);
     expect(sizeOf(chip('80\u00a0g'))).toBe('text-xs');
     expect(sizeOf(chip('Marie'))).toBe('text-xs');

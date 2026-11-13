@@ -163,10 +163,8 @@ describe('Comprehensive 30-Day Realistic Dataset Test Suite', () => {
   });
 
   it('extracts learned meal schedule from dataset', () => {
-    const meals = detectMealSchedule(dataset);
-    expect(meals.breakfastMins).toBe(8 * 60 + 30); // 08:30 AM = 510 mins
-    expect(meals.lunchMins).toBe(13 * 60 + 30);    // 13:30 PM = 810 mins
-    expect(meals.dinnerMins).toBe(19 * 60 + 15);   // 19:15 PM = 1155 mins
+    const meals = detectMealSchedule(dataset, 3, detectSleepSchedule(dataset), undefined, new Date(2026, 7, 16, 10, 0));
+    expect(meals).toEqual([8 * 60 + 30, 13 * 60 + 30, 19 * 60 + 15]); // 08:30, 13:30, 19:15
   });
 
   it('computes next potty and meal predictions with attached schedule metadata from dataset', () => {
@@ -183,8 +181,8 @@ describe('Comprehensive 30-Day Realistic Dataset Test Suite', () => {
     expect(predictions.poopMode).toBe('post_meal_override');
     expect(predictions.poopUrgency).toBe('soon');
 
-    // Food: third meal paced over the remaining waking hours
-    expect(at(predictions.nextFoodExpectedAt!)).toBe('2026-08-15 17:52');
+    // Food: third meal at the learned 19:15 dinner
+    expect(at(predictions.nextFoodExpectedAt!)).toBe('2026-08-15 19:15');
     expect(predictions.foodMode).toBe('daytime_schedule');
     expect(predictions.foodUrgency).toBe('safe');
 
@@ -192,11 +190,7 @@ describe('Comprehensive 30-Day Realistic Dataset Test Suite', () => {
     expect(predictions.sleepSchedule).toEqual({ wakeupHour: 8.5, bedtimeHour: 22.25, wakeupStr: '08:30', bedtimeStr: '22:15' });
 
     // Verify attached meal schedule metadata
-    expect(predictions.mealSchedule).toEqual({
-      breakfastMins: 8 * 60 + 30, // 08:30 AM
-      lunchMins: 13 * 60 + 30, // 13:30 PM
-      dinnerMins: 19 * 60 + 15, // 19:15 PM
-    });
+    expect(predictions.mealSchedule).toEqual([8 * 60 + 30, 13 * 60 + 30, 19 * 60 + 15]); // 08:30, 13:30, 19:15
 
     // Verify attached portion calculation (240g / 3 meals = 80g per meal)
     expect(predictions.portionGrams).toBe(80);

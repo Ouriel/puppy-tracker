@@ -180,6 +180,9 @@ describe('Zod Schemas Validation', () => {
       email: 'not-an-email',
     };
     expect(UserInputSchema.safeParse(invalidEmail).success).toBe(false);
+
+    // A role is one of the app's roles: a free text would store an account with no known rights
+    expect(UserInputSchema.safeParse({ ...validUser, role: 'Boss' }).success).toBe(false);
   });
 
   describe('ActivityInputSchema hardening', () => {
@@ -318,7 +321,6 @@ describe('Zod Schemas Validation', () => {
       const cases: Array<[ZodType, object, string]> = [
         [ActivityInputSchema, activity, 'notes'],
         [DogInputSchema, dog, 'notes'],
-        [DogInputSchema, dog, 'careInstructions'],
         [HealthRecordInputSchema, record, 'notes'],
       ];
       for (const [schema, base, field] of cases) {
@@ -336,7 +338,6 @@ describe('Zod Schemas Validation', () => {
         ...['type', 'name', 'batchNumber', 'vetClinic', 'productName'].map((field): [ZodType, object, string] => [HealthRecordInputSchema, record, field]),
         ...['name', 'role', 'color'].map((field): [ZodType, object, string] => [CaretakerInputSchema, { name: 'Alice' }, field]),
         [UserInputSchema, user, 'name'],
-        [UserInputSchema, user, 'role'],
       ];
       for (const [schema, base, field] of cases) {
         expect(accepts(schema, { ...base, [field]: 'a'.repeat(80) }), field).toBe(true);

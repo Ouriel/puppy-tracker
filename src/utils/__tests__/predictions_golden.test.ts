@@ -233,7 +233,7 @@ const SCENARIOS: GoldenScenario[] = [
     activities: routineDays('2026-10-18', 9),
     days: ['2026-10-25', '2026-10-26'],
     extraTimes: ['2026-10-25T01:30:00+02:00', '2026-10-25T02:30:00+02:00', '2026-10-25T02:30:00+01:00', '2026-10-25T03:30:00+01:00'].map(
-      (iso) => new Date(iso)
+      (isoTime) => new Date(isoTime)
     ),
   },
   {
@@ -275,7 +275,7 @@ function describePredictions(scenario: GoldenScenario, referenceTime: Date): str
   const result = calculatePredictions(visibleLogs, scenario.profile, referenceTime, TIME_ZONE);
   const sleep = result.sleepSchedule;
   const meals = result.mealSchedule;
-  const mealsLabel = meals ? `${clock(meals.breakfastMins)} ${clock(meals.lunchMins)} ${clock(meals.dinnerMins)}` : '-';
+  const mealsLabel = meals ? meals.map(clock).join(' ') : '-';
 
   return [
     `== ${at(referenceTime)} ${utcOffset(referenceTime)} | ${visibleLogs.length} logs | sleep ${sleep?.bedtimeStr}-${sleep?.wakeupStr} | meals ${mealsLabel}`,

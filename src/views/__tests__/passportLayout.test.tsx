@@ -73,10 +73,11 @@ const dueLines = () => [...heading('À faire')!.closest('section')!.querySelecto
 const isBefore = (first: Element, second: Element) => Boolean(first.compareDocumentPosition(second) & Node.DOCUMENT_POSITION_FOLLOWING);
 
 describe('"À faire" comes first: every open next date, overdue first (C6), short names (C8)', () => {
+  // Each line ends on its "Fait" button
   const expectedLines = [
-    `Rage1 oct.${fr.potty.overdue}`,
-    `Credelio Plus20 oct.${fr.potty.dueSoon}`,
-    `CHPPi + L41 juil. 2027${fr.health.statusUpToDate}`,
+    `Rage1 oct.${fr.potty.overdue}${fr.health.markDone}`,
+    `Credelio Plus20 oct.${fr.potty.dueSoon}${fr.health.markDone}`,
+    `CHPPi + L41 juil. 2027${fr.health.statusUpToDate}${fr.health.markDone}`,
   ];
 
   it('the passport opens on it, before the weight card and the sections', async () => {

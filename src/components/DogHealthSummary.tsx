@@ -4,16 +4,8 @@ import { Dog, Scale, ExternalLink, Moon, Sunrise, Utensils, Clock, Sparkles } fr
 import { Card, Button, Chip } from '@heroui/react';
 import { useI18n, type Language } from '../i18n';
 import { formatBreedName } from '../data/breedsCatalog';
-import {
-  calculateProjectedAdultWeightRange,
-  formatChange,
-  formatGrams,
-  formatKg,
-  formatKgRange,
-  getEffectivePuppyWeight,
-  getMeasuredPace,
-  getTrustedWeightEntries,
-} from '../utils/weight';
+import { formatChange, formatGrams, formatKg, formatKgRange } from '../utils/weight';
+import { getWeightChartModel } from '../utils/weightChartGeometry';
 import { getPuppyAge } from '../utils/predictions';
 import { formatDuration, formatShortDate } from '../utils/date';
 import { HealthDueList } from './HealthDueList';
@@ -25,7 +17,7 @@ interface DogHealthSummaryProps {
   predictions?: PredictionResult | null;
   healthRecords?: HealthRecord[];
   healthRecordsState?: HealthRecordsLoadState;
-  onOpenHealthPassport: () => void;
+  onOpenHealthPassport: (addRecordId?: string) => void; // with a record: its add form opens there (a due line's "Done")
 }
 
 export const DogHealthSummary: React.FC<DogHealthSummaryProps> = React.memo(({
@@ -52,30 +44,19 @@ export const DogHealthSummary: React.FC<DogHealthSummaryProps> = React.memo(({
 
   // Extract weight metrics (Last Logged, Assumed Current, Probable Adult Range via empirical trajectory)
   const weightData = useMemo(() => {
-    // A weigh-in that looks like a typo stays out until edited, as on the passport's chart
-    const unifiedLogs = getTrustedWeightEntries(weightActivities, profile);
-    const lastEntry = unifiedLogs.length > 0 ? unifiedLogs[unifiedLogs.length - 1] : null;
+    // The passport chart's model: a weigh-in that looks like a typo stays out until edited
+    const { trusted, projection, effective, pace } = getWeightChartModel(weightActivities, profile);
+    const lastEntry = trusted.length > 0 ? trusted[trusted.length - 1] : null;
     const lastLogDateStr = lastEntry ? formatShortDate(lastEntry.timestamp, lang as 'en' | 'fr') : null;
     const lastLogAgeWeeks = lastEntry && profile.birthDate ? getPuppyAge(profile.birthDate, lastEntry.timestamp).weeks : null;
 
-    const projectedWeight = calculateProjectedAdultWeightRange(
-      profile.breed,
-      unifiedLogs,
-      profile.birthDate,
-      profile.gender,
-      profile.expectedAdultWeightKg
-    );
-    const weightInfo = getEffectivePuppyWeight(profile, weightActivities);
-
     return {
-      lastWeightKg: weightInfo.lastLoggedWeight,
+      lastWeightKg: effective.lastLoggedWeight,
       lastLogDateStr,
       lastLogAgeWeeks,
-      assumedCurrentKg: weightInfo.estimatedCurrentWeight,
-      adultTargetKg: projectedWeight.projectedAdultKg,
-      adultRangeStr: formatKgRange(projectedWeight.minAdultKg, projectedWeight.maxAdultKg, lang),
-      pace: getMeasuredPace(unifiedLogs),
-      walthamCategory: projectedWeight.walthamCategory,
+      assumedCurrentKg: effective.estimatedCurrentWeight,
+      adultRangeStr: formatKgRange(projection.minAdultKg, projection.maxAdultKg, lang),
+      pace,
     };
   }, [weightActivities, profile, lang]);
 
@@ -100,33 +81,24 @@ export const DogHealthSummary: React.FC<DogHealthSummaryProps> = React.memo(({
     );
     const sleepDurationStr = formatDuration(sleepDurationMins, lang);
 
-    const targetMeals = profile.targetMealsPerDay || 3;
+    // One usual time per meal of the day (the engine's meals per day)
+    const targetMeals = meals.length;
     const dailyGrams = profile.dailyFoodGramGoal; // 0: no gram goal, no grams shown
     const portionGrams = dailyGrams > 0 ? Math.round(dailyGrams / targetMeals) : undefined;
 
-    // Build meal items list based on targetMealsPerDay
-    const mealItems: { name: string; timeStr: string; grams?: number }[] = [];
-    if (targetMeals === 2) {
-      mealItems.push({ name: t.health.breakfast, timeStr: formatMinsToClock(meals.breakfastMins), grams: portionGrams });
-      mealItems.push({ name: t.health.dinner, timeStr: formatMinsToClock(meals.dinnerMins), grams: portionGrams });
-    } else if (targetMeals === 3) {
-      mealItems.push({ name: t.health.breakfast, timeStr: formatMinsToClock(meals.breakfastMins), grams: portionGrams });
-      mealItems.push({ name: t.health.lunch, timeStr: formatMinsToClock(meals.lunchMins), grams: portionGrams });
-      mealItems.push({ name: t.health.dinner, timeStr: formatMinsToClock(meals.dinnerMins), grams: portionGrams });
-    } else if (targetMeals === 4) {
-      const snackMins = Math.round((meals.lunchMins + meals.dinnerMins) / 2);
-      mealItems.push({ name: t.health.breakfast, timeStr: formatMinsToClock(meals.breakfastMins), grams: portionGrams });
-      mealItems.push({ name: t.health.lunch, timeStr: formatMinsToClock(meals.lunchMins), grams: portionGrams });
-      mealItems.push({ name: t.health.afternoonSnack, timeStr: formatMinsToClock(snackMins), grams: portionGrams });
-      mealItems.push({ name: t.health.dinner, timeStr: formatMinsToClock(meals.dinnerMins), grams: portionGrams });
-    } else {
-      mealItems.push({ name: t.health.breakfast, timeStr: formatMinsToClock(meals.breakfastMins), grams: portionGrams });
-      if (targetMeals > 1) {
-        mealItems.push({ name: t.health.dinner, timeStr: formatMinsToClock(meals.dinnerMins), grams: portionGrams });
-      }
-    }
+    // 5 or 6 meals a day show only the first and the last
+    const mealNames = targetMeals === 4
+      ? [t.health.breakfast, t.health.lunch, t.health.afternoonSnack, t.health.dinner]
+      : targetMeals === 3
+        ? [t.health.breakfast, t.health.lunch, t.health.dinner]
+        : targetMeals === 1 ? [t.health.breakfast] : [t.health.breakfast, t.health.dinner];
+    const mealItems: { name: string; timeStr: string; grams?: number }[] = mealNames.map((name, position) => ({
+      name,
+      timeStr: formatMinsToClock(meals[position === mealNames.length - 1 ? targetMeals - 1 : position]),
+      grams: portionGrams,
+    }));
 
-    const foodLogsCount = activities.filter((act) => act.type === 'food').length;
+    const foodLogsCount = activities.filter((activity) => activity.type === 'food').length;
     const isLearned = activities.length >= 5 || foodLogsCount >= 3;
 
     return {
@@ -138,7 +110,7 @@ export const DogHealthSummary: React.FC<DogHealthSummaryProps> = React.memo(({
       dailyGrams,
       isLearned,
     };
-  }, [predictions, activities, profile.targetMealsPerDay, profile.dailyFoodGramGoal, t, lang]);
+  }, [predictions, activities, profile.dailyFoodGramGoal, t, lang]);
 
   const localizedBreed = formatBreedName(profile.breed, lang as Language);
 
@@ -271,7 +243,7 @@ export const DogHealthSummary: React.FC<DogHealthSummaryProps> = React.memo(({
 
               <div className={`grid gap-2 text-xs pt-0.5 ${scheduleData.mealItems.length === 2 ? 'grid-cols-2' : scheduleData.mealItems.length === 4 ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-3'}`}>
                 {scheduleData.mealItems.map((item, index) => (
-                  <div key={index} className="bg-slate-950/70 p-2 sm:p-2.5 rounded-lg border border-slate-800/70 text-center sm:text-left">
+                  <div key={index} className="bg-slate-950/70 px-1 py-2 sm:p-2.5 rounded-lg border border-slate-800/70 text-center sm:text-left">
                     <div className="text-[11px] text-slate-400 font-medium truncate" title={item.name}>{item.name}</div>
                     <div className="font-extrabold text-emerald-300 text-xs sm:text-sm mt-0.5">~{item.timeStr}</div>
                     {item.grams !== undefined && <div className="text-xs text-slate-400 mt-0.5 font-medium">~{formatGrams(item.grams, lang)}</div>}
@@ -284,14 +256,14 @@ export const DogHealthSummary: React.FC<DogHealthSummaryProps> = React.memo(({
 
         {/* Every open next date, overdue first: the passport opens on the same list */}
         <div className="bg-slate-950/60 p-3 sm:p-4 rounded-xl border border-slate-800">
-          <HealthDueList records={puppyRecords} dogName={profile.name} state={healthRecordsState} />
+          <HealthDueList records={puppyRecords} dogName={profile.name} state={healthRecordsState} onDone={(record) => onOpenHealthPassport(record.id)} />
         </div>
 
         {/* Button: View Full Health Passport */}
         <Button
           variant="primary"
           size="sm"
-          onPress={onOpenHealthPassport}
+          onPress={() => onOpenHealthPassport()}
           className="w-full min-h-11 font-bold text-xs shadow"
         >
           <ExternalLink className="w-3.5 h-3.5 mr-1.5 inline" />

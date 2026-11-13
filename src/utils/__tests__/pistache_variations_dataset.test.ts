@@ -124,10 +124,11 @@ describe('Pistache Derived Variations Test Suite (5 Multi-Scenario Datasets)', (
       }
     });
 
-    const mealSchedule = detectMealSchedule(activities, 'UTC');
+    const lastLog = Math.max(...activities.map((activity) => Date.parse(activity.timestamp)));
+    const mealSchedule = detectMealSchedule(activities, 3, detectSleepSchedule(activities, 'UTC'), 'UTC', new Date(lastLog + 24 * 60 * 60 * 1000));
 
     // Weighted median across transition: recent 3-meal days (08:30 AM = 510m) dominate over older 4-meal days (08:00 AM = 480m)
-    expect(mealSchedule).toEqual({ breakfastMins: 510, lunchMins: 810, dinnerMins: 1170 });
+    expect(mealSchedule).toEqual([510, 810, 1170]);
   });
 
   it('Scenario 6: Pistache Morning Awakening After Overnight Sleep Dataset (Screenshot 07:34 AM Reproduction)', () => {

@@ -4,7 +4,6 @@ import {
   formatLogicalDate,
   isSameLogicalDate,
   getLocalDatetimeString,
-  formatRelativeTime,
   formatMinutesToXhXX,
   parseIsoDate,
   getLocalHour,
@@ -59,36 +58,6 @@ describe('date utility module — comprehensive test suite', () => {
   it('getLocalDatetimeString formats date for datetime-local input', () => {
     const d = new Date(2026, 6, 29, 14, 15);
     expect(getLocalDatetimeString(d)).toBe('2026-07-29T14:15');
-  });
-
-  it('formatRelativeTime returns Today and Yesterday correctly', () => {
-    vi.useFakeTimers({ toFake: ['Date'] });
-    vi.setSystemTime(new Date(2026, 7, 9, 14, 0));
-    try {
-      const todayLog = new Date(2026, 7, 9, 10, 0).toISOString();
-      const formattedToday = formatRelativeTime(todayLog, 'en', { today: 'Today', yesterday: 'Yesterday' });
-      expect(formattedToday).toContain('Today');
-
-      const yesterdayLog = new Date(2026, 7, 8, 20, 0).toISOString();
-      const formattedYesterday = formatRelativeTime(yesterdayLog, 'en', { today: 'Today', yesterday: 'Yesterday' });
-      expect(formattedYesterday).toContain('Yesterday');
-
-      const olderLog = new Date(2026, 7, 5, 9, 30).toISOString();
-      expect(formatRelativeTime(olderLog, 'fr')).toBe('5 août 09:30');
-      expect(formatRelativeTime(olderLog, 'en')).toBe('Aug 5 09:30 AM');
-    } finally {
-      vi.useRealTimers();
-    }
-  });
-
-  it('formatRelativeTime gracefully handles unparseable date strings with localized fallback', () => {
-    const resFr = formatRelativeTime('Invalid Date', 'fr', { today: 'Aujourd\'hui', yesterday: 'Hier' });
-    expect(resFr).toContain('Aujourd\'hui');
-    expect(resFr).not.toContain('Invalid');
-
-    const resEn = formatRelativeTime('corrupted', 'en', { today: 'Today', yesterday: 'Yesterday' });
-    expect(resEn).toContain('Today');
-    expect(resEn).not.toContain('Invalid');
   });
 
   it('formatMinutesToXhXX formats minutes into XhXX format when >= 60', () => {
@@ -159,7 +128,6 @@ describe('date utility module — comprehensive test suite', () => {
   });
 
   // Rest of R11, deferred in Phase 3a (no effect in the real-data replay)
-  it.todo('formatRelativeTime: "Yesterday" across a DST change (it subtracts 24 h from local midnight)');
   it.todo('createDateInTimezone: second offset pass for wall-clock times next to a DST change');
   it.todo('formatLogicalDate: 04:00 cutoff on the wall clock, not now - 4 h (04:00-05:00 on the spring-forward day is still the previous day)');
 });
