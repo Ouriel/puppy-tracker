@@ -132,6 +132,8 @@ function signedInWithCachedDogOnly() {
 }
 
 beforeAll(() => {
+  // jsdom has no scrolling: a due line's "Done" scrolls its form into view
+  Element.prototype.scrollIntoView = vi.fn();
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
   // jsdom lacks these; HeroUI / react-aria read them.
   globalThis.ResizeObserver ??= class {

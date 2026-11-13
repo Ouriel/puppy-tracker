@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import type { PuppyProfile, HealthRecord, Activity } from '../../types';
 import { Syringe, ShieldCheck, Plus, Trash2, Pencil, Check, X, ChevronDown } from 'lucide-react';
@@ -81,6 +81,7 @@ export const VaccineSection: React.FC<VaccineSectionProps> = ({
   const [editNotes, setEditNotes] = useState('');
 
   const editVaccineTriggerRef = useRef<HTMLButtonElement>(null);
+  const addFormRef = useRef<HTMLFormElement>(null);
   const { lang } = useI18n();
 
   // vaccinations is sorted newest first. Default vaccine: the last one given (an earlier spelling is its list vaccine), else CHPPi + L4.
@@ -230,6 +231,11 @@ export const VaccineSection: React.FC<VaccineSectionProps> = ({
     </ListBoxItem>
   ));
 
+  // Opened by a due line's "Done", below the fold: brought into view (the Select's focus does not scroll the page)
+  useEffect(() => {
+    if (doneName) addFormRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+  }, [doneName]);
+
   return (
     <Card className="bg-slate-900 border border-slate-800 text-slate-100 shadow-xl">
       <Card.Content className="p-4 sm:p-6 space-y-4">
@@ -250,13 +256,13 @@ export const VaccineSection: React.FC<VaccineSectionProps> = ({
         </div>
 
         {isAddingVaccine && (
-          <form onSubmit={handleAddVaccineSubmit} className="rounded-xl bg-slate-950/90 border border-slate-800 p-3 sm:p-4 space-y-3">
+          <form ref={addFormRef} onSubmit={handleAddVaccineSubmit} className="scroll-mt-4 rounded-xl bg-slate-950/90 border border-slate-800 p-3 sm:p-4 space-y-3">
             <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
               <div className="sm:col-span-2 min-w-0">
                 <label id="vaccine-name-label" className={labelClass}>{t.health.vaccineType}</label>
                 <Select
                   aria-labelledby="vaccine-name-label"
-                  // Opened by "Done" from the list at the top: focus brings the form into view
+                  // Opened by "Done": focus starts on the pick, already made
                   autoFocus={Boolean(doneName)}
                   value={vaccineType}
                   onChange={(value) => {

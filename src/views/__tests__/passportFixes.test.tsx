@@ -18,6 +18,8 @@ const shot = record({ id: 'hr-shot', type: 'vaccination', name: 'Rage (Eurican L
 let root: Root | null = null;
 
 beforeAll(() => {
+  // jsdom has no scrolling: a due line's "Done" scrolls its form into view
+  Element.prototype.scrollIntoView = vi.fn();
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
   globalThis.ResizeObserver ??= class {
     observe() {}
@@ -243,8 +245,12 @@ describe('"Fait" on a due line', () => {
     expect(section('Vaccins').querySelector('form')).toBeNull();
     expect(is44(button('Fait\u00a0: Rage du 1 juil.'))).toBe(true);
 
+    vi.mocked(Element.prototype.scrollIntoView).mockClear();
     await act(async () => button('Fait\u00a0: Rage du 1 juil.')!.click());
 
+    // Below the list, so brought into view: the Select's focus does not scroll the page
+    expect(Element.prototype.scrollIntoView).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(Element.prototype.scrollIntoView).mock.contexts[0]).toBe(addForm('Vaccins'));
     expect(addForm('Vaccins').querySelector('[data-slot="select-value"]')!.textContent).toBe(shot.name);
     expect(addForm('Vaccins').querySelector<HTMLInputElement>('#vaccine-date')!.value).toBe('2026-10-15');
   });

@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import type { PuppyProfile, HealthRecord, Activity } from '../../types';
 import { Pill, Plus, Trash2, Pencil, Check, X, ChevronDown } from 'lucide-react';
@@ -74,6 +74,7 @@ export const DewormingSection: React.FC<DewormingSectionProps> = ({
   const [editNotes, setEditNotes] = useState('');
 
   const editProductTriggerRef = useRef<HTMLButtonElement>(null);
+  const addFormRef = useRef<HTMLFormElement>(null);
   const { lang } = useI18n();
 
   // dewormingLogs is sorted newest first. Default product: the last one given, else Credelio Plus.
@@ -218,6 +219,11 @@ export const DewormingSection: React.FC<DewormingSectionProps> = ({
     </ListBoxItem>
   ));
 
+  // Opened by a due line's "Done", below the fold: brought into view (the Select's focus does not scroll the page)
+  useEffect(() => {
+    if (doneName) addFormRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+  }, [doneName]);
+
   return (
     <Card className="bg-slate-900 border border-slate-800 text-slate-100 shadow-xl">
       <Card.Content className="p-4 sm:p-6 space-y-4">
@@ -238,13 +244,13 @@ export const DewormingSection: React.FC<DewormingSectionProps> = ({
         </div>
 
         {isAddingDeworming && (
-          <form onSubmit={handleAddDewormingSubmit} className="rounded-xl bg-slate-950/90 border border-slate-800 p-3 sm:p-4 space-y-3">
+          <form ref={addFormRef} onSubmit={handleAddDewormingSubmit} className="scroll-mt-4 rounded-xl bg-slate-950/90 border border-slate-800 p-3 sm:p-4 space-y-3">
             <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
               <div className="sm:col-span-2 min-w-0">
                 <label id="deworming-product-label" className={labelClass}>{t.health.productName}</label>
                 <Select
                   aria-labelledby="deworming-product-label"
-                  // Opened by "Done" from the list at the top: focus brings the form into view
+                  // Opened by "Done": focus starts on the pick, already made
                   autoFocus={Boolean(doneName)}
                   value={productName}
                   onChange={(value) => {
