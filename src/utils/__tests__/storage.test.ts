@@ -5,7 +5,7 @@ import { getAuthToken, setAuthToken, clearAuthToken } from '../auth';
 const storageMap = new Map<string, string>();
 const localStorageMock = {
   getItem: (key: string) => storageMap.get(key) || null,
-  setItem: (key: string, val: string) => storageMap.set(key, val),
+  setItem: (key: string, value: string) => storageMap.set(key, value),
   removeItem: (key: string) => storageMap.delete(key),
   clear: () => storageMap.clear(),
 };

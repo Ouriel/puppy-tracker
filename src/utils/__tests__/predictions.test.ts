@@ -134,7 +134,7 @@ describe('predictions utility — comprehensive test suite', () => {
     });
 
     const utcSchedule = { bedtimeHour: 22, wakeupHour: 7, bedtimeStr: '22:00', wakeupStr: '07:00' };
-    const logsAt = (type: 'pee' | 'poop', isoTimes: string[]) => newestFirst(isoTimes.map((iso) => act(type, iso)));
+    const logsAt = (type: 'pee' | 'poop', isoTimes: string[]) => newestFirst(isoTimes.map((isoTime) => act(type, isoTime)));
 
     const peesEveryDay = (clockTimes: string[]) =>
       logsAt('pee', ['15', '16', '17'].flatMap((day) => clockTimes.map((time) => `2026-08-${day}T${time}:00Z`)));
@@ -425,7 +425,7 @@ describe('predictions utility — comprehensive test suite', () => {
       it('hands over from the hard-stool pause to "due now", not to "overdue by hours"', () => {
         const dayOnly = { bedtimeHour: 23.5, wakeupHour: 6, bedtimeStr: '23:30', wakeupStr: '06:00' };
         const hardStool = [act('poop', '2026-08-17T08:00:00Z', { stoolConsistency: 'hard' })];
-        const predictAt = (iso: string) => calculatePredictions(hardStool, PISTACHE, new Date(iso), 'UTC', dayOnly);
+        const predictAt = (isoTime: string) => calculatePredictions(hardStool, PISTACHE, new Date(isoTime), 'UTC', dayOnly);
 
         // Pause ends at 08:00 + max(1.4 x 6 h, 8 h) = 16:24
         const lastMinuteOfPause = predictAt('2026-08-17T16:23:00Z');

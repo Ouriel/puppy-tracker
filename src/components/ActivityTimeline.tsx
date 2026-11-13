@@ -8,14 +8,16 @@ import { formatLocalTime, formatLogicalDate, getUserTimezone } from '../utils/da
 import { resolveCaretakerName } from '../utils/caretakers';
 import { exportActivitiesToCSV, printActivitiesReport } from '../utils/export';
 import { getDayFoodPill } from '../utils/dayFoodPill';
-import { formatGrams, formatKg } from '../utils/weight';
+import { formatGrams, formatKg, getUnifiedWeightEntries, getWeighInNeighbours } from '../utils/weight';
 import { ConfirmationModal } from './common/ConfirmationModal';
 import { useCloseOnOutsidePress } from '../hooks/useCloseOnOutsidePress';
 
-const QuickLogModal = lazy(() => import('./QuickLogModal').then((m) => ({ default: m.QuickLogModal })));
+const QuickLogModal = lazy(() => import('./QuickLogModal').then((module) => ({ default: module.QuickLogModal })));
 
 interface ActivityTimelineProps {
   activities: Activity[];
+  // Every weigh-in of the dog, whatever its date: an edited weight is checked against the ones either side
+  weightActivities?: Activity[];
   caretakers: Caretaker[];
   activePuppy?: PuppyProfile | null;
   onDeleteActivity: (id: string) => void;
@@ -70,6 +72,7 @@ function formatDayHeading(
 
 export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
   activities,
+  weightActivities,
   caretakers,
   activePuppy,
   onDeleteActivity,
@@ -87,7 +90,9 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
   const [confirmDelete, setConfirmDelete] = useState<{ id: string; type: string } | null>(null);
   const [daysLimit, setDaysLimit] = useState<number>(7);
   const [isExportMenuOpen, setIsExportMenuOpen] = useState<boolean>(false);
+  // Today's logical day opens by itself (set below); the others wait for a tap or "Expand all"
   const [expandedDays, setExpandedDays] = useState<Set<string>>(() => new Set());
+  const [openedToday, setOpenedToday] = useState<string | null>(null);
 
   const exportMenuRef = useRef<HTMLDivElement>(null);
   const tz = getUserTimezone();
@@ -97,6 +102,12 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
     const baseDate = targetTime ? new Date(targetTime) : new Date();
     return formatLogicalDate(baseDate, tz);
   }, [targetTime, tz]);
+
+  // At mount, and when a feed left open passes 04:00: the new day opens, the days already open stay so
+  if (openedToday !== todayDateKey) {
+    setOpenedToday(todayDateKey);
+    setExpandedDays((previous) => new Set(previous).add(todayDateKey));
+  }
 
   const yesterdayDateKey = useMemo(() => {
     const baseDate = targetTime ? new Date(targetTime) : new Date();
@@ -130,8 +141,8 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
   // Filter to core activities sorted chronologically descending
   const sortedCoreActivities = useMemo(() => {
     return activities
-      .filter((act) => act.type === 'pee' || act.type === 'poop' || act.type === 'food' || act.type === 'medication' || act.type === 'weight')
-      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+      .filter((activity) => activity.type === 'pee' || activity.type === 'poop' || activity.type === 'food' || activity.type === 'medication' || activity.type === 'weight')
+      .sort((first, second) => new Date(second.timestamp).getTime() - new Date(first.timestamp).getTime());
   }, [activities]);
 
   // Progression steps: 7 -> 14 -> 30 -> 90 -> 180 -> All Time (Infinity)
@@ -152,7 +163,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
 
   const visibleActivities = useMemo(() => {
     if (!cutoffDateKey) return sortedCoreActivities;
-    return sortedCoreActivities.filter((act) => formatLogicalDate(act.timestamp, tz) >= cutoffDateKey);
+    return sortedCoreActivities.filter((activity) => formatLogicalDate(activity.timestamp, tz) >= cutoffDateKey);
   }, [sortedCoreActivities, cutoffDateKey, tz]);
 
   const hasMorePriorLogs = sortedCoreActivities.length > visibleActivities.length || hasMoreRemote;
@@ -692,6 +703,8 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
               key={`edit-${editingActivity.id}`}
               isOpen={true}
               activityToEdit={editingActivity}
+              weighInNeighbours={editingActivity.type === 'weight' ? getWeighInNeighbours(getUnifiedWeightEntries(weightActivities ?? activities), editingActivity.id) : undefined}
+              profile={activePuppy ?? undefined}
               dailyFoodGramGoal={activePuppy?.dailyFoodGramGoal}
               currentUser={editingActivity.loggedBy}
               onClose={() => setEditingActivity(null)}

@@ -170,7 +170,7 @@ function getNextOccurrenceOfClockTime(referenceDate: Date, targetHourDecimal: nu
  */
 function calculateWeightedMedian(data: { mins: number; weight: number }[], fallbackMins: number): number {
   if (data.length === 0) return fallbackMins;
-  const sorted = [...data].sort((a, b) => a.mins - b.mins);
+  const sorted = [...data].sort((first, second) => first.mins - second.mins);
   const totalWeight = sorted.reduce((sum, item) => sum + item.weight, 0);
   const target = totalWeight * 0.5;
   let acc = 0;
@@ -222,7 +222,7 @@ export function detectSleepSchedule(
   const defaultSchedule: SleepSchedule = { bedtimeHour: 22, wakeupHour: 7, bedtimeStr: '22:00', wakeupStr: '07:00' };
 
   const tz = timeZone || getUserTimezone();
-  const maxLogTime = activities.reduce((max, act) => Math.max(max, parseIsoDate(act.timestamp).getTime()), 0);
+  const maxLogTime = activities.reduce((max, activity) => Math.max(max, parseIsoDate(activity.timestamp).getTime()), 0);
   const nowTime = maxLogTime > 0 ? maxLogTime : Date.now();
   const fourteenDaysAgo = new Date(nowTime - 14 * 24 * 60 * 60 * 1000);
   const recentActivities = activities.filter((activity) => parseIsoDate(activity.timestamp) >= fourteenDaysAgo);
@@ -249,7 +249,7 @@ export function detectSleepSchedule(
       const sortedActivities = [...dayActivities].sort((first, second) => parseIsoDate(first.timestamp).getTime() - parseIsoDate(second.timestamp).getTime());
       const sortedLogs = sortedActivities.map((activity) => parseIsoDate(activity.timestamp));
       // First activity of the day after 05:00 AM (filters out mid-night potty breaks)
-      const firstMorning = sortedLogs.find((a) => getLocalHour(a, tz) >= 5) || sortedLogs[0];
+      const firstMorning = sortedLogs.find((logTime) => getLocalHour(logTime, tz) >= 5) || sortedLogs[0];
       // A log between 02:00 and 05:00 is a night potty, not the day's bedtime; on a day the dog was a young puppy so is its
       // night break (and what follows it). Not for older dogs: their late walk often falls in the break window.
       const isYoungPuppy = birthDate !== undefined && getPuppyAge(birthDate, sortedLogs[0]).months < MID_NIGHT_BREAK_MAX_AGE_MONTHS;
@@ -306,27 +306,27 @@ export function calculateMorningSequenceOffsets(
   const defaultOffsets = { morningPoopOffsetMins: 10 };
   const tz = timeZone || getUserTimezone();
 
-  const maxLogTime = activities.reduce((max, act) => Math.max(max, parseIsoDate(act.timestamp).getTime()), 0);
+  const maxLogTime = activities.reduce((max, activity) => Math.max(max, parseIsoDate(activity.timestamp).getTime()), 0);
   const nowTime = maxLogTime > 0 ? maxLogTime : Date.now();
   const thirtyDaysAgo = new Date(nowTime - 30 * 24 * 60 * 60 * 1000);
   const recentActivities = activities.filter((activity) => parseIsoDate(activity.timestamp) >= thirtyDaysAgo);
 
   const byDate: Record<string, Activity[]> = {};
-  recentActivities.forEach((act) => {
-    const d = parseIsoDate(act.timestamp);
+  recentActivities.forEach((activity) => {
+    const d = parseIsoDate(activity.timestamp);
     const dateStr = formatLogicalDate(d, tz);
     if (!byDate[dateStr]) byDate[dateStr] = [];
-    byDate[dateStr].push(act);
+    byDate[dateStr].push(activity);
   });
 
   const poopOffsets: { mins: number; weight: number }[] = [];
 
   Object.values(byDate).forEach((dayLogs) => {
     const sorted = [...dayLogs].sort(
-      (a, b) => parseIsoDate(a.timestamp).getTime() - parseIsoDate(b.timestamp).getTime()
+      (first, second) => parseIsoDate(first.timestamp).getTime() - parseIsoDate(second.timestamp).getTime()
     );
 
-    const firstPee = sorted.find((a) => a.type === 'pee' && getLocalHour(parseIsoDate(a.timestamp), tz) >= 5);
+    const firstPee = sorted.find((activity) => activity.type === 'pee' && getLocalHour(parseIsoDate(activity.timestamp), tz) >= 5);
     if (!firstPee) return;
 
     const firstPeeTime = parseIsoDate(firstPee.timestamp).getTime();
@@ -334,7 +334,7 @@ export function calculateMorningSequenceOffsets(
     const weight = Math.exp(-daysAgo / 7);
 
     // Look for first poop within 2.5 hours of first pee
-    const firstPoop = sorted.find((a) => a.type === 'poop');
+    const firstPoop = sorted.find((activity) => activity.type === 'poop');
     if (firstPoop) {
       const firstPoopTime = parseIsoDate(firstPoop.timestamp).getTime();
       const diffMins = Math.round((firstPoopTime - firstPeeTime) / 60000);
@@ -367,7 +367,7 @@ export function detectMealSchedule(
 ): number[] {
   const tz = timeZone || getUserTimezone();
   const mealCount = Math.max(1, targetMeals);
-  const maxLogTime = activities.reduce((max, act) => Math.max(max, parseIsoDate(act.timestamp).getTime()), 0);
+  const maxLogTime = activities.reduce((max, activity) => Math.max(max, parseIsoDate(activity.timestamp).getTime()), 0);
   const nowTime = maxLogTime > 0 ? maxLogTime : now.getTime();
   const windowStart = nowTime - 30 * 24 * 60 * 60 * 1000;
   const today = formatLogicalDate(now, tz);
@@ -425,7 +425,7 @@ export function calculateLearnedIntervalMinutes(
   timeZone?: string,
   ageMonths?: number
 ): { intervalMins: number; deltaMins: number; sampleCount: number; isLearned: boolean } {
-  const maxLogTime = activities.reduce((max, act) => Math.max(max, parseIsoDate(act.timestamp).getTime()), 0);
+  const maxLogTime = activities.reduce((max, activity) => Math.max(max, parseIsoDate(activity.timestamp).getTime()), 0);
   const nowTime = maxLogTime > 0 ? maxLogTime : Date.now();
   const thirtyDaysAgo = new Date(nowTime - 30 * 24 * 60 * 60 * 1000);
   const recentActivities = activities.filter((activity) => parseIsoDate(activity.timestamp) >= thirtyDaysAgo);
@@ -547,17 +547,17 @@ export function calculateLearnedPostMealDelayMinutes(
   fallbackMinutes: number,
   fallbackDeltaMinutes: number = pottyType === 'pee' ? 10 : 15
 ): { delayMins: number; deltaMins: number; sampleCount: number; foodCount: number; postMealRatio: number; isLearned: boolean } {
-  const maxLogTime = activities.reduce((max, act) => Math.max(max, parseIsoDate(act.timestamp).getTime()), 0);
+  const maxLogTime = activities.reduce((max, activity) => Math.max(max, parseIsoDate(activity.timestamp).getTime()), 0);
   const nowTime = maxLogTime > 0 ? maxLogTime : Date.now();
   const thirtyDaysAgo = new Date(nowTime - 30 * 24 * 60 * 60 * 1000);
-  const recentActivities = activities.filter((a) => parseIsoDate(a.timestamp) >= thirtyDaysAgo);
+  const recentActivities = activities.filter((activity) => parseIsoDate(activity.timestamp) >= thirtyDaysAgo);
 
   const sortedActivities = [...recentActivities].sort(
-    (a, b) => parseIsoDate(a.timestamp).getTime() - parseIsoDate(b.timestamp).getTime()
+    (first, second) => parseIsoDate(first.timestamp).getTime() - parseIsoDate(second.timestamp).getTime()
   );
 
-  const foodLogs = sortedActivities.filter((a) => a.type === 'food');
-  const pottyLogs = sortedActivities.filter((a) => a.type === pottyType);
+  const foodLogs = sortedActivities.filter((activity) => activity.type === 'food');
+  const pottyLogs = sortedActivities.filter((activity) => activity.type === pottyType);
 
   const minDelay = pottyType === 'pee' ? 5 : 10;
   const maxDelay = pottyType === 'pee' ? 60 : 150;
@@ -568,8 +568,8 @@ export function calculateLearnedPostMealDelayMinutes(
   for (const food of foodLogs) {
     const foodTime = parseIsoDate(food.timestamp).getTime();
     // Find earliest subsequent potty event within the plausible window
-    const subsequentPotty = pottyLogs.find((p) => {
-      const pTime = parseIsoDate(p.timestamp).getTime();
+    const subsequentPotty = pottyLogs.find((potty) => {
+      const pTime = parseIsoDate(potty.timestamp).getTime();
       return pTime > foodTime && (pTime - foodTime) <= maxDelay * 60 * 1000;
     });
 
@@ -592,16 +592,16 @@ export function calculateLearnedPostMealDelayMinutes(
 
   const delayMins = Math.round(
     calculateWeightedMedian(
-      samples.map((s) => ({ mins: s.diffMinutes, weight: s.weight })),
+      samples.map((sample) => ({ mins: sample.diffMinutes, weight: sample.weight })),
       fallbackMinutes
     )
   );
 
   // Semi-IQR for dynamic tolerance (weighted percentiles, consistent with weighted median)
-  const sortedSamples = [...samples].sort((a, b) => a.diffMinutes - b.diffMinutes);
+  const sortedSamples = [...samples].sort((first, second) => first.diffMinutes - second.diffMinutes);
   const totalSampleWeight = sortedSamples.reduce((sum, item) => sum + item.weight, 0);
-  const getWeightedPctl = (p: number): number => {
-    const target = totalSampleWeight * p;
+  const getWeightedPctl = (percentile: number): number => {
+    const target = totalSampleWeight * percentile;
     let acc = 0;
     for (const item of sortedSamples) {
       acc += item.weight;
@@ -703,11 +703,11 @@ export function predictNextPee(
   const sleepSchedule = options?.sleepSchedule || detectSleepSchedule(activities, tz, profile.birthDate);
 
   const maxAllowedTime = now.getTime() + 60 * 1000;
-  const past = activities.filter((a) => parseIsoDate(a.timestamp).getTime() <= maxAllowedTime);
-  const sorted = [...past].sort((a, b) => parseIsoDate(b.timestamp).getTime() - parseIsoDate(a.timestamp).getTime());
+  const past = activities.filter((activity) => parseIsoDate(activity.timestamp).getTime() <= maxAllowedTime);
+  const sorted = [...past].sort((first, second) => parseIsoDate(second.timestamp).getTime() - parseIsoDate(first.timestamp).getTime());
 
-  const lastPee = sorted.find((a) => a.type === 'pee');
-  const lastFood = sorted.find((a) => a.type === 'food');
+  const lastPee = sorted.find((activity) => activity.type === 'pee');
+  const lastFood = sorted.find((activity) => activity.type === 'food');
 
   const { months } = getPuppyAge(profile.birthDate, now);
   const baseBladderHours = Math.max(1, Math.min(months, 4));
@@ -756,7 +756,7 @@ export function predictNextPee(
   const wakeM = Math.round((sleepSchedule.wakeupHour - wakeH) * 60);
   const wakeupStr = sleepSchedule.wakeupStr || `${String(wakeH).padStart(2, '0')}:${String(wakeM).padStart(2, '0')}`;
 
-  const todayPees = past.filter((a) => a.type === 'pee' && isSameLogicalDate(parseIsoDate(a.timestamp), now, tz));
+  const todayPees = past.filter((activity) => activity.type === 'pee' && isSameLogicalDate(parseIsoDate(activity.timestamp), now, tz));
 
   // Night target, at night and for an evening pee due in the deep night: a young puppy gets one break, 4 h after its last
   // pee, kept 30 min as 'due now', and only before 05:00 and 45 min before wake-up (a log from 05:00 would end the night);
@@ -836,12 +836,12 @@ export function predictNextPoop(
   const sleepSchedule = options?.sleepSchedule || detectSleepSchedule(activities, tz, profile.birthDate);
 
   const maxAllowedTime = now.getTime() + 60 * 1000;
-  const past = activities.filter((a) => parseIsoDate(a.timestamp).getTime() <= maxAllowedTime);
-  const sorted = [...past].sort((a, b) => parseIsoDate(b.timestamp).getTime() - parseIsoDate(a.timestamp).getTime());
+  const past = activities.filter((activity) => parseIsoDate(activity.timestamp).getTime() <= maxAllowedTime);
+  const sorted = [...past].sort((first, second) => parseIsoDate(second.timestamp).getTime() - parseIsoDate(first.timestamp).getTime());
   const offsets = calculateMorningSequenceOffsets(past, tz);
 
-  const lastPoop = sorted.find((a) => a.type === 'poop');
-  const lastFood = sorted.find((a) => a.type === 'food');
+  const lastPoop = sorted.find((activity) => activity.type === 'poop');
+  const lastFood = sorted.find((activity) => activity.type === 'food');
 
   const { months } = getPuppyAge(profile.birthDate, now);
   const learnedPoop = calculateLearnedIntervalMinutes(past, 'poop', 360, sleepSchedule, tz);
@@ -871,7 +871,7 @@ export function predictNextPoop(
   const isInRecovery = isHardStool && now.getTime() < recoveryEnd;
   const standardExpectedAt = new Date(isHardStool ? recoveryEnd : lastPoopTime + learnedPoop.intervalMins * 60 * 1000);
 
-  const todayPoops = past.filter((a) => a.type === 'poop' && isSameLogicalDate(parseIsoDate(a.timestamp), now, tz));
+  const todayPoops = past.filter((activity) => activity.type === 'poop' && isSameLogicalDate(parseIsoDate(activity.timestamp), now, tz));
 
   const isNightTime = isNightTimeMode(now, sorted, sleepSchedule, tz);
   const isDeepNight = isDeepNightTime(standardExpectedAt, learnedPoop.intervalMins, sleepSchedule, tz, now);
@@ -906,8 +906,8 @@ export function predictNextPoop(
   } else if (todayPoops.length === 0 && !isNightTime) {
     // New day has started, puppy woke up after overnight sleep and has not pooped yet today
     const todayMealsSorted = past
-      .filter((a) => a.type === 'food' && isSameLogicalDate(parseIsoDate(a.timestamp), now, tz))
-      .sort((a, b) => parseIsoDate(a.timestamp).getTime() - parseIsoDate(b.timestamp).getTime());
+      .filter((activity) => activity.type === 'food' && isSameLogicalDate(parseIsoDate(activity.timestamp), now, tz))
+      .sort((first, second) => parseIsoDate(first.timestamp).getTime() - parseIsoDate(second.timestamp).getTime());
 
     const firstMorningPee = findFirstMorningPee(sorted, now, tz);
     const morningAnchor = firstMorningPee
@@ -1011,15 +1011,15 @@ export function predictNextFood(
   const sleepSchedule = options?.sleepSchedule || detectSleepSchedule(activities, tz, profile.birthDate);
 
   const maxAllowedTime = now.getTime() + 60 * 1000;
-  const past = activities.filter((a) => parseIsoDate(a.timestamp).getTime() <= maxAllowedTime);
-  const sorted = [...past].sort((a, b) => parseIsoDate(b.timestamp).getTime() - parseIsoDate(a.timestamp).getTime());
+  const past = activities.filter((activity) => parseIsoDate(activity.timestamp).getTime() <= maxAllowedTime);
+  const sorted = [...past].sort((first, second) => parseIsoDate(second.timestamp).getTime() - parseIsoDate(first.timestamp).getTime());
 
   const targetMeals = getTargetMealsPerDay(profile, now);
 
   const todayMeals = past.filter(
-    (a) => a.type === 'food' && isSameLogicalDate(parseIsoDate(a.timestamp), now, tz)
+    (activity) => activity.type === 'food' && isSameLogicalDate(parseIsoDate(activity.timestamp), now, tz)
   );
-  const todayGramTotal = Math.round(todayMeals.reduce((sum, a) => sum + (a.quantityGrams || 0), 0));
+  const todayGramTotal = Math.round(todayMeals.reduce((sum, meal) => sum + (meal.quantityGrams || 0), 0));
   const isGramGoalMet = isDailyGramGoalMet(profile.dailyFoodGramGoal, todayGramTotal);
   const isGoalReached = isGramGoalMet || (profile.dailyFoodGramGoal === 0 && todayMeals.length >= targetMeals);
 

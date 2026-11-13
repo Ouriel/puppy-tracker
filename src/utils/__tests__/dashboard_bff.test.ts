@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { fetchDashboard, clearApiCache, createActivity } from '../../services/api';
+import { fetchDashboard, fetchActivities, clearApiCache, createActivity } from '../../services/api';
 import { setAuthToken, clearAuthToken } from '../auth';
 
 describe('Dashboard BFF API Service Suite', () => {
@@ -209,6 +209,27 @@ describe('Dashboard BFF API Service Suite', () => {
       expect(fetchMock).toHaveBeenCalledTimes(3);
       pendingResponses[2]?.(emptyDashboard());
       await readAfterSave;
+    });
+
+    // Audit: a pee logged on dog B while B's switch request ran; that answer, read before the pee was stored, came after
+    // the save's and was cached, so switching back to B within 60 s showed the list without the pee
+    it('a request answered after the save is answered is not cached', async () => {
+      const pendingResponses: Array<(response: Response) => void> = [];
+      const fetchMock = vi.fn(() => new Promise<Response>((resolve) => { pendingResponses.push(resolve); }));
+      global.fetch = fetchMock;
+      setAuthToken('t');
+
+      const switchRead = fetchActivities('pup-1', { days: 14, limit: 300 });
+      const save = saveLog();
+      pendingResponses[1](new Response('{}', { status: 201 }));
+      await save;
+      pendingResponses[0](new Response('[]', { status: 200 }));
+      await switchRead;
+      const switchBackRead = fetchActivities('pup-1', { days: 14, limit: 300 });
+
+      expect(fetchMock).toHaveBeenCalledTimes(3);
+      pendingResponses[2]?.(new Response('[]', { status: 200 }));
+      await switchBackRead;
     });
   });
 

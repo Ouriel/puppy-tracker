@@ -683,12 +683,12 @@ export function findBreed(query: string): BreedEntry | undefined {
 
   // 1. Direct match on id, nameEn, nameFr
   const exact = BREED_CATALOG.find(
-    (b) => b.id === q || b.nameEn.toLowerCase() === q || b.nameFr.toLowerCase() === q
+    (breed) => breed.id === q || breed.nameEn.toLowerCase() === q || breed.nameFr.toLowerCase() === q
   );
   if (exact) return exact;
 
   // 2. Alias match on whole words, either way: 'black lab' is a Labrador, 'labradoodle' is not ('lab' inside a word)
-  return BREED_CATALOG.find((b) => b.aliases.some((alias) => containsWords(q, alias) || containsWords(alias, q)));
+  return BREED_CATALOG.find((breed) => breed.aliases.some((alias) => containsWords(q, alias) || containsWords(alias, q)));
 }
 
 /** True when `words` appears in `text` with no letter or digit glued on either side: 'l4' in 'Lepto L4', not 'can' in 'Eurican'. */
@@ -697,7 +697,7 @@ export function containsWords(text: string, words: string): boolean {
   return new RegExp(`(^|[^\\p{L}\\p{N}])${escaped}($|[^\\p{L}\\p{N}])`, 'u').test(text);
 }
 
-export const DOG_BREEDS = BREED_CATALOG.map((b) => b.nameEn);
+export const DOG_BREEDS = BREED_CATALOG.map((breed) => breed.nameEn);
 
 /**
  * Formats breed name according to active language using the veterinary catalog.

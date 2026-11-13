@@ -1,10 +1,11 @@
-import { useState, useCallback, useEffect, useRef, startTransition } from 'react';
+import { useState, useCallback, useEffect, useRef, startTransition, createElement } from 'react';
 import { toast } from '@heroui/react';
-import type { Activity, PuppyProfile } from '../types';
+import type { Activity, PuppyProfile, StoolConsistency } from '../types';
 import { fetchActivities, createActivity, updateActivity as apiUpdateActivity, deleteActivity as apiDeleteActivity, type ApiErrorKey } from '../services/api';
 import { useI18n } from '../i18n';
 import type { TranslationKeys } from '../i18n/types';
 import { getStoredRecentActivities, getStoredRecentActivitiesTime, setStoredRecentActivities } from '../utils/storage';
+import { StoolToastChoice } from '../components/common/StoolToastChoice';
 
 // Construct sanitized optimistic activity without stale fields from previous types
 export function sanitizeActivityUpdate(target: Activity, updatedFields: Partial<Activity> & { id: string }): Activity {
@@ -167,18 +168,21 @@ export function useActivities(
 
   // Fetch activities when active puppy changes (skips duplicate fetch if already loaded via dashboard BFF)
   useEffect(() => {
+    // The skip covers the dog shown at mount only: on an account with no dog, the first dog added must be fetched
+    const isInitialMount = isInitialMountRef.current;
+    isInitialMountRef.current = false;
+
     if (!activePuppy?.id) {
       return;
     }
 
-    if (isInitialMountRef.current) {
-      isInitialMountRef.current = false;
-      if (options?.skipInitialFetch) {
-        return;
-      }
+    if (isInitialMount && options?.skipInitialFetch) {
+      return;
     }
 
+    // Back to the loaded dog before another dog's answer (A → B → A): that load was dropped, so nothing else ends its dimming
     if (loadedPuppyIdRef.current === activePuppy.id) {
+      setIsLoading(false);
       return;
     }
 
@@ -282,6 +286,27 @@ export function useActivities(
     return result.data;
   }, [t]);
 
+  /** Whether the edit of `target` (the row as shown) was saved; refused, the row gets its old values back. */
+  const saveEdit = useCallback(async (target: Activity, updatedFields: Partial<Activity> & { id: string }): Promise<boolean> => {
+    const optimisticActivity = sanitizeActivityUpdate(target, updatedFields);
+
+    setActivities((previous) => previous.map((activity) => (activity.id === updatedFields.id ? optimisticActivity : activity)));
+    setAllTimeActivities((previous) => replaceAllTimeRow(previous, updatedFields.id, optimisticActivity));
+
+    const result = await trackMutation(mutationsRef.current, apiUpdateActivity(updatedFields));
+    if (result.ok) {
+      storeAcceptedChange(result.data.puppyId, (rows) => rows.map((row) => (row.id === result.data.id ? result.data : row)));
+      setActivities((previous) => previous.map((activity) => (activity.id === updatedFields.id ? result.data : activity)));
+      setAllTimeActivities((previous) => replaceAllTimeRow(previous, updatedFields.id, result.data));
+      toast.success(t.toasts.activityUpdated);
+      return true;
+    }
+    setActivities((previous) => previous.map((activity) => (activity.id === updatedFields.id ? target : activity)));
+    setAllTimeActivities((previous) => replaceAllTimeRow(previous, updatedFields.id, target));
+    toast.danger(t.toasts[result.errorKey]);
+    return false;
+  }, [t]);
+
   /**
    * The saved log; 'alreadyLogged' for a double tap, ignored; undefined when it was not saved.
    * `keepUnsaved` (a one-tap log): a refused log stays, marked, for Retry; a saved one gets Undo in its toast.
@@ -333,6 +358,13 @@ export function useActivities(
         // App review decision 7: one tap logged it, one tap undoes it. The toast says what was logged.
         const saved = result.data;
         const key = toast.success(t.toasts.quickLogged.replace('{log}', quickLogName(t, saved)), {
+          // Logged "normal" at one tap: a softer stool is one more tap, saved as an edit of this log
+          description: saved.type === 'poop' ? createElement(StoolToastChoice, {
+            onPick: (stoolConsistency: StoolConsistency) => {
+              toast.close(key);
+              void saveEdit(saved, { id: saved.id, stoolConsistency });
+            },
+          }) : undefined,
           actionProps: {
             children: t.common.undo,
             onPress: () => {
@@ -359,7 +391,7 @@ export function useActivities(
         toast.danger(t.toasts[result.errorKey]);
       }
     },
-    [activePuppy, t, retryActivity, removeActivity]
+    [activePuppy, t, retryActivity, removeActivity, saveEdit]
   );
 
   /** Drops a log kept as not saved, without sending anything. */
@@ -373,27 +405,10 @@ export function useActivities(
   /** Whether the edit was saved; refused, the row gets its old values back. */
   const updateActivity = useCallback(async (updatedFields: Partial<Activity> & { id: string }): Promise<boolean> => {
     // A weigh-in older than the loaded logs is only in the weight list
-    const target = activities.find((act) => act.id === updatedFields.id) ?? allTimeActivities.find((weight) => weight.id === updatedFields.id);
+    const target = activities.find((activity) => activity.id === updatedFields.id) ?? allTimeActivities.find((weight) => weight.id === updatedFields.id);
     if (!target) return false;
-
-    const optimisticActivity = sanitizeActivityUpdate(target, updatedFields);
-
-    setActivities((previous) => previous.map((activity) => (activity.id === updatedFields.id ? optimisticActivity : activity)));
-    setAllTimeActivities((previous) => replaceAllTimeRow(previous, updatedFields.id, optimisticActivity));
-
-    const result = await trackMutation(mutationsRef.current, apiUpdateActivity(updatedFields));
-    if (result.ok) {
-      storeAcceptedChange(result.data.puppyId, (rows) => rows.map((row) => (row.id === result.data.id ? result.data : row)));
-      setActivities((previous) => previous.map((activity) => (activity.id === updatedFields.id ? result.data : activity)));
-      setAllTimeActivities((previous) => replaceAllTimeRow(previous, updatedFields.id, result.data));
-      toast.success(t.toasts.activityUpdated);
-      return true;
-    }
-    setActivities((previous) => previous.map((activity) => (activity.id === updatedFields.id ? target : activity)));
-    setAllTimeActivities((previous) => replaceAllTimeRow(previous, updatedFields.id, target));
-    toast.danger(t.toasts[result.errorKey]);
-    return false;
-  }, [activities, allTimeActivities, t]);
+    return saveEdit(target, updatedFields);
+  }, [activities, allTimeActivities, saveEdit]);
 
   const deleteActivity = useCallback(
     (id: string) => removeActivity(id, activities.find((activity) => activity.id === id), allTimeActivities.find((weight) => weight.id === id)),

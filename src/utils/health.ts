@@ -28,11 +28,11 @@ export interface HealthProtocolData {
 export function getHealthProtocols(): HealthProtocolData {
   return {
     ...healthProtocols,
-    vaccines: [...healthProtocols.vaccines].sort((a, b) =>
-      a.fullName.localeCompare(b.fullName, 'fr', { sensitivity: 'base' })
+    vaccines: [...healthProtocols.vaccines].sort((first, second) =>
+      first.fullName.localeCompare(second.fullName, 'fr', { sensitivity: 'base' })
     ),
-    antiparasitics: [...healthProtocols.antiparasitics].sort((a, b) =>
-      a.label.localeCompare(b.label, 'fr', { sensitivity: 'base' })
+    antiparasitics: [...healthProtocols.antiparasitics].sort((first, second) =>
+      first.label.localeCompare(second.label, 'fr', { sensitivity: 'base' })
     ),
   } as HealthProtocolData;
 }

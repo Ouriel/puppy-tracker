@@ -4,6 +4,7 @@ import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { toast } from '@heroui/react';
 import { useActivities } from '../useActivities';
+import { AppToastProvider } from '../../components/common/AppToastProvider';
 import { clearApiCache } from '../../services/api';
 import { getStoredRecentActivities, getStoredRecentActivitiesTime } from '../../utils/storage';
 import { en } from '../../i18n/en';
@@ -797,11 +798,63 @@ describe('useActivities: Undo after a one-tap log', () => {
     expect(accident.message).toBe('Logged: Poop accident indoors');
   });
 
+  it('a one-tap poop\'s toast also offers Soft and Diarrhea: a tap saves it on that log and closes the toast', async () => {
+    // jsdom lacks these; the toast reads them
+    globalThis.ResizeObserver ??= class {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    };
+    window.matchMedia ??= ((query: string) => ({
+      matches: true, media: query, onchange: null, addListener() {}, removeListener() {}, addEventListener() {}, removeEventListener() {}, dispatchEvent: () => false,
+    })) as typeof window.matchMedia;
+    await act(async () => root!.render(<><AppToastProvider /><HookProbe key="toast" onRender={(state) => { hook = state; }} /></>));
+    const close = vi.spyOn(toast, 'close');
+    try {
+      const { id } = await tapAndSave({ ...newLog('poop'), pottyLocation: 'outside', stoolConsistency: 'normal' });
+      const button = (text: string) => [...document.querySelectorAll('button')].find((element) => element.textContent === text);
+      expect([button('Soft'), button('Diarrhea'), button('Undo')].every(Boolean)).toBe(true);
+
+      await act(async () => button('Diarrhea')!.click());
+      expect(close).toHaveBeenCalled();
+      const put = sent.find((request) => request.method === 'PUT')!;
+      expect(put.body).toEqual({ id, stoolConsistency: 'diarrhea' });
+      await put.answer(200, { ...posts()[0].body, stoolConsistency: 'diarrhea' });
+
+      expect(hook.activities.find((activity) => activity.id === id)!.stoolConsistency).toBe('diarrhea');
+    } finally {
+      await act(async () => toast.clear());
+    }
+  });
+
+  it('a one-tap pee\'s toast offers Undo only', async () => {
+    const success = vi.spyOn(toast, 'success');
+    await tapAndSave(peeOutside());
+    expect(success.mock.calls.at(-1)![1]?.description).toBeUndefined();
+  });
+
   it('a log saved from the log form keeps the plain toast, with no Undo', async () => {
     const success = vi.spyOn(toast, 'success');
     await start(() => hook.addActivity(newLog('food')));
     await posts()[0].answer(201, posts()[0].body);
 
     expect(success).toHaveBeenCalledWith(en.toasts.activityLogged);
+  });
+});
+
+describe('useActivities: a quick dog switch and back (audit)', () => {
+  it('A → B → A before B\'s answer: the dashboard is not left loading', async () => {
+    const secondDog: PuppyProfile = { ...puppy, id: 'pup-2', name: 'Second' };
+    const show = async (dog: PuppyProfile) => act(async () => root!.render(<DogProbe dog={dog} onRender={(state) => { hook = state; }} />));
+    answerGet = () => [];
+    await show(puppy);
+    await settle();
+    answerGet = null;
+
+    await show(secondDog);
+    expect(hook.isLoadingActivities).toBe(true);
+    await show(puppy);
+
+    expect(hook.isLoadingActivities).toBe(false);
   });
 });

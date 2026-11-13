@@ -16,9 +16,15 @@ describe('getDatabaseUrl', () => {
     expect(getDatabaseUrl({ PREVIEW_POSTGRES_URL: previewBranch, POSTGRES_URL: prod })).toBe(prod);
   });
 
-  it('falls back to POSTGRES_URL, then DATABASE_URL, when no preview branch is set', () => {
-    expect(getDatabaseUrl({ VERCEL_ENV: 'preview', POSTGRES_URL: prod })).toBe(prod);
-    expect(getDatabaseUrl({ VERCEL_ENV: 'preview', DATABASE_URL: prod })).toBe(prod);
+  // Audit: the day POSTGRES_URL or DATABASE_URL is added to the Preview scope, a preview would write to production
+  it('a preview with no preview branch gets no database: it fails instead of falling back to production', () => {
+    expect(getDatabaseUrl({ VERCEL_ENV: 'preview', POSTGRES_URL: prod })).toBe('');
+    expect(getDatabaseUrl({ VERCEL_ENV: 'preview', DATABASE_URL: prod })).toBe('');
+  });
+
+  it('elsewhere, uses POSTGRES_URL, then DATABASE_URL', () => {
+    expect(getDatabaseUrl({ VERCEL_ENV: 'production', DATABASE_URL: prod })).toBe(prod);
+    expect(getDatabaseUrl({ POSTGRES_URL: prod, DATABASE_URL: 'postgres://other.example/db' })).toBe(prod);
     expect(getDatabaseUrl({})).toBe('');
   });
 });

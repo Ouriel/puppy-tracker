@@ -24,6 +24,8 @@ const CACHE_TTL_MS = 60 * 1000; // 60 seconds TTL
 // Only the refresh events of one return to the app share a request; an older one may predate the background, or hang.
 const INFLIGHT_JOIN_MS = 2000;
 const REQUEST_TIMEOUT_MS = 15_000;
+// Bumped when a change (POST, PUT, DELETE) is sent and when it is answered: a GET answered across a bump may miss the change
+let mutationCount = 0;
 
 // In-flight requests are kept, so the refresh events of one return to the app share one request.
 export function clearApiCache() {
@@ -61,11 +63,13 @@ async function request<T>(url: string, options: RequestInit = {}): Promise<ApiRe
     }
   } else {
     // Invalidate cache on mutations (POST, PUT, DELETE)
+    mutationCount += 1;
     apiCache.clear();
     inflightRequests.clear();
   }
 
   const startedAt = Date.now();
+  const sentMutationCount = mutationCount;
   const fetchPromise = (async (): Promise<ApiResult<T>> => {
     // A stalled network (dead Wi-Fi, captive portal) is aborted into the catch below as 'offline'; no caller passes a signal
     const timeoutController = new AbortController();
@@ -75,7 +79,7 @@ async function request<T>(url: string, options: RequestInit = {}): Promise<ApiRe
 
       if (res.ok) {
         const data = res.status === 204 ? ({} as T) : await res.json();
-        if (method === 'GET') {
+        if (method === 'GET' && mutationCount === sentMutationCount) {
           apiCache.set(url, { data, timestamp: Date.now() });
         }
         return { ok: true, data: data as T };
@@ -106,6 +110,7 @@ async function request<T>(url: string, options: RequestInit = {}): Promise<ApiRe
       }
       // A GET sent or answered while this change was in flight may miss it: never reuse it once the change is answered
       if (method !== 'GET') {
+        mutationCount += 1;
         apiCache.clear();
         inflightRequests.clear();
       }

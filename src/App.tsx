@@ -19,10 +19,10 @@ import { ActivityTimeline } from './components/ActivityTimeline';
 import { DogHealthSummary } from './components/DogHealthSummary';
 import { ConfirmationModal } from './components/common/ConfirmationModal';
 
-const SettingsView = lazy(() => import('./views/SettingsView').then((m) => ({ default: m.SettingsView })));
-const CarnetDeSanteView = lazy(() => import('./views/CarnetDeSanteView').then((m) => ({ default: m.CarnetDeSanteView })));
-const AuthLockScreen = lazy(() => import('./components/AuthLockScreen').then((m) => ({ default: m.AuthLockScreen })));
-const QuickLogModal = lazy(() => import('./components/QuickLogModal').then((m) => ({ default: m.QuickLogModal })));
+const SettingsView = lazy(() => import('./views/SettingsView').then((module) => ({ default: module.SettingsView })));
+const CarnetDeSanteView = lazy(() => import('./views/CarnetDeSanteView').then((module) => ({ default: module.CarnetDeSanteView })));
+const AuthLockScreen = lazy(() => import('./components/AuthLockScreen').then((module) => ({ default: module.AuthLockScreen })));
+const QuickLogModal = lazy(() => import('./components/QuickLogModal').then((module) => ({ default: module.QuickLogModal })));
 import { Button, Card, toast } from '@heroui/react';
 import { SpeedInsights } from '@vercel/speed-insights/react';
 import { useI18n, formatCount } from './i18n';
@@ -314,7 +314,7 @@ function App() {
 
   const activePuppyActivities = useMemo(() => {
     if (!puppyState.activePuppy) return [];
-    return activityState.activities.filter((act) => act.puppyId === puppyState.activePuppy!.id);
+    return activityState.activities.filter((activity) => activity.puppyId === puppyState.activePuppy!.id);
   }, [activityState.activities, puppyState.activePuppy]);
 
   // Every weigh-in and medication of the dog, whatever its date: weigh-ins come weeks apart, so the recent window often holds
@@ -435,7 +435,11 @@ function App() {
     return isSaved;
   }, [addPuppy, hasNoDog, handleNavigate]);
 
-  const handleOpenHealthPassport = useCallback(() => handleNavigate('carnetdesante'), [handleNavigate]);
+  // A due line's "Done": ?add=<record id>, which the passport reads once as it opens
+  const handleOpenHealthPassport = useCallback((addRecordId?: string) => {
+    handleNavigate('carnetdesante');
+    if (addRecordId) window.history.replaceState({ view: 'carnetdesante' }, '', `/health-passport?add=${encodeURIComponent(addRecordId)}`);
+  }, [handleNavigate]);
 
   // A log not sent lives only in this page: an app update waits until it is sent or discarded
   useEffect(() => (hasUnsentLogs ? holdUpdate() : undefined), [hasUnsentLogs]);
@@ -692,6 +696,7 @@ function App() {
             {/* Main Activity Timeline & Log History */}
             <ActivityTimeline
               activities={activePuppyActivities}
+              weightActivities={activePuppyWeights}
               caretakers={caretakerState.caretakers}
               activePuppy={puppyState.activePuppy}
               onDeleteActivity={activityState.deleteActivity}

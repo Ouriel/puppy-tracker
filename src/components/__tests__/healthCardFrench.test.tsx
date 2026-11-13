@@ -57,8 +57,10 @@ const renderCard = (healthRecords: HealthRecord[]) =>
   render(<DogHealthSummary profile={puppy} activities={[]} weightActivities={[]} healthRecords={healthRecords} onOpenHealthPassport={vi.fn()} />);
 
 /** The card's "À faire" lines: name, next date and status. */
+// Each line's text, without the "Fait" button that ends it
 const dueLines = (container: HTMLElement) =>
-  [...[...container.querySelectorAll('h3')].find((heading) => heading.textContent === fr.health.toDo)!.closest('section')!.querySelectorAll('li')].map((line) => line.textContent);
+  [...[...container.querySelectorAll('h3')].find((heading) => heading.textContent === fr.health.toDo)!.closest('section')!.querySelectorAll('li')]
+    .map((line) => line.textContent!.replace(new RegExp(`${fr.health.markDone}$`), ''));
 
 // Carnet review 2026-10-16 (C6): the card lists every open next date, overdue first, like the passport
 describe('dashboard health card, in French (backlog item 1)', () => {

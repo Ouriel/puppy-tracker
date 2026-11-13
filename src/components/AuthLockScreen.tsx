@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useEffectEvent, useRef } from 'react';
-import { Lock, ShieldCheck, FileText, Shield, Sparkles, ChevronDown, ChevronUp, Clock } from 'lucide-react';
+import { Lock, ShieldCheck, FileText, Shield, Sparkles, ChevronDown, ChevronUp, Clock, Globe } from 'lucide-react';
 import { Card, Button } from '@heroui/react';
 import { PrivacyPolicyModal } from './PrivacyPolicyModal';
 import { TermsOfServiceModal } from './TermsOfServiceModal';
@@ -34,7 +34,7 @@ interface AuthLockScreenProps {
 export const AuthLockScreen: React.FC<AuthLockScreenProps> = ({
   onUnlockWithSSO,
 }) => {
-  const { t } = useI18n();
+  const { t, lang, changeLanguage } = useI18n();
   // A key of t.auth, so the message follows the language
   const [error, setError] = useState<'' | 'ssoFailed' | 'googleScriptFailed'>('');
   const [pendingEmail, setPendingEmail] = useState(readPendingEmail);
@@ -149,6 +149,18 @@ export const AuthLockScreen: React.FC<AuthLockScreenProps> = ({
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center p-4 selection:bg-indigo-500 selection:text-white flex-col py-8">
+      {/* The Navbar's language button, top right above the card (in the flow, so it never covers it on a short phone) */}
+      <div className="w-full max-w-md flex justify-end mb-3">
+        <button
+          type="button"
+          onClick={() => changeLanguage(lang === 'en' ? 'fr' : 'en')}
+          aria-label={t.nav.changeLanguage}
+          className="h-11 min-w-11 px-2.5 flex items-center justify-center gap-1.5 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 hover:text-white hover:bg-slate-800 transition-colors text-xs font-bold"
+        >
+          <Globe className="w-4 h-4 text-indigo-400 shrink-0" aria-hidden="true" />
+          <span>{lang === 'en' ? 'EN' : 'FR'}</span>
+        </button>
+      </div>
       {/* Sleek Hero Card Container */}
       <Card className="w-full max-w-md bg-slate-900 border border-slate-800 shadow-2xl relative overflow-hidden">
         <Card.Content className="p-8 space-y-6">

@@ -60,6 +60,8 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({
   const [isExportMenuOpen, setIsExportMenuOpen] = useState<boolean>(false);
   // The fallback load's answer, while /api/dashboard fails
   const [fallbackAnswer, setFallbackAnswer] = useState<{ puppyId: string; ok: boolean } | null>(null);
+  // A due line's "Done" (here, or ?add=<record id> from the dashboard, read once): its section opens the add form afresh at each count
+  const [doneRequest, setDoneRequest] = useState(() => ({ recordId: new URLSearchParams(window.location.search).get('add'), count: 0 }));
 
   const exportMenuRef = useRef<HTMLDivElement>(null);
 
@@ -86,6 +88,11 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({
   );
   const vaccinations = useMemo(() => puppyRecords.filter((record) => record.type === 'vaccination'), [puppyRecords]);
   const dewormingLogs = useMemo(() => puppyRecords.filter((record) => record.type === 'deworming'), [puppyRecords]);
+  const doneRecord = useMemo(() => puppyRecords.find((record) => record.id === doneRequest.recordId), [puppyRecords, doneRequest.recordId]);
+
+  const handleDone = useCallback((record: HealthRecord) => {
+    setDoneRequest((previous) => ({ recordId: record.id, count: previous.count + 1 }));
+  }, []);
 
   const handleExportPdf = useCallback(() => {
     setIsExportMenuOpen(false);
@@ -98,6 +105,11 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({
     if (!activePuppy) return;
     exportHealthPassportToCSV(activePuppy, vaccinations, dewormingLogs, [...weightActivities, ...medicationActivities], lang as 'en' | 'fr', caretakers);
   }, [activePuppy, vaccinations, dewormingLogs, weightActivities, medicationActivities, lang, caretakers]);
+
+  // ?add= is read once: dropped from the address so a reload or a shared link does not reopen the form
+  useEffect(() => {
+    if (window.location.search) window.history.replaceState(window.history.state, '', window.location.pathname);
+  }, []);
 
   // Fallback only: the records come with /api/dashboard
   useEffect(() => {
@@ -221,7 +233,7 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({
           {/* What is due, first: the dashboard card shows the same list */}
           <Card className="bg-slate-900 border border-slate-800 text-slate-100 shadow-xl">
             <Card.Content className="p-4 sm:p-6">
-              <HealthDueList records={puppyRecords} dogName={activePuppy.name} />
+              <HealthDueList records={puppyRecords} dogName={activePuppy.name} onDone={handleDone} />
             </Card.Content>
           </Card>
 
@@ -236,6 +248,8 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({
 
           {/* Modular Vaccinations Section */}
           <VaccineSection
+            key={doneRecord?.type === 'vaccination' ? doneRequest.count : 'vaccines'}
+            doneName={doneRecord?.type === 'vaccination' ? doneRecord.name : undefined}
             activePuppy={activePuppy}
             vaccinations={vaccinations}
             setHealthRecords={setHealthRecords}
@@ -247,6 +261,8 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({
 
           {/* Modular Deworming / Parasitology Section */}
           <DewormingSection
+            key={doneRecord?.type === 'deworming' ? doneRequest.count : 'dewormings'}
+            doneName={doneRecord?.type === 'deworming' ? doneRecord.productName || doneRecord.name : undefined}
             activePuppy={activePuppy}
             dewormingLogs={dewormingLogs}
             setHealthRecords={setHealthRecords}
