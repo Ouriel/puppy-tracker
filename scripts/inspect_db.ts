@@ -84,8 +84,8 @@ async function runInspection() {
   // 2. Puppies Profile Summary (a deleted dog, deleted_at set, is skipped as in the app)
   const rawPuppies = await sql`SELECT * FROM puppies WHERE deleted_at IS NULL;`;
   console.log(`\n🐕 Puppies (${rawPuppies.length}):`);
-  rawPuppies.forEach((p) => {
-    console.log(`   • ID: ${p.id} | Name: ${p.name} | Breed: ${p.breed} | Weight: ${p.weight_kg == null ? 'none' : `${p.weight_kg}kg`} | Goal: ${p.daily_food_gram_goal}g (${p.target_meals_per_day} meals/day)`);
+  rawPuppies.forEach((puppy) => {
+    console.log(`   • ID: ${puppy.id} | Name: ${puppy.name} | Breed: ${puppy.breed} | Weight: ${puppy.weight_kg == null ? 'none' : `${puppy.weight_kg}kg`} | Goal: ${puppy.daily_food_gram_goal}g (${puppy.target_meals_per_day} meals/day)`);
   });
 
   // 3. Activity Type Breakdown & Timestamp Range
@@ -93,8 +93,8 @@ async function runInspection() {
   console.log(`\n📊 Activity Logs (${rawActivities.length} total):`);
 
   const activityCounts = await sql`SELECT type, COUNT(*) as count FROM activities GROUP BY type ORDER BY count DESC;`;
-  activityCounts.forEach((c) => {
-    console.log(`   • ${String(c.type).padEnd(12)} : ${c.count} logs`);
+  activityCounts.forEach((typeCount) => {
+    console.log(`   • ${String(typeCount.type).padEnd(12)} : ${typeCount.count} logs`);
   });
 
   const span = await sql`SELECT MIN(timestamp) as oldest, MAX(timestamp) as newest FROM activities;`;
@@ -115,18 +115,18 @@ async function runInspection() {
     };
 
     const puppyActivities: Activity[] = rawActivities
-      .filter((a) => a.puppy_id === puppy.id)
-      .map((a) => ({
-        id: a.id,
-        puppyId: a.puppy_id,
-        type: a.type,
-        timestamp: a.timestamp instanceof Date ? a.timestamp.toISOString() : new Date(a.timestamp).toISOString(),
-        loggedBy: a.logged_by || 'User',
-        pottyLocation: a.potty_location,
-        stoolConsistency: a.stool_consistency,
-        foodType: a.food_type,
-        quantityGrams: a.quantity_grams,
-        notes: a.notes,
+      .filter((row) => row.puppy_id === puppy.id)
+      .map((row) => ({
+        id: row.id,
+        puppyId: row.puppy_id,
+        type: row.type,
+        timestamp: row.timestamp instanceof Date ? row.timestamp.toISOString() : new Date(row.timestamp).toISOString(),
+        loggedBy: row.logged_by || 'User',
+        pottyLocation: row.potty_location,
+        stoolConsistency: row.stool_consistency,
+        foodType: row.food_type,
+        quantityGrams: row.quantity_grams,
+        notes: row.notes,
       }));
 
     console.log(`\n🔮 Live Prediction Engine Diagnostics (${profile.name}):`);
@@ -152,50 +152,50 @@ async function runInspection() {
     // 5. Daily Breakdown (Last 14 days)
     console.log('\n📅 Daily Breakdown (Last 14 days):');
     const byDate: Record<string, typeof puppyActivities> = {};
-    puppyActivities.forEach((act) => {
-      const d = new Date(act.timestamp).toLocaleDateString('fr-CA', { timeZone: 'Europe/Paris' });
-      if (!byDate[d]) byDate[d] = [];
-      byDate[d].push(act);
+    puppyActivities.forEach((activity) => {
+      const dateKey = new Date(activity.timestamp).toLocaleDateString('fr-CA', { timeZone: 'Europe/Paris' });
+      if (!byDate[dateKey]) byDate[dateKey] = [];
+      byDate[dateKey].push(activity);
     });
 
     const sortedDates = Object.keys(byDate).sort().reverse().slice(0, 14);
-    sortedDates.forEach((d) => {
-      const dayLogs = byDate[d].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
-      const firstPee = dayLogs.find((a) => a.type === 'pee');
-      const firstPoop = dayLogs.find((a) => a.type === 'poop');
-      const firstFood = dayLogs.find((a) => a.type === 'food');
+    sortedDates.forEach((dateKey) => {
+      const dayLogs = byDate[dateKey].sort((first, second) => new Date(first.timestamp).getTime() - new Date(second.timestamp).getTime());
+      const firstPee = dayLogs.find((log) => log.type === 'pee');
+      const firstPoop = dayLogs.find((log) => log.type === 'poop');
+      const firstFood = dayLogs.find((log) => log.type === 'food');
       const lastAct = dayLogs[dayLogs.length - 1];
 
-      const fmt = (act?: typeof dayLogs[0]) => {
-        if (!act) return '--:--';
-        const dateObj = new Date(act.timestamp);
+      const fmt = (log?: typeof dayLogs[0]) => {
+        if (!log) return '--:--';
+        const dateObj = new Date(log.timestamp);
         return dateObj.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Paris' });
       };
 
-      console.log(`   • ${d} | FirstPee: ${fmt(firstPee)} | FirstPoop: ${fmt(firstPoop)} | FirstFood: ${fmt(firstFood)} | LastAct: ${fmt(lastAct)} (Logs: ${dayLogs.length})`);
+      console.log(`   • ${dateKey} | FirstPee: ${fmt(firstPee)} | FirstPoop: ${fmt(firstPoop)} | FirstFood: ${fmt(firstFood)} | LastAct: ${fmt(lastAct)} (Logs: ${dayLogs.length})`);
     });
 
     // 6. Recent Activity Trail (Last 20 entries)
     console.log('\n📜 Recent Activity Trail (Last 20 entries):');
     const recentTrail = [...puppyActivities].reverse().slice(0, 20);
-    recentTrail.forEach((a) => {
-      const time = new Date(a.timestamp).toLocaleString('fr-FR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Paris' });
+    recentTrail.forEach((log) => {
+      const time = new Date(log.timestamp).toLocaleString('fr-FR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Paris' });
       const details = [
-        a.pottyLocation ? `loc:${a.pottyLocation}` : '',
-        a.stoolConsistency ? `stool:${a.stoolConsistency}` : '',
-        a.quantityGrams ? `${a.quantityGrams}g` : '',
-        a.loggedBy ? `by:${a.loggedBy}` : '',
-        a.notes ? `notes:"${a.notes}"` : '',
+        log.pottyLocation ? `loc:${log.pottyLocation}` : '',
+        log.stoolConsistency ? `stool:${log.stoolConsistency}` : '',
+        log.quantityGrams ? `${log.quantityGrams}g` : '',
+        log.loggedBy ? `by:${log.loggedBy}` : '',
+        log.notes ? `notes:"${log.notes}"` : '',
       ].filter(Boolean).join(' | ');
 
-      console.log(`   • ${time.padEnd(16)} | ${a.type.padEnd(6)} | ${details}`);
+      console.log(`   • ${time.padEnd(16)} | ${log.type.padEnd(6)} | ${details}`);
     });
   }
 
   console.log('\n====================================================\n');
 }
 
-runInspection().catch((err) => {
-  console.error('❌ Error executing database inspection script:', err);
+runInspection().catch((error) => {
+  console.error('❌ Error executing database inspection script:', error);
   process.exit(1);
 });

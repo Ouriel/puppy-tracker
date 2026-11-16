@@ -90,9 +90,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
 
       const activities = await baseQuery;
-      const formatted = activities.map((act) => ({
-        ...act,
-        timestamp: act.timestamp instanceof Date ? act.timestamp.toISOString() : new Date(act.timestamp).toISOString(),
+      const formatted = activities.map((activity) => ({
+        ...activity,
+        timestamp: activity.timestamp instanceof Date ? activity.timestamp.toISOString() : new Date(activity.timestamp).toISOString(),
       }));
       return res.status(200).json(formatted);
     }
