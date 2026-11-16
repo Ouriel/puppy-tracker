@@ -185,6 +185,9 @@ function App() {
       });
       setAreHealthRecordsLoaded(true);
     }
+    // The skeleton ends in the same step as the logs' transition (setActivitiesForPuppy), so in the same lane and commit.
+    // Ended later, after an await, it may get the next lane, wrapped round to the first, and commit first: one frame of cards waiting for their logs.
+    startTransition(() => setIsLoading(false));
     return true;
   }, [activePuppyId, getMutationVersion, setPuppies, setDeletedPuppies, selectPuppy, setCaretakers, setActivitiesForPuppy]);
 
