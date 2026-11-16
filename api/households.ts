@@ -76,7 +76,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (req.query.all === 'true' && auth.role === 'SuperAdmin') {
         const allHouseholds = await db.select().from(householdsTable);
         // Ensure default household is in the list if not in DB yet
-        const hasMain = allHouseholds.some((h) => h.id === 'FAMILY-COCKER-2026');
+        const hasMain = allHouseholds.some((household) => household.id === 'FAMILY-COCKER-2026');
         const list = hasMain
           ? allHouseholds
           : [{ id: 'FAMILY-COCKER-2026', familyPackId: 'FAMILY-COCKER-2026', name: 'Family Pack (Main)' }, ...allHouseholds];

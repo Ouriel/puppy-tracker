@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from 'vitest';
-import { act, type ComponentProps } from 'react';
+import { act, startTransition, useState, type ComponentProps } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { toast } from '@heroui/react';
 import App from '../App';
@@ -104,6 +104,20 @@ async function settle() {
 /** Settles until `condition` holds, for lazy views slower than one settle. */
 async function settleUntil(condition: () => boolean) {
   for (let round = 0; round < 50 && !condition(); round += 1) await settle();
+}
+
+/** Starts `count` transitions, one per act, on a root of their own: each moves React's transition lane counter on by one. */
+async function startTransitions(count: number) {
+  let bump: (update: (value: number) => number) => void = () => {};
+  const Counter = () => {
+    const [value, setValue] = useState(0);
+    bump = setValue;
+    return <i>{value}</i>;
+  };
+  const counterRoot = createRoot(document.createElement('div'));
+  await act(async () => counterRoot.render(<Counter />));
+  for (let step = 0; step < count; step++) await act(async () => startTransition(() => bump((value) => value + 1)));
+  await act(async () => counterRoot.unmount());
 }
 
 async function renderApp() {
@@ -1576,10 +1590,16 @@ describe('the first load\'s skeleton', () => {
     expect(skeleton?.getAttribute('aria-label')).toBe('Chargement…');
   });
 
+  // React gives each transition the next of its lanes, in a cycle, and renders each lane on its own. Started apart, the logs'
+  // transition on the last lane and the skeleton's on the first (wrapped round) committed the skeleton's first: these tests
+  // failed or passed depending on how many transitions the tests before them had started. One of 16 starting points hits it.
+  const laneOffsets = Array.from({ length: 16 }, (_, offset) => offset);
+
   // Layout-shift hunt 2026-10-20: one frame showed the cards waiting for the logs, smaller, between the skeleton and them (CLS 0.2)
-  it('gives way to the cards with the logs in one step, never to the cards waiting for them', async () => {
+  it.each(laneOffsets)('gives way to the cards with the logs in one step, never to the cards waiting for them (lane offset %i)', async (offset) => {
     signedInWithCachedDogOnly();
     stubApi({ '/api/dashboard': () => respond(dashboardPayload()) });
+    await startTransitions(offset);
 
     await renderApp();
 
@@ -1588,11 +1608,12 @@ describe('the first load\'s skeleton', () => {
     expect(cardsWaitingForLogs).not.toContain(true);
   });
 
-  it('after a first sign-in too', async () => {
+  it.each(laneOffsets)('after a first sign-in too (lane offset %i)', async (offset) => {
     stubApi({
       '/api/auth/session': () => respond({ sessionToken: 'app-session', user: owner }),
       '/api/dashboard': () => respond(dashboardPayload()),
     });
+    await startTransitions(offset);
     await renderApp();
 
     await act(async () => document.getElementById('sign-in')!.click());
@@ -1669,7 +1690,6 @@ describe('adding a dog', () => {
 });
 
 // Audit 2026-11-10: an update found meanwhile reloaded the page once it was in the background, and the log was gone.
-// At the end of the file: one more test before "the first load's skeleton" makes one of those fail, on main too.
 describe('a quick log not sent and app updates', () => {
   it('holds an app update until it is sent: a reload would lose it', async () => {
     signedInWithCachedDogOnly();
