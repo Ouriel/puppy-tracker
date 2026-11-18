@@ -111,6 +111,10 @@ PupPace — Smart Household Puppy Activity Tracker & Potty Predictor. React 19 +
 - Never run `neon link`, `neon checkout`, `neon init` or `neon env pull` without the owner's OK: they overwrite `POSTGRES_URL` in `.env` / `.env.local`.
 - Never run `neon mcp` or `neon init -y`: the Neon MCP is the owner's claude.ai connector, and these add a duplicate server with an API key in `~/.claude.json`.
 
+### Dependencies
+
+- `overrides` in `package.json` forces `undici` `^6.29.1` under `@vercel/node`, which pins 5.28.4 (3 security alerts, fixed in 6.29.1). The app imports only types from `@vercel/node` and Vercel builds the functions with its own runtime, so the forced version runs only in `vercel dev`. Remove the override once `@vercel/node` depends on `undici` 6.29.1 or later: kept longer, it would hold a newer `undici` back.
+
 ### Sync with TipsyTap
 
 - PupPace and the owner's other app, TipsyTap (`Ouriel/drinks-counter`), share engineering only: CI/CD, workflows, rulesets, dependency strategy, testing, architecture patterns. Never features, product behaviour, data retention or UX: each app decides those with the owner.
