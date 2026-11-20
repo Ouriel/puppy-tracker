@@ -252,8 +252,8 @@ describe('Sign-in screen', () => {
       const about = [...document.querySelectorAll('button')].find((button) => button.getAttribute('aria-expanded') !== null)!;
       await act(async () => about.click());
 
-      expect(pageText()).toContain('PupPace est une application');
-      expect(pageText()).not.toMatch(/is a smart puppy|Disclosure/);
+      expect(pageText()).toContain('PupPace enregistre les besoins');
+      expect(pageText()).not.toMatch(/records your puppy|Disclosure/);
     });
 
     it.each(['en', 'fr'])('the sign-in screen says "Google", never "OAuth", "Super Admin" or a person (%s)', async (lang) => {

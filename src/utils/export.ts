@@ -497,8 +497,8 @@ export function printActivitiesReport(
 
         <div class="footer">
           ${isFrench
-            ? 'Document généré avec PupPace — suivi des besoins et carnet de santé du chiot.'
-            : 'Document generated with PupPace — Smart Puppy Care & Potty Predictor.'}
+            ? "Document généré avec PupPace — suivi d'activité et de propreté du chiot."
+            : 'Document generated with PupPace — smart puppy activity tracker.'}
         </div>
       </body>
     </html>
