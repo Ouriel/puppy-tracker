@@ -228,14 +228,14 @@ export const DogHealthSummary: React.FC<DogHealthSummaryProps> = React.memo(({
               </div>
             </div>
 
-            {/* Meals Schedule Row */}
+            {/* Meals Schedule Row: food's purple, as on the meal card, the log form and the feed */}
             <div className="bg-slate-900/80 p-3 rounded-xl border border-slate-800/90 space-y-2">
               <div className="flex items-center justify-between text-xs gap-2 flex-wrap">
                 <div className="flex items-center gap-1.5 font-bold text-slate-300">
-                  <Utensils className="w-3.5 h-3.5 text-emerald-400" />
+                  <Utensils className="w-3.5 h-3.5 text-purple-400" />
                   <span>{t.health.mealSchedule}</span>
                 </div>
-                <span className="text-[11px] font-semibold text-emerald-300/90 bg-emerald-950/50 border border-emerald-800/40 px-2 py-0.5 rounded">
+                <span className="text-[11px] font-semibold text-purple-300/90 bg-purple-950/50 border border-purple-800/40 px-2 py-0.5 rounded">
                   {t.health.mealsPerDay.replace('{count}', String(scheduleData.targetMeals))}
                   {scheduleData.dailyGrams > 0 && ` (${formatGrams(scheduleData.dailyGrams, lang)})`}
                 </span>
@@ -245,7 +245,7 @@ export const DogHealthSummary: React.FC<DogHealthSummaryProps> = React.memo(({
                 {scheduleData.mealItems.map((item, index) => (
                   <div key={index} className="bg-slate-950/70 px-1 py-2 sm:p-2.5 rounded-lg border border-slate-800/70 text-center sm:text-left">
                     <div className="text-[11px] text-slate-400 font-medium truncate" title={item.name}>{item.name}</div>
-                    <div className="font-extrabold text-emerald-300 text-xs sm:text-sm mt-0.5">~{item.timeStr}</div>
+                    <div className="font-extrabold text-purple-300 text-xs sm:text-sm mt-0.5">~{item.timeStr}</div>
                     {item.grams !== undefined && <div className="text-xs text-slate-400 mt-0.5 font-medium">~{formatGrams(item.grams, lang)}</div>}
                   </div>
                 ))}

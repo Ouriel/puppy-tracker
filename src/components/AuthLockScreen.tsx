@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useEffectEvent, useRef } from 'react';
-import { Lock, ShieldCheck, FileText, Shield, Sparkles, ChevronDown, ChevronUp, Clock, Globe } from 'lucide-react';
+import { Lock, ShieldCheck, FileText, Shield, Sparkles, ChevronDown, ChevronUp, Clock, Globe, AlertTriangle } from 'lucide-react';
 import { Card, Button } from '@heroui/react';
 import { PrivacyPolicyModal } from './PrivacyPolicyModal';
 import { TermsOfServiceModal } from './TermsOfServiceModal';
@@ -211,7 +211,8 @@ export const AuthLockScreen: React.FC<AuthLockScreenProps> = ({
 
           {error && (
             <div role="alert" className="bg-red-950/40 border border-red-800/50 text-red-300 p-3 rounded-xl text-xs font-medium text-center">
-              ⚠️ {t.auth[error]}
+              <AlertTriangle className="w-3.5 h-3.5 inline-block align-[-2px] mr-1.5 shrink-0" aria-hidden="true" />
+              {t.auth[error]}
               {error === 'googleScriptFailed' && (
                 // A reload fetches the script again
                 <Button size="sm" variant="secondary" onPress={() => window.location.reload()} className="mx-auto mt-2 flex">

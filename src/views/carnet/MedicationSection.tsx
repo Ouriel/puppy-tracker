@@ -63,7 +63,7 @@ export const MedicationSection: React.FC<MedicationSectionProps> = ({
               variant="primary"
               size="sm"
               onPress={() => onOpenQuickLogModal("medication")}
-              className="min-h-11 bg-teal-700 hover:bg-teal-600 text-white font-bold text-xs shadow-sm shrink-0"
+              className="min-h-11 font-bold text-xs shadow-sm shrink-0"
             >
               <Plus className="w-4 h-4 mr-1 inline" />
               {t.health.addMedication}
@@ -93,9 +93,7 @@ export const MedicationSection: React.FC<MedicationSectionProps> = ({
                   </div>
 
                   {log.notes && (
-                    <p className="text-xs text-slate-300 italic font-mono bg-slate-900/80 px-2.5 py-1 rounded-lg border border-slate-800/80 break-words">
-                      "{log.notes}"
-                    </p>
+                    <p className="text-xs text-slate-300 italic break-words">{log.notes}</p>
                   )}
 
                   <div className="flex items-center gap-1.5 text-xs text-slate-400">

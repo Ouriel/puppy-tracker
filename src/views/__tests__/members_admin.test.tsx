@@ -464,7 +464,7 @@ describe('Admin panel (27, 28)', () => {
     await renderAdmin();
     await click(buttons('Approve & Assign')[0]);
 
-    const janeRow = [...document.querySelectorAll('.font-mono')].find((element) => element.textContent === pendingStranger.email)!.parentElement!;
+    const janeRow = [...document.querySelectorAll('div')].find((element) => element.childElementCount === 0 && element.textContent === pendingStranger.email)!.parentElement!;
     expect(janeRow.textContent).toContain('Admin');
   });
 
@@ -650,7 +650,7 @@ describe('Admin panel (27, 28)', () => {
       await setValue(moveSelect(), 'hh-third');
       await click(buttons('Move').at(-1)!);
 
-      const bobRow = [...document.querySelectorAll('.font-mono')].find((element) => element.textContent === activeElsewhere.email)!.parentElement!;
+      const bobRow = [...document.querySelectorAll('div')].find((element) => element.childElementCount === 0 && element.textContent === activeElsewhere.email)!.parentElement!;
       expect(bobRow.textContent).toContain('Member');
       expect(bobRow.textContent).not.toContain('Admin');
     });

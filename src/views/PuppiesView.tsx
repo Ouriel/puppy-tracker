@@ -550,9 +550,7 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
                   </div>
 
                   {puppy.notes && (
-                    <p className="text-xs text-slate-400 bg-slate-950/40 p-2.5 rounded-lg border border-slate-800/80 italic font-mono">
-                      "{puppy.notes}"
-                    </p>
+                    <p className="text-xs text-slate-400 italic break-words">{puppy.notes}</p>
                   )}
                 </Card.Content>
               </Card>

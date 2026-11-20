@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import type { Activity, ActivityType, PottyLocation, PuppyProfile, PredictionResult } from '../types';
-import { Droplet, Utensils, CheckCircle2, ChevronDown } from 'lucide-react';
+import { Droplet, Utensils, ChevronDown, TreePine, AlertTriangle } from 'lucide-react';
 import { PoopIcon } from './common/PoopIcon';
 import { Card } from '@heroui/react';
 import { useI18n } from '../i18n';
@@ -138,10 +138,12 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = React.memo(({
     return renderCountdown(`~${formatDuration(diffMins, lang)}`, t.dashboard.dueIn, diffMins);
   };
 
-  // "il y a 2 h 56" / "2h 56m ago"; under a minute, "à l'instant"
+  // "il y a 2 h 56" / "2h 56m ago"; under a minute, "à l'instant"; from 2 days, in days as the weight tile ("il y a 9 j", not "il y a 223 h")
   const formatAgo = (minutes: number | null) => {
     if (minutes === null) return t.dashboard.noneLoggedToday;
-    return minutes < 1 ? t.dashboard.justNow : t.dashboard.timeAgo.replace('{time}', formatDuration(minutes, lang));
+    if (minutes < 1) return t.dashboard.justNow;
+    if (minutes >= 48 * 60) return new Intl.RelativeTimeFormat(lang, { numeric: 'auto', style: 'short' }).format(-Math.floor(minutes / (24 * 60)), 'day');
+    return t.dashboard.timeAgo.replace('{time}', formatDuration(minutes, lang));
   };
 
   const toggleDetails = (card: CardKind) => {
@@ -259,7 +261,7 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = React.memo(({
               aria-label={t.potty.peedOutside}
               className="w-full h-11 flex items-center justify-center gap-1.5 bg-emerald-700 hover:bg-emerald-600 active:scale-[0.98] text-white font-extrabold text-xs rounded-xl shadow transition-all px-2 cursor-pointer"
             >
-              <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+              <TreePine className="w-3.5 h-3.5 shrink-0" />
               <span className="truncate">{t.potty.outside}</span>
             </button>
             <button
@@ -268,6 +270,7 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = React.memo(({
               aria-label={t.potty.peeAccident}
               className="w-full h-11 flex items-center justify-center gap-1.5 bg-red-950/70 border border-red-700/70 text-red-300 hover:bg-red-900/80 active:scale-[0.98] font-bold text-xs rounded-xl transition-all px-2 cursor-pointer"
             >
+              <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
               <span className="truncate">{t.potty.accidentShort}</span>
             </button>
           </div>
@@ -358,7 +361,7 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = React.memo(({
               aria-label={t.potty.poopedOutside}
               className="w-full h-11 flex items-center justify-center gap-1.5 bg-emerald-700 hover:bg-emerald-600 active:scale-[0.98] text-white font-extrabold text-xs rounded-xl shadow transition-all px-2 cursor-pointer"
             >
-              <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+              <TreePine className="w-3.5 h-3.5 shrink-0" />
               <span className="truncate">{t.potty.outside}</span>
             </button>
             <button
@@ -367,6 +370,7 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = React.memo(({
               aria-label={t.potty.poopAccident}
               className="w-full h-11 flex items-center justify-center gap-1.5 bg-red-950/70 border border-red-700/70 text-red-300 hover:bg-red-900/80 active:scale-[0.98] font-bold text-xs rounded-xl transition-all px-2 cursor-pointer"
             >
+              <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
               <span className="truncate">{t.potty.accidentShort}</span>
             </button>
           </div>

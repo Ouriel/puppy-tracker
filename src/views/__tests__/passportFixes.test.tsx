@@ -127,33 +127,30 @@ describe('the antiparasitic forms speak of doses, not injections', () => {
     expect(fieldName(productTrigger)).toContain('Produit');
   });
 
-  it('the toggle shows an X while the form is open, and Save uses the section colour', async () => {
+  it('the toggle shows an X while the form is open, and Save is the app\'s primary button', async () => {
     await renderPassport();
     const toggle = buttonWithText('Ajouter un antiparasitaire')!;
     await act(async () => toggle.click());
     expect(toggle.querySelector('.lucide-x')).not.toBeNull();
-    expect(buttonWithText("Enregistrer l'antiparasitaire")!.className).toContain('bg-amber-700');
+    expect(buttonWithText("Enregistrer l'antiparasitaire")!.className).toContain('button--primary');
   });
 
-  // White on amber-600 is 3.2:1 and on teal-600 3.7:1; 12-14 px bold text needs 4.5:1. White on the 700 shade is 5.0:1 (amber) and 5.5:1 (teal).
-  it('every amber or teal button (Add, Save, edit Save) is white on the 700 shade, only lighter on hover', async () => {
+  // Style review 2026-11-20: Add and Save were pink, teal or amber by section; they are the app's primary (white on indigo-600, 6.3:1)
+  // as on the dashboard and in settings, and the section keeps its colour on its icon
+  it('every Add, Save and edit Save button is the primary one, none in a section colour', async () => {
     await renderPassport();
     await act(async () => buttonWithText('Ajouter un antiparasitaire')!.click());
     await act(async () => buttonWithText('Ajouter un vaccin')!.click());
     await act(async () => button('Modifier Bravecto du 10 sept.')!.click());
     await act(async () => button('Modifier Rage du 1 juil.')!.click());
-    const restingShade = (element: Element) => element.className.split(' ').find((name) => /^bg-(amber|teal)-\d+$/.test(name));
-    const coloured = [...document.querySelectorAll('button')].filter(restingShade);
+    const buttons = [...document.querySelectorAll('button')];
 
-    expect(coloured.map((element) => [element.textContent!.trim(), restingShade(element)])).toEqual([
-      ['Annuler', 'bg-teal-700'], // the open "Add a vaccine" toggle
-      ['Enregistrer le vaccin', 'bg-teal-700'],
-      ['Enregistrer', 'bg-teal-700'],
-      ['Annuler', 'bg-amber-700'],
-      ["Enregistrer l'antiparasitaire", 'bg-amber-700'],
-      ['Enregistrer', 'bg-amber-700'],
-      ['Ajouter un traitement', 'bg-teal-700'],
-    ]);
+    expect(buttons.filter((element) => /\bbg-(amber|teal|pink)-\d+\b/.test(element.className)).map((element) => element.textContent!.trim())).toEqual([]);
+    for (const label of ['Annuler', 'Enregistrer le vaccin', "Enregistrer l'antiparasitaire", 'Enregistrer', 'Ajouter un traitement', 'Peser le chiot']) {
+      const matches = buttons.filter((element) => element.textContent!.trim() === label);
+      expect(matches.length, label).toBeGreaterThan(0);
+      for (const element of matches) expect(element.className, label).toContain('button--primary');
+    }
   });
 
   it('edit form: "Donné le", the error is tied to its box, Enter saves, and focus comes back to the row\'s pencil', async () => {
