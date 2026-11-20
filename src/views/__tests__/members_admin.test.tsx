@@ -91,9 +91,9 @@ function renderMembers(user: UserAccount, caretakers: Caretaker[] = badges) {
 }
 
 async function inviteFromMembersTab(email: string) {
-  await click(buttons('Pre-Approve Member Email')[0]);
+  await click(buttons('Invite a member')[0]);
   await setValue(document.querySelector<HTMLInputElement>('form input[type="email"]')!, email);
-  await click(buttons('Send Authorization')[0]);
+  await click(buttons('Invite')[0]);
 }
 
 describe('Members tab invite (19, 20, 42)', () => {
@@ -113,10 +113,10 @@ describe('Members tab invite (19, 20, 42)', () => {
     const { onAddCaretaker } = await renderMembers(owner);
     await inviteFromMembersTab('jane.doe@example.com');
 
-    expect(document.body.textContent).toContain('This person already has an account. Add them to your family?');
+    expect(document.body.textContent).toContain('This person already has an account. Add them to your household?');
     expect(onAddCaretaker).not.toHaveBeenCalled();
 
-    await click(buttons('Add to family')[0]);
+    await click(buttons('Add to household')[0]);
     expect(apiMock.createUser).toHaveBeenCalledTimes(2);
     expect(apiMock.createUser.mock.calls[1][0]).toMatchObject({ email: 'jane.doe@example.com', confirmMove: true });
     expect(onAddCaretaker).toHaveBeenCalledWith(expect.objectContaining({ email: 'jane.doe@example.com' }));
@@ -152,11 +152,11 @@ describe('Members tab invite (19, 20, 42)', () => {
 
   it('shows the pre-approve button to an Admin, not to a member (the server refuses members)', async () => {
     await renderMembers(member);
-    expect(buttons('Pre-Approve Member Email')).toHaveLength(0);
+    expect(buttons('Invite a member')).toHaveLength(0);
     await act(async () => root?.unmount());
 
     await renderMembers(familyAdmin);
-    expect(buttons('Pre-Approve Member Email')).toHaveLength(1);
+    expect(buttons('Invite a member')).toHaveLength(1);
   });
 
   // Backlog 12: the first member of a new family is its Admin and invites the rest of it.
@@ -174,22 +174,22 @@ describe('Members tab invite (19, 20, 42)', () => {
     const { onAddCaretaker } = await renderMembers(familyAdmin);
     await inviteFromMembersTab('jane.doe@example.com');
 
-    expect(danger).toHaveBeenCalledWith('This person already has an account. Ask Matthieu to add them.');
-    expect(document.body.textContent).not.toContain('Add them to your family?');
+    expect(danger).toHaveBeenCalledWith('This person already has an account. Ask the owner to add them.');
+    expect(document.body.textContent).not.toContain('Add them to your household?');
     expect(apiMock.createUser).toHaveBeenCalledTimes(1);
     expect(onAddCaretaker).not.toHaveBeenCalled();
     danger.mockRestore();
   });
 
-  it('a second tap on Send while the invite is in flight sends nothing more', async () => {
+  it('a second tap on Invite while the invite is in flight sends nothing more', async () => {
     let answer!: (result: unknown) => void;
     apiMock.createUser.mockReturnValueOnce(new Promise((resolve) => { answer = resolve; }));
     const { onAddCaretaker } = await renderMembers(owner);
     await inviteFromMembersTab('jane.doe@example.com');
-    await click(buttons('Send Authorization')[0]);
+    await click(buttons('Invite')[0]);
 
     expect(apiMock.createUser).toHaveBeenCalledTimes(1);
-    expect(buttons('Send Authorization')[0].disabled).toBe(true);
+    expect(buttons('Invite')[0].disabled).toBe(true);
     await act(async () => answer({ ok: true, data: {} }));
     expect(onAddCaretaker).toHaveBeenCalledTimes(1);
   });
@@ -215,7 +215,7 @@ describe('Members tab invite (19, 20, 42)', () => {
       await inviteFromMembersTab('jane.doe@example.com');
 
       await click(buttons('Share')[0]);
-      expect(share).toHaveBeenCalledWith({ title: 'PupPace', text: 'Join our family on PupPace to follow our puppy.', url: window.location.origin });
+      expect(share).toHaveBeenCalledWith({ title: 'PupPace', text: 'Join our household on PupPace to follow our puppy.', url: window.location.origin });
 
       share.mockRejectedValueOnce(new DOMException('Share canceled', 'AbortError'));
       await click(buttons('Share')[0]);
@@ -312,11 +312,11 @@ describe('Members tab identity (22)', () => {
       await click(document.querySelector<HTMLButtonElement>('[aria-label="Modifier Guest"]')!);
       expect(document.body.textContent).toContain("C'est moi");
 
-      await click([...document.querySelectorAll('button')].find((button) => /Autoriser un e-mail/.test(button.textContent ?? ''))!);
+      await click([...document.querySelectorAll('button')].find((button) => /Inviter un membre/.test(button.textContent ?? ''))!);
       await setValue(document.querySelector<HTMLInputElement>('form input[type="email"]')!, 'x@example.com');
       await act(async () => document.querySelector<HTMLFormElement>('form:has(input[type="email"])')!.requestSubmit());
 
-      expect(document.body.textContent).toContain("Cette personne a déjà un compte. L'ajouter à ta famille\u00a0?");
+      expect(document.body.textContent).toContain("Cette personne a déjà un compte. L'ajouter à ton foyer\u00a0?");
       expect(buttons('Ajouter')).toHaveLength(1);
     } finally {
       localStorage.removeItem('puppace_lang_v1');
@@ -391,7 +391,7 @@ describe('Members list layout', () => {
 
   it('the invite email box takes the full width on a phone, the send button under it', async () => {
     await renderMembers(owner);
-    await click(buttons('Pre-Approve Member Email')[0]);
+    await click(buttons('Invite a member')[0]);
 
     const emailRow = document.querySelector('form input[type="email"]')!.parentElement!.parentElement!;
     expect(emailRow.classList).toContain('flex-col');
@@ -539,7 +539,7 @@ describe('Admin panel (27, 28)', () => {
   async function preApprove(email: string) {
     const form = [...document.querySelectorAll('form')].at(-1)!;
     await setValue(form.querySelector<HTMLInputElement>('input[type="email"]')!, email);
-    await click(buttons('Pre-Approve')[0]);
+    await click(buttons('Invite')[0]);
   }
 
   it('pre-approving into the own household creates the same linked badge as the Members tab, and sends no name', async () => {
@@ -571,8 +571,8 @@ describe('Admin panel (27, 28)', () => {
     const { onAddCaretaker } = await renderAdmin();
     await preApprove('jane.doe@example.com');
 
-    expect(document.body.textContent).toContain('This person already has an account. Add them to your family?');
-    await click(buttons('Add to family')[0]);
+    expect(document.body.textContent).toContain('This person already has an account. Add them to your household?');
+    await click(buttons('Add to household')[0]);
 
     expect(apiMock.createUser.mock.calls[1][0]).toMatchObject({ email: 'jane.doe@example.com', householdId: 'FAMILY-COCKER-2026', confirmMove: true });
     expect(onAddCaretaker).toHaveBeenCalledWith(expect.objectContaining({ email: 'jane.doe@example.com' }));
@@ -686,7 +686,7 @@ describe('Members and Admin in French: no English left', () => {
     localStorage.setItem('puppace_lang_v1', 'fr');
     try {
       await renderMembers(owner);
-      await click([...document.querySelectorAll('button')].find((button) => /Autoriser un e-mail/.test(button.textContent ?? ''))!);
+      await click([...document.querySelectorAll('button')].find((button) => /Inviter un membre/.test(button.textContent ?? ''))!);
       await setValue(document.querySelector<HTMLInputElement>('form input[type="email"]')!, 'jane.doe@example.com');
       await act(async () => document.querySelector<HTMLFormElement>('form:has(input[type="email"])')!.requestSubmit());
 
@@ -708,21 +708,21 @@ describe('Members and Admin in French: no English left', () => {
       await render(<AdminView currentUserEmail={SUPER_ADMIN_EMAIL} caretakers={badges} onAddCaretaker={vi.fn()} />);
 
       const chips = [...document.querySelectorAll('.chip')].map((chip) => chip.textContent);
-      expect(chips).toEqual(expect.arrayContaining(['Super-admin', 'Membre']));
+      expect(chips).toEqual(expect.arrayContaining(['Propriétaire', 'Membre']));
       expect(chips).not.toContain('Member');
       const form = [...document.querySelectorAll('form')].at(-1)!;
       const email = form.querySelector<HTMLInputElement>('input[type="email"]')!;
       expect(email.placeholder).toBe('ex.\u00a0: conjoint@famille.com');
 
       await setValue(email, 'new.person@example.com');
-      await click(buttons('Pré-autoriser')[0]);
-      expect(document.body.textContent).toContain('new.person@example.com pré-autorisé dans «\u00a0Family Pack (Main)\u00a0»');
+      await click(buttons('Inviter')[0]);
+      expect(document.body.textContent).toContain('new.person@example.com invité dans «\u00a0Family Pack (Main)\u00a0»');
       expect(document.body.textContent).not.toMatch(/Pre-approved|Activated|Moved/);
       // Each trash says whose account, 44 px; each select is named
       const trash = document.querySelector<HTMLButtonElement>('button[aria-label="Supprimer bob.smith@example.com"]')!;
       expect(['min-h-11', 'min-w-11'].every((name) => trash.classList.contains(name))).toBe(true);
       expect(form.querySelector('select')!.getAttribute('aria-label')).toBe('Foyer');
-      expect(email.getAttribute('aria-label')).toBe('Pré-autoriser un e-mail');
+      expect(email.getAttribute('aria-label')).toBe('Inviter une adresse e-mail');
     } finally {
       localStorage.removeItem('puppace_lang_v1');
     }

@@ -281,12 +281,12 @@ describe('row buttons named after their row, 44 px targets (French)', () => {
 
     const buttonWithText = (text: string) => [...document.querySelectorAll<HTMLButtonElement>('button')].find((element) => element.textContent!.includes(text))!;
     await act(async () => buttonWithText('Ajouter un membre').click());
-    await act(async () => buttonWithText('Autoriser un e-mail').click());
+    await act(async () => buttonWithText('Inviter un membre').click());
     const nameBox = document.querySelector<HTMLInputElement>('form input[type="text"]')!;
     expect(document.querySelector(`label[for="${nameBox.id}"]`)!.textContent).toBe('Nom du membre');
     expect(document.querySelector('form input[type="color"]')!.getAttribute('aria-label')).toBe('Couleur du badge');
     const emailBox = document.querySelector<HTMLInputElement>('input[type="email"]')!;
-    expect(document.getElementById(emailBox.getAttribute('aria-labelledby')!)!.textContent).toBe('Inviter un membre par e-mail');
+    expect(document.getElementById(emailBox.getAttribute('aria-labelledby')!)!.textContent).toBe('Inviter un membre');
 
     await act(async () => button('Modifier Marie')!.click());
     expect(button('Annuler')).not.toBeNull();

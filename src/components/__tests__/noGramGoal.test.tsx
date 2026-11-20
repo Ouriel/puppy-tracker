@@ -91,8 +91,8 @@ describe('a dog with no gram goal: no goal in grams on any screen', () => {
     const container = await render(
       <ActivityTimeline activities={[gramlessMeal]} caretakers={[]} activePuppy={noGoal} onDeleteActivity={vi.fn()} referenceTime={now} />
     );
-    const foodPill = container.querySelector<HTMLElement>('[title^="Food intake"]')!;
-    expect(foodPill.title).toBe('Food intake: (1/3)');
+    const foodPill = container.querySelector<HTMLElement>('[title^="Meals"]')!;
+    expect(foodPill.title).toBe('Meals: (1/3)');
     expect(foodPill.textContent).toBe('(1/3)');
     expect(foodPill.querySelectorAll('span')).toHaveLength(1);
   });
@@ -107,7 +107,7 @@ describe('a dog with no gram goal: no goal in grams on any screen', () => {
       <ActivityTimeline activities={meals} caretakers={[]} activePuppy={noGoal} onDeleteActivity={vi.fn()} onUpdateActivity={onUpdateActivity} referenceTime={now} />
     );
     // Today's day starts open
-    await act(async () => document.querySelector<HTMLButtonElement>('button[aria-label^="Edit food "]')!.click());
+    await act(async () => document.querySelector<HTMLButtonElement>('button[aria-label^="Edit meal "]')!.click());
     // The edit form is a lazy chunk
     await act(async () => { await import('../QuickLogModal'); });
     const grams = document.getElementById('quicklog-quantity-grams') as HTMLInputElement;

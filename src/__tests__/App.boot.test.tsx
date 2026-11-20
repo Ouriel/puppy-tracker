@@ -709,7 +709,7 @@ describe('a quick log that could not be saved', () => {
     expect(todayHeader().getAttribute('aria-expanded')).toBe('true');
     // Closed by hand, its header says it holds one
     await act(async () => todayHeader().click());
-    expect(todayHeader().textContent).toContain('1 log not sent');
+    expect(todayHeader().textContent).toContain('1 not sent');
 
     await openToday();
     connection.isOnline = true;
@@ -840,9 +840,9 @@ describe('a quick log that could not be saved', () => {
       await renderApp();
 
       await tapPeeOutside();
-      expect(unsentLine()!.textContent).toContain('1 log not sent');
+      expect(unsentLine()!.textContent).toContain('1 not sent');
       await tapPoopOutside();
-      expect(unsentLine()!.textContent).toContain('2 logs not sent');
+      expect(unsentLine()!.textContent).toContain('2 not sent');
       expectInBottomBar(unsentLine()!);
 
       connection.isOnline = true;
@@ -867,8 +867,8 @@ describe('a quick log that could not be saved', () => {
       const clearToasts = vi.spyOn(toast, 'clear');
       await act(async () => lineButton(en.potty.discard).click());
       await settle();
-      expect(document.querySelector('[role="dialog"]')!.textContent).toContain('Discard 2 logs not sent?');
-      expect(unsentLine()!.textContent).toContain('2 logs not sent');
+      expect(document.querySelector('[role="dialog"]')!.textContent).toContain('Discard 2 activities not sent?');
+      expect(unsentLine()!.textContent).toContain('2 not sent');
       // Their "not saved" toasts, at the bottom like the dialog on a phone, would cover its buttons
       expect(clearToasts).toHaveBeenCalled();
 
@@ -906,16 +906,16 @@ describe('a quick log that could not be saved', () => {
       await tapPeeOutside();
 
       await pickDog('Second');
-      expect(unsentLine()!.textContent).toContain('1 log not sent');
+      expect(unsentLine()!.textContent).toContain('1 not sent');
       expect(isMarkedNotSaved()).toBe(false);
 
       await act(async () => lineButton(en.potty.discard).click());
       await settle();
-      expect(document.querySelector('[role="dialog"]')!.textContent).toContain('Discard 1 log not sent?');
+      expect(document.querySelector('[role="dialog"]')!.textContent).toContain('Discard 1 activity not sent?');
       await act(async () => dialogButton(en.potty.cancel)!.click());
       await settle();
 
-      expect(unsentLine()!.textContent).toContain('1 log not sent');
+      expect(unsentLine()!.textContent).toContain('1 not sent');
       await pickDog('Rex');
       await openToday();
       expect(isMarkedNotSaved()).toBe(true);
@@ -931,7 +931,7 @@ describe('a quick log that could not be saved', () => {
       await tapPeeOutside();
 
       const statuses = [...document.querySelector('main > .sticky')!.querySelectorAll('[role="status"]')].map((status) => status.textContent);
-      expect(statuses).toEqual([expect.stringMatching(/^Offline, data from \d\d:\d\d1 log not sent$/)]);
+      expect(statuses).toEqual([expect.stringMatching(/^Offline, data from \d\d:\d\d1 not sent$/)]);
       expect([...unsentLine()!.querySelectorAll('button')].map((button) => button.textContent)).toEqual([en.potty.retry, en.potty.discard]);
     });
 
@@ -1437,14 +1437,14 @@ describe('page title', () => {
     expect(tabs[1]).toMatch(/^Membres \(\d+\)$/);
   });
 
-  it('in English, the health passport reads "Health Book — PupPace"', async () => {
+  it('in English, the health passport reads "Health passport — PupPace"', async () => {
     signedInWithCachedDogOnly();
     localStorage.setItem('puppace_lang_v1', 'en');
     stubApi({ '/api/dashboard': () => respond(dashboardPayload()) });
     window.history.pushState({}, '', '/health-passport');
 
     await renderApp();
-    expect(document.title).toBe('Health Book — PupPace');
+    expect(document.title).toBe('Health passport — PupPace');
   });
 });
 
@@ -1630,10 +1630,10 @@ describe('the first load\'s skeleton', () => {
 describe('adding a dog', () => {
   const settingsButton = (text: string) => [...document.querySelectorAll('button')].find((button) => button.textContent?.trim() === text);
 
-  /** Fills and saves the add form; `isFormOpen`: it opened by itself (no dog yet), so "Add Dog" is not pressed. */
+  /** Fills and saves the add form; `isFormOpen`: it opened by itself (no dog yet), so "Add a dog" is not pressed. */
   async function addDog(name: string, isFormOpen = false) {
-    await settleUntil(() => (isFormOpen ? document.getElementById('dog-name') !== null : settingsButton('Add Dog') !== undefined));
-    if (!isFormOpen) await act(async () => settingsButton('Add Dog')!.click());
+    await settleUntil(() => (isFormOpen ? document.getElementById('dog-name') !== null : settingsButton('Add a dog') !== undefined));
+    if (!isFormOpen) await act(async () => settingsButton('Add a dog')!.click());
     const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!;
     const type = async (id: string, value: string) => act(async () => {
       setter.call(document.getElementById(id), value);

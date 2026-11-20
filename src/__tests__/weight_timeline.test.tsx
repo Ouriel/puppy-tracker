@@ -209,7 +209,7 @@ describe('Weight timeline (Phase 5c, prod-shaped)', () => {
     // One tap on the trash, next to the pencil, only asks
     await click(rowOn('2026-05-18').querySelector<HTMLButtonElement>('button[aria-label^="Delete the weigh-in of "]')!);
     expect(requests.filter((request) => request.method === 'DELETE')).toEqual([]);
-    expect(document.body.textContent).toContain('Delete the weigh-in of May 18 (3.9 kg)? This cannot be undone.');
+    expect(document.body.textContent).toContain("Delete the weigh-in of May 18 (3.9 kg)? This can't be undone.");
     await click(buttonWithText('Delete'));
     expect(requests.find((request) => request.method === 'DELETE')!.url).toBe('/api/activities?id=act-vet-1');
     expect(weightRows()).toHaveLength(10);

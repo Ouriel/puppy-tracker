@@ -112,7 +112,7 @@ describe('Export: the one-page print and the CSV get every treatment and the mem
     await renderPassport();
     await act(async () => buttonWithText(fr.dashboard.export).click());
     expect(buttonWithText(fr.health.exportHealthPdf).textContent).toContain('Résumé d\'une page pour le véto');
-    expect(buttonWithText(fr.health.exportHealthCsv).textContent).toContain('Vaccins, vermifuges, traitements et pesées');
+    expect(buttonWithText(fr.health.exportHealthCsv).textContent).toContain('Vaccins, antiparasitaires, traitements et pesées');
   });
 
   it('the printed page lists the treatments of the last 90 days', async () => {
