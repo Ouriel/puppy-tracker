@@ -125,7 +125,7 @@ describe('Export: the one-page print and the CSV get every treatment and the mem
 
     const html = printWindow.document.write.mock.calls[0][0] as string;
     expect(html).toContain('Métacam');
-    expect(html).toContain('9,4 kg');
+    expect(html).toContain('9,4\u00a0kg');
   });
 
   it('the CSV has a row per treatment, and names whoever logged a weigh-in or a treatment by their badge', async () => {

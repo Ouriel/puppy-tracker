@@ -504,7 +504,7 @@ describe('App log state', () => {
   });
 
   // Owner decision 2026-10-15: a dog with no gram goal may log a meal without grams (stored as null, never 0)
-  it('a dog with no gram goal: "Feed Meal Now" saves a meal with the grams box left empty', async () => {
+  it('a dog with no gram goal: "Feed meal now" saves a meal with the grams box left empty', async () => {
     const noGoalPuppy: PuppyProfile = { ...puppy, dailyFoodGramGoal: 0 };
     setAuthToken('app-session');
     setStoredAuthUser(owner);

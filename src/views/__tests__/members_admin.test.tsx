@@ -194,9 +194,9 @@ describe('Members tab invite (19, 20, 42)', () => {
     expect(onAddCaretaker).toHaveBeenCalledTimes(1);
   });
 
-  it('opens "Add Member" on the first colour no badge uses', async () => {
+  it('opens "Add a member" on the first colour no badge uses', async () => {
     await renderMembers(owner);
-    await click(buttons('Add Member')[0]);
+    await click(buttons('Add a member')[0]);
     expect(document.querySelector<HTMLInputElement>('form input[type="color"]')!.value.toUpperCase()).toBe(FIRST_FREE_COLOR);
   });
 
@@ -206,7 +206,7 @@ describe('Members tab invite (19, 20, 42)', () => {
       Reflect.deleteProperty(navigator, 'clipboard');
     });
 
-    it('Share sends the link Copy Link copies to the share sheet; closing the sheet copies nothing', async () => {
+    it('Share sends the link Copy link copies to the share sheet; closing the sheet copies nothing', async () => {
       const share = vi.fn().mockResolvedValue(undefined);
       const writeText = vi.fn();
       Object.defineProperty(navigator, 'share', { value: share, configurable: true });
@@ -221,15 +221,15 @@ describe('Members tab invite (19, 20, 42)', () => {
       await click(buttons('Share')[0]);
       expect(writeText).not.toHaveBeenCalled();
 
-      await click(buttons('Copy Link')[0]);
+      await click(buttons('Copy link')[0]);
       expect(writeText).toHaveBeenCalledWith(window.location.origin);
     });
 
-    it('a browser with no share sheet shows Copy Link only', async () => {
+    it('a browser with no share sheet shows Copy link only', async () => {
       await renderMembers(owner);
       await inviteFromMembersTab('jane.doe@example.com');
 
-      expect(buttons('Copy Link')).toHaveLength(1);
+      expect(buttons('Copy link')).toHaveLength(1);
       expect(buttons('Share')).toHaveLength(0);
     });
   });
@@ -260,7 +260,7 @@ describe('Members tab identity (22)', () => {
     const checkbox = document.querySelector<HTMLInputElement>('input[type="checkbox"]')!;
     expect(checkbox.checked).toBe(false);
     await click(checkbox);
-    await click(buttons('Save Changes')[0]);
+    await click(buttons('Save')[0]);
 
     expect(onUpdateCaretaker).toHaveBeenCalledWith('c-guest', expect.objectContaining({ name: 'Guest', email: 'member@example.com' }));
   });
@@ -273,7 +273,7 @@ describe('Members tab identity (22)', () => {
 
     expect(document.querySelector<HTMLInputElement>('input[type="checkbox"]')!.checked).toBe(true);
     await setValue(document.querySelector<HTMLInputElement>('input[type="text"]')!, 'Matt');
-    await click(buttons('Save Changes')[0]);
+    await click(buttons('Save')[0]);
 
     expect(onUpdateCaretaker).toHaveBeenCalledTimes(1);
     expect(onUpdateCaretaker.mock.calls[0][1]).toMatchObject({ name: 'Matt' });
@@ -284,7 +284,7 @@ describe('Members tab identity (22)', () => {
     const { onUpdateCaretaker } = await renderMembers(owner);
     await click(pencils()[0]);
     await click(document.querySelector<HTMLInputElement>('input[type="checkbox"]')!);
-    await click(buttons('Save Changes')[0]);
+    await click(buttons('Save')[0]);
 
     expect(onUpdateCaretaker).toHaveBeenCalledWith('c-owner', expect.objectContaining({ email: '' }));
   });
@@ -377,12 +377,12 @@ describe('Members list layout', () => {
 
     const label = document.querySelector('input[type="checkbox"]')!.closest('label')!;
     expect(label.previousElementSibling!.querySelector('input[type="text"]')).not.toBeNull();
-    expect(label.nextElementSibling!.textContent).toContain('Save Changes');
+    expect(label.nextElementSibling!.textContent).toContain('Save');
   });
 
-  it('"Add Member" turns into a close button with an X while the form is open', async () => {
+  it('"Add a member" turns into a close button with an X while the form is open', async () => {
     await renderMembers(owner);
-    await click(buttons('Add Member')[0]);
+    await click(buttons('Add a member')[0]);
 
     const toggle = buttons('Cancel')[0];
     expect(toggle.querySelector('.lucide-x')).not.toBeNull();
@@ -403,7 +403,7 @@ describe('Members list layout', () => {
 describe('Members tab name limits', () => {
   it('the new badge and badge rename boxes stop at the length the server accepts', async () => {
     await renderMembers(owner);
-    await click(buttons('Add Member')[0]);
+    await click(buttons('Add a member')[0]);
     await click(document.querySelector<HTMLButtonElement>('[aria-label^="Edit "]')!);
 
     const nameBoxes = [...document.querySelectorAll<HTMLInputElement>('input[type="text"]')];
@@ -415,12 +415,12 @@ describe('Members tab name limits', () => {
     }
   });
 
-  it('"Save changes" with the name emptied says the name is needed and saves nothing', async () => {
+  it('"Save" with the name emptied says the name is needed and saves nothing', async () => {
     const { onUpdateCaretaker } = await renderMembers(owner);
     await click(document.querySelector<HTMLButtonElement>('[aria-label="Edit Alice"]')!);
-    const nameBox = document.querySelector<HTMLInputElement>('input[aria-label="Member Name"]')!;
+    const nameBox = document.querySelector<HTMLInputElement>('input[aria-label="Member name"]')!;
     await setValue(nameBox, '  ');
-    await click(buttons('Save Changes')[0]);
+    await click(buttons('Save')[0]);
 
     expect(onUpdateCaretaker).not.toHaveBeenCalled();
     expect(nameBox.getAttribute('aria-invalid')).toBe('true');
@@ -454,7 +454,7 @@ describe('Admin panel (27, 28)', () => {
     const { onAddCaretaker } = await renderAdmin();
     expect(assignSelect().value).toBe('house-stranger');
 
-    await click(buttons('Approve & Assign')[0]);
+    await click(buttons('Approve and assign')[0]);
     expect(apiMock.updateUser).toHaveBeenCalledWith({ email: 'jane.doe@example.com', status: 'ACTIVE', householdId: 'house-stranger' });
     expect(onAddCaretaker).not.toHaveBeenCalled();
   });
@@ -462,7 +462,7 @@ describe('Admin panel (27, 28)', () => {
   it('shows the role the approval gave: a sign-up approved alone in its household is its Admin', async () => {
     apiMock.updateUser.mockResolvedValueOnce({ ok: true, data: { ...pendingStranger, status: 'ACTIVE', role: 'Admin' } });
     await renderAdmin();
-    await click(buttons('Approve & Assign')[0]);
+    await click(buttons('Approve and assign')[0]);
 
     const janeRow = [...document.querySelectorAll('div')].find((element) => element.childElementCount === 0 && element.textContent === pendingStranger.email)!.parentElement!;
     expect(janeRow.textContent).toContain('Admin');
@@ -475,7 +475,7 @@ describe('Admin panel (27, 28)', () => {
     await renderAdmin();
     await click(buttons('Revoke')[0]);
 
-    expect(danger).toHaveBeenCalledWith('No connection, nothing was saved');
+    expect(danger).toHaveBeenCalledWith('No connection, nothing was saved.');
     expect(buttons('Revoke')).toHaveLength(1);
     danger.mockRestore();
   });
@@ -485,9 +485,9 @@ describe('Admin panel (27, 28)', () => {
     apiMock.deleteUser.mockResolvedValueOnce({ ok: false, status: 0, errorKey: 'offline' });
     await renderAdmin();
     await click(document.querySelector<HTMLButtonElement>('button[aria-label="Delete bob.smith@example.com"]')!);
-    await click(buttons('Delete User').at(-1)!);
+    await click(buttons('Delete user').at(-1)!);
 
-    expect(danger).toHaveBeenCalledWith('No connection, nothing was saved');
+    expect(danger).toHaveBeenCalledWith('No connection, nothing was saved.');
     expect(document.body.textContent).toContain('bob.smith@example.com');
     danger.mockRestore();
   });
@@ -498,7 +498,7 @@ describe('Admin panel (27, 28)', () => {
     await renderAdmin();
     expect(apiMock.fetchUsers).toHaveBeenCalledTimes(1);
 
-    await click(buttons('Approve & Assign')[0]);
+    await click(buttons('Approve and assign')[0]);
     expect(apiMock.fetchUsers).toHaveBeenCalledTimes(2);
   });
 
@@ -506,21 +506,21 @@ describe('Admin panel (27, 28)', () => {
     const danger = vi.spyOn(toast, 'danger').mockImplementation(() => '');
     apiMock.updateUser.mockResolvedValueOnce({ ok: false, status: 0, errorKey: 'offline' });
     await renderAdmin();
-    await click(buttons('Approve & Assign')[0]);
+    await click(buttons('Approve and assign')[0]);
 
-    expect(danger).toHaveBeenCalledWith('No connection, nothing was saved');
+    expect(danger).toHaveBeenCalledWith('No connection, nothing was saved.');
     danger.mockRestore();
   });
 
   it("joining the owner's family is an explicit choice, confirmed first, and creates the same linked badge as an invite", async () => {
     const { onAddCaretaker } = await renderAdmin();
     await setValue(assignSelect(), 'FAMILY-COCKER-2026');
-    await click(buttons('Approve & Assign')[0]);
+    await click(buttons('Approve and assign')[0]);
 
     expect(apiMock.updateUser).not.toHaveBeenCalled();
     expect(document.body.textContent).toContain('Add jane.doe@example.com to Family Pack (Main)?');
 
-    await click(buttons('Approve & Assign').at(-1)!);
+    await click(buttons('Approve and assign').at(-1)!);
     expect(apiMock.updateUser).toHaveBeenCalledWith({ email: 'jane.doe@example.com', status: 'ACTIVE', householdId: 'FAMILY-COCKER-2026' });
     expect(onAddCaretaker).toHaveBeenCalledWith(
       expect.objectContaining({ name: 'Jane', email: 'jane.doe@example.com', color: FIRST_FREE_COLOR })
@@ -530,7 +530,7 @@ describe('Admin panel (27, 28)', () => {
   it('Cancel on the join question approves nobody', async () => {
     await renderAdmin();
     await setValue(assignSelect(), 'FAMILY-COCKER-2026');
-    await click(buttons('Approve & Assign')[0]);
+    await click(buttons('Approve and assign')[0]);
     await click(buttons('Cancel').at(-1)!);
 
     expect(apiMock.updateUser).not.toHaveBeenCalled();

@@ -214,9 +214,9 @@ describe('weight card units (backlog item 3)', () => {
       <DogHealthSummary profile={puppy} activities={[]} weightActivities={[weighIns[0], weighIn('act-w3', '2026-10-01T08:00:00.000Z', 10.4)]} healthRecords={[]} onOpenHealthPassport={vi.fn()} />
     );
 
-    expect(container.textContent).toContain(`${fr.health.lastLogged}10,4 kg`);
-    expect(container.textContent).toMatch(new RegExp(`${fr.health.estAdult} \\d+–\\d+ kg`));
-    expect(container.textContent).toMatch(/~\d+,\d kg/); // today's estimate
+    expect(container.textContent).toContain(`${fr.health.lastLogged}10,4\u00a0kg`);
+    expect(container.textContent).toMatch(new RegExp(`${fr.health.estAdult} \\d+–\\d+\u00a0kg`));
+    expect(container.textContent).toMatch(/~\d+,\d\u00a0kg/); // today's estimate
     expect(container.textContent).not.toMatch(/\d\.\d/);
   });
 
@@ -225,7 +225,7 @@ describe('weight card units (backlog item 3)', () => {
       <DogHealthSummary profile={puppy} activities={[]} weightActivities={[...weighIns, weighIn('act-typo', '2026-10-08T08:00:00.000Z', 104)]} healthRecords={[]} onOpenHealthPassport={vi.fn()} />
     );
 
-    expect(container.textContent).toContain(`${fr.health.lastLogged}10 kg`);
+    expect(container.textContent).toContain(`${fr.health.lastLogged}10\u00a0kg`);
     expect(container.textContent).toContain('+33\u00a0g/j');
     expect(container.textContent).not.toContain('104');
   });
@@ -234,7 +234,7 @@ describe('weight card units (backlog item 3)', () => {
     localStorage.setItem('puppace_lang_v1', 'en');
     const container = await renderWeightCard();
 
-    expect(container.textContent).toContain(`${en.dashboard.today} (32w)`);
+    expect(container.textContent).toContain(`${en.dashboard.today} (32 wk)`);
     expect(container.textContent).toContain('+33 g/day');
     expect(container.textContent).not.toContain('g/j');
   });

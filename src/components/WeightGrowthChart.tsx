@@ -82,7 +82,7 @@ export const WeightGrowthChart: React.FC<WeightGrowthChartProps> = ({
     if (unlikelyIds.has(entries[index].id)) return t.weightChart.checkReason;
     const change = changeAt(index);
     if (!change) return t.weightChart.firstWeighIn;
-    const kgText = `${formatChange(change.kg, lang, 1)} kg`;
+    const kgText = `${formatChange(change.kg, lang, 1)}\u00a0kg`;
     return change.days < 1
       ? t.weightChart.changeSameDay.replace('{change}', kgText)
       : t.weightChart.changeOver

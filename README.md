@@ -30,7 +30,7 @@ React 19 · Vite 8 · HeroUI v3 · Tailwind 4 · Vercel serverless functions · 
 ## Signing in and families
 
 - Sign in with Google. The first sign-in of a new person creates an account **waiting for approval**, in a new household of its own; until the owner approves it, the sign-in screen says the request was sent and waits for the family's admin (still shown after a reload on that phone, with "Use another Google account"). Approved there, alone, that person becomes the family's **Admin**: the first member of a new family invites the rest of it.
-- The owner, or a family's Admin, can also **invite** someone by email in advance (Settings > Household Members). An invited person lands directly in the inviter's family, as a member. Someone who signed in before being invited and still waits alone, in a household with no dog, joins it too.
+- The owner, or a family's Admin, can also **invite** someone by email in advance (Settings > Members). An invited person lands directly in the inviter's family, as a member. Someone who signed in before being invited and still waits alone, in a household with no dog, joins it too.
 - Several families can use the same app: each household sees only its own dogs, logs and members. Apart from that case, only the owner moves an account from one household to another, and always after a confirmation.
 - A session lasts 90 days and is renewed each time the app is opened. A removed or revoked account is sent back to the sign-in screen on its next request.
 
@@ -41,12 +41,12 @@ Three cards, one per need, for the selected dog (pick the dog in the top bar).
 | | Pee | Poop | Meal |
 |---|---|---|---|
 | Shows | countdown, clock time, ± margin, today's count, time since the last one, the reason | same | grams eaten / goal and meals (n of target), time since the last meal, the reason |
-| One-tap buttons | ✓ Outside · Accident (screen readers: "Peed Outside", "Pee accident indoors") | ✓ Outside · Accident (same, for poop) | Feed Meal Now (*suggested g*): opens the form on Meal |
+| One-tap buttons | ✓ Outside · Accident (screen readers: "Peed outside", "Pee accident indoors") | ✓ Outside · Accident (same, for poop) | Feed meal now (*suggested g*): opens the form on Meal |
 | Soon (amber) | 20 min before | 30 min before | 15 min before breakfast, 30 min before other meals |
 
 On a phone each card keeps its countdown and buttons with one line ("6 today · 31m ago"); a tap on that line opens the counts and the reason. Before a dog's first pee (or poop) its card says "No pee yet. Tap Outside to start." with no countdown; before its first meal, the meal card never turns amber or red: it names breakfast with its time while that time is ahead and in the morning ("Next: breakfast ~7:30 AM"), and says "Next: first meal" otherwise.
 
-A one-tap log is timed at the tap and stored under your name; its toast names it ("Logged: Peed Outside") and has **Undo**, which deletes it. A second log of the same type for the same dog within 5 seconds (a double tap, or Save pressed twice) is ignored ("Already logged"), unless the first one was undone.
+A one-tap log is timed at the tap and stored under your name; its toast names it ("Logged: Peed outside") and has **Undo**, which deletes it. A second log of the same type for the same dog within 5 seconds (a double tap, or Save pressed twice) is ignored ("Already logged"), unless the first one was undone.
 
 ### How the guesses work
 
@@ -92,9 +92,9 @@ The **+** button (top bar) opens the form on Pee; the meal, weigh and medication
 | Notes | Optional; emptying a note in an edit deletes it |
 | Logged by | Read-only line: you for a new log, the original author for an edit. The server sets it from your login; nobody can log under someone else's name. |
 
-The form checks everything before it closes, and closes only once the log is saved. If the save fails (or the phone is offline), the form stays open with what was typed and says "Not saved, try again", with a red message saying why.
+The form checks everything before it closes, and closes only once the log is saved. If the save fails (or the phone is offline), the form stays open with what was typed and says "Not saved, try again.", with a red message saying why.
 
-Your logs are stored under your **badge** (Settings > Household Members) linked to your login. If you have none yet, your first log creates one for you.
+Your logs are stored under your **badge** (Settings > Members) linked to your login. If you have none yet, your first log creates one for you.
 
 ## History
 
@@ -138,9 +138,9 @@ Open it from the health summary, or at `/health-passport`. Under its title, one 
 
 ## Settings
 
-**Dog Profiles.** Name, breed (English and French names; "Other" with a custom name), sex, birth date (required, not in the future), daily gram goal (10 to 2000 g, or tick "No gram goal" to count meals only), meals per day (1 to 6; for a new dog, set from its age: 4 under 3 months, 3 under 6 months, then 2), notes. The expected adult weight box appears only for Other, Mixed and Unknown breeds. Any family member can add or edit a dog; only the owner can delete one.
+**Dogs.** Name, breed (English and French names; "Other" with a custom name), sex, birth date (required, not in the future), daily gram goal (10 to 2000 g, or tick "No gram goal" to count meals only), meals per day (1 to 6; for a new dog, set from its age: 4 under 3 months, 3 under 6 months, then 2), notes. The expected adult weight box appears only for Other, Mixed and Unknown breeds. Any family member can add or edit a dog; only the owner can delete one.
 
-**Household Members.** Each person has a badge (name and colour) that colours their logs. Anyone in the family can add a badge.
+**Members.** Each person has a badge (name and colour) that colours their logs. Anyone in the family can add a badge.
 - Names and linked emails are unique within a family.
 - Your badge is the one carrying your email; failing that, a badge without an email whose name is exactly your Google account name. It shows the "Active" chip and has no delete button.
 - **This is me**: tick it on a badge without an email to link it to your login (when no badge carries your email yet).
@@ -270,7 +270,7 @@ npm test
 - **No offline queue**: logs need a connection. A one-tap log that fails stays marked "Not saved" until Retry or Discard, but only while the app stays open: closing it loses the log.
 - **The day boundary is fixed at 04:00** (not learned), and on clock-change days it moves by an hour. A dog with an unusual night (e.g. awake at night) gets odd "morning" guesses.
 - **Past goals are not stored**: past days in the history show totals only.
-- **Deleting a dog hides it**, for everyone: its profile, logs and health records stay in the database, and nothing deletes them for good. The owner sees it under **Deleted dogs** (Settings > Dog Profiles) and **Restore** brings it back with everything. A deleted dog takes no new log or health record.
+- **Deleting a dog hides it**, for everyone: its profile, logs and health records stay in the database, and nothing deletes them for good. The owner sees it under **Deleted dogs** (Settings > Dogs) and **Restore** brings it back with everything. A deleted dog takes no new log or health record.
 - **Delete buttons for dogs and badges show for every member**; the server refuses the delete to anyone but the owner, and the item comes back with an error.
 - **CSV exports are comma-separated**: Excel set to French may put every column in column A.
 - **One owner per installation**: only the owner's account approves sign-ups, deletes dogs and badges, and moves accounts (a family's Admin only takes in a sign-up waiting alone in a household with no dog).

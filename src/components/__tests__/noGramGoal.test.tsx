@@ -60,13 +60,13 @@ describe('a dog with no gram goal: no goal in grams on any screen', () => {
     const container = await renderMealCard(noGoal);
     expect(container.textContent).toContain('Ration intake today:1/3 meals');
     expect(container.textContent).not.toMatch(/\d+\s?g \/ \d+\s?g/);
-    expect(container.textContent).not.toMatch(/Feed Meal Now \(/);
+    expect(container.textContent).not.toMatch(/Feed meal now \(/);
   });
 
   it('meal card of a dog with a goal is unchanged', async () => {
     const container = await renderMealCard(withGoal);
     expect(container.textContent).toContain('Ration intake today:80\u00a0g / 240\u00a0g (1/3)');
-    expect(container.textContent).toContain('Feed Meal Now (80\u00a0g)');
+    expect(container.textContent).toContain('Feed meal now (80\u00a0g)');
   });
 
   it('health summary: meal schedule without grams', async () => {

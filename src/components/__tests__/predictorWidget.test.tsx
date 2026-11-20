@@ -67,8 +67,8 @@ describe('B13: "Last pee" is the newest pee, whatever the list order', () => {
 });
 
 describe('vet lines on the stool alerts', () => {
-  const diarrhoeaEn = 'Keep water available. Call your vet if it lasts more than 24 h, or now if there is blood, vomiting, tiredness, or the puppy is not fully vaccinated.';
-  const hardStoolEn = 'Keep water available. Call your vet if there is no stool for 48 h, or if there is straining or vomiting.';
+  const diarrhoeaEn = 'Keep water available. Call your vet if it lasts more than 24h, or now if there is blood, vomiting, tiredness, or the puppy is not fully vaccinated.';
+  const hardStoolEn = 'Keep water available. Call your vet if there is no stool for 48h, or if there is straining or vomiting.';
   const poopAt11 = (stoolConsistency: Activity['stoolConsistency']) => [log('poop', '2026-09-15T11:00:00+02:00', { stoolConsistency })];
 
   it('diarrhoea: when to call the vet', async () => {
@@ -140,9 +140,9 @@ describe('the potty buttons', () => {
   it('English: "Outside" and "Accident" on screen; each button named after its card', async () => {
     const container = await renderCards([log('pee', '2026-09-15T11:50:00+02:00')]);
     expect(buttons(container)).toEqual([
-      ['Peed Outside', 'Outside'],
+      ['Peed outside', 'Outside'],
       ['Pee accident indoors', 'Accident'],
-      ['Pooped Outside', 'Outside'],
+      ['Pooped outside', 'Outside'],
       ['Poop accident indoors', 'Accident'],
     ]);
   });

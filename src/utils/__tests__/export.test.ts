@@ -164,7 +164,7 @@ describe('export utilities — CSV and PDF export test suite', () => {
       expect(createdBlob).not.toBeNull();
 
       const text = await (createdBlob as Blob).text();
-      expect(text).toContain('"Date","Time","Activity Type","Potty Location","Stool Consistency","Quantity (g)","Quantity (cups)","Duration (min)","Weight (kg)","Treatment","Logged By","Notes"');
+      expect(text).toContain('"Date","Time","Activity type","Potty location","Stool consistency","Quantity (g)","Quantity (cups)","Duration (min)","Weight (kg)","Treatment","Logged by","Notes"');
       expect(text).toContain('"Pee"');
       expect(text).toContain('"Poop"');
       expect(text).toContain('"Meal"');
@@ -212,7 +212,7 @@ describe('export utilities — CSV and PDF export test suite', () => {
 
       const htmlContent = mockWindow?.document.write.mock.calls[0][0] as string;
       expect(htmlContent).toContain('Pistache');
-      expect(htmlContent).toContain("Rapport d'activités & propreté");
+      expect(htmlContent).toContain("Rapport d'activités et de propreté");
       expect(htmlContent).toContain('Berger australien');
       // The period printed; no goal: today's goal is not the goal of past days (history display decision (a))
       expect(htmlContent).toContain('Du 14 août 2026 au 20 août 2026');
@@ -230,7 +230,7 @@ describe('export utilities — CSV and PDF export test suite', () => {
       expect(result).toBe(true);
 
       const htmlContent = mockWindow?.document.write.mock.calls[0][0] as string;
-      expect(htmlContent).toContain('Activity & Potty Report');
+      expect(htmlContent).toContain('Activity and potty report');
       expect(htmlContent).toContain('From August 14, 2026 to August 20, 2026');
       expect(htmlContent).toContain('Activities');
       expect(htmlContent).toContain('1 pee, 1 poop');
@@ -263,7 +263,7 @@ describe('export utilities — CSV and PDF export test suite', () => {
       expect(htmlContent).toContain('Selles\u00a0: Diarrhée');
       expect(htmlContent).toContain('Selles\u00a0: Molles');
       expect(htmlContent).toContain('80\u00a0g</strong> (0,73 gobelets)');
-      expect(htmlContent).toContain('6,8 kg');
+      expect(htmlContent).toContain('6,8\u00a0kg');
       expect(htmlContent).not.toMatch(/Smart Activity Log|diarrhea|cups/);
     });
 
@@ -340,7 +340,7 @@ describe('export utilities — CSV and PDF export test suite', () => {
       expect(createdBlob).not.toBeNull();
 
       const text = await (createdBlob as Blob).text();
-      expect(text).toContain('"Category","Date","Time","Protocol / Product / Measurement","Next booster / next dose","Weight (kg)","Veterinary Clinic","Product (Sticker)","Batch / Lot Number","Logged By","Notes"');
+      expect(text).toContain('"Category","Date","Time","Protocol / product / measurement","Next booster / next dose","Weight (kg)","Veterinary clinic","Product (sticker)","Batch number","Logged by","Notes"');
     });
 
     // Carnet review phase 4: treatments were missing from the exports; whoever logged one is named by their badge
@@ -450,7 +450,7 @@ describe('export utilities — CSV and PDF export test suite', () => {
       expect(header).toContain('Femelle');
       expect(header).toContain('Berger australien');
       expect(header).toContain('01/03/2026 (7\u00a0mois)');
-      expect(header).toContain('16,8 kg (01/10/2026)');
+      expect(header).toContain('16,8\u00a0kg (01/10/2026)');
       expect(header).toContain('Puce 250269800000000, allergique au poulet');
 
       const withoutNotes = sectionOf(printed({ profile: { ...dog, notes: undefined, gender: null } }), 'identity');
@@ -547,9 +547,9 @@ describe('export utilities — CSV and PDF export test suite', () => {
       expect(section).toMatch(/<path data-line d="M[-\d.,L]+"/);
       expect((section.match(/<circle data-weigh-in/g) ?? []).length).toBe(14);
       expect(rowCount(section)).toBe(12);
-      expect(section).toContain('17 kg'); // the latest
-      expect(section).toContain('<td>6 kg</td>'); // the 12th latest
-      expect(section).not.toContain('<td>5 kg</td>'); // the 13th latest is out of the list
+      expect(section).toContain('17\u00a0kg'); // the latest
+      expect(section).toContain('<td>6\u00a0kg</td>'); // the 12th latest
+      expect(section).not.toContain('<td>5\u00a0kg</td>'); // the 13th latest is out of the list
       expect(section).toContain('<p class="earlier">2 antérieurs</p>');
       expect(sectionOf(printed({ activities: weighIns, lang: 'en' }), 'weight')).toContain('<p class="earlier">2 earlier</p>');
       // 12 or fewer: every one listed, nothing said
@@ -574,8 +574,8 @@ describe('export utilities — CSV and PDF export test suite', () => {
     it('a weigh-in that looks like a typo is left out of the latest weight and marked in the list, as on screen', () => {
       const weighIns = ([['2026-09-01', 9], ['2026-09-15', 9.6], ['2026-10-01', 10.4], ['2026-10-08', 104]] as const).map(([date, weightKg], index) => weighIn(`t-${index}`, date, weightKg));
       const html = printed({ activities: weighIns });
-      expect(sectionOf(html, 'identity')).toContain('10,4 kg (01/10/2026)');
-      expect(sectionOf(html, 'weight')).toContain('104 kg (À vérifier)');
+      expect(sectionOf(html, 'identity')).toContain('10,4\u00a0kg (01/10/2026)');
+      expect(sectionOf(html, 'weight')).toContain('104\u00a0kg (À vérifier)');
     });
 
     it('a dog without a weigh-in shows no weight, never the profile weight (a new dog\'s is made up)', () => {
@@ -725,7 +725,7 @@ describe('export utilities — CSV and PDF export test suite', () => {
     it('the printed passport lists a deworming weight once, as its weight event', () => {
       printHealthPassportReport(mockProfile, [], [legacyDeworming], [dewormingWeighIn], 'fr');
       const htmlContent = mockWindow?.document.write.mock.calls[0][0] as string;
-      expect(htmlContent.match(/<td>7,6 kg<\/td>/g)).toHaveLength(1); // French format (formatKg)
+      expect(htmlContent.match(/<td>7,6\u00a0kg<\/td>/g)).toHaveLength(1); // French format (formatKg)
       expect(htmlContent).not.toContain('Poids au Traitement');
     });
   });

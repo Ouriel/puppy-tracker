@@ -18,9 +18,9 @@ export function formatChange(value: number, lang: 'en' | 'fr', maximumFractionDi
   return formatKgNumber(value, lang, maximumFractionDigits, 'exceptZero');
 }
 
-/** A weight as the app shows it, at most 1 decimal: '6,4 kg' in French, '6.4 kg' in English. */
+/** A weight as the app shows it, at most 1 decimal and a no-break space before the unit: '6,4 kg' in French, '6.4 kg' in English. */
 export function formatKg(kg: number, lang: 'en' | 'fr'): string {
-  return `${formatKgNumber(kg, lang)} kg`;
+  return `${formatKgNumber(kg, lang)}\u00a0kg`;
 }
 
 /** Food grams, a whole number in the app language and a no-break space before the unit: '240 g', '1 200 g'. */
@@ -31,7 +31,7 @@ export function formatGrams(grams: number, lang: 'en' | 'fr'): string {
 /** An estimated adult range: whole kilos from 10 kg ('13–15 kg'), else at most 1 decimal ('2,2–2,9 kg'). */
 export function formatKgRange(minKg: number, maxKg: number, lang: 'en' | 'fr'): string {
   const digits = maxKg >= 10 ? 0 : 1;
-  return `${formatKgNumber(minKg, lang, digits)}–${formatKgNumber(maxKg, lang, digits)} kg`;
+  return `${formatKgNumber(minKg, lang, digits)}–${formatKgNumber(maxKg, lang, digits)}\u00a0kg`;
 }
 
 /**

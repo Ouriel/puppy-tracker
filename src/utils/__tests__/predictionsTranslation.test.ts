@@ -5,9 +5,18 @@ import type { Activity, PuppyProfile } from "../../types";
 import { act, PISTACHE } from "./fixtures";
 
 describe("predictionsTranslation utility", () => {
-  it("returns original reason string when lang is en", () => {
-    const enReason = "Learned average: ~4h26 bladder interval";
-    expect(translatePredictionReason(enReason, "en")).toBe(enReason);
+  // One duration style per language, the countdown's ('~1h 30m' above the reason), sentence case, grams spaced
+  it.each([
+    ["Learned average: ~4h26 bladder interval", "Learned average: ~4h 26m bladder interval"],
+    ["Standard digestive interval (~6h)", "Standard digestive interval (~6h)"],
+    ["Post-meal potty break (~20m after food)", "Post-meal potty break (~20m after food)"],
+    ["Night mode: Young puppy mid-night potty break", "Night mode: young puppy mid-night potty break"],
+    ["Breakfast (~08:15, Meal 1 of 3)", "Breakfast (~08:15, meal 1 of 3)"],
+    ["Remaining portion (spaced ~2.5h)", "Remaining portion (spaced ~2h 30m)"],
+    ["Daily goal reached (240g)", "Daily goal reached (240\u00a0g)"],
+    ["Morning outing (~07:37)", "Morning outing (~07:37)"],
+  ])("shows %j in English as %j", (enReason, shown) => {
+    expect(translatePredictionReason(enReason, "en")).toBe(shown);
   });
 
   it("translates learned bladder average into French", () => {
@@ -62,7 +71,7 @@ describe("predictionsTranslation utility", () => {
   it("translates breakfast into French", () => {
     const enReason = "Breakfast (~08:15, Meal 1 of 3)";
     expect(translatePredictionReason(enReason, "fr")).toBe(
-      "Petit-déjeuner (~08:15, Repas 1 sur 3)"
+      "Petit-déjeuner (~08:15, repas 1 sur 3)"
     );
   });
 
@@ -179,6 +188,8 @@ describe("predictionsTranslation utility", () => {
     ]);
     for (const reason of reasons) {
       expect(translatePredictionReason(reason, "fr")).not.toBe(reason);
+      // English: no engine-only duration or gram format, no capital after ': ' or ', '
+      expect(translatePredictionReason(reason, "en")).not.toMatch(/\d+h\d|\d\.\dh|\d+g\)|: [A-Z]|, [A-Z]/);
     }
   });
 });

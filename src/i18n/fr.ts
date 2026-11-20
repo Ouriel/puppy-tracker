@@ -1,7 +1,8 @@
 import type { TranslationKeys } from './types';
 
 // French typography (checked by frenchTypography.test.ts): a no-break space (\u00a0) before : ; ! ? and units,
-// « » quotes, "…". One register: tu. Sentence case for titles.
+// « » quotes, "…". One register: tu. Sentence case for titles. A toast that is a sentence ends with a period;
+// a short label has no final punctuation; no "!".
 export const fr: TranslationKeys = {
   brand: 'PupPace',
   nav: {
@@ -97,7 +98,7 @@ export const fr: TranslationKeys = {
     nextPee: 'Prochain pipi prévu',
     nextPoop: 'Prochain caca prévu',
     nextMeal: 'Prochain repas prévu',
-    overdue: 'En retard\u00a0!',
+    overdue: 'En retard',
     dueSoon: 'Bientôt',
     allGood: 'Zone tranquille',
     peedOutside: 'Pipi dehors',
@@ -254,7 +255,7 @@ export const fr: TranslationKeys = {
     preApproveBtn: 'Inviter un membre',
     inviteViaEmail: 'Inviter un membre',
     authorizeInstructions: 'Saisis l\'e-mail d\'un membre de ton foyer. Son compte sera activé dès sa première connexion avec Google.',
-    copiedSuccess: 'Lien copié\u00a0!',
+    copiedSuccess: 'Lien copié',
     copyLink: 'Copier le lien',
     shareLink: 'Partager',
     shareInviteText: 'Rejoins notre foyer sur PupPace pour suivre notre chiot.',
@@ -309,7 +310,7 @@ export const fr: TranslationKeys = {
     adultWeightPlaceholder: 'ex.\u00a0: 14',
     expectedWeightHint: 'Ajuste la courbe de croissance des chiots croisés.',
     standardAdultWeight: 'Poids adulte standard',
-    chooseBreed: 'Choisir une race',
+    chooseBreed: 'Choisis une race',
     nameRequired: 'Indique le nom',
     breedRequired: 'Choisis une race, ou Autre / croisé',
     adultWeightInvalid: 'Indique 1 à 100\u00a0kg, ou laisse vide',
@@ -372,7 +373,7 @@ export const fr: TranslationKeys = {
     preApproveTitle: 'Inviter une adresse e-mail',
     preApprove: 'Inviter',
     revoke: 'Révoquer',
-    deleteConfirmBody: 'Cette action révoquera l\'accès de cette adresse e-mail.',
+    deleteConfirmBody: 'Supprimer ce compte\u00a0? C\'est définitif, et cet e-mail perd l\'accès.',
     accessRestricted: 'Accès restreint',
     onlySuperAdmin: 'Seul le propriétaire ',
     canAccessCenter: ' peut ouvrir cet espace.',
@@ -381,12 +382,12 @@ export const fr: TranslationKeys = {
     revokedAccess: 'Accès révoqué pour {email}.',
     deletedAccount: 'Compte supprimé\u00a0: {email}.',
     preApprovedAccount: '{email} invité dans «\u00a0{household}\u00a0».',
-    noPendingActivations: 'Aucune demande en attente. Tous les comptes sont traités\u00a0!',
+    noPendingActivations: 'Aucune demande en attente.',
     loadingAccounts: 'Chargement des comptes…',
     noActiveAccounts: 'Aucun compte actif enregistré.',
     superAdminOwner: 'Propriétaire',
     refreshUserList: 'Actualiser la liste',
-    confirmDeletionFor: 'Confirmer la suppression de {email}\u00a0?',
+    confirmDeletionFor: 'Supprimer {email}',
     assignTo: 'Assigner à\u00a0:',
     approveAndAssign: 'Approuver et assigner',
     currentId: 'ID actuel\u00a0:',
@@ -456,12 +457,12 @@ export const fr: TranslationKeys = {
   },
   toasts: {
     selectPuppyFirst: 'Choisis d\'abord un chien.',
-    activityLogged: 'Activité enregistrée\u00a0!',
+    activityLogged: 'Activité enregistrée',
     // A one-tap log, named: 'Pipi dehors enregistré'
     quickLogged: '{log} enregistré',
     alreadyLogged: 'Déjà enregistré',
-    activityUpdated: 'Activité mise à jour.',
-    activityDeleted: 'Activité supprimée.',
+    activityUpdated: 'Activité mise à jour',
+    activityDeleted: 'Activité supprimée',
     dogRegistered: 'Chien ajouté\u00a0: {name}',
     dogUpdated: 'Chien mis à jour',
     dogDeleted: 'Chien supprimé',
@@ -471,7 +472,7 @@ export const fr: TranslationKeys = {
     dewormingUpdated: 'Antiparasitaire mis à jour',
     vaccineUpdated: 'Vaccin mis à jour',
     errorGeneric: 'Une erreur est survenue — modifications annulées.',
-    offline: 'Pas de connexion, rien n\'a été enregistré',
+    offline: 'Pas de connexion, rien n\'a été enregistré.',
     memberNameTaken: 'Un autre membre porte déjà ce nom.',
     memberEmailTaken: 'Cet e-mail est déjà lié, ou n\'est pas le tien.',
     memberAdminOnly: 'Seul un admin peut faire ce changement.',

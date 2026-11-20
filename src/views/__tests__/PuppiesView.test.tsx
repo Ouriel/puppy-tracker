@@ -234,9 +234,9 @@ describe('PuppiesView gram goal (optional: "No gram goal" counts meals only)', (
   it('the dog card label names grams only when there is a gram goal', async () => {
     await renderView({ puppies: [REX, { ...REX, id: 'dog-2', name: 'Max', dailyFoodGramGoal: 0 }] });
     const cardLabels = [...document.querySelectorAll('.text-xs.text-slate-400.font-semibold')].map((label) => label.textContent);
-    expect(cardLabels).toContain('Daily Food Goal (Grams)');
+    expect(cardLabels).toContain('Daily food goal (g)');
     expect(cardLabels).toContain('Meals per day');
-    expect(cardLabels.filter((label) => label === 'Daily Food Goal (Grams)')).toHaveLength(1);
+    expect(cardLabels.filter((label) => label === 'Daily food goal (g)')).toHaveLength(1);
   });
 });
 

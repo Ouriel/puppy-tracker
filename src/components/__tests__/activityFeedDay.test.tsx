@@ -46,7 +46,7 @@ async function renderFeed(lang: 'en' | 'fr', list: Activity[] = activities, care
   await act(async () => root!.render(
     <ActivityTimeline activities={list} caretakers={caretakers} activePuppy={puppy} onDeleteActivity={vi.fn()} referenceTime={new Date()} />
   ));
-  const expandAll = [...container.querySelectorAll('button')].find((button) => button.textContent === (lang === 'fr' ? 'Tout déplier' : 'Expand All'));
+  const expandAll = [...container.querySelectorAll('button')].find((button) => button.textContent === (lang === 'fr' ? 'Tout déplier' : 'Expand all'));
   // Today starts open: a feed of today only has nothing left to expand
   if (expandAll) await act(async () => expandAll.click());
   return container;
