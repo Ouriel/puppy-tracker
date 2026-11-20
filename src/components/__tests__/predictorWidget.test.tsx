@@ -306,3 +306,23 @@ describe('compact cards on a phone', () => {
     expect(summaries(container)[0].textContent).toBe('2 aujourd\'hui · il y a 10\u00a0min');
   });
 });
+
+// Style review 2026-11-20: back after a trip, the poop card read "il y a 223 h"
+describe('a last log 2 days old or more', () => {
+  it('reads in days, as the weight tile: "il y a 9 j" / "9 days ago", while 47 h still reads in hours', async () => {
+    const nineDaysAgo = log('poop', '2026-09-06T11:00:00+02:00');
+    localStorage.setItem('puppace_lang_v1', 'fr');
+    let container = await renderCards([nineDaysAgo]);
+    expect(container.textContent).toContain(`${fr.dashboard.lastPoop}il y a 9 j`);
+    expect(container.textContent).not.toMatch(/il y a \d{3}/);
+
+    await act(async () => root?.unmount());
+    localStorage.setItem('puppace_lang_v1', 'en');
+    container = await renderCards([nineDaysAgo]);
+    expect(container.textContent).toContain('9 days ago');
+
+    await act(async () => root?.unmount());
+    container = await renderCards([log('poop', '2026-09-13T13:00:00+02:00')]);
+    expect(container.textContent).toContain('47h ago');
+  });
+});

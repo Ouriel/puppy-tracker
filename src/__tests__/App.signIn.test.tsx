@@ -170,7 +170,8 @@ describe('Sign-in screen', () => {
       expect(pendingNote()?.textContent).toContain(PENDING_FR);
       expect(pendingNote()?.textContent).toContain('sitter@example.com');
       expect(document.querySelector('[role="alert"]')).toBeNull();
-      expect(pageText()).not.toContain('⚠️');
+      // No warning triangle, the icon of the sign-in errors
+      expect(document.querySelector('[class*="triangle-alert"], [class*="alert-triangle"]')).toBeNull();
     });
 
     it('is still there after a reload, with no sign-in and no request', async () => {

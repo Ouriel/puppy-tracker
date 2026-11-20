@@ -1,6 +1,6 @@
 import React, { useState, useMemo, lazy, Suspense, useRef, useCallback } from 'react';
 import type { Activity, ActivityType, Caretaker, PuppyProfile } from '../types';
-import { Droplet, Utensils, Trash2, Pencil, User, ChevronDown, Calendar, CheckCircle2, ChevronsUpDown, AlertTriangle, Download, FileSpreadsheet, Printer, Pill, Scale, RotateCw, X } from 'lucide-react';
+import { Droplet, Utensils, Trash2, Pencil, User, ChevronDown, Calendar, CheckCircle2, ChevronsUpDown, AlertTriangle, Download, FileSpreadsheet, Printer, Pill, Scale, RotateCw, X, TreePine } from 'lucide-react';
 import { PoopIcon } from './common/PoopIcon';
 import { Button, Card } from '@heroui/react';
 import { useI18n, formatCount } from '../i18n';
@@ -283,10 +283,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
         <div className="flex items-center justify-between gap-3">
           <div>
             <h2 className="text-base font-extrabold text-slate-100 flex items-center gap-2">
-              <span>{t.dashboard.activityFeed}</span>
-              <span className="text-xs bg-slate-800 text-slate-300 px-2 py-0.5 rounded-full font-bold">
-                {visibleActivities.length}
-              </span>
+              <span>{t.dashboard.activityFeed} ({visibleActivities.length})</span>
             </h2>
             <p className="text-xs text-slate-400">
               {daysLimit === Infinity
@@ -448,7 +445,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
                     <div className="flex items-center gap-1.5 flex-wrap mt-2.5 pt-2 border-t border-slate-800/50">
                       {/* Food Summary Pill */}
                       <div
-                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-bold border transition-all ${
+                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold border transition-all ${
                           foodPill.tone === 'goalReached'
                             ? 'bg-emerald-950/70 border-emerald-700/60 text-emerald-300'
                             : foodPill.tone === 'underGoal'
@@ -467,7 +464,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
 
                       {/* Potty Pills: Pee */}
                       <div
-                        className="inline-flex items-center gap-1 px-2 py-1 rounded-xl text-xs font-bold bg-sky-950/60 border border-sky-800/50 text-sky-300"
+                        className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold bg-sky-950/60 border border-sky-800/50 text-sky-300"
                         title={formatCount(t.dashboard.peesCount, group.peeCount, lang)}
                         aria-hidden="true"
                       >
@@ -477,7 +474,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
 
                       {/* Potty Pills: Poop */}
                       <div
-                        className="inline-flex items-center gap-1 px-2 py-1 rounded-xl text-xs font-bold bg-amber-950/60 border border-amber-800/50 text-amber-300"
+                        className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold bg-amber-950/60 border border-amber-800/50 text-amber-300"
                         title={formatCount(t.dashboard.poopsCount, group.poopCount, lang)}
                         aria-hidden="true"
                       >
@@ -488,7 +485,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
                       {/* Accidents Warning Chip (if any) */}
                       {group.accidentCount > 0 && (
                         <div
-                          className="inline-flex items-center gap-1 px-2 py-1 rounded-xl text-xs font-bold bg-red-950/80 border border-red-700 text-red-300 motion-safe:animate-pulse"
+                          className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold bg-red-950/80 border border-red-700 text-red-300 motion-safe:animate-pulse"
                           title={formatCount(t.dashboard.accidentsCount, group.accidentCount, lang)}
                           aria-hidden="true"
                         >
@@ -541,7 +538,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
                                       </span>
 
                                       {isUnsaved && (
-                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-semibold bg-amber-950/70 border border-amber-700/60 text-amber-300 sm:whitespace-nowrap">
+                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs font-semibold bg-amber-950/70 border border-amber-700/60 text-amber-300 sm:whitespace-nowrap">
                                           <AlertTriangle className="w-3 h-3 shrink-0" />
                                           <span>{t.potty.notSaved}</span>
                                         </span>
@@ -549,12 +546,13 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
 
                                       {/* Potty location pill */}
                                       {item.pottyLocation === 'outside' && (
-                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-semibold bg-emerald-950/70 border border-emerald-800/60 text-emerald-300 sm:whitespace-nowrap">
-                                          <span aria-hidden="true">🌳</span> {t.potty.outside}
+                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs font-semibold bg-emerald-950/70 border border-emerald-800/60 text-emerald-300 sm:whitespace-nowrap">
+                                          <TreePine className="w-3 h-3 shrink-0" />
+                                          <span>{t.potty.outside}</span>
                                         </span>
                                       )}
                                       {item.pottyLocation === 'indoor_accident' && (
-                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-semibold bg-red-950/80 border border-red-700/80 text-red-300 sm:whitespace-nowrap">
+                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs font-semibold bg-red-950/80 border border-red-700/80 text-red-300 sm:whitespace-nowrap">
                                           <AlertTriangle className="w-3 h-3 text-red-400 shrink-0" />
                                           <span>{t.potty.accident}</span>
                                         </span>
@@ -562,14 +560,14 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
 
                                       {/* Stool consistency */}
                                       {item.stoolConsistency && (
-                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium bg-slate-950 border border-slate-800 text-slate-300 sm:whitespace-nowrap">
+                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs font-semibold bg-slate-950 border border-slate-800 text-slate-300 sm:whitespace-nowrap">
                                           {t.dashboard.stoolChip[item.stoolConsistency] || item.stoolConsistency}
                                         </span>
                                       )}
 
                                       {/* Food Grams */}
                                       {item.quantityGrams && (
-                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-bold bg-purple-950/60 border border-purple-800/60 text-purple-300 sm:whitespace-nowrap">
+                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs font-semibold bg-purple-950/60 border border-purple-800/60 text-purple-300 sm:whitespace-nowrap">
                                           {formatGrams(item.quantityGrams, lang)}
                                           {item.quantityCups ? (
                                             <span className="font-normal text-purple-400/80"> ({item.quantityCups} {t.units.cups})</span>
@@ -579,23 +577,22 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
 
                                       {/* Weight Kg */}
                                       {item.weightKg && (
-                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-bold bg-pink-950/60 border border-pink-800/60 text-pink-300 sm:whitespace-nowrap">
+                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs font-semibold bg-pink-950/60 border border-pink-800/60 text-pink-300 sm:whitespace-nowrap">
                                           {formatKg(item.weightKg, lang)}
                                         </span>
                                       )}
 
                                       {/* Medication */}
                                       {item.medicationName && (
-                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-semibold bg-teal-950/60 border border-teal-800/60 text-teal-300 sm:whitespace-nowrap">
-                                          <span aria-hidden="true">💊</span> {item.medicationName}
+                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs font-semibold bg-teal-950/60 border border-teal-800/60 text-teal-300 sm:whitespace-nowrap">
+                                          <Pill className="w-3 h-3 shrink-0" />
+                                          <span>{item.medicationName}</span>
                                         </span>
                                       )}
                                     </div>
 
                                     {item.notes && (
-                                      <p className="text-xs text-slate-300 italic font-mono bg-slate-950 px-2.5 py-1 rounded-lg border border-slate-800 break-words">
-                                        "{item.notes}"
-                                      </p>
+                                      <p className="text-xs text-slate-300 italic break-words">{item.notes}</p>
                                     )}
 
                                     {/* Caretaker Name & Timestamp Line */}
@@ -647,7 +644,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
                                           aria-label={t.common.editItem.replace('{item}', rowName)}
                                           className="p-1.5 sm:p-2 min-h-11 min-w-11 flex items-center justify-center text-slate-400 hover:text-indigo-300 hover:bg-slate-800 rounded-lg border border-slate-800 bg-slate-950 transition-colors"
                                         >
-                                          <Pencil className="w-3.5 h-3.5" />
+                                          <Pencil className="w-4 h-4" />
                                         </button>
                                       )}
 
@@ -657,7 +654,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = React.memo(({
                                         aria-label={t.common.deleteItem.replace('{item}', rowName)}
                                         className="p-1.5 sm:p-2 min-h-11 min-w-11 flex items-center justify-center text-slate-400 hover:text-red-400 hover:bg-slate-800 rounded-lg border border-slate-800 bg-slate-950 transition-colors"
                                       >
-                                        <Trash2 className="w-3.5 h-3.5" />
+                                        <Trash2 className="w-4 h-4" />
                                       </button>
                                     </>
                                   )}

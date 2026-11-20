@@ -243,7 +243,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail, caretake
             size="sm"
             onPress={loadData}
             isDisabled={isLoading}
-            className="bg-slate-950 border border-slate-800 text-slate-300 font-bold hover:bg-slate-800 flex items-center gap-1.5 shrink-0"
+            className="min-h-11 bg-slate-950 border border-slate-800 text-slate-300 font-bold text-xs hover:bg-slate-800 flex items-center gap-1.5 shrink-0"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
             <span>{t.admin.refreshUserList}</span>
@@ -304,8 +304,11 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail, caretake
       {/* Pending Activations List */}
       <Card className="bg-slate-900 border-slate-800 text-slate-100">
         <Card.Header className="px-4 pt-4">
-          <Card.Title className="flex flex-wrap items-center justify-between gap-x-2 text-amber-300">
-            <span>{t.admin.pendingActivations.replace('{count}', String(pendingUsers.length))}</span>
+          <Card.Title className="flex flex-wrap items-center justify-between gap-x-2 font-bold">
+            <span className="flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
+              <span>{t.admin.pendingActivations.replace('{count}', String(pendingUsers.length))}</span>
+            </span>
             <span className="text-xs text-slate-400 font-normal">
               {t.admin.requiresApprovalAndHousehold}
             </span>
@@ -330,7 +333,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail, caretake
                         <div className="text-xs font-bold text-slate-100 break-words">
                           {userItem.name}
                         </div>
-                        <div className="text-xs text-slate-400 font-mono mt-0.5 break-all">{userItem.email}</div>
+                        <div className="text-xs text-slate-400 mt-0.5 break-all">{userItem.email}</div>
                       </div>
 
                       <div className="flex items-center gap-1.5 text-[11px] text-slate-400 bg-slate-900 px-2.5 py-1 rounded-lg border border-slate-800">
@@ -362,7 +365,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail, caretake
                         <Button
                           size="sm"
                           onPress={() => handleActivate(userItem)}
-                          className="flex-1 sm:flex-none min-w-0 h-auto min-h-11 py-1.5 whitespace-normal bg-emerald-600 hover:bg-emerald-500 text-white font-bold"
+                          className="flex-1 sm:flex-none min-w-0 h-auto min-h-11 py-1.5 whitespace-normal bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs"
                         >
                           <UserCheck className="w-3.5 h-3.5 mr-1 inline" />
                           {t.admin.approveAndAssign}
@@ -389,7 +392,10 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail, caretake
       <Card className="bg-slate-900 border-slate-800 text-slate-100">
         <form onSubmit={handlePreApproveInvite}>
           <Card.Header className="px-4 pt-4">
-            <Card.Title className="text-white font-bold">{t.admin.preApproveTitle}</Card.Title>
+            <Card.Title className="flex items-center gap-2 font-bold">
+              <Send className="w-4 h-4 text-indigo-400 shrink-0" />
+              <span>{t.admin.preApproveTitle}</span>
+            </Card.Title>
           </Card.Header>
           <Card.Content className="p-4 space-y-3">
             <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
@@ -421,7 +427,8 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail, caretake
 
                 <Button
                   type="submit"
-                  className="font-bold"
+                  size="sm"
+                  className="min-h-11 font-bold text-xs shrink-0"
                 >
                   <Send className="w-3.5 h-3.5 mr-1.5 inline" />
                   {t.admin.preApprove}
@@ -435,8 +442,8 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail, caretake
       {/* Active Accounts */}
       <Card className="bg-slate-900 border-slate-800 text-slate-100">
         <Card.Header className="px-4 pt-4">
-          <Card.Title className="flex items-center gap-2">
-            <Users className="w-4 h-4 text-indigo-400" />
+          <Card.Title className="flex items-center gap-2 font-bold">
+            <Users className="w-4 h-4 text-indigo-400 shrink-0" />
             <span>{t.admin.activeAccounts.replace('{count}', String(activeUsers.length))}</span>
           </Card.Title>
         </Card.Header>
@@ -459,7 +466,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail, caretake
                         {t.admin.roles[userItem.role as keyof typeof t.admin.roles] ?? userItem.role}
                       </Chip>
                     </div>
-                    <div className="text-xs text-slate-400 font-mono mt-0.5 break-all">{userItem.email}</div>
+                    <div className="text-xs text-slate-400 mt-0.5 break-all">{userItem.email}</div>
                   </div>
 
                   <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto min-w-0">
@@ -490,7 +497,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail, caretake
                           <Button
                             size="sm"
                             onPress={() => handleDeactivate(userItem.email)}
-                            className="bg-slate-950 border border-slate-800 text-amber-300 font-bold hover:bg-slate-800"
+                            className="min-h-11 bg-slate-950 border border-slate-800 text-amber-300 font-bold text-xs hover:bg-slate-800"
                           >
                             <UserX className="w-3.5 h-3.5 mr-1 inline" />
                             {t.admin.revoke}

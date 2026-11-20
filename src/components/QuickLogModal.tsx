@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import type { Activity, ActivityType, PottyLocation, StoolConsistency } from '../types';
-import { Droplet, Utensils, Scale, Pill, X, Calendar, FileText } from 'lucide-react';
+import { Droplet, Utensils, Scale, Pill, X, Calendar, FileText, TreePine, AlertTriangle } from 'lucide-react';
 import { PoopIcon } from './common/PoopIcon';
 import { Modal } from '@heroui/react';
 import { useI18n } from '../i18n';
@@ -257,7 +257,7 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
                               : 'bg-slate-950 border-slate-800 text-slate-300 hover:bg-slate-800'
                           }`}
                         >
-                          <span className="text-base" aria-hidden="true">🌳</span>
+                          <TreePine className="w-4 h-4 shrink-0" />
                           <span>{t.potty.outside}</span>
                         </button>
 
@@ -273,7 +273,7 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
                               : 'bg-slate-950 border-slate-800 text-slate-300 hover:bg-slate-800'
                           }`}
                         >
-                          <span className="text-base" aria-hidden="true">🚨</span>
+                          <AlertTriangle className="w-4 h-4 shrink-0" />
                           <span>{t.potty.accident}</span>
                         </button>
                       </div>
@@ -317,7 +317,7 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
                                 onClick={() => setStoolConsistency(consistency)}
                                 className={`py-2.5 px-2 rounded-xl text-xs font-bold border transition-all text-center ${
                                   isSelected
-                                    ? 'bg-amber-700 border-amber-600 text-white shadow ring-2 ring-amber-400/30'
+                                    ? 'bg-indigo-600 border-indigo-500 text-white shadow ring-2 ring-indigo-400/40'
                                     : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-white hover:bg-slate-800'
                                 }`}
                               >

@@ -182,16 +182,15 @@ export const WeightGrowthChart: React.FC<WeightGrowthChartProps> = ({
     <Card className="bg-slate-900 border border-slate-800 text-slate-100 shadow-xl">
       <Card.Content className="p-4 sm:p-6 space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h3 className="text-sm sm:text-base font-extrabold text-slate-100 flex items-center gap-2">
+          <h3 className="text-sm sm:text-base font-bold text-slate-100 flex items-center gap-2">
             <Scale className="w-4 h-4 sm:w-5 sm:h-5 text-pink-400" />
-            <span>{t.weightChart.title}</span>
-            <span className="text-xs bg-slate-800 text-slate-300 px-2 py-0.5 rounded-full font-bold">{entries.length}</span>
+            <span>{t.weightChart.title} ({entries.length})</span>
           </h3>
           <Button
             variant="primary"
             size="sm"
             onPress={() => onOpenQuickLogModal('weight')}
-            className="min-h-11 bg-pink-600 hover:bg-pink-500 text-white font-bold text-xs shadow-sm"
+            className="min-h-11 font-bold text-xs shadow-sm"
           >
             <Plus className="w-4 h-4 mr-1 inline" />
             {t.weightChart.logWeight}

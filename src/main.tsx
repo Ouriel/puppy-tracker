@@ -2,6 +2,7 @@ import { StrictMode, Component } from 'react';
 import type { ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Analytics } from '@vercel/analytics/react';
+import { PawPrint } from 'lucide-react';
 import './index.css';
 import App from './App.tsx';
 import { I18nProvider } from './i18n';
@@ -31,7 +32,7 @@ class ErrorBoundary extends Component<{ children: ReactNode }, ErrorBoundaryStat
       return (
         <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center">
           <div className="text-center space-y-4 px-6">
-            <div className="text-5xl">🐾</div>
+            <PawPrint className="w-12 h-12 mx-auto text-indigo-400" aria-hidden="true" />
             {/* These strings remain hardcoded as ErrorBoundary renders before I18nProvider */}
             <h1 className="text-xl font-bold">Something went wrong</h1>
             <p className="text-sm text-slate-400">PupPace encountered an unexpected error.</p>

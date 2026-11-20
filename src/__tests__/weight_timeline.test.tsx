@@ -115,8 +115,8 @@ async function showAllWeighIns() {
 const weightRows = () => [...document.querySelectorAll<HTMLTableRowElement>('tbody tr')];
 /** The row of the weigh-in on that day (each fixture weigh-in has a day of its own). */
 const rowOn = (date: string) => weightRows().find((row) => row.cells[0].firstElementChild!.textContent === formatShortDate(`${date}T12:00:00`, 'en'))!;
-/** The number next to the weight card's title. */
-const weighInCount = () => Number([...document.querySelectorAll('h3')].find((heading) => heading.textContent!.startsWith(en.weightChart.title))!.textContent!.slice(en.weightChart.title.length));
+/** The count in the weight card's title, "Weight (11)". */
+const weighInCount = () => Number([...document.querySelectorAll('h3')].find((heading) => heading.textContent!.startsWith(en.weightChart.title))!.textContent!.match(/\((\d+)\)$/)?.[1]);
 const posts = (path: string) => requests.filter((request) => request.method === 'POST' && request.url.startsWith(path));
 
 async function setValue(input: HTMLInputElement, value: string) {

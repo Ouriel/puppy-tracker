@@ -236,7 +236,7 @@ export const DewormingSection: React.FC<DewormingSectionProps> = ({
             variant="primary"
             size="sm"
             onPress={() => setIsAddingDeworming(!isAddingDeworming)}
-            className="min-h-11 bg-amber-700 hover:bg-amber-600 text-white font-bold text-xs shadow-sm shrink-0"
+            className="min-h-11 font-bold text-xs shadow-sm shrink-0"
           >
             {isAddingDeworming ? <X className="w-4 h-4 mr-1 inline" /> : <Plus className="w-4 h-4 mr-1 inline" />}
             {isAddingDeworming ? t.potty.cancel : t.health.addDeworming}
@@ -350,7 +350,7 @@ export const DewormingSection: React.FC<DewormingSectionProps> = ({
             </div>
 
             <div className="flex justify-end">
-              <Button type="submit" size="sm" isDisabled={isSaving} className="min-h-11 bg-amber-700 hover:bg-amber-600 text-white font-bold">
+              <Button type="submit" variant="primary" size="sm" isDisabled={isSaving} className="min-h-11 font-bold">
                 {t.health.saveDeworming}
               </Button>
             </div>
@@ -464,7 +464,7 @@ export const DewormingSection: React.FC<DewormingSectionProps> = ({
                       aria-label={t.common.deleteItem.replace('{item}', rowName(deworming))}
                       className={`${iconButtonClass} hover:text-red-400 mr-auto`}
                     >
-                      <Trash2 className="w-3.5 h-3.5" />
+                      <Trash2 className="w-4 h-4" />
                     </button>
                     <Button
                       size="sm"
@@ -473,7 +473,7 @@ export const DewormingSection: React.FC<DewormingSectionProps> = ({
                     >
                       {t.potty.cancel}
                     </Button>
-                    <Button type="submit" size="sm" isDisabled={isSaving} className="min-h-11 bg-amber-700 hover:bg-amber-600 text-white font-bold">
+                    <Button type="submit" variant="primary" size="sm" isDisabled={isSaving} className="min-h-11 font-bold">
                       <Check className="w-3.5 h-3.5 mr-1 inline" />
                       {t.potty.saveChanges}
                     </Button>
@@ -539,7 +539,7 @@ export const DewormingSection: React.FC<DewormingSectionProps> = ({
                       aria-label={t.common.editItem.replace('{item}', rowName(deworming))}
                       className={`${iconButtonClass} hover:text-indigo-300`}
                     >
-                      <Pencil className="w-3.5 h-3.5" />
+                      <Pencil className="w-4 h-4" />
                     </button>
                     <button
                       type="button"
@@ -547,7 +547,7 @@ export const DewormingSection: React.FC<DewormingSectionProps> = ({
                       aria-label={t.common.deleteItem.replace('{item}', rowName(deworming))}
                       className={`${iconButtonClass} hover:text-red-400`}
                     >
-                      <Trash2 className="w-3.5 h-3.5" />
+                      <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
                 </div>
