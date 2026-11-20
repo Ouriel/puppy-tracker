@@ -44,7 +44,7 @@ Three cards, one per need, for the selected dog (pick the dog in the top bar).
 | One-tap buttons | ✓ Outside · Accident (screen readers: "Peed outside", "Pee accident indoors") | ✓ Outside · Accident (same, for poop) | Feed meal now (*suggested g*): opens the form on Meal |
 | Soon (amber) | 20 min before | 30 min before | 15 min before breakfast, 30 min before other meals |
 
-On a phone each card keeps its countdown and buttons with one line ("6 today · 31m ago"); a tap on that line opens the counts and the reason. Before a dog's first pee (or poop) its card says "No pee yet. Tap Outside to start." with no countdown; before its first meal, the meal card never turns amber or red: it names breakfast with its time while that time is ahead and in the morning ("Next: breakfast ~7:30 AM"), and says "Next: first meal" otherwise.
+On a phone each card keeps its countdown and buttons with one line ("6 today · 31m ago"); a tap on that line opens the counts and the reason. Before a dog's first pee (or poop) its card says "No pee yet. Tap Outside to start." with no countdown; before its first meal, the meal card never turns amber or red: it names breakfast with its time while that time is ahead and in the morning ("Next: breakfast ~07:30"), and says "Next: first meal" otherwise.
 
 A one-tap log is timed at the tap and stored under your name; its toast names it ("Logged: Peed outside") and has **Undo**, which deletes it. A second log of the same type for the same dog within 5 seconds (a double tap, or Save pressed twice) is ignored ("Already logged"), unless the first one was undone.
 

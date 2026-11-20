@@ -378,3 +378,12 @@ describe('health passport (French)', () => {
     expect(ariaLabels()).toEqual(expect.arrayContaining(['Modifier Credelio Plus du 10 sept.', 'Supprimer Credelio Plus du 10 sept.', 'Supprimer Test-Med du 22 oct.']));
   });
 });
+
+describe('medication history time', () => {
+  it('reads 24 h in English too, like the feed', async () => {
+    const afternoon = log('medication', '2026-10-21T15:30:00+02:00', { medicationName: 'Test-Med' });
+    const container = await render(<MedicationSection activities={[afternoon]} onDeleteActivity={vi.fn()} />, 'en');
+    expect(container.textContent).toContain('15:30');
+    expect(container.textContent).not.toMatch(/[AP]M\b/);
+  });
+});

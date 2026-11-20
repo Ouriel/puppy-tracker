@@ -236,6 +236,8 @@ describe('export utilities — CSV and PDF export test suite', () => {
       expect(htmlContent).toContain('1 pee, 1 poop');
       expect(htmlContent).toContain('Outside');
       expect(htmlContent).toContain('Indoors');
+      expect(htmlContent).toContain('Aug 19, 15:00'); // 24 h, like the feed
+      expect(htmlContent).not.toMatch(/\d (AM|PM)\b/);
     });
 
     // Owner decision 2026-10-15: a dog with no gram goal may log meals without grams (stored as null)

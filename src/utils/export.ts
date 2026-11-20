@@ -450,6 +450,7 @@ export function printActivitiesReport(
                   day: 'numeric',
                   hour: '2-digit',
                   minute: '2-digit',
+                  hourCycle: 'h23', // 24 h in English too, like the feed
                 });
                 const caretakerName = resolveCaretakerName(activity.loggedBy, caretakers);
 
