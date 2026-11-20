@@ -220,7 +220,7 @@ describe('PuppiesView gram goal (optional: "No gram goal" counts meals only)', (
 
   it('a new dog starts with an empty goal box, not a made-up 200 g', async () => {
     await renderView();
-    await click(buttonByText('Add Dog'));
+    await click(buttonByText('Add a dog'));
     expect(field('dog-food-goal').value).toBe('');
     expect(field('dog-no-gram-goal').checked).toBe(false);
   });
@@ -234,9 +234,9 @@ describe('PuppiesView gram goal (optional: "No gram goal" counts meals only)', (
   it('the dog card label names grams only when there is a gram goal', async () => {
     await renderView({ puppies: [REX, { ...REX, id: 'dog-2', name: 'Max', dailyFoodGramGoal: 0 }] });
     const cardLabels = [...document.querySelectorAll('.text-xs.text-slate-400.font-semibold')].map((label) => label.textContent);
-    expect(cardLabels).toContain('Daily Food Goal (Grams)');
+    expect(cardLabels).toContain('Daily food goal (g)');
     expect(cardLabels).toContain('Meals per day');
-    expect(cardLabels.filter((label) => label === 'Daily Food Goal (Grams)')).toHaveLength(1);
+    expect(cardLabels.filter((label) => label === 'Daily food goal (g)')).toHaveLength(1);
   });
 });
 
@@ -295,7 +295,7 @@ describe('PuppiesView add form', () => {
     const { onAddPuppy } = await renderView({
       onAddPuppy: vi.fn(() => new Promise<boolean>((resolve) => { finishSave = resolve; })),
     });
-    await click(buttonByText('Add Dog'));
+    await click(buttonByText('Add a dog'));
     await setValue('dog-name', 'Max');
     // The breed picker's hidden native select, as browser autofill would use it
     const breedSelect = document.querySelector('select')!;
@@ -315,19 +315,19 @@ describe('PuppiesView add form', () => {
     expect(field('dog-name')).toBeNull();
   });
 
-  it('"Add Dog" pressed while a dog is being edited opens a blank form', async () => {
+  it('"Add a dog" pressed while a dog is being edited opens a blank form', async () => {
     await renderView();
     await click(editButton());
     expect(field('dog-name').value).toBe('Rex');
 
-    await click(buttonByText('Add Dog'));
+    await click(buttonByText('Add a dog'));
     expect(document.querySelectorAll('#dog-name')).toHaveLength(1);
     expect(field('dog-name').value).toBe('');
   });
 
   it('starts with no breed and no birth date, and Save says what is missing while the form stays open', async () => {
     const { onAddPuppy } = await renderView();
-    await click(buttonByText('Add Dog'));
+    await click(buttonByText('Add a dog'));
     expect(field('dog-birth-date').value).toBe('');
     expect(document.querySelector('[data-slot="select-trigger"]')!.textContent).toContain('Pick a breed');
 
@@ -345,7 +345,7 @@ describe('PuppiesView add form', () => {
     [250, '2'],
   ])('a new dog born %i days ago gets %s meals a day from its birth date, still editable', async (ageDays, meals) => {
     await renderView();
-    await click(buttonByText('Add Dog'));
+    await click(buttonByText('Add a dog'));
     expect(field('dog-meals-per-day').value).toBe('');
 
     await setValue('dog-birth-date', formatLocalDate(new Date(Date.now() - ageDays * 24 * 60 * 60 * 1000)));
@@ -397,7 +397,7 @@ describe('PuppiesView first dog', () => {
     expect(document.body.textContent).not.toContain('No dogs registered in household.');
   });
 
-  it('a later dog still waits for "Add Dog"', async () => {
+  it('a later dog still waits for "Add a dog"', async () => {
     await renderView();
     expect(field('dog-name')).toBeNull();
   });
@@ -446,18 +446,18 @@ describe('PuppiesView first dog', () => {
 
   it('errors from a Save do not come back when the form is closed and opened again', async () => {
     await renderView();
-    await click(buttonByText('Add Dog'));
+    await click(buttonByText('Add a dog'));
     await submit();
     expect(field('dog-name-error')).not.toBeNull();
 
     await click(buttonByText('Cancel'));
-    await click(buttonByText('Add Dog'));
+    await click(buttonByText('Add a dog'));
     expect(field('dog-name-error')).toBeNull();
   });
 
   it('the header button shows an X, not a +, while the form is open', async () => {
     await renderView();
-    await click(buttonByText('Add Dog'));
+    await click(buttonByText('Add a dog'));
 
     // The first "Cancel" is the header's; the form has its own at the bottom
     const toggle = buttonByText('Cancel');

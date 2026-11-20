@@ -47,9 +47,9 @@ describe('a new dog before its first weigh-in: breed baseline, never the made-up
 
     const container = await render(element());
 
-    expect(container.textContent).toContain('2.2–2.9 kg'); // 2.5 kg -12 % / +15 %
-    expect(container.textContent).toContain('~1.3 kg'); // 50 % of 2.5 kg at 12 weeks (1.25), at most 1 decimal (formatKg)
-    expect(container.textContent).not.toContain('4.5 kg');
+    expect(container.textContent).toContain('2.2–2.9\u00a0kg'); // 2.5 kg -12 % / +15 %
+    expect(container.textContent).toContain('~1.3\u00a0kg'); // 50 % of 2.5 kg at 12 weeks (1.25), at most 1 decimal (formatKg)
+    expect(container.textContent).not.toContain('4.5\u00a0kg');
     expect(container.textContent).toContain('—'); // no logged weight yet
     expect(container.textContent).not.toContain('undefined');
   });
@@ -63,7 +63,7 @@ describe('a new dog before its first weigh-in: breed baseline, never the made-up
 
     const container = await render(element());
 
-    expect(container.textContent).toContain('2.2–2.9 kg'); // 2.5 kg -12 % / +15 %
+    expect(container.textContent).toContain('2.2–2.9\u00a0kg'); // 2.5 kg -12 % / +15 %
     expect(container.textContent).not.toContain('4.5');
     expect(container.querySelector('[data-tile="weight"]')!.textContent).toContain('—'); // no logged weight yet
     expect(container.textContent).not.toContain('undefined');

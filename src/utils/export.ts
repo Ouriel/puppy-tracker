@@ -1,12 +1,13 @@
 import type { Activity, PuppyProfile, Caretaker, HealthRecord } from '../types';
 import type { TranslationKeys } from '../i18n/types';
-import { formatLocalDate, formatLocalTime, parseIsoDate, getUserTimezone } from './date';
+import { formatDuration, formatLocalDate, formatLocalTime, parseIsoDate, getUserTimezone } from './date';
 import { resolveCaretakerName } from './caretakers';
 import { formatBreedName } from '../data/breedsCatalog';
 import { formatGrams, formatKg } from './weight';
 import { buildDogWeightChart, getWeightChartModel, type WeightChartGeometry } from './weightChartGeometry';
 import { formatProductAndLot, getHealthRecordStatus, getNextDue, getRecordShortName } from './health';
 import { getPuppyAge } from './predictions';
+import { formatCount } from '../i18n';
 import { en } from '../i18n/en';
 import { fr } from '../i18n/fr';
 
@@ -52,6 +53,7 @@ export function exportActivitiesToCSV(
   }
 
   const isFrench = lang === 'fr';
+  const t = isFrench ? fr : en;
   const tz = getUserTimezone();
 
   const headers = isFrench
@@ -62,25 +64,25 @@ export function exportActivitiesToCSV(
         'Lieu besoins',
         'Consistance selles',
         'Quantité (g)',
-        'Quantité (verres)',
+        'Quantité (gobelets)',
         'Durée (min)',
         'Poids (kg)',
-        'Médicament',
+        'Traitement',
         'Enregistré par',
         'Notes',
       ]
     : [
         'Date',
         'Time',
-        'Activity Type',
-        'Potty Location',
-        'Stool Consistency',
+        'Activity type',
+        'Potty location',
+        'Stool consistency',
         'Quantity (g)',
         'Quantity (cups)',
         'Duration (min)',
         'Weight (kg)',
-        'Medication',
-        'Logged By',
+        'Treatment',
+        'Logged by',
         'Notes',
       ];
 
@@ -88,20 +90,11 @@ export function exportActivitiesToCSV(
     (activityA, activityB) => new Date(activityB.timestamp).getTime() - new Date(activityA.timestamp).getTime()
   );
 
+  // The app's words: the feed's row titles and the log form's places
   const formatLocation = (location?: string) => {
-    if (!location) return '';
-    if (location === 'outside') return isFrench ? 'Dehors' : 'Outside';
-    if (location === 'indoor_accident') return isFrench ? 'Accident intérieur' : 'Indoor Accident';
-    return location;
-  };
-
-  const formatActivityType = (type: string) => {
-    if (type === 'pee') return isFrench ? 'Pipi' : 'Pee';
-    if (type === 'poop') return isFrench ? 'Caca' : 'Poop';
-    if (type === 'food') return isFrench ? 'Repas' : 'Meal';
-    if (type === 'weight') return isFrench ? 'Pesée' : 'Weight';
-    if (type === 'medication') return isFrench ? 'Médicament' : 'Medication';
-    return type.toUpperCase();
+    if (location === 'outside') return t.potty.outside;
+    if (location === 'indoor_accident') return t.potty.accident;
+    return location ?? '';
   };
 
   const rows = sortedActivities.map((activity) => {
@@ -114,10 +107,10 @@ export function exportActivitiesToCSV(
     return [
       escapeCsvField(dateStr),
       escapeCsvField(timeStr),
-      escapeCsvField(formatActivityType(activity.type)),
+      escapeCsvField(t.potty[activity.type] ?? activity.type),
       escapeCsvField(formatLocation(activity.pottyLocation)),
       // The log form's words: 'Molles', 'Diarrhée'
-      escapeCsvField(activity.stoolConsistency ? (isFrench ? fr : en).potty[activity.stoolConsistency] : ''),
+      escapeCsvField(activity.stoolConsistency ? t.potty[activity.stoolConsistency] : ''),
       escapeCsvField(activity.quantityGrams ?? ''),
       escapeCsvField(activity.quantityCups ?? ''),
       escapeCsvField(activity.durationMinutes ?? ''),
@@ -193,20 +186,20 @@ export function printActivitiesReport(
   const peesCount = sortedActivities.filter((activity) => activity.type === 'pee').length;
   const poopsCount = sortedActivities.filter((activity) => activity.type === 'poop').length;
 
-  const breedLabel = formatBreedName(profile?.breed || 'Puppy', lang);
+  const breedLabel = formatBreedName(profile?.breed || 'unknown', lang);
 
   const getTypeBadge = (type: string) => {
     switch (type) {
       case 'pee':
-        return `<span class="badge badge-sky">💧 ${isFrench ? 'Pipi' : 'Pee'}</span>`;
+        return `<span class="badge badge-sky">💧 ${esc(t.potty.pee)}</span>`;
       case 'poop':
-        return `<span class="badge badge-amber">💩 ${isFrench ? 'Caca' : 'Poop'}</span>`;
+        return `<span class="badge badge-amber">💩 ${esc(t.potty.poop)}</span>`;
       case 'food':
-        return `<span class="badge badge-purple">🥣 ${isFrench ? 'Repas' : 'Meal'}</span>`;
+        return `<span class="badge badge-purple">🥣 ${esc(t.potty.food)}</span>`;
       case 'weight':
-        return `<span class="badge badge-pink">⚖️ ${isFrench ? 'Poids' : 'Weight'}</span>`;
+        return `<span class="badge badge-pink">⚖️ ${esc(t.potty.weight)}</span>`;
       case 'medication':
-        return `<span class="badge badge-teal">💊 ${isFrench ? 'Médicament' : 'Meds'}</span>`;
+        return `<span class="badge badge-teal">💊 ${esc(t.potty.medication)}</span>`;
       default:
         return `<span class="badge badge-slate">${esc(type)}</span>`;
     }
@@ -217,7 +210,7 @@ export function printActivitiesReport(
     <html lang="${lang}">
       <head>
         <meta charset="utf-8" />
-        <title>${esc(profile.name)} - ${isFrench ? "Rapport d'activités & propreté" : 'Activity & Potty Report'}</title>
+        <title>${esc(profile.name)} - ${isFrench ? "Rapport d'activités et de propreté" : 'Activity and potty report'}</title>
         <style>
           @page { size: A4; margin: 12mm 15mm; }
           * { box-sizing: border-box; }
@@ -389,7 +382,7 @@ export function printActivitiesReport(
       <body>
         <div class="header">
           <div class="title-area">
-            <h1>🐾 ${esc(profile.name)} — ${isFrench ? "Rapport d'activités & propreté" : 'Activity & Potty Report'}</h1>
+            <h1>🐾 ${esc(profile.name)} — ${isFrench ? "Rapport d'activités et de propreté" : 'Activity and potty report'}</h1>
             <p><strong>${esc(periodLabel)}</strong></p>
             <p>${isFrench ? 'Édité le' : 'Generated on'} ${generatedDate}</p>
           </div>
@@ -397,19 +390,19 @@ export function printActivitiesReport(
         </div>
 
         <div class="info-panel">
-          <div><strong>${isFrench ? 'Chien :' : 'Dog:'}</strong> ${esc(profile.name)}</div>
-          <div><strong>${isFrench ? 'Race :' : 'Breed:'}</strong> ${esc(breedLabel)}</div>
-          <div><strong>${isFrench ? 'Date de naissance :' : 'Birth Date:'}</strong> ${esc(profile.birthDate || '-')}</div>
+          <div><strong>${isFrench ? 'Chien' : 'Dog'}${t.common.colon}</strong> ${esc(profile.name)}</div>
+          <div><strong>${t.puppies.breed}${t.common.colon}</strong> ${esc(breedLabel)}</div>
+          <div><strong>${t.puppies.birthDate}${t.common.colon}</strong> ${esc(profile.birthDate || '-')}</div>
         </div>
 
         <div class="grid-summary">
           <div class="card">
-            <div class="card-label">${isFrench ? 'Événements' : 'Total Logs'}</div>
+            <div class="card-label">${isFrench ? 'Activités' : 'Activities'}</div>
             <div class="card-value">${totalLogs}</div>
-            <div class="card-sub">${peesCount} ${isFrench ? 'pipis' : 'pees'}, ${poopsCount} ${isFrench ? 'cacas' : 'poops'}</div>
+            <div class="card-sub">${formatCount(t.dashboard.peesCount, peesCount, lang)}, ${formatCount(t.dashboard.poopsCount, poopsCount, lang)}</div>
           </div>
           <div class="card">
-            <div class="card-label">${isFrench ? 'Dehors' : 'Outside'}</div>
+            <div class="card-label">${esc(t.potty.outside)}</div>
             <div class="card-value" style="color: #16a34a;">${outsideCount}</div>
             <div class="card-sub">${isFrench ? 'Réussites' : 'Successes'}</div>
           </div>
@@ -421,33 +414,33 @@ export function printActivitiesReport(
           <div class="card">
             <div class="card-label">${isFrench ? 'Repas' : 'Meals'}</div>
             <div class="card-value" style="color: #7c3aed;">${totalMeals}</div>
-            <div class="card-sub">${totalFoodGrams > 0 ? `${formatGrams(totalFoodGrams, lang)} ${isFrench ? 'total' : 'logged'}` : ''}</div>
+            <div class="card-sub">${totalFoodGrams > 0 ? `${formatGrams(totalFoodGrams, lang)} ${isFrench ? 'au total' : 'in total'}` : ''}</div>
           </div>
           <div class="card">
-            <div class="card-label">${isFrench ? 'Taux de réussite' : 'Potty Rate'}</div>
+            <div class="card-label">${isFrench ? 'Taux de réussite' : 'Success rate'}</div>
             <div class="card-value" style="color: #4f46e5;">
               ${(outsideCount + accidentCount) > 0 ? Math.round((outsideCount / (outsideCount + accidentCount)) * 100) : 100}%
             </div>
-            <div class="card-sub">${isFrench ? 'Propreté' : 'Clean Score'}</div>
+            <div class="card-sub">${isFrench ? 'Propreté' : 'Clean score'}</div>
           </div>
         </div>
 
         <h2>
-          <span>${isFrench ? 'Historique détaillé des événements' : 'Detailed Activity Log'}</span>
-          <span style="font-size: 11px; font-weight: normal; color: #64748b;">${totalLogs} ${isFrench ? 'entrées' : 'entries'}</span>
+          <span>${isFrench ? 'Historique détaillé des activités' : 'Detailed activity history'}</span>
+          <span style="font-size: 11px; font-weight: normal; color: #64748b;">${formatCount(t.dashboard.eventsCount, totalLogs, lang)}</span>
         </h2>
 
         ${sortedActivities.length === 0 ? `
-          <p style="text-align: center; color: #94a3b8; padding: 24px;">${isFrench ? 'Aucune activité enregistrée.' : 'No activity logs found.'}</p>
+          <p style="text-align: center; color: #94a3b8; padding: 24px;">${isFrench ? 'Aucune activité enregistrée.' : 'No activities logged.'}</p>
         ` : `
           <table>
             <thead>
               <tr>
-                <th style="width: 130px;">${isFrench ? 'Date et heure' : 'Date & Time'}</th>
-                <th style="width: 85px;">${isFrench ? 'Type' : 'Type'}</th>
+                <th style="width: 130px;">${esc(t.potty.dateAndTime)}</th>
+                <th style="width: 85px;">Type</th>
                 <th>${isFrench ? 'Détails' : 'Details'}</th>
-                <th style="width: 100px;">${isFrench ? 'Membre' : 'Logged By'}</th>
-                <th style="width: 160px;">${isFrench ? 'Notes' : 'Notes'}</th>
+                <th style="width: 100px;">${isFrench ? 'Enregistré par' : 'Logged by'}</th>
+                <th style="width: 160px;">Notes</th>
               </tr>
             </thead>
             <tbody>
@@ -457,14 +450,15 @@ export function printActivitiesReport(
                   day: 'numeric',
                   hour: '2-digit',
                   minute: '2-digit',
+                  hourCycle: 'h23', // 24 h in English too, like the feed
                 });
                 const caretakerName = resolveCaretakerName(activity.loggedBy, caretakers);
 
                 const details: string[] = [];
                 if (activity.pottyLocation === 'outside') {
-                  details.push(`<span class="pill-loc loc-outside">🌳 ${isFrench ? 'Dehors' : 'Outside'}</span>`);
+                  details.push(`<span class="pill-loc loc-outside">🌳 ${esc(t.potty.outside)}</span>`);
                 } else if (activity.pottyLocation === 'indoor_accident') {
-                  details.push(`<span class="pill-loc loc-accident">⚠️ ${isFrench ? 'Accident intérieur' : 'Indoor Accident'}</span>`);
+                  details.push(`<span class="pill-loc loc-accident">⚠️ ${esc(t.potty.accident)}</span>`);
                 }
 
                 if (activity.stoolConsistency) {
@@ -485,7 +479,7 @@ export function printActivitiesReport(
                 }
 
                 if (activity.durationMinutes) {
-                  details.push(`${esc(activity.durationMinutes)} min`);
+                  details.push(formatDuration(activity.durationMinutes, lang));
                 }
 
                 return `
@@ -494,7 +488,7 @@ export function printActivitiesReport(
                     <td>${getTypeBadge(activity.type)}</td>
                     <td>${details.join(' &bull; ') || '-'}</td>
                     <td><span class="caretaker-badge">${esc(caretakerName)}</span></td>
-                    <td class="notes-cell">${activity.notes ? `&quot;${esc(activity.notes)}&quot;` : '-'}</td>
+                    <td class="notes-cell">${activity.notes ? (isFrench ? `«\u00a0${esc(activity.notes)}\u00a0»` : `&quot;${esc(activity.notes)}&quot;`) : '-'}</td>
                   </tr>
                 `;
               }).join('')}
@@ -504,8 +498,8 @@ export function printActivitiesReport(
 
         <div class="footer">
           ${isFrench
-            ? 'Document généré avec PupPace — suivi des besoins et carnet de santé du chiot.'
-            : 'Document generated with PupPace — Smart Puppy Care & Potty Predictor.'}
+            ? "Document généré avec PupPace — suivi d'activité et de propreté du chiot."
+            : 'Document generated with PupPace — smart puppy activity tracker.'}
         </div>
       </body>
     </html>
@@ -530,6 +524,7 @@ export function exportHealthPassportToCSV(
   if (!profile) return false;
 
   const isFrench = lang === 'fr';
+  const t = isFrench ? fr : en;
   const tz = getUserTimezone();
 
   const headers = isFrench
@@ -538,7 +533,7 @@ export function exportHealthPassportToCSV(
         'Date',
         'Heure',
         'Protocole / produit / mesure',
-        'Prochain rappel / échéance',
+        'Prochain rappel / prochaine prise',
         'Poids (kg)',
         'Clinique vétérinaire',
         'Produit (vignette)',
@@ -550,13 +545,13 @@ export function exportHealthPassportToCSV(
         'Category',
         'Date',
         'Time',
-        'Protocol / Product / Measurement',
-        'Next Due / Booster Date',
+        'Protocol / product / measurement',
+        'Next booster / next dose',
         'Weight (kg)',
-        'Veterinary Clinic',
-        'Product (Sticker)',
-        'Batch / Lot Number',
-        'Logged By',
+        'Veterinary clinic',
+        'Product (sticker)',
+        'Batch number',
+        'Logged by',
         'Notes',
       ];
 
@@ -566,7 +561,7 @@ export function exportHealthPassportToCSV(
   // 1. Vaccinations: the product typed from the vet's sticker has its own column
   [...vaccinations].sort(byDateDesc).forEach((vaccine) => {
     rows.push([
-      escapeCsvField('Vaccination'),
+      escapeCsvField(isFrench ? 'Vaccin' : 'Vaccine'),
       escapeCsvField(vaccine.date),
       escapeCsvField(''),
       escapeCsvField(vaccine.name),
@@ -584,7 +579,7 @@ export function exportHealthPassportToCSV(
   // 2. Deworming & Antiparasitics: the product is the record's name
   [...dewormings].sort(byDateDesc).forEach((deworming) => {
     rows.push([
-      escapeCsvField(isFrench ? 'Vermifuge / antiparasitaire' : 'Deworming / Antiparasitic'),
+      escapeCsvField(isFrench ? 'Antiparasitaire' : 'Antiparasitic'),
       escapeCsvField(deworming.date),
       escapeCsvField(''),
       escapeCsvField(deworming.productName || deworming.name),
@@ -616,10 +611,10 @@ export function exportHealthPassportToCSV(
 
   events
     .filter((activity) => activity.type === 'weight' && activity.weightKg && activity.weightKg > 0)
-    .forEach((weightItem) => rows.push(eventRow(weightItem, isFrench ? 'Pesée & croissance' : 'Weight & Growth', isFrench ? 'Contrôle du poids' : 'Weight Measurement', weightItem.weightKg ?? '')));
+    .forEach((weightItem) => rows.push(eventRow(weightItem, isFrench ? 'Pesée' : 'Weigh-in', t.potty.weight, weightItem.weightKg ?? '')));
   events
     .filter((activity) => activity.type === 'medication')
-    .forEach((medication) => rows.push(eventRow(medication, isFrench ? 'Traitement' : 'Treatment', medication.medicationName || '', '')));
+    .forEach((medication) => rows.push(eventRow(medication, t.potty.medication, medication.medicationName || '', '')));
 
   const escapedHeaders = headers.map(escapeCsvField).join(',');
   const csvContent = '\uFEFF' + [escapedHeaders, ...rows].join('\r\n');
@@ -710,7 +705,7 @@ export function printHealthPassportReport(
   const identity = [
     `<strong>${esc(profile.name)}</strong>`,
     profile.gender && (profile.gender === 'female' ? t.puppies.female : t.puppies.male),
-    esc(formatBreedName(profile.breed || 'Puppy', lang)),
+    esc(formatBreedName(profile.breed || 'unknown', lang)),
     `${isFrench ? 'Naissance' : 'Born'}${t.common.colon} ${esc(formatDayMonthYear(profile.birthDate))} (${ageText})`,
     latestTrusted && `${t.weightChart.title}${t.common.colon} ${formatKg(latestTrusted.weightKg, lang)} (${formatDayMonthYear(latestTrusted.timestamp)})`,
   ].filter(Boolean).join(' · ');

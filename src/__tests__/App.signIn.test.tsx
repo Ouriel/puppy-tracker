@@ -68,7 +68,7 @@ const gsiScript = () => document.getElementById('google-gsi-script')!;
 const alertText = () => document.querySelector('[role="alert"]')?.textContent ?? '';
 /** The calm "waiting for approval" note (a status, not an alert). */
 const pendingNote = () => [...document.querySelectorAll('[role="status"]')].find((element) => element.querySelector('.lucide-clock'));
-const PENDING_FR = "Demande envoyée. L'admin de ta famille doit valider ton compte\u00a0; reviens te connecter ensuite.";
+const PENDING_FR = "Demande envoyée. L'admin de ton foyer doit valider ton compte\u00a0; reviens te connecter ensuite.";
 const googleButton = () => document.getElementById('gsi-btn');
 
 /** Google's button is still on the page and visible, so a refused sign-in can be retried without a reload. */
@@ -161,7 +161,7 @@ describe('Sign-in screen', () => {
       await renderApp();
     }
 
-    it("is a calm note, not an error: it says the family's admin approves, what to do next, and which account waits", async () => {
+    it("is a calm note, not an error: it says the household's admin approves, what to do next, and which account waits", async () => {
       localStorage.setItem('puppace_lang_v1', 'fr');
       const googleId = stubGoogle();
       await renderApp();
@@ -252,8 +252,8 @@ describe('Sign-in screen', () => {
       const about = [...document.querySelectorAll('button')].find((button) => button.getAttribute('aria-expanded') !== null)!;
       await act(async () => about.click());
 
-      expect(pageText()).toContain('PupPace est une application');
-      expect(pageText()).not.toMatch(/is a smart puppy|Disclosure/);
+      expect(pageText()).toContain('PupPace enregistre les besoins');
+      expect(pageText()).not.toMatch(/records your puppy|Disclosure/);
     });
 
     it.each(['en', 'fr'])('the sign-in screen says "Google", never "OAuth", "Super Admin" or a person (%s)', async (lang) => {

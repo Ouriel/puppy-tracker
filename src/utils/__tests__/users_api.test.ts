@@ -281,7 +281,7 @@ describe("PUT /api/users: the Admin panel's 'Active accounts' household select",
 });
 
 // Backlog 12: the first member of a new family becomes its Admin, so they can invite the rest of it.
-describe("PUT /api/users: the owner's approval (Admin panel 'Approve & Assign')", () => {
+describe("PUT /api/users: the owner's approval (Admin panel 'Approve and assign')", () => {
   const originalSecret = process.env.SESSION_SECRET;
   const put = (request: { method: string }) => ({ ...request, method: 'PUT' });
 

@@ -354,11 +354,11 @@ describe('Canine Weight Prediction & WALTHAM Growth Engine', () => {
 
   describe('formatKg: one number format for every weight on screen and in the PDF', () => {
     it.each([
-      [6.4, 'fr', '6,4 kg'],
-      [6.4, 'en', '6.4 kg'],
-      [10.05, 'fr', '10,1 kg'], // at most 1 decimal
-      [7, 'fr', '7 kg'], // no trailing ",0"
-      [4.075, 'en', '4.1 kg'],
+      [6.4, 'fr', '6,4\u00a0kg'],
+      [6.4, 'en', '6.4\u00a0kg'],
+      [10.05, 'fr', '10,1\u00a0kg'], // at most 1 decimal
+      [7, 'fr', '7\u00a0kg'], // no trailing ",0"
+      [4.075, 'en', '4.1\u00a0kg'],
     ] as const)('%s in %s reads "%s"', (kg, lang, text) => {
       expect(formatKg(kg, lang)).toBe(text);
     });

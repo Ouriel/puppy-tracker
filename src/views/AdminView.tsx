@@ -26,8 +26,9 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail, caretake
   const isSuperAdmin = isSuperAdminEmail(currentUserEmail);
 
   const [users, setUsers] = useState<RegisteredUserItem[]>([]);
-  const [households, setHouseholds] = useState<Array<{ id: string; name: string }>>([
-    { id: 'FAMILY-COCKER-2026', name: 'Family Pack (Main)' },
+  // Until the list loads: the owner's household, named in the app's language
+  const [households, setHouseholds] = useState<Array<{ id: string; name: string }>>(() => [
+    { id: 'FAMILY-COCKER-2026', name: t.admin.household },
   ]);
   const [targetHouseholds, setTargetHouseholds] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(false);

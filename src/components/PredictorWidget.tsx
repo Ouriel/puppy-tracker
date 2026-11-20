@@ -4,7 +4,7 @@ import { Droplet, Utensils, ChevronDown, TreePine, AlertTriangle } from 'lucide-
 import { PoopIcon } from './common/PoopIcon';
 import { Card } from '@heroui/react';
 import { useI18n } from '../i18n';
-import { formatDuration, isSameLogicalDate, parseIsoDate } from '../utils/date';
+import { formatDuration, formatLocalTime, isSameLogicalDate, parseIsoDate } from '../utils/date';
 import { formatGrams } from '../utils/weight';
 import { translatePredictionReason } from '../utils/predictionsTranslation';
 import { useMemo } from 'react';
@@ -176,10 +176,6 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = React.memo(({
     ? `${formatGrams(todayFoodLoggedGrams, lang)} / ${formatGrams(dailyGoal, lang)} (${todayMealsCount}/${targetMeals})`
     : `${todayMealsCount}/${targetMeals} ${targetMeals === 1 ? t.puppies.meal : t.puppies.meals}`;
 
-  // "15:50" in French, "3:50 PM" in English (not "03:50 PM")
-  const formatClock = (date: Date) =>
-    date.toLocaleTimeString(lang === 'fr' ? 'fr-FR' : 'en-US', { hour: lang === 'fr' ? '2-digit' : 'numeric', minute: '2-digit' });
-
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-stretch">
       {/* 1. Next Pee Card */}
@@ -210,7 +206,7 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = React.memo(({
                   </span>
                   {predictions.nextPeeExpectedAt && (
                     <span className="text-xs text-slate-400 ml-1">
-                      ({formatClock(new Date(predictions.nextPeeExpectedAt))})
+                      ({formatLocalTime(new Date(predictions.nextPeeExpectedAt))})
                     </span>
                   )}
                   <span className="text-xs font-bold text-slate-300 bg-slate-950 border border-slate-700/80 px-2 py-0.5 rounded-lg shrink-0 shadow-sm">
@@ -305,7 +301,7 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = React.memo(({
                   </span>
                   {predictions.nextPoopExpectedAt && (
                     <span className="text-xs text-slate-400 ml-1">
-                      ({formatClock(new Date(predictions.nextPoopExpectedAt))})
+                      ({formatLocalTime(new Date(predictions.nextPoopExpectedAt))})
                     </span>
                   )}
                   <span className="text-xs font-bold text-slate-300 bg-slate-950 border border-slate-700/80 px-2 py-0.5 rounded-lg shrink-0 shadow-sm">
@@ -399,7 +395,7 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = React.memo(({
               <p className="text-sm font-semibold text-slate-200">
                 {isHistoryUnknown
                   ? '—'
-                  : isBreakfastAhead ? t.dashboard.firstMealNext.replace('{time}', formatClock(firstMealAt)) : t.dashboard.firstMealNoTime}
+                  : isBreakfastAhead ? t.dashboard.firstMealNext.replace('{time}', formatLocalTime(firstMealAt)) : t.dashboard.firstMealNoTime}
               </p>
             ) : (
               <div className="space-y-1">
@@ -409,7 +405,7 @@ export const PredictorWidget: React.FC<PredictorWidgetProps> = React.memo(({
                   </span>
                   {predictions.nextFoodExpectedAt && (
                     <span className="text-xs text-slate-400 ml-1">
-                      ({formatClock(new Date(predictions.nextFoodExpectedAt))})
+                      ({formatLocalTime(new Date(predictions.nextFoodExpectedAt))})
                     </span>
                   )}
                   <span className="text-xs font-bold text-slate-300 bg-slate-950 border border-slate-700/80 px-2 py-0.5 rounded-lg shrink-0 shadow-sm">

@@ -116,7 +116,7 @@ describe('identity strip: one line under the heading, instead of the tall header
     localStorage.setItem('puppace_lang_v1', 'en');
     await renderPassport({ activePuppy: { ...puppy, gender: undefined, birthDate: '2026-08-01' } });
 
-    expect(heading('Health Book')!.nextElementSibling!.textContent).toBe('Rex · Beagle · 10 wk');
+    expect(heading('Health passport')!.nextElementSibling!.textContent).toBe('Rex · Beagle · 10 wk');
   });
 
   it('the age is in weeks up to 15 weeks, in months from 16 weeks', async () => {

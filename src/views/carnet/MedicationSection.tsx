@@ -44,6 +44,7 @@ export const MedicationSection: React.FC<MedicationSectionProps> = ({
         day: "numeric",
         hour: "2-digit",
         minute: "2-digit",
+        hourCycle: "h23", // 24 h in English too, like the feed
       });
     } catch {
       return isoString;
@@ -120,7 +121,7 @@ export const MedicationSection: React.FC<MedicationSectionProps> = ({
                         onClick={() => setConfirmDeleteId(log.id)}
                         aria-label={t.common.deleteItem.replace("{item}", rowName(log))}
                         className="min-h-11 min-w-11 flex items-center justify-center text-slate-500 hover:text-red-400 hover:bg-red-950/40 rounded-lg transition-colors"
-                        title={t.health.deleteMedicationConfirm}
+                        title={t.health.deleteMedicationTitle}
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -153,8 +154,8 @@ export const MedicationSection: React.FC<MedicationSectionProps> = ({
               onDeleteActivity(confirmDeleteId);
             }
           }}
-          title={t.health.deleteMedicationTitle || t.health.deleteMedicationConfirm}
-          message={t.potty.deleteActivityMessage}
+          title={t.health.deleteMedicationTitle}
+          message={t.health.deleteMedicationConfirm}
         />
       </Card.Content>
     </Card>

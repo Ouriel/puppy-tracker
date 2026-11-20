@@ -67,7 +67,7 @@ describe('editing a weigh-in from the feed', () => {
         referenceTime={new Date()}
       />
     ));
-    const expandAll = [...container.querySelectorAll('button')].find((button) => button.textContent === 'Expand All')!;
+    const expandAll = [...container.querySelectorAll('button')].find((button) => button.textContent === 'Expand all')!;
     await act(async () => expandAll.click());
 
     const editButton = container.querySelector<HTMLButtonElement>('button[aria-label^="Edit weight "]')!;

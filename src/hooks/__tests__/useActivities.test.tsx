@@ -744,7 +744,7 @@ describe('useActivities: Undo after a one-tap log', () => {
 
   it('the toast names the log and offers Undo, which deletes that log', async () => {
     const { id, message, undo } = await tapAndSave(peeOutside());
-    expect(message).toBe('Logged: Peed Outside');
+    expect(message).toBe('Logged: Peed outside');
     expect(undo?.children).toBe('Undo');
 
     await act(async () => (undo!.onPress as () => void)());
@@ -788,11 +788,11 @@ describe('useActivities: Undo after a one-tap log', () => {
     expect(undo?.children).toBe('Annuler');
   });
 
-  it('a poop is named a poop: "Pooped Outside", "Poop accident indoors"', async () => {
+  it('a poop is named a poop: "Pooped outside", "Poop accident indoors"', async () => {
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(new Date('2026-10-14T08:00:00.000Z'));
     const outside = await tapAndSave({ ...newLog('poop'), pottyLocation: 'outside' });
-    expect(outside.message).toBe('Logged: Pooped Outside');
+    expect(outside.message).toBe('Logged: Pooped outside');
     vi.setSystemTime(Date.now() + 6000);
     const accident = await tapAndSave({ ...newLog('poop'), pottyLocation: 'indoor_accident' });
     expect(accident.message).toBe('Logged: Poop accident indoors');

@@ -96,16 +96,16 @@ describe('the weight card, in French', () => {
     expect(chart().getAttribute('height')).toBe('200');
     expect(chart().hasAttribute('viewBox')).toBe(false);
     expect(chart().querySelector('title')!.textContent).toBe('Courbe de poids de Rex');
-    expect(chart().querySelector('desc')!.textContent).toContain('Pesées\u00a0: 4 (du 1 août au 1 oct.), de 7,6 kg à 10,4 kg');
+    expect(chart().querySelector('desc')!.textContent).toContain('Pesées\u00a0: 4 (du 1 août au 1 oct.), de 7,6\u00a0kg à 10,4\u00a0kg');
   });
 
   it('three tiles in one row: the last weigh-in, the measured pace, the adult range; no WALTHAM on screen', async () => {
     const container = await renderChart();
 
-    expect(tile('weight')).toBe('Poids10,4 kgil y a 14\u00a0j'); // Intl.RelativeTimeFormat puts a no-break space before "j"
+    expect(tile('weight')).toBe('Poids10,4\u00a0kgil y a 14\u00a0j'); // Intl.RelativeTimeFormat puts a no-break space before "j"
     // 9,6 kg on 15 Sep, 10,4 kg on 1 Oct: the 28 days up to the last weigh-in
     expect(tile('pace')).toBe('Rythme+50\u00a0g/jsur 16\u00a0j');
-    expect(tile('adult')).toMatch(/^Adulte\d+–\d+ kgestimé$/);
+    expect(tile('adult')).toMatch(/^Adulte\d+–\d+\u00a0kgestimé$/);
     expect(container.querySelector('[data-tile]')!.parentElement!.className).toContain('grid-cols-3');
     expect(container.textContent).not.toMatch(/WALTHAM|Cat\. /);
   });
@@ -114,21 +114,21 @@ describe('the weight card, in French', () => {
     await renderChart();
 
     expect(document.querySelector('[aria-live="polite"]')).not.toBeNull();
-    expect(readout()).toContain('10,4 kg');
+    expect(readout()).toContain('10,4\u00a0kg');
     expect(readout()).toContain('1 oct. · 7\u00a0mois');
-    expect(readout()).toContain('+0,8 kg en 16\u00a0j (50\u00a0g/j)'); // no-break spaces: the rate never wraps from its unit
+    expect(readout()).toContain('+0,8\u00a0kg en 16\u00a0j (50\u00a0g/j)'); // no-break spaces: the rate never wraps from its unit
 
     await press('ArrowLeft');
-    expect(readout()).toContain('9,6 kg');
+    expect(readout()).toContain('9,6\u00a0kg');
     await press('Home');
-    expect(readout()).toContain('7,6 kg');
+    expect(readout()).toContain('7,6\u00a0kg');
     expect(readout()).toContain('1 août · 5\u00a0mois'); // 22 weeks: months from 16 weeks on
     expect(readout()).toContain(fr.weightChart.firstWeighIn);
     await press('ArrowRight');
-    expect(readout()).toContain('9 kg');
+    expect(readout()).toContain('9\u00a0kg');
     expect(readout()).toContain('1 sept.');
     await press('End');
-    expect(readout()).toContain('10,4 kg');
+    expect(readout()).toContain('10,4\u00a0kg');
   });
 
   it('the arrow keys move the selection, not the page; other keys are left alone', async () => {
@@ -179,7 +179,7 @@ describe('the weight card, in French', () => {
       bubbles: true, clientX: Number(marker.getAttribute('cx')) + 3, clientY: Number(marker.getAttribute('cy')) - 2,
     })));
 
-    expect(readout()).toContain('9 kg');
+    expect(readout()).toContain('9\u00a0kg');
     expect(readout()).toContain('1 sept.');
 
     // A finger dragging across the chart
@@ -204,7 +204,7 @@ describe('the weight card, in French', () => {
     const toggle = buttonWithText('Voir toutes les pesées (4)')!;
 
     expect(rows()).toHaveLength(3);
-    expect(rows()[0]).toContain('10,4 kg');
+    expect(rows()[0]).toContain('10,4\u00a0kg');
     expect(toggle.getAttribute('aria-expanded')).toBe('false');
 
     await act(async () => toggle.click());
@@ -222,7 +222,7 @@ describe('the weight card, in French', () => {
     await act(async () => readoutCard.querySelector<HTMLButtonElement>('button[aria-label="Supprimer la pesée du 1 oct."]')!.click());
     expect(onDeleteActivity).not.toHaveBeenCalled();
     // The question names the weigh-in it deletes
-    expect(document.body.textContent).toContain('Supprimer la pesée du 1 oct. (10,4 kg)\u00a0?');
+    expect(document.body.textContent).toContain('Supprimer la pesée du 1 oct. (10,4\u00a0kg)\u00a0?');
     await act(async () => buttonWithText(fr.common.delete)!.click());
 
     expect(onDeleteActivity).toHaveBeenCalledWith('w-oct');
@@ -231,12 +231,12 @@ describe('the weight card, in French', () => {
   it('a weigh-in that looks like a typo is marked "À vérifier" with a "!", out of the line and the tiles until edited', async () => {
     const container = await renderChart({ activities: [...weighIns, weighIn('w-typo', '2026-10-08', 104)] });
 
-    expect(readout()).toContain('104 kg');
+    expect(readout()).toContain('104\u00a0kg');
     expect(readout()).toContain(fr.weightChart.checkBadge);
     expect(readout()).toContain(fr.weightChart.checkReason);
     expect(rows()[0]).toContain(fr.weightChart.checkBadge);
     expect(chart().querySelector('[data-weigh-in="w-typo"]')!.parentElement!.textContent).toBe('!');
-    expect(tile('weight')).toContain('10,4 kg');
+    expect(tile('weight')).toContain('10,4\u00a0kg');
     expect(container.querySelector('[data-line]')!.getAttribute('d')!.match(/[ML]/g)).toHaveLength(4);
   });
 

@@ -67,8 +67,8 @@ describe('B13: "Last pee" is the newest pee, whatever the list order', () => {
 });
 
 describe('vet lines on the stool alerts', () => {
-  const diarrhoeaEn = 'Keep water available. Call your vet if it lasts more than 24 h, or now if there is blood, vomiting, tiredness, or the puppy is not fully vaccinated.';
-  const hardStoolEn = 'Keep water available. Call your vet if there is no stool for 48 h, or if there is straining or vomiting.';
+  const diarrhoeaEn = 'Keep water available. Call your vet if it lasts more than 24h, or now if there is blood, vomiting, tiredness, or the puppy is not fully vaccinated.';
+  const hardStoolEn = 'Keep water available. Call your vet if there is no stool for 48h, or if there is straining or vomiting.';
   const poopAt11 = (stoolConsistency: Activity['stoolConsistency']) => [log('poop', '2026-09-15T11:00:00+02:00', { stoolConsistency })];
 
   it('diarrhoea: when to call the vet', async () => {
@@ -122,12 +122,12 @@ describe('durations, "ago" and grams in the app language', () => {
     expect(container.textContent).toContain(`${fr.dashboard.lastPee}à l'instant`);
   });
 
-  it('English: "10m ago", and clock times "1:30 PM", never "01:30 PM"', async () => {
+  it('English: "10m ago", and clock times in 24 h ("13:30"), like the feed', async () => {
     const container = await renderCards([recentPee]);
     const text = container.textContent!;
     expect(text).toContain('Last pee:10m ago');
-    expect(text).toMatch(/\(\d{1,2}:\d\d [AP]M\)/);
-    expect(text).not.toMatch(/\(0\d:\d\d [AP]M\)/);
+    expect(text).toMatch(/\(\d\d:\d\d\)/);
+    expect(text).not.toMatch(/[AP]M\b/);
     expect(text).toContain('(80\u00a0g)');
   });
 });
@@ -140,9 +140,9 @@ describe('the potty buttons', () => {
   it('English: "Outside" and "Accident" on screen; each button named after its card', async () => {
     const container = await renderCards([log('pee', '2026-09-15T11:50:00+02:00')]);
     expect(buttons(container)).toEqual([
-      ['Peed Outside', 'Outside'],
+      ['Peed outside', 'Outside'],
       ['Pee accident indoors', 'Accident'],
-      ['Pooped Outside', 'Outside'],
+      ['Pooped outside', 'Outside'],
       ['Poop accident indoors', 'Accident'],
     ]);
   });
@@ -198,7 +198,7 @@ describe('a dog with nothing logged yet', () => {
 
     expect(pee.textContent).toContain('No pee yet. Tap Outside to start.');
     expect(poop.textContent).toContain('No poop yet. Tap Outside to start.');
-    expect(meal.textContent).toContain('Next: breakfast ~7:00 AM'); // the default 07:00 wake-up
+    expect(meal.textContent).toContain('Next: breakfast ~07:00'); // the default 07:00 wake-up
     for (const card of [pee, poop, meal]) {
       expect(card.textContent).not.toMatch(/±|Safe Zone|Overdue|—/);
       expect(card.className).not.toMatch(/red|amber/);
@@ -223,7 +223,7 @@ describe('a dog with nothing logged yet', () => {
     expect(pee.textContent).toMatch(/±/);
     expect(pee.textContent).not.toContain('No pee yet');
     // The engine's breakfast: 15 min after the morning pee
-    expect(meal.textContent).toContain('Next: breakfast ~9:05 AM');
+    expect(meal.textContent).toContain('Next: breakfast ~09:05');
     expect(meal.textContent).not.toMatch(/Due Soon|Overdue/);
   });
 

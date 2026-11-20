@@ -46,7 +46,7 @@ async function renderFeed(lang: 'en' | 'fr', list: Activity[] = activities, care
   await act(async () => root!.render(
     <ActivityTimeline activities={list} caretakers={caretakers} activePuppy={puppy} onDeleteActivity={vi.fn()} referenceTime={new Date()} />
   ));
-  const expandAll = [...container.querySelectorAll('button')].find((button) => button.textContent === (lang === 'fr' ? 'Tout déplier' : 'Expand All'));
+  const expandAll = [...container.querySelectorAll('button')].find((button) => button.textContent === (lang === 'fr' ? 'Tout déplier' : 'Expand all'));
   // Today starts open: a feed of today only has nothing left to expand
   if (expandAll) await act(async () => expandAll.click());
   return container;
@@ -57,24 +57,24 @@ const rowTimes = (container: HTMLElement) =>
   [...container.querySelectorAll('span')].filter((span) => span.nextElementSibling?.textContent === '•').map((span) => span.textContent);
 const titles = (container: HTMLElement) => [...container.querySelectorAll('[title]')].map((element) => element.getAttribute('title'));
 const eventBadges = (container: HTMLElement) =>
-  [...container.querySelectorAll('button[aria-expanded] span')].map((span) => span.textContent!).filter((text) => /event|événement/.test(text));
+  [...container.querySelectorAll('button[aria-expanded] span')].map((span) => span.textContent!).filter((text) => /activit/.test(text));
 
 describe('activity feed day groups (backlog item 26)', () => {
-  it('in French, rows show only the time: the 00:30 pee under "Hier" never reads "Aujourd\'hui"; counts read "1 événement", "2 pipis", "0 caca"', async () => {
+  it('in French, rows show only the time: the 00:30 pee under "Hier" never reads "Aujourd\'hui"; counts read "1 activité", "2 pipis", "0 caca"', async () => {
     const container = await renderFeed('fr');
 
     expect(rowTimes(container)).toEqual(['08:15', '00:30', '20:00']);
-    expect(eventBadges(container)).toEqual(['1 événement', '2 événements']);
+    expect(eventBadges(container)).toEqual(['1 activité', '2 activités']);
     expect(titles(container)).toEqual(expect.arrayContaining(['0 pipi', '1 caca', '2 pipis', '0 caca', '1 accident']));
     expect(container.textContent).toContain('0\u00a0g · 0 repas');
     expect(container.textContent).not.toContain('(s)');
   });
 
-  it('in English, rows show the 24 h time with no day; counts read "1 event", "2 events", "0 poops", "0 meals"', async () => {
+  it('in English, rows show the 24 h time with no day; counts read "1 activity", "2 activities", "0 poops", "0 meals"', async () => {
     const container = await renderFeed('en');
 
     expect(rowTimes(container)).toEqual(['08:15', '00:30', '20:00']);
-    expect(eventBadges(container)).toEqual(['1 event', '2 events']);
+    expect(eventBadges(container)).toEqual(['1 activity', '2 activities']);
     expect(titles(container)).toEqual(expect.arrayContaining(['0 pees', '1 poop', '2 pees', '0 poops', '1 accident']));
     expect(container.textContent).toContain('0\u00a0g · 0 meals');
     expect(container.textContent).not.toContain('(s)');

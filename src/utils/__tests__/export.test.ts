@@ -137,7 +137,7 @@ describe('export utilities — CSV and PDF export test suite', () => {
         const text = await (createdBlob as Blob).text();
         // Check quoted French headers
         // Sentence case, all French
-        expect(text).toContain('"Date","Heure","Type d\'activité","Lieu besoins","Consistance selles","Quantité (g)","Quantité (verres)","Durée (min)","Poids (kg)","Médicament","Enregistré par","Notes"');
+        expect(text).toContain('"Date","Heure","Type d\'activité","Lieu besoins","Consistance selles","Quantité (g)","Quantité (gobelets)","Durée (min)","Poids (kg)","Traitement","Enregistré par","Notes"');
         expect(text).toContain('"Sam"');
         expect(text).toContain('"Alice"');
         // SSO full names and emails are resolved to the caretaker name, never exported raw
@@ -147,10 +147,11 @@ describe('export utilities — CSV and PDF export test suite', () => {
         expect(text).toContain('"Pipi"');
         expect(text).toContain('"Caca"');
         expect(text).toContain('"Repas"');
-        expect(text).toContain('"Pesée"');
-        expect(text).toContain('"Médicament"');
+        // The feed's row titles and the log form's places
+        expect(text).toContain('"Poids"');
+        expect(text).toContain('"Traitement"');
         expect(text).toContain('"Dehors"');
-        expect(text).toContain('"Accident intérieur"');
+        expect(text).toContain('"Accident"');
         expect(text).toContain('"80"');
         expect(text).toContain('"6.8"');
         expect(text).toContain('"Bravecto"');
@@ -163,11 +164,12 @@ describe('export utilities — CSV and PDF export test suite', () => {
       expect(createdBlob).not.toBeNull();
 
       const text = await (createdBlob as Blob).text();
-      expect(text).toContain('"Date","Time","Activity Type","Potty Location","Stool Consistency","Quantity (g)","Quantity (cups)","Duration (min)","Weight (kg)","Medication","Logged By","Notes"');
+      expect(text).toContain('"Date","Time","Activity type","Potty location","Stool consistency","Quantity (g)","Quantity (cups)","Duration (min)","Weight (kg)","Treatment","Logged by","Notes"');
       expect(text).toContain('"Pee"');
       expect(text).toContain('"Poop"');
+      expect(text).toContain('"Meal"');
       expect(text).toContain('"Outside"');
-      expect(text).toContain('"Indoor Accident"');
+      expect(text).toContain('"Indoor accident"');
     });
 
     // App review 2026-10-16, section 3: "diarrhea" and "runny" were exported raw
@@ -189,7 +191,7 @@ describe('export utilities — CSV and PDF export test suite', () => {
       const lateDose: Activity = { id: 'm-late', puppyId: 'pup-1', type: 'medication', timestamp: '2026-10-01T23:30:00.000Z', medicationName: 'Métacam', loggedBy: 'Sam' };
       exportActivitiesToCSV([lateDose], mockProfile, 'fr', mockCaretakers);
       const text = await (createdBlob as Blob).text();
-      expect(text).toContain('"2026-10-02","01:30","Médicament"');
+      expect(text).toContain('"2026-10-02","01:30","Traitement"');
       expect(text).not.toContain('2026-10-01');
     });
   });
@@ -210,14 +212,15 @@ describe('export utilities — CSV and PDF export test suite', () => {
 
       const htmlContent = mockWindow?.document.write.mock.calls[0][0] as string;
       expect(htmlContent).toContain('Pistache');
-      expect(htmlContent).toContain("Rapport d'activités & propreté");
+      expect(htmlContent).toContain("Rapport d'activités et de propreté");
       expect(htmlContent).toContain('Berger australien');
       // The period printed; no goal: today's goal is not the goal of past days (history display decision (a))
       expect(htmlContent).toContain('Du 14 août 2026 au 20 août 2026');
       expect(htmlContent).not.toContain('240g /');
       expect(htmlContent).toContain('<div class="card-value">5</div>'); // total logs card
       expect(htmlContent).toContain('Dehors');
-      expect(htmlContent).toContain('Accident intérieur');
+      expect(htmlContent).toContain('⚠️ Accident</span>');
+      expect(htmlContent).toContain('💊 Traitement</span>');
       expect(htmlContent).toContain('80\u00a0g');
       expect(htmlContent).toContain('Bravecto');
     });
@@ -227,11 +230,14 @@ describe('export utilities — CSV and PDF export test suite', () => {
       expect(result).toBe(true);
 
       const htmlContent = mockWindow?.document.write.mock.calls[0][0] as string;
-      expect(htmlContent).toContain('Activity & Potty Report');
+      expect(htmlContent).toContain('Activity and potty report');
       expect(htmlContent).toContain('From August 14, 2026 to August 20, 2026');
-      expect(htmlContent).toContain('Total Logs');
+      expect(htmlContent).toContain('Activities');
+      expect(htmlContent).toContain('1 pee, 1 poop');
       expect(htmlContent).toContain('Outside');
       expect(htmlContent).toContain('Indoors');
+      expect(htmlContent).toContain('Aug 19, 15:00'); // 24 h, like the feed
+      expect(htmlContent).not.toMatch(/\d (AM|PM)\b/);
     });
 
     // Owner decision 2026-10-15: a dog with no gram goal may log meals without grams (stored as null)
@@ -247,7 +253,7 @@ describe('export utilities — CSV and PDF export test suite', () => {
 
       expect(mealsCard(gramlessMeals)).toContain('>2</div>');
       expect(mealsCard(gramlessMeals)).not.toMatch(/\dg/);
-      expect(mealsCard(mockActivities)).toContain('80 g logged');
+      expect(mealsCard(mockActivities)).toContain('80 g in total');
     });
 
     // App review 2026-10-16, section 3: "Selles : diarrhea", "(0.73 cups)" and an English brand line in a French report
@@ -258,8 +264,8 @@ describe('export utilities — CSV and PDF export test suite', () => {
 
       expect(htmlContent).toContain('Selles\u00a0: Diarrhée');
       expect(htmlContent).toContain('Selles\u00a0: Molles');
-      expect(htmlContent).toContain('80\u00a0g</strong> (0,73 verres)');
-      expect(htmlContent).toContain('6,8 kg');
+      expect(htmlContent).toContain('80\u00a0g</strong> (0,73 gobelets)');
+      expect(htmlContent).toContain('6,8\u00a0kg');
       expect(htmlContent).not.toMatch(/Smart Activity Log|diarrhea|cups/);
     });
 
@@ -267,10 +273,10 @@ describe('export utilities — CSV and PDF export test suite', () => {
     it('a French report has its titles in sentence case', () => {
       printActivitiesReport(mockActivities, mockProfile, 'fr', fr, mockCaretakers, period);
       const htmlContent = mockWindow?.document.write.mock.calls[0][0] as string;
-      expect(htmlContent).toContain('Historique détaillé des événements');
+      expect(htmlContent).toContain('Historique détaillé des activités');
       expect(htmlContent).toContain('Taux de réussite');
       expect(htmlContent).toContain('Date et heure');
-      expect(htmlContent).toContain('Document généré avec PupPace — suivi des besoins et carnet de santé du chiot.');
+      expect(htmlContent).toContain("Document généré avec PupPace — suivi d'activité et de propreté du chiot.");
       expect(htmlContent).not.toMatch(/Activités &|Détaillé|Taux Réussite|Date & Heure|Intelligent|Familial/);
     });
 
@@ -321,7 +327,7 @@ describe('export utilities — CSV and PDF export test suite', () => {
       if (createdBlob) {
         const text = await (createdBlob as Blob).text();
         // Sentence case, a dedicated column for the product typed from the vet's sticker
-        expect(text).toContain('"Catégorie","Date","Heure","Protocole / produit / mesure","Prochain rappel / échéance","Poids (kg)","Clinique vétérinaire","Produit (vignette)","N° lot / flacon","Enregistré par","Notes"');
+        expect(text).toContain('"Catégorie","Date","Heure","Protocole / produit / mesure","Prochain rappel / prochaine prise","Poids (kg)","Clinique vétérinaire","Produit (vignette)","N° lot / flacon","Enregistré par","Notes"');
         expect(text).toContain('"CHPPiL4 (Nobivac)"');
         expect(text).toContain('"LOT-992A"');
         expect(text).toContain('"Milbemax"');
@@ -336,7 +342,7 @@ describe('export utilities — CSV and PDF export test suite', () => {
       expect(createdBlob).not.toBeNull();
 
       const text = await (createdBlob as Blob).text();
-      expect(text).toContain('"Category","Date","Time","Protocol / Product / Measurement","Next Due / Booster Date","Weight (kg)","Veterinary Clinic","Product (Sticker)","Batch / Lot Number","Logged By","Notes"');
+      expect(text).toContain('"Category","Date","Time","Protocol / product / measurement","Next booster / next dose","Weight (kg)","Veterinary clinic","Product (sticker)","Batch number","Logged by","Notes"');
     });
 
     // Carnet review phase 4: treatments were missing from the exports; whoever logged one is named by their badge
@@ -346,7 +352,7 @@ describe('export utilities — CSV and PDF export test suite', () => {
       exportHealthPassportToCSV(mockProfile, [stickerVaccine], mockDewormings, [...mockActivities, treatment], 'fr', [...mockCaretakers.slice(0, 1), { ...mockCaretakers[1], email: 'alice@example.com' }]);
       const text = await (createdBlob as Blob).text();
 
-      expect(text).toContain('"Vaccination","2026-05-01","","CHPPiL4 (Nobivac)","2027-05-01","","Clinique Vétérinaire des Lilas","Nobivac DHPPi+L4","LOT-992A","","Bien toléré"');
+      expect(text).toContain('"Vaccin","2026-05-01","","CHPPiL4 (Nobivac)","2027-05-01","","Clinique Vétérinaire des Lilas","Nobivac DHPPi+L4","LOT-992A","","Bien toléré"');
       expect(text).toContain('"Traitement","2026-08-19","16:00","Bravecto","","","","","","Sam",""');
       expect(text).toContain('"Traitement","2026-08-19","16:00","Métacam","","","","","","Alice","2 jours"');
       expect(text).not.toContain('alice@example.com');
@@ -368,8 +374,8 @@ describe('export utilities — CSV and PDF export test suite', () => {
     it('its French values are in sentence case', async () => {
       exportHealthPassportToCSV(mockProfile, mockVaccinations, mockDewormings, mockActivities, 'fr', mockCaretakers);
       const text = await (createdBlob as Blob).text();
-      expect(text).toContain('"Vermifuge / antiparasitaire","2026-06-01","","Milbemax"');
-      expect(text).toContain('"Pesée & croissance","2026-08-19","15:00","Contrôle du poids","","6.8"');
+      expect(text).toContain('"Antiparasitaire","2026-06-01","","Milbemax"');
+      expect(text).toContain('"Pesée","2026-08-19","15:00","Poids","","6.8"');
     });
   });
 
@@ -446,7 +452,7 @@ describe('export utilities — CSV and PDF export test suite', () => {
       expect(header).toContain('Femelle');
       expect(header).toContain('Berger australien');
       expect(header).toContain('01/03/2026 (7\u00a0mois)');
-      expect(header).toContain('16,8 kg (01/10/2026)');
+      expect(header).toContain('16,8\u00a0kg (01/10/2026)');
       expect(header).toContain('Puce 250269800000000, allergique au poulet');
 
       const withoutNotes = sectionOf(printed({ profile: { ...dog, notes: undefined, gender: null } }), 'identity');
@@ -543,9 +549,9 @@ describe('export utilities — CSV and PDF export test suite', () => {
       expect(section).toMatch(/<path data-line d="M[-\d.,L]+"/);
       expect((section.match(/<circle data-weigh-in/g) ?? []).length).toBe(14);
       expect(rowCount(section)).toBe(12);
-      expect(section).toContain('17 kg'); // the latest
-      expect(section).toContain('<td>6 kg</td>'); // the 12th latest
-      expect(section).not.toContain('<td>5 kg</td>'); // the 13th latest is out of the list
+      expect(section).toContain('17\u00a0kg'); // the latest
+      expect(section).toContain('<td>6\u00a0kg</td>'); // the 12th latest
+      expect(section).not.toContain('<td>5\u00a0kg</td>'); // the 13th latest is out of the list
       expect(section).toContain('<p class="earlier">2 antérieurs</p>');
       expect(sectionOf(printed({ activities: weighIns, lang: 'en' }), 'weight')).toContain('<p class="earlier">2 earlier</p>');
       // 12 or fewer: every one listed, nothing said
@@ -570,8 +576,8 @@ describe('export utilities — CSV and PDF export test suite', () => {
     it('a weigh-in that looks like a typo is left out of the latest weight and marked in the list, as on screen', () => {
       const weighIns = ([['2026-09-01', 9], ['2026-09-15', 9.6], ['2026-10-01', 10.4], ['2026-10-08', 104]] as const).map(([date, weightKg], index) => weighIn(`t-${index}`, date, weightKg));
       const html = printed({ activities: weighIns });
-      expect(sectionOf(html, 'identity')).toContain('10,4 kg (01/10/2026)');
-      expect(sectionOf(html, 'weight')).toContain('104 kg (À vérifier)');
+      expect(sectionOf(html, 'identity')).toContain('10,4\u00a0kg (01/10/2026)');
+      expect(sectionOf(html, 'weight')).toContain('104\u00a0kg (À vérifier)');
     });
 
     it('a dog without a weigh-in shows no weight, never the profile weight (a new dog\'s is made up)', () => {
@@ -721,7 +727,7 @@ describe('export utilities — CSV and PDF export test suite', () => {
     it('the printed passport lists a deworming weight once, as its weight event', () => {
       printHealthPassportReport(mockProfile, [], [legacyDeworming], [dewormingWeighIn], 'fr');
       const htmlContent = mockWindow?.document.write.mock.calls[0][0] as string;
-      expect(htmlContent.match(/<td>7,6 kg<\/td>/g)).toHaveLength(1); // French format (formatKg)
+      expect(htmlContent.match(/<td>7,6\u00a0kg<\/td>/g)).toHaveLength(1); // French format (formatKg)
       expect(htmlContent).not.toContain('Poids au Traitement');
     });
   });
@@ -732,7 +738,7 @@ describe('export utilities — CSV and PDF export test suite', () => {
       exportHealthPassportToCSV(mockProfile, [vaccineWithoutClinic], [], [], 'fr', mockCaretakers);
       const text = await (createdBlob as Blob).text();
       expect(text.match(/"Clinique vétérinaire"/gi)).toHaveLength(1); // the header only
-      expect(text).toContain('"Vaccination","2026-07-01","","Rage","2027-07-01","","","","",');
+      expect(text).toContain('"Vaccin","2026-07-01","","Rage","2027-07-01","","","","",');
     });
   });
 

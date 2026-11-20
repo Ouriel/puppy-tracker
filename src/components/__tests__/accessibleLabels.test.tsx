@@ -281,12 +281,12 @@ describe('row buttons named after their row, 44 px targets (French)', () => {
 
     const buttonWithText = (text: string) => [...document.querySelectorAll<HTMLButtonElement>('button')].find((element) => element.textContent!.includes(text))!;
     await act(async () => buttonWithText('Ajouter un membre').click());
-    await act(async () => buttonWithText('Autoriser un e-mail').click());
+    await act(async () => buttonWithText('Inviter un membre').click());
     const nameBox = document.querySelector<HTMLInputElement>('form input[type="text"]')!;
     expect(document.querySelector(`label[for="${nameBox.id}"]`)!.textContent).toBe('Nom du membre');
     expect(document.querySelector('form input[type="color"]')!.getAttribute('aria-label')).toBe('Couleur du badge');
     const emailBox = document.querySelector<HTMLInputElement>('input[type="email"]')!;
-    expect(document.getElementById(emailBox.getAttribute('aria-labelledby')!)!.textContent).toBe('Inviter un membre par e-mail');
+    expect(document.getElementById(emailBox.getAttribute('aria-labelledby')!)!.textContent).toBe('Inviter un membre');
 
     await act(async () => button('Modifier Marie')!.click());
     expect(button('Annuler')).not.toBeNull();
@@ -376,5 +376,14 @@ describe('health passport (French)', () => {
     const unnamed = [...document.querySelectorAll('button')].filter((element) => !(element.getAttribute('aria-label') || element.textContent!.trim()));
     expect(unnamed).toEqual([]);
     expect(ariaLabels()).toEqual(expect.arrayContaining(['Modifier Credelio Plus du 10 sept.', 'Supprimer Credelio Plus du 10 sept.', 'Supprimer Test-Med du 22 oct.']));
+  });
+});
+
+describe('medication history time', () => {
+  it('reads 24 h in English too, like the feed', async () => {
+    const afternoon = log('medication', '2026-10-21T15:30:00+02:00', { medicationName: 'Test-Med' });
+    const container = await render(<MedicationSection activities={[afternoon]} onDeleteActivity={vi.fn()} />, 'en');
+    expect(container.textContent).toContain('15:30');
+    expect(container.textContent).not.toMatch(/[AP]M\b/);
   });
 });

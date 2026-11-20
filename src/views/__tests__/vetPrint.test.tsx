@@ -112,7 +112,7 @@ describe('Export: the one-page print and the CSV get every treatment and the mem
     await renderPassport();
     await act(async () => buttonWithText(fr.dashboard.export).click());
     expect(buttonWithText(fr.health.exportHealthPdf).textContent).toContain('Résumé d\'une page pour le véto');
-    expect(buttonWithText(fr.health.exportHealthCsv).textContent).toContain('Vaccins, vermifuges, traitements et pesées');
+    expect(buttonWithText(fr.health.exportHealthCsv).textContent).toContain('Vaccins, antiparasitaires, traitements et pesées');
   });
 
   it('the printed page lists the treatments of the last 90 days', async () => {
@@ -125,7 +125,7 @@ describe('Export: the one-page print and the CSV get every treatment and the mem
 
     const html = printWindow.document.write.mock.calls[0][0] as string;
     expect(html).toContain('Métacam');
-    expect(html).toContain('9,4 kg');
+    expect(html).toContain('9,4\u00a0kg');
   });
 
   it('the CSV has a row per treatment, and names whoever logged a weigh-in or a treatment by their badge', async () => {

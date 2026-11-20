@@ -41,7 +41,7 @@ afterEach(async () => {
 // Backlog item 3: a failed save shows a French message, never the server's English error or the browser's "Load failed"
 describe('a failed change shows a translated toast', () => {
   it.each([
-    ['no connection (fetch rejected)', () => Promise.reject(new TypeError('Load failed')), "Pas de connexion, rien n'a été enregistré"],
+    ['no connection (fetch rejected)', () => Promise.reject(new TypeError('Load failed')), "Pas de connexion, rien n'a été enregistré."],
     ['a server error', () => Promise.resolve(new Response(JSON.stringify({ error: 'Internal server error' }), { status: 500 })), 'Une erreur est survenue — modifications annulées.'],
     ['an unknown refusal', () => Promise.resolve(new Response(JSON.stringify({ error: 'Invalid caretaker payload' }), { status: 400 })), 'Une erreur est survenue — modifications annulées.'],
     ['a taken name', () => Promise.resolve(new Response(JSON.stringify({ error: 'Another member already has this name.', code: 'memberNameTaken' }), { status: 409 })), 'Un autre membre porte déjà ce nom.'],

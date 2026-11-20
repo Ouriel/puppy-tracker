@@ -260,7 +260,7 @@ describe('QuickLogModal weight box: last weigh-in hint and decimal check (Phase 
   it('the box starts empty with the last weigh-in as a hint, whatever its date; none before a first weigh-in', async () => {
     await renderModal({ initialType: 'weight', lastWeighIn });
     expect(field('quicklog-weight-kg').value).toBe('');
-    expect(weightBoxText()).toContain('Last weigh-in: 10.1 kg on 09/25'); // formatKg: at most 1 decimal
+    expect(weightBoxText()).toContain('Last weigh-in: 10.1\u00a0kg on 09/25'); // formatKg: at most 1 decimal
 
     await act(async () => root!.unmount());
     document.body.innerHTML = '';
@@ -288,7 +288,7 @@ describe('QuickLogModal weight box: last weigh-in hint and decimal check (Phase 
     await renderModal({ initialType: 'weight', lastWeighIn, profile });
     await typeKeys('quicklog-weight-kg', '1,005');
 
-    expect(weightBoxText()).toContain('Dernière pesée\u00a0: 10,1 kg le 25/09');
+    expect(weightBoxText()).toContain('Dernière pesée\u00a0: 10,1\u00a0kg le 25/09');
     expect(document.querySelector('[role="status"]')!.textContent).toBe('Vérifie la virgule\u00a0: 1,005\u00a0kg\u00a0?');
   });
 

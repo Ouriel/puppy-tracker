@@ -30,7 +30,7 @@ React 19 · Vite 8 · HeroUI v3 · Tailwind 4 · Vercel serverless functions · 
 ## Signing in and families
 
 - Sign in with Google. The first sign-in of a new person creates an account **waiting for approval**, in a new household of its own; until the owner approves it, the sign-in screen says the request was sent and waits for the family's admin (still shown after a reload on that phone, with "Use another Google account"). Approved there, alone, that person becomes the family's **Admin**: the first member of a new family invites the rest of it.
-- The owner, or a family's Admin, can also **invite** someone by email in advance (Settings > Household Members). An invited person lands directly in the inviter's family, as a member. Someone who signed in before being invited and still waits alone, in a household with no dog, joins it too.
+- The owner, or a family's Admin, can also **invite** someone by email in advance (Settings > Members). An invited person lands directly in the inviter's family, as a member. Someone who signed in before being invited and still waits alone, in a household with no dog, joins it too.
 - Several families can use the same app: each household sees only its own dogs, logs and members. Apart from that case, only the owner moves an account from one household to another, and always after a confirmation.
 - A session lasts 90 days and is renewed each time the app is opened. A removed or revoked account is sent back to the sign-in screen on its next request.
 
@@ -41,12 +41,12 @@ Three cards, one per need, for the selected dog (pick the dog in the top bar).
 | | Pee | Poop | Meal |
 |---|---|---|---|
 | Shows | countdown, clock time, ± margin, today's count, time since the last one, the reason | same | grams eaten / goal and meals (n of target), time since the last meal, the reason |
-| One-tap buttons | ✓ Outside · Accident (screen readers: "Peed Outside", "Pee accident indoors") | ✓ Outside · Accident (same, for poop) | Feed Meal Now (*suggested g*): opens the form on Meal |
+| One-tap buttons | ✓ Outside · Accident (screen readers: "Peed outside", "Pee accident indoors") | ✓ Outside · Accident (same, for poop) | Feed meal now (*suggested g*): opens the form on Meal |
 | Soon (amber) | 20 min before | 30 min before | 15 min before breakfast, 30 min before other meals |
 
-On a phone each card keeps its countdown and buttons with one line ("6 today · 31m ago"); a tap on that line opens the counts and the reason. Before a dog's first pee (or poop) its card says "No pee yet. Tap Outside to start." with no countdown; before its first meal, the meal card never turns amber or red: it names breakfast with its time while that time is ahead and in the morning ("Next: breakfast ~7:30 AM"), and says "Next: first meal" otherwise.
+On a phone each card keeps its countdown and buttons with one line ("6 today · 31m ago"); a tap on that line opens the counts and the reason. Before a dog's first pee (or poop) its card says "No pee yet. Tap Outside to start." with no countdown; before its first meal, the meal card never turns amber or red: it names breakfast with its time while that time is ahead and in the morning ("Next: breakfast ~07:30"), and says "Next: first meal" otherwise.
 
-A one-tap log is timed at the tap and stored under your name; its toast names it ("Logged: Peed Outside") and has **Undo**, which deletes it. A second log of the same type for the same dog within 5 seconds (a double tap, or Save pressed twice) is ignored ("Already logged"), unless the first one was undone.
+A one-tap log is timed at the tap and stored under your name; its toast names it ("Logged: Peed outside") and has **Undo**, which deletes it. A second log of the same type for the same dog within 5 seconds (a double tap, or Save pressed twice) is ignored ("Already logged"), unless the first one was undone.
 
 ### How the guesses work
 
@@ -81,20 +81,20 @@ The **+** button (top bar) opens the form on Pee; the meal, weigh and medication
 
 | Field | Rule |
 |---|---|
-| Type | Pee, Poop, Meal, Weight, Medication |
-| Place (pee, poop) | Outside (default) or Accident indoors |
+| Type | Pee, Poop, Meal, Weight, Treatment |
+| Place (pee, poop) | Outside (default) or Indoor accident |
 | Consistency (poop) | Hard, Normal (default), Diarrhoea |
 | Grams (meal) | Required and above 0: a 0 g meal is refused. Exception: a dog with **no gram goal** may save a meal with the box empty (no grams stored). Starts with the suggested grams, empty once today's goal is reached. |
 | Weight | Required, 0.3 to 100 kg. The box starts empty, with "Last weigh-in: X kg on date" under it, and a warning when the value is more than double or less than half of what the dog's growth curve expects from that weigh-in (a misplaced comma; not before 4 weeks old); an edit is checked against the weigh-ins either side. |
-| Medication | Name required |
+| Treatment | Name required |
 | Decimals | Comma or dot (`10,4` or `10.4`) |
 | Date and time | Required, now by default. Past dates are fine (weights are often entered late); more than 5 minutes in the future is refused. |
 | Notes | Optional; emptying a note in an edit deletes it |
 | Logged by | Read-only line: you for a new log, the original author for an edit. The server sets it from your login; nobody can log under someone else's name. |
 
-The form checks everything before it closes, and closes only once the log is saved. If the save fails (or the phone is offline), the form stays open with what was typed and says "Not saved, try again", with a red message saying why.
+The form checks everything before it closes, and closes only once the log is saved. If the save fails (or the phone is offline), the form stays open with what was typed and says "Not saved, try again.", with a red message saying why.
 
-Your logs are stored under your **badge** (Settings > Household Members) linked to your login. If you have none yet, your first log creates one for you.
+Your logs are stored under your **badge** (Settings > Members) linked to your login. If you have none yet, your first log creates one for you.
 
 ## History
 
@@ -107,9 +107,9 @@ Your logs are stored under your **badge** (Settings > Household Members) linked 
 
 ## Health passport
 
-Open it from the health summary, or at `/health-passport`. Under its title, one line about the dog (name · sex · breed · age today); then **To do** (the same list as the health summary), the weight card, vaccines, dewormings and medication. Until the health records arrive it shows grey placeholders, not empty lists; the phone keeps the last ones loaded, shown at once the next time. When no load ever worked on the phone (offline or a server error), one line says the health book is unavailable, with "Offline, data from HH:mm" at the bottom of the screen when offline; the health summary's To do says the same.
+Open it from the health summary, or at `/health-passport`. Under its title, one line about the dog (name · sex · breed · age today); then **To do** (the same list as the health summary), the weight card, vaccines, dewormings and medication. Until the health records arrive it shows grey placeholders, not empty lists; the phone keeps the last ones loaded, shown at once the next time. When no load ever worked on the phone (offline or a server error), one line says the health passport is unavailable, with "Offline, data from HH:mm" at the bottom of the screen when offline; the health summary's To do says the same.
 
-**Weight.** Every weigh-in is its own entry, nothing merged, whoever weighed the dog. "Log Weight" opens the log form on Weight. Three tiles: the last weight, the pace measured over the last 28 days (reaching back to a weigh-in a week or more before the last one when needed) and the estimated adult range. The chart draws the weigh-ins against a shaded expected zone for the breed and sex (or the adult weight typed for Other / Mixed / Unknown breeds; no zone for a breed the app does not know), with today's estimate along the dog's own curve and a dashed projection to the adult weight. The full view runs to 12 months, to the adult age for a large breed, and is called "All" once it goes past about 13 months; "3 months" zooms on recent weeks. Tap, drag or use the arrow keys to pick a weigh-in: the card under the chart shows its weight, date, age and change since the one before, with edit and delete (the question before a delete names the weigh-in). Under it, the last 3 weigh-ins, then "Show all weigh-ins"; each one can be edited or deleted. A weigh-in more than double or less than half what both neighbours predict is marked "Check" (with only two weigh-ins, the one far off the breed's curve) and left out of the line, the estimates, the pace and the printed passport's latest weight until edited; a weigh-in before 4 weeks (a birth weight) is never checked. The adult estimate blends the breed's standard weight (by sex), or the weight you typed, with the dog's own weigh-ins (the more weigh-ins, the more they count).
+**Weight.** Every weigh-in is its own entry, nothing merged, whoever weighed the dog. "Log weigh-in" opens the log form on Weight. Three tiles: the last weight, the pace measured over the last 28 days (reaching back to a weigh-in a week or more before the last one when needed) and the estimated adult range. The chart draws the weigh-ins against a shaded expected zone for the breed and sex (or the adult weight typed for Other / Mixed / Unknown breeds; no zone for a breed the app does not know), with today's estimate along the dog's own curve and a dashed projection to the adult weight. The full view runs to 12 months, to the adult age for a large breed, and is called "All" once it goes past about 13 months; "3 months" zooms on recent weeks. Tap, drag or use the arrow keys to pick a weigh-in: the card under the chart shows its weight, date, age and change since the one before, with edit and delete (the question before a delete names the weigh-in). Under it, the last 3 weigh-ins, then "Show all weigh-ins"; each one can be edited or deleted. A weigh-in more than double or less than half what both neighbours predict is marked "Check" (with only two weigh-ins, the one far off the breed's curve) and left out of the line, the estimates, the pace and the printed passport's latest weight until edited; a weigh-in before 4 weeks (a birth weight) is never checked. The adult estimate blends the breed's standard weight (by sex), or the weight you typed, with the dog's own weigh-ins (the more weigh-ins, the more they count).
 
 **Vaccines.** The add form starts on the last vaccine given (or CHPPi + L4), today's date and the last clinic used, and suggests the next booster from the dog's **age on the injection day** (French practice):
 
@@ -132,22 +132,22 @@ Open it from the health summary, or at `/health-passport`. Under its title, one 
 - Status: up to date; due soon (14 days, the due day included); overdue (from the next day); or renewed once a later dose of the same vaccine, or of a vaccine that contains it, is logged (an L4 booster also renews CHPPi + L4): it then moves to the grey history, with no status. A different vaccine given the same day never renews it. Any later deworming renews a deworming. An entry with no next date shows a dash and no status.
 - **Add to calendar** (the calendar button next to each next date in To do and on its row, also on the health summary): one all-day event on that date, "Rex: Credelio Plus due" ("Rex : Credelio Plus à faire"), with the date given and the clinic. On Android it opens Google Calendar's new-event page in a new tab, to save there; a link cannot set reminders, so tap "Add notification" (e.g. 1 day before at 09:00) before Save, otherwise only your default for all-day events applies, often none. Elsewhere it downloads a calendar file (.ics) with reminders at 09:00 the day before and on the day; added again, most calendars keep one event per entry and date. No button without a next date, once renewed, or once overdue (its reminders would be in the past). Not yet tried on a phone: Safari on iPhone is reported to open "Add to Calendar"; in the home-screen app, a download is reported to open a screen with no way back (close the app and reopen it), so prefer Safari, which needs its own sign-in. Elsewhere, open the downloaded file; if no calendar app takes it, import it at calendar.google.com on a computer.
 
-**Medication.** Every medication log, whatever its date, with add, edit (the log form) and delete buttons.
+**Treatments.** Every treatment log, whatever its date, with add, edit (the log form) and delete buttons.
 
 **Export.** A one-page A4 summary for a vet, marked unofficial (print it to PDF): the dog (sex, breed, birth date and age, latest weight, its notes), To do, 6 vaccines (every open one first, then the latest renewed), the antiparasitics of the last 12 months (latest 8) and the treatments of the last 90 days (latest 8), the weight curve and the last 12 weigh-ins, older ones counted as "n earlier", every date as DD/MM/YYYY. Or a CSV of every vaccine, antiparasitic, weigh-in and treatment, with who logged each weigh-in and treatment. Both in the app's language.
 
 ## Settings
 
-**Dog Profiles.** Name, breed (English and French names; "Other" with a custom name), sex, birth date (required, not in the future), daily gram goal (10 to 2000 g, or tick "No gram goal" to count meals only), meals per day (1 to 6; for a new dog, set from its age: 4 under 3 months, 3 under 6 months, then 2), notes. The expected adult weight box appears only for Other, Mixed and Unknown breeds. Any family member can add or edit a dog; only the owner can delete one.
+**Dogs.** Name, breed (English and French names; "Other" with a custom name), sex, birth date (required, not in the future), daily gram goal (10 to 2000 g, or tick "No gram goal" to count meals only), meals per day (1 to 6; for a new dog, set from its age: 4 under 3 months, 3 under 6 months, then 2), notes. The expected adult weight box appears only for Other, Mixed and Unknown breeds. Any family member can add or edit a dog; only the owner can delete one.
 
-**Household Members.** Each person has a badge (name and colour) that colours their logs. Anyone in the family can add a badge.
+**Members.** Each person has a badge (name and colour) that colours their logs. Anyone in the family can add a badge.
 - Names and linked emails are unique within a family.
 - Your badge is the one carrying your email; failing that, a badge without an email whose name is exactly your Google account name. It shows the "Active" chip and has no delete button.
 - **This is me**: tick it on a badge without an email to link it to your login (when no badge carries your email yet).
 - Only the owner (or an admin) renames a badge linked to someone else, or unlinks a badge. Only the owner deletes badges.
-- **Invite** (owner or Admin): pre-approve an email. It joins your family with a badge already linked to it. If that person already has an account in another family, the app asks the owner before moving them, and tells an Admin to ask the owner (unless that account is a sign-up still waiting alone in a household with no dog: it simply joins).
+- **Invite** (owner or Admin): an email, approved in advance. It joins your family with a badge already linked to it. If that person already has an account in another family, the app asks the owner before moving them, and tells an Admin to ask the owner (unless that account is a sign-up still waiting alone in a household with no dog: it simply joins).
 
-**Super-Admin Panel** (owner only): every account, pending ones first. Approve (the person stays in their own household unless you pick another, which asks first; approved alone in their own household, they become its Admin), move to another household, revoke (back to pending), delete, or pre-approve an email into a chosen household.
+**Owner panel** (owner only): every account, pending ones first. Approve (the person stays in their own household unless you pick another, which asks first; approved alone in their own household, they become its Admin), move to another household, revoke (back to pending), delete, or invite an email into a chosen household.
 
 ## Phone install, offline and updates
 
@@ -186,7 +186,7 @@ Browser (React SPA, PWA)  ──/api/*──▶  Vercel functions (api/*.ts)  �
 4. The client renews the token 3 s after each app start. A 401 (or 401/403 on renewal) clears it and shows the sign-in screen; a 5xx keeps the session.
 5. Every endpoint also accepts a Google ID token directly (same check as step 2). The app relies on it in one case: when the session exchange fails for the owner, it keeps the Google ID token as the session, which Google expires after about an hour.
 
-- **Owner** = the SuperAdmin, recognised by email only, never by a role claim. Only the owner deletes dogs and badges, sees the Super-Admin Panel, and moves accounts between households (an Admin only takes in a sign-up waiting alone in a household with no dog, below).
+- **Owner** = the SuperAdmin, recognised by email only, never by a role claim. Only the owner deletes dogs and badges, sees the Owner panel, and moves accounts between households (an Admin only takes in a sign-up waiting alone in a household with no dog, below).
 - **Admin**: the first member of a new family, set when the owner approves that sign-up alone in its own household (`PUT /api/users`); an Admin approved or moved into another household becomes a `Member` there. An Admin also invites into its own household (`POST /api/users`): a newcomer is always a `Member` (someone already in the family keeps their role), never another household or role (403). An account living elsewhere gets 409, except a sign-up still `PENDING_APPROVAL` alone in a household with no dog, which is moved in and activated. The API also lets an Admin change the role or status of, or remove, accounts of its household; the app has no screen for that.
 - Every other active account (role `Member`) logs, edits and deletes logs and health records, and adds or edits dogs and badges in its household, within the badge rules of `api/households.ts`.
 - `loggedBy` is never taken from the request: `POST /api/activities` resolves it from the account's linked badge (`findLinkedCaretaker`), creating the badge on the first log; `PUT` never changes it.
@@ -270,7 +270,7 @@ npm test
 - **No offline queue**: logs need a connection. A one-tap log that fails stays marked "Not saved" until Retry or Discard, but only while the app stays open: closing it loses the log.
 - **The day boundary is fixed at 04:00** (not learned), and on clock-change days it moves by an hour. A dog with an unusual night (e.g. awake at night) gets odd "morning" guesses.
 - **Past goals are not stored**: past days in the history show totals only.
-- **Deleting a dog hides it**, for everyone: its profile, logs and health records stay in the database, and nothing deletes them for good. The owner sees it under **Deleted dogs** (Settings > Dog Profiles) and **Restore** brings it back with everything. A deleted dog takes no new log or health record.
+- **Deleting a dog hides it**, for everyone: its profile, logs and health records stay in the database, and nothing deletes them for good. The owner sees it under **Deleted dogs** (Settings > Dogs) and **Restore** brings it back with everything. A deleted dog takes no new log or health record.
 - **Delete buttons for dogs and badges show for every member**; the server refuses the delete to anyone but the owner, and the item comes back with an error.
 - **CSV exports are comma-separated**: Excel set to French may put every column in column A.
 - **One owner per installation**: only the owner's account approves sign-ups, deletes dogs and badges, and moves accounts (a family's Admin only takes in a sign-up waiting alone in a household with no dog).

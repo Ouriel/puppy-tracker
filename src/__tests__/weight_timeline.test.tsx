@@ -204,12 +204,12 @@ describe('Weight timeline (Phase 5c, prod-shaped)', () => {
 
     const put = requests.find((request) => request.method === 'PUT')!;
     expect(put.body).toMatchObject({ id: 'act-vet-1', type: 'weight', weightKg: 3.9, notes: 'Drontal Chiot (Sirop / Comprimés)' });
-    expect(rowOn('2026-05-18').textContent).toContain('3.9 kg');
+    expect(rowOn('2026-05-18').textContent).toContain('3.9\u00a0kg');
 
     // One tap on the trash, next to the pencil, only asks
     await click(rowOn('2026-05-18').querySelector<HTMLButtonElement>('button[aria-label^="Delete the weigh-in of "]')!);
     expect(requests.filter((request) => request.method === 'DELETE')).toEqual([]);
-    expect(document.body.textContent).toContain('Delete the weigh-in of May 18 (3.9 kg)? This cannot be undone.');
+    expect(document.body.textContent).toContain("Delete the weigh-in of May 18 (3.9\u00a0kg)? This can't be undone.");
     await click(buttonWithText('Delete'));
     expect(requests.find((request) => request.method === 'DELETE')!.url).toBe('/api/activities?id=act-vet-1');
     expect(weightRows()).toHaveLength(10);
@@ -283,14 +283,14 @@ describe('Weight timeline (Phase 5c, prod-shaped)', () => {
     await renderAppAt('/');
     await settleUntil(() => document.body.textContent!.includes(en.health.summaryTitle));
 
-    expect(document.body.textContent).toContain(`${en.health.lastLogged}10.1 kg`); // formatKg: at most 1 decimal
+    expect(document.body.textContent).toContain(`${en.health.lastLogged}10.1\u00a0kg`); // formatKg: at most 1 decimal
 
     await click(document.querySelector<HTMLElement>(`[aria-label="${en.nav.logEvent}"]`)!);
     await settleUntil(() => document.getElementById('quicklog-form') !== null);
     await click(buttonWithText(en.potty.weight));
     const weightBox = document.getElementById('quicklog-weight-kg') as HTMLInputElement;
     expect(weightBox.value).toBe('');
-    expect(weightBox.parentElement!.textContent).toContain('Last weigh-in: 10.1 kg on 09/25');
+    expect(weightBox.parentElement!.textContent).toContain('Last weigh-in: 10.1\u00a0kg on 09/25');
   });
 
   it('no dog chosen yet on this device: the dashboard sends every dog\'s weigh-ins, the timeline shows the selected dog\'s only', async () => {
@@ -313,7 +313,7 @@ describe('Weight timeline (Phase 5c, prod-shaped)', () => {
     await renderAppAt('/health-passport');
     await settleUntil(() => weightRows().length > 0);
 
-    expect(weightRows().map((row) => row.cells[1].textContent)).toEqual(['10.3 kg']); // 10.25, at most 1 decimal
+    expect(weightRows().map((row) => row.cells[1].textContent)).toEqual(['10.3\u00a0kg']); // 10.25, at most 1 decimal
   });
 
   it('editing a deworming shows no weight box, and an emptied next date is sent as null so it is cleared', async () => {
@@ -396,7 +396,7 @@ describe.each([
     const box = await openAddForm();
 
     expect(box.value).toBe('');
-    expect(box.parentElement!.textContent).toContain('Last weigh-in: 10.1 kg on 09/25');
+    expect(box.parentElement!.textContent).toContain('Last weigh-in: 10.1\u00a0kg on 09/25');
   });
 
   it('left empty, saves the record and no weight event', async () => {

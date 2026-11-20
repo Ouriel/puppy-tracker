@@ -60,13 +60,13 @@ describe('a dog with no gram goal: no goal in grams on any screen', () => {
     const container = await renderMealCard(noGoal);
     expect(container.textContent).toContain('Ration intake today:1/3 meals');
     expect(container.textContent).not.toMatch(/\d+\s?g \/ \d+\s?g/);
-    expect(container.textContent).not.toMatch(/Feed Meal Now \(/);
+    expect(container.textContent).not.toMatch(/Feed meal now \(/);
   });
 
   it('meal card of a dog with a goal is unchanged', async () => {
     const container = await renderMealCard(withGoal);
     expect(container.textContent).toContain('Ration intake today:80\u00a0g / 240\u00a0g (1/3)');
-    expect(container.textContent).toContain('Feed Meal Now (80\u00a0g)');
+    expect(container.textContent).toContain('Feed meal now (80\u00a0g)');
   });
 
   it('health summary: meal schedule without grams', async () => {
@@ -91,8 +91,8 @@ describe('a dog with no gram goal: no goal in grams on any screen', () => {
     const container = await render(
       <ActivityTimeline activities={[gramlessMeal]} caretakers={[]} activePuppy={noGoal} onDeleteActivity={vi.fn()} referenceTime={now} />
     );
-    const foodPill = container.querySelector<HTMLElement>('[title^="Food intake"]')!;
-    expect(foodPill.title).toBe('Food intake: (1/3)');
+    const foodPill = container.querySelector<HTMLElement>('[title^="Meals"]')!;
+    expect(foodPill.title).toBe('Meals: (1/3)');
     expect(foodPill.textContent).toBe('(1/3)');
     expect(foodPill.querySelectorAll('span')).toHaveLength(1);
   });
@@ -107,7 +107,7 @@ describe('a dog with no gram goal: no goal in grams on any screen', () => {
       <ActivityTimeline activities={meals} caretakers={[]} activePuppy={noGoal} onDeleteActivity={vi.fn()} onUpdateActivity={onUpdateActivity} referenceTime={now} />
     );
     // Today's day starts open
-    await act(async () => document.querySelector<HTMLButtonElement>('button[aria-label^="Edit food "]')!.click());
+    await act(async () => document.querySelector<HTMLButtonElement>('button[aria-label^="Edit meal "]')!.click());
     // The edit form is a lazy chunk
     await act(async () => { await import('../QuickLogModal'); });
     const grams = document.getElementById('quicklog-quantity-grams') as HTMLInputElement;

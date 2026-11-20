@@ -99,7 +99,7 @@ describe('Activity feed export (pre-fill review item 29)', () => {
   it('no log in the days shown: "Load earlier" still shows and brings the older logs back', async () => {
     await renderTimeline({ shownActivities: activities.slice(7) });
     // Older logs exist: the feed says the days are empty, not that nothing was ever logged
-    expect(document.body.textContent).toContain('No logs in the last 7 days.');
+    expect(document.body.textContent).toContain('No activities in the last 7 days.');
     expect(document.body.textContent).not.toContain(en.dashboard.noActivityLogs);
     await click(buttonContaining(en.dashboard.loadEarlier.replace('{days}', '14')));
 
