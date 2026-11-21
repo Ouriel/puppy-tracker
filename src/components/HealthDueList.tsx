@@ -49,7 +49,7 @@ export const HealthDueList: React.FC<HealthDueListProps> = ({ records, dogName, 
                 {/* Too narrow for the name (a 320 px phone): the badge and buttons go under it, on the right */}
                 <div className="flex items-center gap-2 ml-auto">
                   <StatusBadge status={urgency} />
-                  <AddToCalendarButton record={record} status={urgency} dogName={dogName} />
+                  <AddToCalendarButton record={record} status={urgency} dogName={dogName} protections={protections} />
                   {onDone && (
                     <button
                       type="button"

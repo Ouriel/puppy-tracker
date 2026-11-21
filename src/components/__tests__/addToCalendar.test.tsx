@@ -103,8 +103,8 @@ describe('health passport', () => {
     expect(blobs[0].type).toBe('text/calendar;charset=utf-8');
     const content = await blobs[0].text();
     expect(content).toContain('DTSTART;VALUE=DATE:20261020');
-    expect(content.replace(/\r\n /g, '')).toContain(`SUMMARY:Rex\u00a0: ${chppiL4} à faire`);
-    expect(downloads).toEqual(['rex-chppi-dappi-l4-eurican-nobivac-versican-2026-10-20.ics']);
+    expect(content.replace(/\r\n /g, '')).toContain(`SUMMARY:Rex\u00a0: CHPPi + L4 à faire`);
+    expect(downloads).toEqual(['rex-chppi-l4-2026-10-20.ics']);
   });
 
   // Like the row's pencil and trash ('Modifier Credelio Plus du 1 oct.'): a screen reader's button list tells them apart
@@ -129,8 +129,8 @@ describe('health passport', () => {
     expect(calendarButtons(container)).toHaveLength(2);
     await act(async () => calendarButtons(container)[0].click());
 
-    expect(await blobs[0].text()).toContain('SUMMARY:Rex\u00a0: Credelio Plus à faire');
-    expect(downloads).toEqual(['rex-credelio-plus-2026-11-01.ics']);
+    expect((await blobs[0].text()).replace(/\r\n /g, '')).toContain('SUMMARY:Rex\u00a0: vermifuge\\, antipuces et antitiques à faire');
+    expect(downloads).toEqual(['rex-vermifuge-antipuces-et-antitiques-2026-11-01.ics']);
   });
 });
 
@@ -144,7 +144,7 @@ describe('dashboard health card', () => {
     expect(calendarButtons(container)).toHaveLength(2);
     await act(async () => calendarButtons(container)[0].click());
     await act(async () => calendarButtons(container)[1].click());
-    expect(downloads).toEqual(['rex-chppi-dappi-l4-eurican-nobivac-versican-2026-10-20.ics', 'rex-credelio-plus-2026-11-01.ics']);
+    expect(downloads).toEqual(['rex-chppi-l4-2026-10-20.ics', 'rex-vermifuge-antipuces-et-antitiques-2026-11-01.ics']);
   });
 
   it('a record with no next date gets no line and no button', async () => {
@@ -173,9 +173,9 @@ describe('by phone', () => {
     const params = new URL(String(url)).searchParams;
     expect(String(url).startsWith('https://calendar.google.com/calendar/render?')).toBe(true);
     expect(params.get('action')).toBe('TEMPLATE');
-    expect(params.get('text')).toBe('Rex\u00a0: Credelio Plus à faire');
+    expect(params.get('text')).toBe('Rex\u00a0: vermifuge, antipuces et antitiques à faire');
     expect(params.get('dates')).toBe('20261101/20261102');
-    expect(params.get('details')).toBe('Donné le 1 octobre 2026');
+    expect(params.get('details')).toBe('Credelio Plus\nDonné le 1 octobre 2026');
     expect([target, features]).toEqual(['_blank', 'noopener']);
     expect(globalThis.URL.createObjectURL).not.toHaveBeenCalled();
     expect(downloads).toEqual([]);
@@ -190,7 +190,7 @@ describe('by phone', () => {
 
     expect(open).not.toHaveBeenCalled();
     expect(blobs).toHaveLength(1);
-    expect(await blobs[0].text()).toContain('SUMMARY:Rex\u00a0: Credelio Plus à faire');
-    expect(downloads).toEqual(['rex-credelio-plus-2026-11-01.ics']);
+    expect((await blobs[0].text()).replace(/\r\n /g, '')).toContain('SUMMARY:Rex\u00a0: vermifuge\\, antipuces et antitiques à faire');
+    expect(downloads).toEqual(['rex-vermifuge-antipuces-et-antitiques-2026-11-01.ics']);
   });
 });

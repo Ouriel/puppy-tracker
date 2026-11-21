@@ -3,7 +3,7 @@ import { flushSync } from 'react-dom';
 import type { PuppyProfile, HealthRecord, Activity } from '../../types';
 import { Pill, Plus, Trash2, Pencil, Check, X, ChevronDown } from 'lucide-react';
 import { Card, Button, Input, Select, ListBox, ListBoxItem, TextArea, toast } from '@heroui/react';
-import { calculateNextAntiparasiticDate, formatProtections, getHealthProtocols, getHealthRecordDateError, getHealthRecordStatus, getProtections } from '../../utils/health';
+import { calculateNextAntiparasiticDate, formatProtections, getHealthProtocols, getHealthRecordDateError, getHealthRecordStatus, getOpenProtections, getProtections } from '../../utils/health';
 import { StatusBadge } from '../../components/common/StatusBadge';
 import { AddToCalendarButton } from '../../components/common/AddToCalendarButton';
 import type { UnifiedWeightEntry } from '../../utils/weight';
@@ -541,7 +541,7 @@ export const DewormingSection: React.FC<DewormingSectionProps> = ({
                     {deworming.boosterDate && <StatusBadge status={status} />}
                   </div>
                   <div className="flex items-center gap-1.5 shrink-0 ml-auto">
-                    <AddToCalendarButton record={deworming} status={status} dogName={activePuppy.name} />
+                    <AddToCalendarButton record={deworming} status={status} dogName={activePuppy.name} protections={getOpenProtections(deworming, dewormingLogs)} />
                     <button
                       id={`deworming-pencil-${deworming.id}`}
                       type="button"
