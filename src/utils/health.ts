@@ -18,6 +18,7 @@ export interface HealthProtocolData {
     minAgeWeeks: number;
     minWeightKg: number;
     intervalMonths?: number;
+    intervalWeeks?: number;
     intervalMonthsPuppy?: number;
     intervalMonthsAdult?: number;
     frequencyType: string;
@@ -119,13 +120,84 @@ export type HealthUrgency = 'overdue' | 'soon' | 'upToDate' | 'fulfilled';
 type HealthStatusRecord = Pick<HealthRecord, 'type' | 'name' | 'date' | 'boosterDate'>;
 
 /**
- * What a record renews. `type` only says vaccination or deworming, so a vaccine is identified by its `name`
+ * What a vaccine renews. `type` only says vaccination or deworming, so a vaccine is identified by its `name`
  * resolved to the protocol vaccine (the same match as its booster date), else the name itself.
- * Any deworming renews a deworming (switching product, e.g. Milbemax to Credelio Plus, is a renewal).
  */
 function getRenewalKey(record: HealthStatusRecord): string {
-  if (record.type === 'deworming') return 'deworming';
   return findVaccineProtocol(record.name)?.id ?? record.name.trim().toLowerCase();
+}
+
+/** What an antiparasitic protects from: worms, fleas and ticks, or both (an all-in-one such as Credelio Plus). */
+export type Protection = 'worms' | 'fleasTicks';
+
+const PROTECTIONS_BY_CATEGORY: Record<string, Protection[]> = {
+  all_in_one: ['worms', 'fleasTicks'],
+  dewormer_only: ['worms'],
+  flea_tick_only: ['fleasTicks'],
+};
+
+/** The product list's entry for a stored or typed product name ('Milbemax Tab Chiot' is Milbemax), if any. */
+function findAntiparasitic(productName: string) {
+  const nameLower = productName.toLowerCase();
+  return healthProtocols.antiparasitics.find((protocol) =>
+    nameLower.includes(protocol.name.toLowerCase()) || nameLower.includes(protocol.id)
+  );
+}
+
+/** What an antiparasitic dose protects from, by its product; null for a vaccine or a product typed under "Autre…". */
+export function getProtections(record: Pick<HealthRecord, 'type' | 'name'>): Protection[] | null {
+  if (record.type !== 'deworming') return null;
+  const product = findAntiparasitic(record.name);
+  return (product && PROTECTIONS_BY_CATEGORY[product.category]) ?? null;
+}
+
+/**
+ * The protections of an antiparasitic dose that no later dose covers. A dose only renews what it protects from, so a
+ * wormer (Milpro) and a flea and tick product (Bravecto) given on different days each keep their own next date.
+ * null for a vaccine or a product typed under "Autre…".
+ */
+export function getOpenProtections(record: HealthStatusRecord, allRecords: HealthStatusRecord[]): Protection[] | null {
+  const protections = getProtections(record);
+  if (!protections) return null;
+  const laterDoses = allRecords.filter((other) => other.type === 'deworming' && isLater(other, record));
+  return protections.filter((protection) => !laterDoses.some((other) => getProtections(other)?.includes(protection)));
+}
+
+/** 'Vers', 'Puces et tiques' or 'Vers, puces et tiques' */
+export function formatProtections(
+  protections: Protection[],
+  labels: { protectionWorms: string; protectionFleasTicks: string; protectionBoth: string }
+): string {
+  if (protections.length > 1) return labels.protectionBoth;
+  return protections[0] === 'worms' ? labels.protectionWorms : labels.protectionFleasTicks;
+}
+
+function isLater(other: HealthStatusRecord, record: HealthStatusRecord): boolean {
+  return new Date(other.date).getTime() > new Date(record.date).getTime();
+}
+
+/**
+ * Renewed: an antiparasitic once later doses cover all it protects from; a product typed under "Autre…" (the app can't
+ * know what it covers) by a later dose of the same name only. A vaccine by a later record of the same vaccine, or of one
+ * that covers it: a same-day or later record of another vaccine (e.g. Rage given with CHPPi) does not renew it.
+ */
+function isRenewed(record: HealthStatusRecord, allRecords: HealthStatusRecord[]): boolean {
+  if (record.type === 'deworming') {
+    const openProtections = getOpenProtections(record, allRecords);
+    if (openProtections) return openProtections.length === 0;
+    const name = record.name.trim().toLowerCase();
+    return allRecords.some((other) => other.type === 'deworming' && isLater(other, record) && other.name.trim().toLowerCase() === name);
+  }
+  const renewalKey = getRenewalKey(record);
+  return allRecords.some((other) => {
+    if (other.type === 'deworming' || !isLater(other, record)) return false;
+    const otherKey = getRenewalKey(other);
+    return (
+      otherKey === renewalKey ||
+      (VACCINE_COVERS[otherKey]?.includes(renewalKey) ?? false) ||
+      (VACCINE_RENEWED_BY[renewalKey]?.includes(otherKey) ?? false)
+    );
+  });
 }
 
 /**
@@ -145,26 +217,10 @@ const VACCINE_RENEWED_BY: Record<string, string[]> = {
   chppi_l4: ['l4'],
 };
 
-/**
- * Evaluates health record booster status (fulfilled, overdue, due soon, or up-to-date).
- * Fulfilled only when a later record of the same vaccine, or of one that covers it, exists: a same-day or later
- * record of another vaccine (e.g. Rage given with CHPPi) does not renew it.
- */
+/** Evaluates health record booster status (fulfilled, overdue, due soon, or up-to-date); fulfilled: see isRenewed. */
 export function getHealthRecordStatus(record: HealthStatusRecord, allRecords: HealthStatusRecord[]): HealthUrgency {
   if (!record.boosterDate) return 'upToDate';
-
-  const renewalKey = getRenewalKey(record);
-  const isRenewed = allRecords.some((other) => {
-    if (new Date(other.date).getTime() <= new Date(record.date).getTime()) return false;
-    const otherKey = getRenewalKey(other);
-    return (
-      otherKey === renewalKey ||
-      (VACCINE_COVERS[otherKey]?.includes(renewalKey) ?? false) ||
-      (VACCINE_RENEWED_BY[renewalKey]?.includes(otherKey) ?? false)
-    );
-  });
-
-  if (isRenewed) return 'fulfilled';
+  if (isRenewed(record, allRecords)) return 'fulfilled';
 
   // Calendar dates on this device: a dose due today is due all day, not overdue from midnight UTC
   const today = formatLocalDate();
@@ -191,11 +247,14 @@ export function formatProductAndLot(record: Pick<HealthRecord, 'productName' | '
   return [record.productName?.trim(), record.batchNumber?.trim() && `lot ${record.batchNumber.trim()}`].filter(Boolean).join(' · ');
 }
 
-/** "À faire": every record no later one renews that has a next date, with its status; overdue first, then the soonest. */
-export function getNextDue(records: HealthRecord[]): Array<{ record: HealthRecord; urgency: HealthUrgency }> {
+/**
+ * "À faire": every record no later one renews that has a next date, with its status and, for an antiparasitic, what it
+ * still protects from (its line's label); overdue first, then the soonest.
+ */
+export function getNextDue(records: HealthRecord[]): Array<{ record: HealthRecord; urgency: HealthUrgency; protections: Protection[] | null }> {
   return records
     .filter((record) => record.boosterDate)
-    .map((record) => ({ record, urgency: getHealthRecordStatus(record, records) }))
+    .map((record) => ({ record, urgency: getHealthRecordStatus(record, records), protections: getOpenProtections(record, records) }))
     .filter((item) => item.urgency !== 'fulfilled')
     // Same day: by id, so every caller gets the same order whatever the order it passes
     .sort((first, second) => first.record.boosterDate!.localeCompare(second.record.boosterDate!) || first.record.id.localeCompare(second.record.id));
@@ -203,17 +262,15 @@ export function getNextDue(records: HealthRecord[]): Array<{ record: HealthRecor
 
 /**
  * Suggested next antiparasitic date, from the JSON protocol dataset:
- * - Products with an `intervalMonths` (Credelio Plus, Nexgard Spectra, Simparica Trio monthly; Bravecto every 3 months): that interval.
+ * - Products with an `intervalMonths` (Credelio Plus, Nexgard Spectra, Simparica Trio monthly) or an `intervalWeeks` (Bravecto, 12): that interval.
  * - Age-based wormers (Milbemax / Drontal / Panacur...), from the dog's age on the dose day (ESCCAP, as the app's guide says):
  *   every 2 weeks until 12 weeks, monthly until 6 months, then every 3 months.
  * - Unknown product: monthly until 6 months, then every 3 months. With no birth date, the puppy interval.
  */
 export function calculateNextAntiparasiticDate(lastDate: string, productName: string, birthDate?: string): string {
-  const nameLower = productName.toLowerCase();
-  const matched = healthProtocols.antiparasitics.find((protocol) =>
-    nameLower.includes(protocol.name.toLowerCase()) || nameLower.includes(protocol.id)
-  );
+  const matched = findAntiparasitic(productName);
   if (matched?.intervalMonths) return addMonths(lastDate, matched.intervalMonths);
+  if (matched?.intervalWeeks) return addDays(lastDate, matched.intervalWeeks * 7);
 
   const ageOnDoseDay = birthDate ? getPuppyAge(birthDate, lastDate) : undefined;
   if (matched?.frequencyType === 'esccap_age_based' && ageOnDoseDay && ageOnDoseDay.weeks < 12) return addDays(lastDate, 14);

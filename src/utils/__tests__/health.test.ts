@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { calculateNextVaccineBooster, calculateNextAntiparasiticDate, getHealthProtocols, getHealthRecordDateError, getHealthRecordStatus, getNextDue, getRecordShortName } from '../health';
+import { calculateNextVaccineBooster, calculateNextAntiparasiticDate, getHealthProtocols, getHealthRecordDateError, getHealthRecordStatus, getNextDue, getProtections, getRecordShortName } from '../health';
 import type { HealthRecord } from '../../types';
 
 describe('Health Passport — French Veterinary Protocol & Dataset Test Suite', () => {
@@ -137,8 +137,9 @@ describe('Health Passport — French Veterinary Protocol & Dataset Test Suite', 
     expect(calculateNextAntiparasiticDate('2026-06-15', 'Simparica Trio', '2025-06-15')).toBe('2026-07-15');
   });
 
-  it('calculates Bravecto as quarterly (+3 months / 12 weeks)', () => {
-    expect(calculateNextAntiparasiticDate('2026-06-15', 'Bravecto', '2025-10-15')).toBe('2026-09-15');
+  it('calculates Bravecto as every 12 weeks, its label\'s protection (not 3 calendar months, about 13)', () => {
+    expect(calculateNextAntiparasiticDate('2026-06-15', 'Bravecto', '2025-10-15')).toBe('2026-09-07');
+    expect(calculateNextAntiparasiticDate('2026-11-19', 'Bravecto', '2026-03-27')).toBe('2027-02-11');
   });
 
   it('calculates Milbemax puppy as monthly (<6m) and adult as quarterly (>=6m)', () => {
@@ -417,8 +418,8 @@ describe('Suggested next dates (pre-fill review items 11, 12, 13; TZ=Europe/Pari
 
     it('caps a month end at the last day of the target month', () => {
       expect(calculateNextAntiparasiticDate('2027-01-31', 'Credelio Plus', birthDate)).toBe('2027-02-28');
-      expect(calculateNextAntiparasiticDate('2027-05-31', 'Bravecto', birthDate)).toBe('2027-08-31');
-      expect(calculateNextAntiparasiticDate('2027-11-30', 'Bravecto', birthDate)).toBe('2028-02-29');
+      expect(calculateNextAntiparasiticDate('2027-05-31', 'Simparica Trio', birthDate)).toBe('2027-06-30');
+      expect(calculateNextAntiparasiticDate('2028-01-31', 'Credelio Plus', birthDate)).toBe('2028-02-29');
       expect(calculateNextVaccineBooster('2028-02-29', 'Rage', birthDate)).toBe('2029-02-28');
     });
 
@@ -521,7 +522,7 @@ describe('"À faire": every open next date, overdue first (C6); short vaccine na
     for (const product of getHealthProtocols().antiparasitics) {
       expect(product.label).not.toContain('{');
     }
-    expect(getHealthProtocols().antiparasitics.find((product) => product.id === 'bravecto')?.label).toBe('Bravecto (puces et tiques • tous les 3\u00a0mois)');
+    expect(getHealthProtocols().antiparasitics.find((product) => product.id === 'bravecto')?.label).toBe('Bravecto (puces et tiques • toutes les 12\u00a0semaines)');
   });
 });
 
@@ -553,5 +554,56 @@ describe('a vaccine typed under "Autre…" (C13) takes a protocol\'s rules only 
     expect(calculateNextVaccineBooster('2026-10-01', 'CHPPi + L4 (Eurican / Nobivac / Versican)', birthDate)).toBe('2026-11-01');
     expect(calculateNextVaccineBooster('2026-10-01', 'Nobivac', birthDate)).toBe('2026-11-01');
     expect(calculateNextVaccineBooster('2026-10-01', 'Toux de chenil', birthDate)).toBe('2027-10-01');
+  });
+});
+
+// Owner, 2026-11-22: the dog switched from Credelio Plus (worms, fleas and ticks) to Bravecto (fleas and ticks) and gets
+// Milpro (worms) 3 months after her last Credelio Plus. Each protection keeps its own next date and its own alert.
+describe('antiparasitics renew only what they protect from (Bravecto and Milpro given apart)', () => {
+  const dose = (id: string, name: string, date: string, boosterDate: string): HealthRecord =>
+    ({ id, householdId: 'hh-1', puppyId: 'pup-1', type: 'deworming', name, productName: name, date, boosterDate });
+  const dueLines = (records: HealthRecord[]) => getNextDue(records).map(({ record, protections }) => [record.id, protections]);
+  const credelio = dose('credelio', 'Credelio Plus', '2026-09-27', '2026-12-27');
+  const bravecto = dose('bravecto', 'Bravecto', '2026-11-19', '2027-02-11');
+
+  it('what each product protects from comes from its category; a product typed under "Autre…" has none', () => {
+    expect(getProtections(credelio)).toEqual(['worms', 'fleasTicks']);
+    expect(getProtections(bravecto)).toEqual(['fleasTicks']);
+    expect(getProtections({ type: 'deworming', name: 'Milpro' })).toEqual(['worms']);
+    expect(getProtections({ type: 'deworming', name: 'Milbemax Tab Chiot' })).toEqual(['worms']);
+    expect(getProtections({ type: 'deworming', name: 'Seresto' })).toBeNull();
+    expect(getProtections({ type: 'vaccination', name: 'Rage' })).toBeNull();
+  });
+
+  it('an all-in-one stays due for worms after a flea and tick product, until a wormer is given', () => {
+    expect(dueLines([credelio, bravecto])).toEqual([['credelio', ['worms']], ['bravecto', ['fleasTicks']]]);
+    expect(dueLines([credelio, bravecto, dose('milpro', 'Milpro', '2026-12-27', '2027-03-27')]))
+      .toEqual([['bravecto', ['fleasTicks']], ['milpro', ['worms']]]);
+  });
+
+  it('a wormer and a flea and tick product given on different days never hide each other\'s next date', () => {
+    const milpro = dose('milpro', 'Milpro', '2026-12-27', '2027-03-27');
+    const nextBravecto = dose('bravecto-2', 'Bravecto', '2027-02-11', '2027-05-06');
+    expect(dueLines([credelio, bravecto, milpro, nextBravecto])).toEqual([['milpro', ['worms']], ['bravecto-2', ['fleasTicks']]]);
+    expect(getHealthRecordStatus(bravecto, [credelio, bravecto, milpro, nextBravecto])).toBe('fulfilled');
+  });
+
+  it('a later all-in-one renews both a wormer and a flea and tick product', () => {
+    const records = [dose('milpro', 'Milpro', '2026-11-22', '2027-02-22'), bravecto, dose('credelio-2', 'Credelio Plus', '2026-12-01', '2027-01-01')];
+    expect(dueLines(records)).toEqual([['credelio-2', ['worms', 'fleasTicks']]]);
+  });
+
+  it('a product typed under "Autre…" is renewed by a later dose of the same name only, and renews no other', () => {
+    const collar = dose('collar', 'Seresto', '2026-10-01', '2027-06-01');
+    const records = [bravecto, collar, dose('collar-2', ' seresto ', '2026-12-01', '2027-08-01')];
+    expect(getHealthRecordStatus(collar, records)).toBe('fulfilled');
+    expect(dueLines([collar, dose('later', 'Credelio Plus', '2026-11-01', '2026-12-01')]))
+      .toEqual([['later', ['worms', 'fleasTicks']], ['collar', null]]);
+    expect(getHealthRecordStatus(credelio, [credelio, dose('typed', 'Vermifuge maison', '2026-10-10', '2027-01-10')])).not.toBe('fulfilled');
+  });
+
+  it('Milpro is a wormer on the age-based schedule: monthly before 6 months, then every 3 months', () => {
+    expect(calculateNextAntiparasiticDate('2026-08-22', 'Milpro', '2026-03-27')).toBe('2026-09-22');
+    expect(calculateNextAntiparasiticDate('2026-12-27', 'Milpro', '2026-03-27')).toBe('2027-03-27');
   });
 });

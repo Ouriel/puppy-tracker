@@ -3,7 +3,7 @@ import { flushSync } from 'react-dom';
 import type { PuppyProfile, HealthRecord, Activity } from '../../types';
 import { Pill, Plus, Trash2, Pencil, Check, X, ChevronDown } from 'lucide-react';
 import { Card, Button, Input, Select, ListBox, ListBoxItem, TextArea, toast } from '@heroui/react';
-import { calculateNextAntiparasiticDate, getHealthProtocols, getHealthRecordDateError, getHealthRecordStatus } from '../../utils/health';
+import { calculateNextAntiparasiticDate, formatProtections, getHealthProtocols, getHealthRecordDateError, getHealthRecordStatus, getProtections } from '../../utils/health';
 import { StatusBadge } from '../../components/common/StatusBadge';
 import { AddToCalendarButton } from '../../components/common/AddToCalendarButton';
 import type { UnifiedWeightEntry } from '../../utils/weight';
@@ -111,6 +111,11 @@ export const DewormingSection: React.FC<DewormingSectionProps> = ({
   // 'Credelio Plus du 10 sept.': names a row's buttons
   const rowName = (deworming: HealthRecord) =>
     t.health.recordOn.replace('{name}', deworming.productName || deworming.name).replace('{date}', formatShortDate(deworming.date, lang));
+  // What a dose protects from ('Vers'), so a wormer and a flea product given apart read as two schedules; none for "Autre…"
+  const protectionTag = (deworming: HealthRecord) => {
+    const protections = getProtections(deworming);
+    return protections ? formatProtections(protections, t.health) : '';
+  };
   // Open doses in full; renewed ones after them as grey lines, the latest 3 until "Historique (n)" opens the rest
   const statusById = new Map(dewormingLogs.map((deworming) => [deworming.id, getHealthRecordStatus(deworming, dewormingLogs)]));
   const renewedDewormings = dewormingLogs.filter((deworming) => statusById.get(deworming.id) === 'fulfilled');
@@ -497,7 +502,7 @@ export const DewormingSection: React.FC<DewormingSectionProps> = ({
                   className="w-full min-h-11 flex items-center gap-2 px-3.5 rounded-xl text-left text-xs text-slate-400 hover:bg-slate-950/70 transition-colors"
                 >
                   <span className="flex-1 min-w-0 line-clamp-2 break-words">
-                    {`${formatShortDate(deworming.date, lang)} · ${deworming.productName || deworming.name}`}
+                    {[formatShortDate(deworming.date, lang), deworming.productName || deworming.name, protectionTag(deworming)].filter(Boolean).join(' · ')}
                   </span>
                   <Pencil className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
                 </button>
@@ -517,6 +522,11 @@ export const DewormingSection: React.FC<DewormingSectionProps> = ({
                   <div className="space-y-0.5 min-w-0 flex-1">
                     <div className="text-xs font-bold text-white flex items-center gap-2 flex-wrap">
                       <span className="line-clamp-2 break-words">{deworming.productName || deworming.name}</span>
+                      {protectionTag(deworming) && (
+                        <span className="text-xs font-semibold text-amber-300 bg-amber-950/40 border border-amber-800/40 px-2 py-0.5 rounded-lg">
+                          {protectionTag(deworming)}
+                        </span>
+                      )}
                     </div>
                     <div className="text-xs text-slate-400">
                       {t.health.givenOn} {formatShortDate(deworming.date, lang)}
