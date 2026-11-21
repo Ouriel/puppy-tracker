@@ -34,6 +34,7 @@ const octets = (line: string) => new TextEncoder().encode(line).length;
 const unfold = (content: string) => content.replace(/\r\n /g, '');
 const property = (content: string, name: string) =>
   unfold(content).split('\r\n').find((line) => line.startsWith(`${name}:`) || line.startsWith(`${name};`));
+const params = (url: string) => new URL(url).searchParams;
 
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ['Date'] });
@@ -81,23 +82,41 @@ describe('buildDueDateIcs: one all-day event on the next date', () => {
     expect(moved).not.toBe(first);
   });
 
-  it('names the dog and the product, in English', () => {
+  // Owner, 2026-11-22: the reminder says what is due, not the brand; the product given last is in the description
+  it('names the dog and what is due, the product in the description, in English', () => {
     const { content } = buildDueDateIcs(credelio, 'Rex', en, 'en');
-    expect(property(content, 'SUMMARY')).toBe('SUMMARY:Rex: Credelio Plus due');
-    expect(property(content, 'DESCRIPTION')).toBe('DESCRIPTION:Given on September 20\\, 2026');
+    expect(property(content, 'SUMMARY')).toBe('SUMMARY:Rex: dewormer\\, flea and tick treatment due');
+    expect(property(content, 'DESCRIPTION')).toBe('DESCRIPTION:Credelio Plus\\nGiven on September 20\\, 2026');
+  });
+
+  it('an antiparasitic names only what is still due: the worm dose after a Bravecto, the flea and tick one', () => {
+    const wormsDue = buildDueDateIcs({ ...credelio, boosterDate: '2026-12-27' }, 'Balma', fr, 'fr', ['worms']);
+    expect(property(wormsDue.content, 'SUMMARY')).toBe('SUMMARY:Balma\u00a0: vermifuge à faire');
+    expect(property(wormsDue.content, 'DESCRIPTION')).toBe('DESCRIPTION:Credelio Plus\\nDonné le 20 septembre 2026');
+    expect(wormsDue.filename).toBe('balma-vermifuge-2026-12-27.ics');
+
+    const bravecto = { ...credelio, id: 'hr-bravecto', name: 'Bravecto', productName: 'Bravecto', boosterDate: '2027-02-19' };
+    expect(property(buildDueDateIcs(bravecto, 'Balma', fr, 'fr').content, 'SUMMARY')).toBe('SUMMARY:Balma\u00a0: antipuces et antitiques à faire');
+    expect(params(buildGoogleCalendarUrl(bravecto, 'Balma', en, 'en')).get('text')).toBe('Balma: flea and tick treatment due');
+  });
+
+  it('a product typed under "Autre…" names the event itself, with no product line', () => {
+    const { content } = buildDueDateIcs({ ...credelio, name: 'Seresto', productName: 'Seresto' }, 'Rex', fr, 'fr');
+    expect(property(content, 'SUMMARY')).toBe('SUMMARY:Rex\u00a0: Seresto à faire');
+    expect(property(content, 'DESCRIPTION')).toBe('DESCRIPTION:Donné le 20 septembre 2026');
   });
 
   it('in French: the title, the given date and the clinic', () => {
     const { content } = buildDueDateIcs(vaccine, 'Rex', fr, 'fr');
-    expect(property(content, 'SUMMARY')).toBe(`SUMMARY:Rex\u00a0: ${chppiL4} à faire`);
+    expect(property(content, 'SUMMARY')).toBe('SUMMARY:Rex\u00a0: CHPPi + L4 à faire');
     expect(property(content, 'DESCRIPTION')).toBe('DESCRIPTION:Donné le 1 juillet 2026\\nClinique\u00a0: Clinique des Lilas');
   });
 
   // Carnet review phase 4: a vaccine's productName is the product typed from the vet's sticker, never the event's title
   it('names a vaccine after the vaccine, not the product typed from its sticker', () => {
     const { content, filename } = buildDueDateIcs({ ...vaccine, productName: 'Nobivac DHPPi+L4' }, 'Rex', fr, 'fr');
-    expect(property(content, 'SUMMARY')).toBe(`SUMMARY:Rex\u00a0: ${chppiL4} à faire`);
-    expect(filename).toContain('rex-chppi-dappi');
+    expect(property(content, 'SUMMARY')).toBe('SUMMARY:Rex\u00a0: CHPPi + L4 à faire');
+    expect(filename).toBe('rex-chppi-l4-2027-07-01.ics');
   });
 
   it('escapes backslashes, commas, semicolons and newlines (RFC 5545 TEXT)', () => {
@@ -116,7 +135,7 @@ describe('buildDueDateIcs: one all-day event on the next date', () => {
     expect(alarms[1]).toContain('TRIGGER;RELATED=START:PT9H\r\n');
     for (const alarm of alarms) {
       expect(alarm).toContain('ACTION:DISPLAY\r\n');
-      expect(alarm).toContain('DESCRIPTION:Rex: Credelio Plus due\r\n');
+      expect(alarm).toContain('DESCRIPTION:Rex: dewormer\\, flea and tick treatment due\r\n');
     }
   });
 
@@ -132,9 +151,9 @@ describe('buildDueDateIcs: one all-day event on the next date', () => {
     expect(property(content, 'SUMMARY')).toBe(`SUMMARY:Rex\u00a0: ${longName} à faire`);
   });
 
-  it('names the file <dog>-<product>-<date>.ics with safe characters only', () => {
-    expect(buildDueDateIcs(credelio, 'Rex', en, 'en').filename).toBe('rex-credelio-plus-2026-10-20.ics');
-    expect(buildDueDateIcs(vaccine, 'Éclair', fr, 'fr').filename).toBe('eclair-chppi-dappi-l4-eurican-nobivac-versican-2027-07-01.ics');
+  it('names the file <dog>-<what is due>-<date>.ics with safe characters only', () => {
+    expect(buildDueDateIcs(credelio, 'Rex', en, 'en').filename).toBe('rex-dewormer-flea-and-tick-treatment-2026-10-20.ics');
+    expect(buildDueDateIcs(vaccine, 'Éclair', fr, 'fr').filename).toBe('eclair-chppi-l4-2027-07-01.ics');
   });
 });
 
@@ -158,8 +177,8 @@ describe('downloadDueDateIcs', () => {
 
     expect(blobs).toHaveLength(1);
     expect(blobs[0].type).toBe('text/calendar;charset=utf-8');
-    expect(await blobs[0].text()).toContain('SUMMARY:Rex: Credelio Plus due');
-    expect(clicked).toEqual([{ href: 'blob:calendar', download: 'rex-credelio-plus-2026-10-20.ics' }]);
+    expect(await blobs[0].text()).toContain('SUMMARY:Rex: dewormer\\, flea and tick treatment due');
+    expect(clicked).toEqual([{ href: 'blob:calendar', download: 'rex-dewormer-flea-and-tick-treatment-2026-10-20.ics' }]);
     expect(revokeObjectURL).not.toHaveBeenCalled();
 
     vi.advanceTimersByTime(60_000);
@@ -168,16 +187,15 @@ describe('downloadDueDateIcs', () => {
 });
 
 describe('buildGoogleCalendarUrl: the same event as a Google Calendar template link (Android)', () => {
-  const params = (url: string) => new URL(url).searchParams;
 
   it('opens Google Calendar\'s event template with the .ics title and description, all day on the next date', () => {
     const url = buildGoogleCalendarUrl(credelio, 'Rex', en, 'en');
 
     expect(url.startsWith('https://calendar.google.com/calendar/render?')).toBe(true);
     expect(params(url).get('action')).toBe('TEMPLATE');
-    expect(params(url).get('text')).toBe('Rex: Credelio Plus due');
+    expect(params(url).get('text')).toBe('Rex: dewormer, flea and tick treatment due');
     expect(params(url).get('dates')).toBe('20261020/20261021');
-    expect(params(url).get('details')).toBe('Given on September 20, 2026');
+    expect(params(url).get('details')).toBe('Credelio Plus\nGiven on September 20, 2026');
   });
 
   it('ends the day after (exclusive), across a month end and a year end', () => {
@@ -188,7 +206,7 @@ describe('buildGoogleCalendarUrl: the same event as a Google Calendar template l
   it('in French: the title, the given date and the clinic, URL-encoded', () => {
     const url = buildGoogleCalendarUrl(vaccine, 'Rex', fr, 'fr');
 
-    expect(params(url).get('text')).toBe(`Rex\u00a0: ${chppiL4} à faire`);
+    expect(params(url).get('text')).toBe('Rex\u00a0: CHPPi + L4 à faire');
     expect(params(url).get('details')).toBe('Donné le 1 juillet 2026\nClinique\u00a0: Clinique des Lilas');
     expect(url).not.toMatch(/[\s àé]/);
     expect(url).toContain('%C3%A0+faire');

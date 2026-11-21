@@ -1,7 +1,7 @@
 import React from 'react';
 import { CalendarPlus } from 'lucide-react';
 import type { HealthRecord } from '../../types';
-import { getRecordShortName, type HealthUrgency } from '../../utils/health';
+import { getRecordShortName, type HealthUrgency, type Protection } from '../../utils/health';
 import { buildGoogleCalendarUrl, downloadDueDateIcs, isAndroid } from '../../utils/calendar';
 import { useI18n } from '../../i18n';
 import { formatShortDate } from '../../utils/date';
@@ -10,13 +10,14 @@ interface AddToCalendarButtonProps {
   record: HealthRecord;
   status: HealthUrgency;
   dogName: string;
+  protections?: Protection[] | null; // an antiparasitic's protections still due: the event's title ('vermifuge')
 }
 
 /**
  * One event on the record's next date: Google Calendar's new-event page on Android (in a new tab, so the app stays open),
  * else a one-event .ics download. Nothing when it has none, a later dose renewed it, or it is overdue (no reminder could fire).
  */
-export const AddToCalendarButton: React.FC<AddToCalendarButtonProps> = ({ record, status, dogName }) => {
+export const AddToCalendarButton: React.FC<AddToCalendarButtonProps> = ({ record, status, dogName, protections }) => {
   const { t, lang } = useI18n();
   const { boosterDate } = record;
 
@@ -29,8 +30,8 @@ export const AddToCalendarButton: React.FC<AddToCalendarButtonProps> = ({ record
       type="button"
       onClick={() => {
         const dueRecord = { ...record, boosterDate };
-        if (isAndroid()) window.open(buildGoogleCalendarUrl(dueRecord, dogName, t, lang), '_blank', 'noopener');
-        else downloadDueDateIcs(dueRecord, dogName, t, lang);
+        if (isAndroid()) window.open(buildGoogleCalendarUrl(dueRecord, dogName, t, lang, protections), '_blank', 'noopener');
+        else downloadDueDateIcs(dueRecord, dogName, t, lang, protections);
       }}
       aria-label={`${t.health.addToCalendar}${t.common.colon} ${rowName}`}
       title={t.health.addToCalendar}
