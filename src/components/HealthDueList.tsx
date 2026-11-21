@@ -2,7 +2,7 @@ import React from 'react';
 import { Pill, Syringe } from 'lucide-react';
 import type { HealthRecord, HealthRecordsLoadState } from '../types';
 import { useI18n } from '../i18n';
-import { getNextDue, getRecordShortName } from '../utils/health';
+import { formatProtections, getNextDue, getRecordShortName } from '../utils/health';
 import { formatShortDate } from '../utils/date';
 import { StatusBadge } from './common/StatusBadge';
 import { AddToCalendarButton } from './common/AddToCalendarButton';
@@ -33,13 +33,17 @@ export const HealthDueList: React.FC<HealthDueListProps> = ({ records, dogName, 
         <p className="text-xs text-slate-400">{t.health.nothingDue}</p>
       ) : (
         <ul className="divide-y divide-slate-800">
-          {dueItems.map(({ record, urgency }) => {
+          {dueItems.map(({ record, urgency, protections }) => {
             const Icon = record.type === 'vaccination' ? Syringe : Pill;
             return (
               <li key={record.id} className="flex flex-wrap items-center gap-2 min-h-11 py-1.5">
                 <Icon className={`w-4 h-4 shrink-0 ${record.type === 'vaccination' ? 'text-teal-400' : 'text-amber-400'}`} aria-hidden="true" />
                 <div className="min-w-[4.5rem] flex-1">
-                  <div className="text-xs font-bold text-slate-100 line-clamp-2 break-words">{getRecordShortName(record, lang)}</div>
+                  {/* An antiparasitic's line says what is due ("Vers · Credelio Plus"): a wormer and a flea product each have one */}
+                  <div className="text-xs font-bold text-slate-100 line-clamp-2 break-words">
+                    {protections && <span className="text-amber-300">{formatProtections(protections, t.health)} · </span>}
+                    {getRecordShortName(record, lang)}
+                  </div>
                   <div className="text-xs text-slate-400">{formatShortDate(record.boosterDate!, lang)}</div>
                 </div>
                 {/* Too narrow for the name (a 320 px phone): the badge and buttons go under it, on the right */}

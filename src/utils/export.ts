@@ -5,7 +5,7 @@ import { resolveCaretakerName } from './caretakers';
 import { formatBreedName } from '../data/breedsCatalog';
 import { formatGrams, formatKg } from './weight';
 import { buildDogWeightChart, getWeightChartModel, type WeightChartGeometry } from './weightChartGeometry';
-import { formatProductAndLot, getHealthRecordStatus, getNextDue, getRecordShortName } from './health';
+import { formatProductAndLot, formatProtections, getHealthRecordStatus, getNextDue, getRecordShortName } from './health';
 import { getPuppyAge } from './predictions';
 import { formatCount } from '../i18n';
 import { en } from '../i18n/en';
@@ -715,8 +715,8 @@ export function printHealthPassportReport(
   const dueItems = getNextDue([...vaccinations, ...dewormings]);
   const urgencyText: Record<string, string> = isFrench ? { overdue: 'en retard', soon: 'bientôt' } : { overdue: 'overdue', soon: 'soon' };
   const moreToDo = dueItems.length - PRINT_CAPS.toDo;
-  const toDoRows = dueItems.slice(0, PRINT_CAPS.toDo).map(({ record, urgency }) => `
-    <tr data-row><td>${esc(getRecordShortName(record, lang))}</td><td>${formatDayMonthYear(record.boosterDate!)}</td><td class="${urgency}">${urgencyText[urgency] ?? ''}</td></tr>`).join('');
+  const toDoRows = dueItems.slice(0, PRINT_CAPS.toDo).map(({ record, urgency, protections }) => `
+    <tr data-row><td>${protections ? `${esc(formatProtections(protections, t.health))} · ` : ''}${esc(getRecordShortName(record, lang))}</td><td>${formatDayMonthYear(record.boosterDate!)}</td><td class="${urgency}">${urgencyText[urgency] ?? ''}</td></tr>`).join('');
 
   // Every open shot first (a rabies shot good for 3 years is what a kennel reads this page for), then the latest renewed ones
   const sortedVaccines = [...vaccinations].sort(byDateDesc);
