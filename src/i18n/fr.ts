@@ -422,7 +422,7 @@ export const fr: TranslationKeys = {
     },
   },
   auth: {
-    subtitle: 'Suivi d\'activité et de propreté du chiot',
+    subtitle: 'Suivi d\'activité du chiot',
     signInWithGoogle: 'Se connecter avec Google',
     aboutPupPace: 'À propos de PupPace',
     privacyPolicy: 'Politique de confidentialité',
@@ -443,7 +443,7 @@ export const fr: TranslationKeys = {
     summary: 'PupPace ne stocke que ce dont l\'app a besoin\u00a0: ton compte, tes chiens et leurs activités, partagés dans ton foyer.',
     close: 'Fermer',
     section1Title: 'Données collectées',
-    section1Desc: 'Le nom et l\'e-mail de ton compte, le profil et le carnet de santé de tes chiens, et leurs activités (besoins, repas, pesées, traitements).',
+    section1Desc: 'Le nom et l\'e-mail de ton compte, le profil et le carnet de santé de tes chiens, et leurs activités (besoins, repas, pesées, traitements). Les visites sont comptées de façon anonyme, sans cookie.',
     section2Title: 'Utilisation des données',
     section2Desc: 'Les données servent uniquement au calcul des prédictions, au partage dans le foyer et à l\'impression du carnet de santé.',
     section3Title: 'Partage des données',
