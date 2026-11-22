@@ -205,14 +205,14 @@ describe('a dog with nothing logged yet', () => {
     }
   });
 
-  it('French: "Pas encore de pipi. Touche Dehors pour commencer.", "Prochain : petit-déjeuner ~07:00"', async () => {
+  it('French: "Pas encore de pipi. Touche Dehors pour commencer.", "Prochain : repas du matin ~07:00"', async () => {
     localStorage.setItem('puppace_lang_v1', 'fr');
     const container = await renderCards([], {}, { at: sixThirty });
     const [pee, poop, meal] = cards(container);
 
     expect(pee.textContent).toContain('Pas encore de pipi. Touche Dehors pour commencer.');
     expect(poop.textContent).toContain('Pas encore de caca. Touche Dehors pour commencer.');
-    expect(meal.textContent).toContain('Prochain\u00a0: petit-déjeuner ~07:00');
+    expect(meal.textContent).toContain('Prochain\u00a0: repas du matin ~07:00');
     expect(meal.textContent).not.toContain('En retard');
   });
 
