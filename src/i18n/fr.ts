@@ -450,6 +450,7 @@ export const fr: TranslationKeys = {
     section3Desc: 'Aucune donnée n\'est vendue ou cédée à des tiers.',
     section4Title: 'Sécurité',
     section4Desc: 'Les connexions sont chiffrées (HTTPS) et les sessions utilisent des jetons signés.',
+    fullPolicy: 'Politique complète\u00a0: bases légales, conservation et tes droits',
   },
   terms: {
     title: 'Conditions générales d\'utilisation',

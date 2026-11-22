@@ -9,7 +9,7 @@ interface PrivacyPolicyModalProps {
 }
 
 export const PrivacyPolicyModal: React.FC<PrivacyPolicyModalProps> = ({ isOpen, onClose }) => {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
 
   return (
     <Modal isOpen={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
@@ -60,6 +60,11 @@ export const PrivacyPolicyModal: React.FC<PrivacyPolicyModalProps> = ({ isOpen, 
                 </h4>
                 <p>{t.privacy.section4Desc}</p>
               </section>
+
+              {/* The full policy (rights, legal bases, retention) is the public page, in both languages */}
+              <a href={lang === 'fr' ? '/privacy#fr' : '/privacy'} className="inline-flex min-h-11 items-center text-sm font-semibold text-indigo-300 hover:underline">
+                {t.privacy.fullPolicy}
+              </a>
             </Modal.Body>
             <Modal.Footer>
               <Button
