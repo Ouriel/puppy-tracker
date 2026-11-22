@@ -421,7 +421,7 @@ export function printActivitiesReport(
             <div class="card-value" style="color: #4f46e5;">
               ${(outsideCount + accidentCount) > 0 ? Math.round((outsideCount / (outsideCount + accidentCount)) * 100) : 100}%
             </div>
-            <div class="card-sub">${isFrench ? 'Propreté' : 'Clean score'}</div>
+            <div class="card-sub">${isFrench ? 'Propreté' : 'House-training'}</div>
           </div>
         </div>
 

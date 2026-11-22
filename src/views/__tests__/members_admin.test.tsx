@@ -485,7 +485,7 @@ describe('Admin panel (27, 28)', () => {
     apiMock.deleteUser.mockResolvedValueOnce({ ok: false, status: 0, errorKey: 'offline' });
     await renderAdmin();
     await click(document.querySelector<HTMLButtonElement>('button[aria-label="Delete bob.smith@example.com"]')!);
-    await click(buttons('Delete user').at(-1)!);
+    await click(buttons('Delete account').at(-1)!);
 
     expect(danger).toHaveBeenCalledWith('No connection, nothing was saved.');
     expect(document.body.textContent).toContain('bob.smith@example.com');

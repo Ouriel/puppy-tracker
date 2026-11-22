@@ -82,9 +82,9 @@ describe('row buttons and targets', () => {
     expect(is44(button('Supprimer Rage du 1 juil.'))).toBe(true);
   });
 
-  it('every passport section button is 44 px tall, the weight card\'s "Peser le chiot" too', async () => {
+  it('every passport section button is 44 px tall, the weight card\'s "Ajouter une pesée" too', async () => {
     await renderPassport();
-    const sectionButtons = ['Ajouter un vaccin', 'Ajouter un antiparasitaire', 'Ajouter un traitement', 'Peser le chiot'].map(buttonWithText);
+    const sectionButtons = ['Ajouter un vaccin', 'Ajouter un antiparasitaire', 'Ajouter un traitement', 'Ajouter une pesée'].map(buttonWithText);
     expect(sectionButtons.map((element) => element?.classList.contains('min-h-11'))).toEqual([true, true, true, true]);
   });
 
@@ -146,7 +146,7 @@ describe('the antiparasitic forms speak of doses, not injections', () => {
     const buttons = [...document.querySelectorAll('button')];
 
     expect(buttons.filter((element) => /\bbg-(amber|teal|pink)-\d+\b/.test(element.className)).map((element) => element.textContent!.trim())).toEqual([]);
-    for (const label of ['Annuler', 'Enregistrer le vaccin', "Enregistrer l'antiparasitaire", 'Enregistrer', 'Ajouter un traitement', 'Peser le chiot']) {
+    for (const label of ['Annuler', 'Enregistrer le vaccin', "Enregistrer l'antiparasitaire", 'Enregistrer', 'Ajouter un traitement', 'Ajouter une pesée']) {
       const matches = buttons.filter((element) => element.textContent!.trim() === label);
       expect(matches.length, label).toBeGreaterThan(0);
       for (const element of matches) expect(element.className, label).toContain('button--primary');
@@ -294,6 +294,6 @@ describe('empty sections: one line each', () => {
 
   it('the weight card names the button to tap', async () => {
     await render(<WeightGrowthChart activities={[]} profile={puppy} onOpenQuickLogModal={vi.fn()} />);
-    expect(document.querySelector('[aria-live="polite"]')!.textContent).toBe('Pas encore de pesée. Touche «\u00a0Peser le chiot\u00a0» pour voir la courbe de Rex.');
+    expect(document.querySelector('[aria-live="polite"]')!.textContent).toBe('Pas encore de pesée. Touche «\u00a0Ajouter une pesée\u00a0» pour voir la courbe de Rex.');
   });
 });

@@ -251,7 +251,7 @@ describe('the weight card, in French', () => {
   it('no weigh-in yet: the expected zone only, and a line asking to weigh the dog', async () => {
     const container = await renderChart({ activities: [] });
 
-    expect(readout()).toBe('Pas encore de pesée. Touche «\u00a0Peser le chiot\u00a0» pour voir la courbe de Rex.');
+    expect(readout()).toBe('Pas encore de pesée. Touche «\u00a0Ajouter une pesée\u00a0» pour voir la courbe de Rex.');
     expect(chart().querySelector('[data-band]')).not.toBeNull();
     expect(chart().querySelectorAll('[data-weigh-in]')).toHaveLength(0);
     expect(container.querySelector('table')).toBeNull();
