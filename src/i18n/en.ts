@@ -445,6 +445,7 @@ export const en = {
     section3Desc: 'We do not sell or share personal data with third parties.',
     section4Title: 'Data security',
     section4Desc: 'Connections are encrypted (HTTPS) and sessions use signed tokens.',
+    fullPolicy: 'Full policy: legal bases, retention and your rights',
   },
   terms: {
     title: 'Terms of service',

@@ -121,6 +121,8 @@ describe('screen readers hear the app language (French)', () => {
   it('privacy and terms dialogs: the corner close button reads "Fermer"', async () => {
     await render(<PrivacyPolicyModal isOpen onClose={vi.fn()} />, 'fr');
     expect(document.querySelector('[data-slot="modal-close-trigger"]')!.getAttribute('aria-label')).toBe('Fermer');
+    // The full policy opens on its French half
+    expect(document.querySelector('a[href="/privacy#fr"]')!.textContent).toBe('Politique complète\u00a0: bases légales, conservation et tes droits');
     await act(async () => root?.unmount());
     document.body.innerHTML = '';
     await render(<TermsOfServiceModal isOpen onClose={vi.fn()} />, 'fr');

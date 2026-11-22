@@ -64,40 +64,143 @@
       font-size: 12px;
       color: #64748b;
     }
+    section + section {
+      margin-top: 48px;
+      padding-top: 32px;
+      border-top: 1px solid #334155;
+    }
   </style>
 </head>
 <body>
   <div class="container">
     <div class="badge">PupPace privacy</div>
+    <p><a href="#en">English</a> &bull; <a href="#fr">Français</a></p>
+
+    <section id="en" lang="en">
     <h1>PupPace privacy policy</h1>
-    <p><em>Effective Date: July 21, 2026</em></p>
+    <p><em>Last updated: 22 November 2026</em></p>
+    <p>This policy explains what personal data PupPace collects, why, who sees it, how long it is kept and your rights under the General Data Protection Regulation (GDPR).</p>
 
-    <h2>1. Information we collect</h2>
-    <p>PupPace ("we", "our", or "us") collects essential information required to provide puppy activity tracking, feeding management, and predictions. This includes:</p>
+    <h2>1. Who is responsible</h2>
+    <p>PupPace is a personal project run by Matthieu Jacquet, the data controller. Contact: <a href="mailto:matthieu.jacquet@gmail.com">matthieu.jacquet@gmail.com</a>.</p>
+
+    <h2>2. What we collect</h2>
     <ul>
-      <li><strong>Account details:</strong> Your name and email address, from your Google Account when you sign in, and the household you belong to.</li>
-      <li><strong>Dog profiles:</strong> Name, breed, sex, birth date, expected adult weight, meal goals, and health passport (vaccines, antiparasitics).</li>
-      <li><strong>Activities:</strong> Timed entries of potty events (pee/poop, stool consistency, location), meals, weigh-ins, and treatments, with optional notes.</li>
-      <li><strong>Visits:</strong> Anonymous page views and loading times, measured by Vercel without cookies.</li>
+      <li><strong>Account:</strong> your name and email address, from your Google Account when you sign in, your household, your role and whether your account is approved.</li>
+      <li><strong>Dogs:</strong> name, breed, sex, birth date, expected adult weight, meal goals, notes and health passport (vaccines, antiparasitics, treatments, batch numbers, vet clinic).</li>
+      <li><strong>Activities:</strong> potty breaks (pee or poop, stool, location), meals, weigh-ins and treatments, with the time, optional notes and the name of the member who logged them.</li>
+      <li><strong>Household badges:</strong> the names of the household's members, and their email when a badge is linked to an account.</li>
+      <li><strong>Visits:</strong> anonymous page views and loading times, measured by Vercel without cookies.</li>
+      <li><strong>Technical data:</strong> your IP address and request details, which our host processes to deliver the app.</li>
     </ul>
 
-    <h2>2. How we use your information</h2>
-    <p>Your data is used solely to provide platform functionality:</p>
+    <h2>3. Why, and on what legal basis</h2>
     <ul>
-      <li>Predicting the next potty break and meal from your puppy's own history.</li>
-      <li>Sharing logs between the members of your household.</li>
-      <li>Generating a printable health summary for your veterinarian.</li>
-      <li>Checking that the app loads fast and which screens are used.</li>
+      <li>Running the app you signed up for: your account, sharing with your household, predictions, the health passport, print and export. Legal basis: performance of a contract (GDPR article 6(1)(b)).</li>
+      <li>Keeping the app secure and working: sign-in checks and server logs. Legal basis: legitimate interest (article 6(1)(f)).</li>
+      <li>Checking that the app loads fast and which screens are used, anonymously. Legal basis: legitimate interest (article 6(1)(f)).</li>
+    </ul>
+    <p>Predictions are estimates shown to you: no decision with legal or similar effect is made automatically. We do not sell, rent or trade your data, and there is no advertising.</p>
+
+    <h2>4. Who sees your data</h2>
+    <ul>
+      <li>The members of your household see its dogs, activities, health passport and badges.</li>
+      <li>The app's owner sees every account's name, email, household, role and status, to approve and manage accounts.</li>
+      <li>Vercel Inc. hosts the app, runs its server in Frankfurt (Germany) and measures visits.</li>
+      <li>Neon stores the database in Frankfurt (Germany).</li>
+      <li>Google, when you sign in with Google, acts under its own privacy policy. PupPace receives your basic Google profile and keeps only your name and email address. We do not access, read or store any other data from your Google Account.</li>
     </ul>
 
-    <h2>3. Data protection and storage</h2>
-    <p>Sign-in uses signed tokens (JWT) and every connection is encrypted (HTTPS). We do not sell, rent, or trade your personal data, pet activity logs, or contact details to any third parties.</p>
+    <h2>5. Transfers outside the EU</h2>
+    <p>Your data is stored and processed in Frankfurt (Germany), and reaches you through Vercel's network. Vercel and Neon are US companies and may access it from the United States, for example for support or security. These transfers rely on the EU-US Data Privacy Framework or the European Commission's standard contractual clauses, as set out in their data processing terms.</p>
 
-    <h2>4. Google sign-in data</h2>
-    <p>When you sign in with Google, PupPace receives your basic Google profile and keeps only your name and email address, to identify you. We do not access, read, or store any other data from your Google Account.</p>
+    <h2>6. How long we keep it</h2>
+    <ul>
+      <li><strong>Account:</strong> until you ask us to delete it or the owner removes it, including an account that is never approved.</li>
+      <li><strong>Dogs, activities and health passport:</strong> as long as the household uses the app. A dog deleted in the app is hidden, not erased, so the owner can restore it: ask us to erase it for good.</li>
+      <li><strong>When you leave:</strong> we delete your account and its badge. The dogs' records stay with the household, since its other members use them; we remove your name from the activities you logged if you ask.</li>
+      <li><strong>Backups:</strong> erased data leaves the database's restore history within 6 hours, and the test copy of the database (also in Frankfurt) at its next refresh.</li>
+      <li><strong>Server logs:</strong> 1 hour.</li>
+      <li><strong>Visits:</strong> anonymous; the visitor hash Vercel uses is reset every day.</li>
+      <li><strong>On your device:</strong> your sign-in (valid 90 days) and a copy of recently loaded data, until you clear this site's data in your browser.</li>
+    </ul>
 
-    <h2>5. Data deletion and questions</h2>
-    <p>You may request the deletion of your account and all its data at any time. For questions regarding this policy, contact your household's admin, or write to <a href="mailto:matthieu.jacquet@gmail.com">matthieu.jacquet@gmail.com</a>.</p>
+    <h2>7. Cookies and device storage</h2>
+    <p>PupPace's own code sets no cookies and uses no advertising or tracking. What it stores on your device (sign-in, language, recently loaded data) is needed for the app to work and open fast, so it needs no consent. Signing in with Google loads Google's sign-in service, which can set its own cookies (for example to remember that you closed its sign-in prompt), under Google's privacy policy.</p>
+
+    <h2>8. Your rights</h2>
+    <p>You can access your data and get a copy of it, correct it (most of it directly in the app), erase it, restrict or object to its processing, and receive it in a portable format: the app exports activities and the health passport as CSV files, and we send the rest on request.</p>
+    <p>Write to <a href="mailto:matthieu.jacquet@gmail.com">matthieu.jacquet@gmail.com</a>: we answer within one month. You can also complain to the data protection authority of your country (in France, the CNIL: <a href="https://www.cnil.fr">www.cnil.fr</a>).</p>
+
+    <h2>9. Security</h2>
+    <p>Sign-in uses signed tokens (JWT) that expire after 90 days, and every connection is encrypted (HTTPS). Access is checked on every request, so a removed account loses access at once.</p>
+
+    <h2>10. Changes</h2>
+    <p>When this policy changes, the date at the top changes.</p>
+    </section>
+
+    <section id="fr" lang="fr">
+    <h1>Politique de confidentialité de PupPace</h1>
+    <p><em>Dernière mise à jour&nbsp;: 22 novembre 2026</em></p>
+    <p>Cette politique explique quelles données personnelles PupPace collecte, pourquoi, qui les voit, combien de temps elles sont conservées et tes droits au titre du Règlement général sur la protection des données (RGPD).</p>
+
+    <h2>1. Responsable du traitement</h2>
+    <p>PupPace est un projet personnel de Matthieu Jacquet, responsable du traitement. Contact&nbsp;: <a href="mailto:matthieu.jacquet@gmail.com">matthieu.jacquet@gmail.com</a>.</p>
+
+    <h2>2. Données collectées</h2>
+    <ul>
+      <li><strong>Compte&nbsp;:</strong> ton nom et ton adresse e-mail, issus de ton compte Google à la connexion, ton foyer, ton rôle et l'état de validation de ton compte.</li>
+      <li><strong>Chiens&nbsp;:</strong> nom, race, sexe, date de naissance, poids adulte prévu, objectifs de repas, notes et carnet de santé (vaccins, antiparasitaires, traitements, numéros de lot, clinique vétérinaire).</li>
+      <li><strong>Activités&nbsp;:</strong> besoins (pipi ou caca, selles, lieu), repas, pesées et traitements, avec l'heure, des notes facultatives et le nom du membre qui les a enregistrés.</li>
+      <li><strong>Badges du foyer&nbsp;:</strong> les noms des membres du foyer, et leur e-mail quand un badge est lié à un compte.</li>
+      <li><strong>Visites&nbsp;:</strong> pages vues et temps de chargement, anonymes, mesurés par Vercel sans cookie.</li>
+      <li><strong>Données techniques&nbsp;:</strong> ton adresse IP et le détail des requêtes, traités par notre hébergeur pour faire fonctionner l'app.</li>
+    </ul>
+
+    <h2>3. Finalités et bases légales</h2>
+    <ul>
+      <li>Faire fonctionner l'app à laquelle tu t'es inscrit&nbsp;: ton compte, le partage avec ton foyer, les prédictions, le carnet de santé, l'impression et l'export. Base légale&nbsp;: exécution du contrat (article 6.1.b du RGPD).</li>
+      <li>Garder l'app sûre et en état de marche&nbsp;: contrôles de connexion et journaux du serveur. Base légale&nbsp;: intérêt légitime (article 6.1.f).</li>
+      <li>Vérifier que l'app se charge vite et quels écrans sont utilisés, de façon anonyme. Base légale&nbsp;: intérêt légitime (article 6.1.f).</li>
+    </ul>
+    <p>Les prédictions sont des estimations qui te sont affichées&nbsp;: aucune décision produisant des effets juridiques ou similaires n'est prise automatiquement. Tes données ne sont ni vendues, ni louées, ni échangées, et il n'y a pas de publicité.</p>
+
+    <h2>4. Qui voit tes données</h2>
+    <ul>
+      <li>Les membres de ton foyer voient ses chiens, ses activités, son carnet de santé et ses badges.</li>
+      <li>Le propriétaire de l'app voit le nom, l'e-mail, le foyer, le rôle et l'état de chaque compte, pour valider et gérer les comptes.</li>
+      <li>Vercel Inc. héberge l'app, fait tourner son serveur à Francfort (Allemagne) et mesure les visites.</li>
+      <li>Neon héberge la base de données à Francfort (Allemagne).</li>
+      <li>Google, quand tu te connectes avec Google, agit selon sa propre politique de confidentialité. PupPace reçoit ton profil Google de base et ne garde que ton nom et ton adresse e-mail. Aucune autre donnée de ton compte Google n'est consultée, lue ou conservée.</li>
+    </ul>
+
+    <h2>5. Transferts hors de l'UE</h2>
+    <p>Tes données sont stockées et traitées à Francfort (Allemagne), et te parviennent par le réseau de Vercel. Vercel et Neon sont des sociétés américaines et peuvent y accéder depuis les États-Unis, par exemple pour le support ou la sécurité. Ces transferts reposent sur le cadre de protection des données UE-États-Unis (Data Privacy Framework) ou sur les clauses contractuelles types de la Commission européenne, prévus dans leurs conditions de traitement des données.</p>
+
+    <h2>6. Durées de conservation</h2>
+    <ul>
+      <li><strong>Compte&nbsp;:</strong> jusqu'à ce que tu demandes sa suppression ou que le propriétaire le retire, y compris un compte jamais validé.</li>
+      <li><strong>Chiens, activités et carnet de santé&nbsp;:</strong> tant que le foyer utilise l'app. Un chien supprimé dans l'app est masqué, pas effacé, pour que le propriétaire puisse le restaurer&nbsp;: demande-nous de l'effacer définitivement.</li>
+      <li><strong>Quand tu pars&nbsp;:</strong> nous supprimons ton compte et son badge. Les données des chiens restent au foyer, car ses autres membres s'en servent&nbsp;; nous retirons ton nom des activités que tu as enregistrées si tu le demandes.</li>
+      <li><strong>Sauvegardes&nbsp;:</strong> les données effacées sortent de l'historique de restauration de la base en 6&nbsp;heures, et de la copie de test de la base (elle aussi à Francfort) à sa prochaine mise à jour.</li>
+      <li><strong>Journaux du serveur&nbsp;:</strong> 1&nbsp;heure.</li>
+      <li><strong>Visites&nbsp;:</strong> anonymes&nbsp;; l'empreinte de visite utilisée par Vercel est renouvelée chaque jour.</li>
+      <li><strong>Sur ton appareil&nbsp;:</strong> ta connexion (valable 90&nbsp;jours) et une copie des données récemment chargées, jusqu'à ce que tu effaces les données de ce site dans ton navigateur.</li>
+    </ul>
+
+    <h2>7. Cookies et stockage sur l'appareil</h2>
+    <p>Le code de PupPace ne dépose aucun cookie et n'utilise ni publicité ni traceur. Ce qu'elle stocke sur ton appareil (connexion, langue, données récemment chargées) est nécessaire au fonctionnement de l'app et à son ouverture rapide, et ne demande donc pas de consentement. La connexion avec Google charge le service de connexion de Google, qui peut déposer ses propres cookies (par exemple pour retenir que tu as fermé sa fenêtre de connexion), selon la politique de confidentialité de Google.</p>
+
+    <h2>8. Tes droits</h2>
+    <p>Tu peux accéder à tes données et en obtenir une copie, les rectifier (la plupart directement dans l'app), les effacer, limiter leur traitement ou t'y opposer, et les recevoir dans un format portable&nbsp;: l'app exporte les activités et le carnet de santé en fichiers CSV, et nous envoyons le reste sur demande.</p>
+    <p>Écris à <a href="mailto:matthieu.jacquet@gmail.com">matthieu.jacquet@gmail.com</a>&nbsp;: nous répondons sous un mois. Tu peux aussi saisir l'autorité de protection des données de ton pays (en France, la CNIL&nbsp;: <a href="https://www.cnil.fr">www.cnil.fr</a>).</p>
+
+    <h2>9. Sécurité</h2>
+    <p>La connexion utilise des jetons signés (JWT) qui expirent après 90&nbsp;jours, et toutes les connexions sont chiffrées (HTTPS). L'accès est vérifié à chaque requête&nbsp;: un compte retiré perd l'accès immédiatement.</p>
+
+    <h2>10. Modifications</h2>
+    <p>Quand cette politique change, la date en haut change.</p>
+    </section>
 
     <div class="footer">
       &copy; 2026 PupPace. All rights reserved. &bull; <a href="/terms">Terms of service</a> &bull; <a href="/">Back to the app</a>
