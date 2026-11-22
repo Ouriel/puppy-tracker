@@ -1,4 +1,5 @@
--- PupPace preview seed: demo households, members, dogs, logs and health passports for testing previews.
+-- PupPace preview seed: anonymises the copy of production, then adds demo households, members, dogs, logs and
+-- health passports for testing previews.
 --
 -- WHERE  The Neon `preview` branch only, which Vercel preview deployments read. The guard below refuses every other
 --        branch (production included) and any host that is not Neon.
@@ -8,6 +9,10 @@
 --        then inserts fresh data relative to now() in Europe/Paris. Real rows (the family's dog, accounts, badges,
 --        logs, records) are never touched. Today's slots still ahead of now() are skipped, so counts grow during the day.
 --        Logs stop at the run time: re-run the seed at the start of each test session.
+-- ANONYMISE  A reset from parent copies production: run this file right after it. Every real name, email and free
+--        text becomes fictional (Membre 1, membre-1@example.com, Badge 1, Note anonymisée, Clinique vétérinaire,
+--        Chien 1, Foyer 1), and each log keeps its author's new name. Only the owner's own account and badge (the
+--        SUPER_ADMIN_EMAIL default in src/utils/auth.ts) and his household's dogs keep their names.
 -- DATA   Real household FAMILY-COCKER-2026: puppy Pistache (Golden Retriever) logged by the household's own badges
 --        (read at run time), and Camille, an account waiting for approval.
 --        'Famille Martin (demo)': Rocky (Labrador, 10 weeks, 300 g, 4 meals), Lucky (Beagle, 2 years, no gram goal);
@@ -22,7 +27,8 @@ DECLARE
   v_today         date := (now() AT TIME ZONE v_tz)::date;
   v_clinic        text := 'Clinique Vétérinaire des Tilleuls (demo)';
   v_pending_email text := 'camille.bernard@example.com';
-  v_family_loggers text[];  -- the real household's badge names, read at run time (no real names in this file)
+  v_owner_email   text := 'matthieu.jacquet@gmail.com';  -- SUPER_ADMIN_EMAIL: his own data stays as it is
+  v_family_loggers text[];  -- the real household's badge names, read at run time (no real names in this file; the only real address is the owner's, already public)
   d       record;
   v_key   text;
   v_birth date;
@@ -45,6 +51,63 @@ BEGIN
   DELETE FROM users          WHERE id LIKE 'seed-%';
   DELETE FROM puppies        WHERE id LIKE 'seed-%' OR household_id LIKE 'seed-%';
   DELETE FROM households     WHERE id LIKE 'seed-%';
+
+  -- 1b. Anonymise the copy of production (rows not from this seed). Rerun-safe: a person keeps their number, which
+  --     follows the first time their email appears.
+  CREATE TEMP TABLE anon_people ON COMMIT DROP AS
+    SELECT email,
+           'Membre ' || row_number() OVER (ORDER BY first_seen, email) AS new_name,
+           'membre-' || row_number() OVER (ORDER BY first_seen, email) || '@example.com' AS new_email
+    FROM (
+      SELECT lower(email) AS email, min(created_at) AS first_seen
+      FROM (
+        SELECT email, created_at FROM users WHERE id NOT LIKE 'seed-%'
+        UNION ALL
+        SELECT email, created_at FROM caretakers WHERE email IS NOT NULL AND id NOT LIKE 'seed-%' AND household_id NOT LIKE 'seed-%'
+      ) AS emails
+      WHERE lower(email) <> v_owner_email
+      GROUP BY lower(email)
+    ) AS people;
+
+  -- Each badge's new name, kept to rename the logs it signed
+  CREATE TEMP TABLE anon_badges ON COMMIT DROP AS
+    SELECT c.id, c.household_id, c.name AS old_name,
+           coalesce(p.new_name, 'Badge ' || row_number() OVER (PARTITION BY (p.new_name IS NULL) ORDER BY c.created_at, c.id)) AS new_name,
+           p.new_email
+    FROM caretakers AS c
+    LEFT JOIN anon_people AS p ON p.email = lower(c.email)
+    WHERE c.id NOT LIKE 'seed-%' AND c.household_id NOT LIKE 'seed-%' AND lower(coalesce(c.email, '')) <> v_owner_email;
+
+  UPDATE users AS u SET name = p.new_name, email = p.new_email
+    FROM anon_people AS p WHERE lower(u.email) = p.email AND u.id NOT LIKE 'seed-%';
+  UPDATE caretakers AS c SET name = b.new_name, email = coalesce(b.new_email, c.email)
+    FROM anon_badges AS b WHERE c.id = b.id;
+  UPDATE activities AS a SET logged_by = b.new_name
+    FROM anon_badges AS b
+    WHERE a.household_id = b.household_id AND a.logged_by = b.old_name AND a.id NOT LIKE 'seed-%';
+  -- A log signed by no badge any more (a deleted badge, an account name from before badges), unless it is the owner's
+  UPDATE activities AS a SET logged_by = 'Ancien membre'
+    WHERE a.id NOT LIKE 'seed-%' AND a.household_id NOT LIKE 'seed-%'
+      AND NOT EXISTS (SELECT 1 FROM caretakers AS c WHERE c.household_id = a.household_id AND c.name = a.logged_by)
+      AND NOT EXISTS (SELECT 1 FROM users AS u WHERE lower(u.email) = v_owner_email AND u.name = a.logged_by);
+
+  UPDATE activities SET notes = 'Note anonymisée'
+    WHERE coalesce(notes, '') NOT IN ('', 'Note anonymisée') AND id NOT LIKE 'seed-%' AND household_id NOT LIKE 'seed-%';
+  UPDATE health_records SET notes = 'Note anonymisée'
+    WHERE coalesce(notes, '') NOT IN ('', 'Note anonymisée') AND id NOT LIKE 'seed-%' AND household_id NOT LIKE 'seed-%';
+  UPDATE health_records SET vet_clinic = 'Clinique vétérinaire'
+    WHERE coalesce(vet_clinic, '') NOT IN ('', 'Clinique vétérinaire') AND id NOT LIKE 'seed-%' AND household_id NOT LIKE 'seed-%';
+  UPDATE puppies SET notes = 'Note anonymisée'
+    WHERE coalesce(notes, '') NOT IN ('', 'Note anonymisée') AND id NOT LIKE 'seed-%' AND household_id NOT LIKE 'seed-%';
+  -- Other households' names and dogs (the owner's household keeps its dogs' names)
+  UPDATE households AS h SET name = 'Foyer ' || n.rank
+    FROM (SELECT id, row_number() OVER (ORDER BY id) AS rank FROM households WHERE id NOT LIKE 'seed-%') AS n
+    WHERE h.id = n.id;
+  UPDATE puppies AS dog SET name = 'Chien ' || n.rank
+    FROM (SELECT id, row_number() OVER (ORDER BY created_at, id) AS rank FROM puppies
+          WHERE id NOT LIKE 'seed-%' AND household_id NOT LIKE 'seed-%'
+            AND household_id NOT IN (SELECT household_id FROM users WHERE lower(email) = v_owner_email)) AS n
+    WHERE dog.id = n.id;
 
   SELECT array_agg(name ORDER BY name) INTO v_family_loggers
     FROM caretakers WHERE household_id = 'FAMILY-COCKER-2026' AND id NOT LIKE 'seed-%';
@@ -212,6 +275,8 @@ BEGIN
   UPDATE activities SET stool_consistency = 'diarrhea'
   WHERE id = (SELECT id FROM activities WHERE puppy_id = 'seed-dog-rocky' AND type = 'poop' ORDER BY timestamp DESC LIMIT 1);
 
+  RAISE NOTICE 'preview-seed on %: % accounts and % badges anonymised', v_branch,
+    (SELECT count(*) FROM anon_people), (SELECT count(*) FROM anon_badges);
   RAISE NOTICE 'preview-seed on %: % households, % users, % badges, % dogs, % logs, % health records', v_branch,
     (SELECT count(*) FROM households WHERE id LIKE 'seed-%'), (SELECT count(*) FROM users WHERE id LIKE 'seed-%'),
     (SELECT count(*) FROM caretakers WHERE id LIKE 'seed-%'), (SELECT count(*) FROM puppies WHERE id LIKE 'seed-%'),
