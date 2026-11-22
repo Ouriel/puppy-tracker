@@ -69,6 +69,71 @@
       padding-top: 32px;
       border-top: 1px solid #334155;
     }
+    .status {
+      display: none;
+      padding: 12px 16px;
+      border-radius: 12px;
+      font-size: 14px;
+    }
+    .status:target {
+      display: block;
+    }
+    .status.ok {
+      background-color: #052e16;
+      border: 1px solid #15803d;
+      color: #86efac;
+    }
+    .status.failed {
+      background-color: #450a0a;
+      border: 1px solid #b91c1c;
+      color: #fca5a5;
+    }
+    form.request {
+      display: grid;
+      gap: 12px;
+      margin-top: 16px;
+    }
+    form.request label {
+      display: grid;
+      gap: 6px;
+      font-size: 14px;
+      color: #e2e8f0;
+    }
+    form.request input, form.request select, form.request textarea {
+      box-sizing: border-box;
+      width: 100%;
+      min-height: 44px;
+      padding: 10px 12px;
+      font: inherit;
+      font-size: 16px;
+      color: #f8fafc;
+      background-color: #020617;
+      border: 1px solid #334155;
+      border-radius: 12px;
+    }
+    form.request textarea {
+      min-height: 120px;
+      resize: vertical;
+    }
+    form.request button {
+      justify-self: start;
+      min-height: 44px;
+      padding: 10px 16px;
+      font: inherit;
+      font-weight: 600;
+      color: #ffffff;
+      background-color: #4f46e5;
+      border: 0;
+      border-radius: 12px;
+      cursor: pointer;
+    }
+    .trap {
+      position: absolute;
+      left: -10000px;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+    }
   </style>
 </head>
 <body>
@@ -82,7 +147,7 @@
     <p>This policy explains what personal data PupPace collects, why, who sees it, how long it is kept and your rights under the General Data Protection Regulation (GDPR).</p>
 
     <h2>1. Who is responsible</h2>
-    <p>PupPace is a personal project run by Matthieu Jacquet, the data controller. Contact: <a href="mailto:matthieu.jacquet@gmail.com">matthieu.jacquet@gmail.com</a>.</p>
+    <p>PupPace is a personal project run by Matthieu Jacquet, the data controller. Contact: the form in section 8 (<a href="#request">send a request</a>).</p>
 
     <h2>2. What we collect</h2>
     <ul>
@@ -92,6 +157,7 @@
       <li><strong>Household badges:</strong> the names of the household's members, and their email when a badge is linked to an account.</li>
       <li><strong>Visits:</strong> anonymous page views and loading times, measured by Vercel without cookies.</li>
       <li><strong>Technical data:</strong> your IP address and request details, which our host processes to deliver the app.</li>
+      <li><strong>Privacy requests:</strong> the email address, the request and the details you send with the form in section 8.</li>
     </ul>
 
     <h2>3. Why, and on what legal basis</h2>
@@ -99,6 +165,7 @@
       <li>Running the app you signed up for: your account, sharing with your household, predictions, the health passport, print and export. Legal basis: performance of a contract (GDPR article 6(1)(b)).</li>
       <li>Keeping the app secure and working: sign-in checks and server logs. Legal basis: legitimate interest (article 6(1)(f)).</li>
       <li>Checking that the app loads fast and which screens are used, anonymously. Legal basis: legitimate interest (article 6(1)(f)).</li>
+      <li>Answering your privacy requests and keeping a record of the answer. Legal basis: legal obligation (article 6(1)(c)).</li>
     </ul>
     <p>Predictions are estimates shown to you: no decision with legal or similar effect is made automatically. We do not sell, rent or trade your data, and there is no advertising.</p>
 
@@ -120,6 +187,7 @@
       <li><strong>Dogs, activities and health passport:</strong> as long as the household uses the app. A dog deleted in the app is hidden, not erased, so the owner can restore it: ask us to erase it for good.</li>
       <li><strong>When you leave:</strong> we delete your account and its badge. The dogs' records stay with the household, since its other members use them; we remove your name from the activities you logged if you ask.</li>
       <li><strong>Backups:</strong> erased data leaves the database's restore history within 6 hours.</li>
+      <li><strong>Privacy requests:</strong> one year after we answer them, as a record that we did.</li>
       <li><strong>Server logs:</strong> 1 hour.</li>
       <li><strong>Visits:</strong> anonymous; the visitor hash Vercel uses is reset every day.</li>
       <li><strong>On your device:</strong> your sign-in (valid 90 days) and a copy of recently loaded data, until you clear this site's data in your browser.</li>
@@ -130,7 +198,31 @@
 
     <h2>8. Your rights</h2>
     <p>You can access your data and get a copy of it, correct it (most of it directly in the app), erase it, restrict or object to its processing, and receive it in a portable format: the app exports activities and the health passport as CSV files, and we send the rest on request.</p>
-    <p>Write to <a href="mailto:matthieu.jacquet@gmail.com">matthieu.jacquet@gmail.com</a>: we answer within one month. You can also complain to the data protection authority of your country (in France, the CNIL: <a href="https://www.cnil.fr">www.cnil.fr</a>).</p>
+    <p>Send your request with the form below, with your account's email address: we answer that address within one month, and may ask you to confirm the request is yours. You can also complain to the data protection authority of your country (in France, the CNIL: <a href="https://www.cnil.fr">www.cnil.fr</a>).</p>
+    <p id="request-sent" class="status ok" role="status">Request sent. We answer by email within one month.</p>
+    <p id="request-failed" class="status failed" role="alert">Your request was not sent. Check the email address, or try again in an hour.</p>
+    <form class="request" id="request" method="post" action="/api/privacy-requests">
+      <input type="hidden" name="lang" value="en">
+      <label>Your account's email address
+        <input type="email" name="email" required maxlength="254" autocomplete="email">
+      </label>
+      <label>Your request
+        <select name="kind" required>
+        <option value="access">Copy of my data</option>
+        <option value="correct">Correct my data</option>
+        <option value="erase">Delete my account and data</option>
+        <option value="restrict">Limit the use of my data</option>
+        <option value="object">Object to a use of my data</option>
+        <option value="portability">My data in a portable format</option>
+        <option value="other">Other question</option>
+        </select>
+      </label>
+      <label>Details (optional)
+        <textarea name="message" maxlength="2000"></textarea>
+      </label>
+      <div class="trap" aria-hidden="true"><label>Leave empty <input type="text" name="website" tabindex="-1" autocomplete="off"></label></div>
+      <button type="submit">Send the request</button>
+    </form>
 
     <h2>9. Security</h2>
     <p>Sign-in uses signed tokens (JWT) that expire after 90 days, and every connection is encrypted (HTTPS). Access is checked on every request, so a removed account loses access at once.</p>
@@ -145,7 +237,7 @@
     <p>Cette politique explique quelles données personnelles PupPace collecte, pourquoi, qui les voit, combien de temps elles sont conservées et tes droits au titre du Règlement général sur la protection des données (RGPD).</p>
 
     <h2>1. Responsable du traitement</h2>
-    <p>PupPace est un projet personnel de Matthieu Jacquet, responsable du traitement. Contact&nbsp;: <a href="mailto:matthieu.jacquet@gmail.com">matthieu.jacquet@gmail.com</a>.</p>
+    <p>PupPace est un projet personnel de Matthieu Jacquet, responsable du traitement. Contact&nbsp;: le formulaire de la section 8 (<a href="#demande">envoyer une demande</a>).</p>
 
     <h2>2. Données collectées</h2>
     <ul>
@@ -155,6 +247,7 @@
       <li><strong>Badges du foyer&nbsp;:</strong> les noms des membres du foyer, et leur e-mail quand un badge est lié à un compte.</li>
       <li><strong>Visites&nbsp;:</strong> pages vues et temps de chargement, anonymes, mesurés par Vercel sans cookie.</li>
       <li><strong>Données techniques&nbsp;:</strong> ton adresse IP et le détail des requêtes, traités par notre hébergeur pour faire fonctionner l'app.</li>
+      <li><strong>Demandes de confidentialité&nbsp;:</strong> l'adresse e-mail, la demande et les précisions envoyées avec le formulaire de la section 8.</li>
     </ul>
 
     <h2>3. Finalités et bases légales</h2>
@@ -162,6 +255,7 @@
       <li>Faire fonctionner l'app à laquelle tu t'es inscrit&nbsp;: ton compte, le partage avec ton foyer, les prédictions, le carnet de santé, l'impression et l'export. Base légale&nbsp;: exécution du contrat (article 6.1.b du RGPD).</li>
       <li>Garder l'app sûre et en état de marche&nbsp;: contrôles de connexion et journaux du serveur. Base légale&nbsp;: intérêt légitime (article 6.1.f).</li>
       <li>Vérifier que l'app se charge vite et quels écrans sont utilisés, de façon anonyme. Base légale&nbsp;: intérêt légitime (article 6.1.f).</li>
+      <li>Répondre à tes demandes de confidentialité et garder trace de la réponse. Base légale&nbsp;: obligation légale (article 6.1.c).</li>
     </ul>
     <p>Les prédictions sont des estimations qui te sont affichées&nbsp;: aucune décision produisant des effets juridiques ou similaires n'est prise automatiquement. Tes données ne sont ni vendues, ni louées, ni échangées, et il n'y a pas de publicité.</p>
 
@@ -183,6 +277,7 @@
       <li><strong>Chiens, activités et carnet de santé&nbsp;:</strong> tant que le foyer utilise l'app. Un chien supprimé dans l'app est masqué, pas effacé, pour que le propriétaire puisse le restaurer&nbsp;: demande-nous de l'effacer définitivement.</li>
       <li><strong>Quand tu pars&nbsp;:</strong> nous supprimons ton compte et son badge. Les données des chiens restent au foyer, car ses autres membres s'en servent&nbsp;; nous retirons ton nom des activités que tu as enregistrées si tu le demandes.</li>
       <li><strong>Sauvegardes&nbsp;:</strong> les données effacées sortent de l'historique de restauration de la base en 6&nbsp;heures.</li>
+      <li><strong>Demandes de confidentialité&nbsp;:</strong> un an après notre réponse, pour garder trace de la réponse.</li>
       <li><strong>Journaux du serveur&nbsp;:</strong> 1&nbsp;heure.</li>
       <li><strong>Visites&nbsp;:</strong> anonymes&nbsp;; l'empreinte de visite utilisée par Vercel est renouvelée chaque jour.</li>
       <li><strong>Sur ton appareil&nbsp;:</strong> ta connexion (valable 90&nbsp;jours) et une copie des données récemment chargées, jusqu'à ce que tu effaces les données de ce site dans ton navigateur.</li>
@@ -193,7 +288,31 @@
 
     <h2>8. Tes droits</h2>
     <p>Tu peux accéder à tes données et en obtenir une copie, les rectifier (la plupart directement dans l'app), les effacer, limiter leur traitement ou t'y opposer, et les recevoir dans un format portable&nbsp;: l'app exporte les activités et le carnet de santé en fichiers CSV, et nous envoyons le reste sur demande.</p>
-    <p>Écris à <a href="mailto:matthieu.jacquet@gmail.com">matthieu.jacquet@gmail.com</a>&nbsp;: nous répondons sous un mois. Tu peux aussi saisir l'autorité de protection des données de ton pays (en France, la CNIL&nbsp;: <a href="https://www.cnil.fr">www.cnil.fr</a>).</p>
+    <p>Envoie ta demande avec le formulaire ci-dessous, avec l'adresse e-mail de ton compte&nbsp;: nous répondons à cette adresse sous un mois, et pouvons te demander de confirmer que la demande vient bien de toi. Tu peux aussi saisir l'autorité de protection des données de ton pays (en France, la CNIL&nbsp;: <a href="https://www.cnil.fr">www.cnil.fr</a>).</p>
+    <p id="demande-envoyee" class="status ok" role="status">Demande envoyée. Nous répondons par e-mail sous un mois.</p>
+    <p id="demande-echouee" class="status failed" role="alert">Ta demande n'a pas été envoyée. Vérifie l'adresse e-mail, ou réessaie dans une heure.</p>
+    <form class="request" id="demande" method="post" action="/api/privacy-requests">
+      <input type="hidden" name="lang" value="fr">
+      <label>L'adresse e-mail de ton compte
+        <input type="email" name="email" required maxlength="254" autocomplete="email">
+      </label>
+      <label>Ta demande
+        <select name="kind" required>
+        <option value="access">Copie de mes données</option>
+        <option value="correct">Corriger mes données</option>
+        <option value="erase">Supprimer mon compte et mes données</option>
+        <option value="restrict">Limiter l'utilisation de mes données</option>
+        <option value="object">M'opposer à une utilisation de mes données</option>
+        <option value="portability">Mes données dans un format portable</option>
+        <option value="other">Autre question</option>
+        </select>
+      </label>
+      <label>Précisions (facultatif)
+        <textarea name="message" maxlength="2000"></textarea>
+      </label>
+      <div class="trap" aria-hidden="true"><label>Laisse vide <input type="text" name="website" tabindex="-1" autocomplete="off"></label></div>
+      <button type="submit">Envoyer la demande</button>
+    </form>
 
     <h2>9. Sécurité</h2>
     <p>La connexion utilise des jetons signés (JWT) qui expirent après 90&nbsp;jours, et toutes les connexions sont chiffrées (HTTPS). L'accès est vérifié à chaque requête&nbsp;: un compte retiré perd l'accès immédiatement.</p>

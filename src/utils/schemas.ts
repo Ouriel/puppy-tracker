@@ -101,6 +101,17 @@ export const UserInputSchema = z.object({
   confirmMove: z.boolean().optional(),
 });
 
+// The privacy policy's form (/privacy), sent by anyone: `website` is a trap field people never see, so a value means a bot
+export const PRIVACY_REQUEST_KINDS = ['access', 'correct', 'erase', 'restrict', 'object', 'portability', 'other'] as const;
+export const PrivacyRequestSchema = z.object({
+  email: emailText('Valid email is required'),
+  kind: z.enum(PRIVACY_REQUEST_KINDS),
+  message: longText.optional(),
+  lang: z.enum(['en', 'fr']).default('en'),
+  website: z.string().optional(),
+});
+export const PrivacyRequestHandledSchema = z.object({ id: idText.min(1) });
+
 export const DeleteSchema = z.object({
   id: z.string().min(1, 'id is required'),
 });

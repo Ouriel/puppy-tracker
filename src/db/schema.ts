@@ -92,3 +92,14 @@ export const healthRecordsTable = pgTable('health_records', {
   index('idx_health_records_household_date').on(table.householdId, table.date.desc()),
   index('idx_health_records_tenant_pup_date').on(table.householdId, table.puppyId, table.date.desc()),
 ]);
+
+// Requests sent from the privacy policy's form (/privacy); the owner answers them by email and marks them handled
+export const privacyRequestsTable = pgTable('privacy_requests', {
+  id: text('id').primaryKey(),
+  email: text('email').notNull(),
+  kind: text('kind').notNull(),
+  message: text('message'),
+  lang: text('lang').notNull().default('en'),
+  createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).defaultNow(),
+  handledAt: timestamp('handled_at', { withTimezone: true, mode: 'date' }),
+});
