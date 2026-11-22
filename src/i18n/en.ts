@@ -417,7 +417,7 @@ export const en = {
     },
   },
   auth: {
-    subtitle: 'Smart puppy activity tracker',
+    subtitle: 'Puppy activity tracker',
     signInWithGoogle: 'Sign in with Google',
     aboutPupPace: 'About PupPace',
     privacyPolicy: 'Privacy policy',
@@ -438,7 +438,7 @@ export const en = {
     summary: 'PupPace stores only what the app needs: your account, your dogs and their activities, shared within your household.',
     close: 'Close',
     section1Title: 'Data collected',
-    section1Desc: 'Your account name and email, your dogs\' profiles and health passports, and their activities (potty, meals, weigh-ins, treatments).',
+    section1Desc: 'Your account name and email, your dogs\' profiles and health passports, and their activities (potty, meals, weigh-ins, treatments). Visits are counted anonymously, without cookies.',
     section2Title: 'Use of data',
     section2Desc: 'Data is used only to compute predictions, share records within your household and print the health passport.',
     section3Title: 'Data sharing',

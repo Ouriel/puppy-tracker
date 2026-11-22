@@ -276,7 +276,7 @@ describe('export utilities — CSV and PDF export test suite', () => {
       expect(htmlContent).toContain('Historique détaillé des activités');
       expect(htmlContent).toContain('Taux de réussite');
       expect(htmlContent).toContain('Date et heure');
-      expect(htmlContent).toContain("Document généré avec PupPace — suivi d'activité et de propreté du chiot.");
+      expect(htmlContent).toContain("Document généré avec PupPace — suivi d'activité du chiot.");
       expect(htmlContent).not.toMatch(/Activités &|Détaillé|Taux Réussite|Date & Heure|Intelligent|Familial/);
     });
 
