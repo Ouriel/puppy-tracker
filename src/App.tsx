@@ -740,6 +740,10 @@ function App() {
             dailyFoodGramGoal={puppyState.activePuppy?.dailyFoodGramGoal}
             lastWeighIn={lastWeighIn}
             profile={puppyState.activePuppy ?? undefined}
+            onOpenHealthPassport={() => {
+              setIsQuickLogOpen(false);
+              handleOpenHealthPassport();
+            }}
           />
         </Suspense>
       )}

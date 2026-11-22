@@ -88,7 +88,7 @@ describe('dashboard health card, in French (backlog item 1)', () => {
       record({ id: 'hr-dose', type: 'deworming', name: 'Credelio Plus', productName: 'Credelio Plus', date: '2026-09-10', boosterDate: '2026-10-10' }),
     ]);
 
-    expect(dueLines(container)).toEqual([`Vers, puces et tiques · Credelio Plus10 oct.${fr.potty.overdue}`]);
+    expect(dueLines(container)).toEqual([`Tout-en-un · Credelio Plus10 oct.${fr.potty.overdue}`]);
   });
 
   // Owner, 2026-11-22: a wormer and a flea and tick product given apart are two lines, each saying what is due
@@ -96,14 +96,14 @@ describe('dashboard health card, in French (backlog item 1)', () => {
     const credelio = record({ id: 'hr-credelio', type: 'deworming', name: 'Credelio Plus', productName: 'Credelio Plus', date: '2026-07-27', boosterDate: '2026-10-27' });
     const bravecto = record({ id: 'hr-bravecto', type: 'deworming', name: 'Bravecto', productName: 'Bravecto', date: '2026-10-01', boosterDate: '2026-12-24' });
     expect(dueLines(await renderCard([credelio, bravecto]))).toEqual([
-      `Vers · Credelio Plus27 oct.${fr.potty.dueSoon}`,
-      `Puces et tiques · Bravecto24 déc.${fr.health.statusUpToDate}`,
+      `Vermifuge · Credelio Plus27 oct.${fr.potty.dueSoon}`,
+      `Antipuces et antitiques · Bravecto24 déc.${fr.health.statusUpToDate}`,
     ]);
 
     const milpro = record({ id: 'hr-milpro', type: 'deworming', name: 'Milpro', productName: 'Milpro', date: '2026-10-10', boosterDate: '2027-01-10' });
     expect(dueLines(await renderCard([credelio, bravecto, milpro]))).toEqual([
-      `Puces et tiques · Bravecto24 déc.${fr.health.statusUpToDate}`,
-      `Vers · Milpro10 janv. 2027${fr.health.statusUpToDate}`,
+      `Antipuces et antitiques · Bravecto24 déc.${fr.health.statusUpToDate}`,
+      `Vermifuge · Milpro10 janv. 2027${fr.health.statusUpToDate}`,
     ]);
   });
 

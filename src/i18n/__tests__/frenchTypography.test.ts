@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { fr } from '../fr';
 import protocols from '../../data/healthProtocols.json';
+import { getAntiparasiticLabel } from '../../utils/health';
 
 // App review 2026-10-16, 5.8: French punctuation. A no-break space (U+00A0 or the narrow U+202F) before : ; ! ?,
 // « » quotes with no-break spaces inside, "…" rather than "...", and no straight or curly English double quote.
@@ -72,7 +73,7 @@ describe('French typography in fr.ts', () => {
 describe('French typography in the vaccine and antiparasitic lists (healthProtocols.json)', () => {
   const shown = [
     ...protocols.vaccines.map((vaccine) => vaccine.fullName),
-    ...protocols.antiparasitics.map((product) => product.label),
+    ...protocols.antiparasitics.map((product) => getAntiparasiticLabel(product, fr.health)),
   ];
 
   it.each(shown)('%s', (text) => {

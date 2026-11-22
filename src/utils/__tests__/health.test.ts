@@ -1,5 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
-import { calculateNextVaccineBooster, calculateNextAntiparasiticDate, getHealthProtocols, getHealthRecordDateError, getHealthRecordStatus, getNextDue, getProtections, getRecordShortName } from '../health';
+import { calculateNextVaccineBooster, calculateNextAntiparasiticDate, getAntiparasiticLabel, getHealthProtocols, getHealthRecordDateError, getHealthRecordStatus, getNextDue, getProtections, getRecordShortName } from '../health';
+import { en } from '../../i18n/en';
+import { fr } from '../../i18n/fr';
 import type { HealthRecord } from '../../types';
 
 describe('Health Passport — French Veterinary Protocol & Dataset Test Suite', () => {
@@ -518,11 +520,19 @@ describe('"À faire": every open next date, overdue first (C6); short vaccine na
     }
   });
 
-  it('no antiparasitic label holds a leftover placeholder: the picker shows it as is', () => {
-    for (const product of getHealthProtocols().antiparasitics) {
-      expect(product.label).not.toContain('{');
+  // Owner, 2026-11-22: one word per kind of antiparasitic, in the app's language, the same as the "À faire" line and the tag
+  it('the product list says what each product is and its schedule, in the app\'s language, with no leftover placeholder', () => {
+    const products = getHealthProtocols().antiparasitics;
+    const label = (id: string, health: typeof fr.health) => getAntiparasiticLabel(products.find((product) => product.id === id)!, health);
+    for (const product of products) {
+      expect(getAntiparasiticLabel(product, fr.health)).not.toMatch(/[{}]|undefined/);
+      expect(getAntiparasiticLabel(product, en.health)).not.toMatch(/[{}]|undefined/);
     }
-    expect(getHealthProtocols().antiparasitics.find((product) => product.id === 'bravecto')?.label).toBe('Bravecto (puces et tiques • toutes les 12\u00a0semaines)');
+    expect(label('bravecto', fr.health)).toBe('Bravecto • antipuces et antitiques • toutes les 12\u00a0semaines');
+    expect(label('bravecto', en.health)).toBe('Bravecto • flea and tick treatment • every 12 weeks');
+    expect(label('milpro', fr.health)).toBe('Milpro • vermifuge • mensuel avant 6\u00a0mois, puis tous les 3\u00a0mois');
+    expect(label('credelio_plus', fr.health)).toBe('Credelio Plus • antiparasitaire tout-en-un • mensuel');
+    expect(label('advocate', en.health)).toBe('Advocate (Pipette Spot-on) • dewormer and flea treatment • monthly');
   });
 });
 
@@ -586,6 +596,13 @@ describe('antiparasitics renew only what they protect from (Bravecto and Milpro 
     const nextBravecto = dose('bravecto-2', 'Bravecto', '2027-02-11', '2027-05-06');
     expect(dueLines([credelio, bravecto, milpro, nextBravecto])).toEqual([['milpro', ['worms']], ['bravecto-2', ['fleasTicks']]]);
     expect(getHealthRecordStatus(bravecto, [credelio, bravecto, milpro, nextBravecto])).toBe('fulfilled');
+  });
+
+  it('Advocate or Stronghold (fleas, no ticks) renews the worm dose only: a Bravecto reminder stays', () => {
+    const advocate = dose('advocate', 'Advocate (Pipette Spot-on)', '2026-12-01', '2027-01-01');
+    expect(getProtections(advocate)).toEqual(['worms']);
+    expect(getProtections({ type: 'deworming', name: 'Stronghold / Stronghold Plus' })).toEqual(['worms']);
+    expect(dueLines([credelio, bravecto, advocate])).toEqual([['advocate', ['worms']], ['bravecto', ['fleasTicks']]]);
   });
 
   it('a later all-in-one renews both a wormer and a flea and tick product', () => {

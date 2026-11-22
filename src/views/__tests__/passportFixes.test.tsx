@@ -252,6 +252,19 @@ describe('"Fait" on a due line', () => {
     expect(addForm('Vaccins').querySelector<HTMLInputElement>('#vaccine-date')!.value).toBe('2026-10-15');
   });
 
+  // Owner, 2026-11-22: the worm dose after a Bravecto may be another product (Milpro)
+  it('"Done" on a line whose product covers more than is due opens the form with no product picked; its row says which dose', async () => {
+    const credelio = record({ id: 'hr-credelio', type: 'deworming', name: 'Credelio Plus', productName: 'Credelio Plus', date: '2026-07-27', boosterDate: '2026-10-27' });
+    const bravecto = record({ id: 'hr-bravecto', type: 'deworming', name: 'Bravecto', productName: 'Bravecto', date: '2026-10-01', boosterDate: '2026-12-24' });
+    await renderPassport([credelio, bravecto]);
+    expect(section('Antiparasitaires').textContent).toContain('Prochaine prise (vermifuge)\u00a0: 27 oct.');
+    expect(section('Antiparasitaires').textContent).toContain('Prochaine prise\u00a0: 24 déc.');
+
+    await act(async () => button('Fait\u00a0: Credelio Plus du 27 juil.')!.click());
+    expect(addForm('Antiparasitaires').querySelector('[data-slot="select-value"]')!.textContent).toBe('Choisir un produit');
+    expect(addForm('Antiparasitaires').querySelector<HTMLInputElement>('#deworming-next-date')!.value).toBe('');
+  });
+
   it('on the dashboard card, opens the passport at ?add=<record id>, whose deworming form opens on that product', async () => {
     const onOpenHealthPassport = vi.fn();
     await render(<DogHealthSummary profile={puppy} activities={[]} weightActivities={[]} healthRecords={[shot, dose]} onOpenHealthPassport={onOpenHealthPassport} />);

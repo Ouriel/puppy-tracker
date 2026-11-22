@@ -2,7 +2,7 @@ import React from 'react';
 import { Pill, Syringe } from 'lucide-react';
 import type { HealthRecord, HealthRecordsLoadState } from '../types';
 import { useI18n } from '../i18n';
-import { formatProtections, getNextDue, getRecordShortName } from '../utils/health';
+import { getDueTreatment, getNextDue, getRecordShortName } from '../utils/health';
 import { formatShortDate } from '../utils/date';
 import { StatusBadge } from './common/StatusBadge';
 import { AddToCalendarButton } from './common/AddToCalendarButton';
@@ -39,9 +39,9 @@ export const HealthDueList: React.FC<HealthDueListProps> = ({ records, dogName, 
               <li key={record.id} className="flex flex-wrap items-center gap-2 min-h-11 py-1.5">
                 <Icon className={`w-4 h-4 shrink-0 ${record.type === 'vaccination' ? 'text-teal-400' : 'text-amber-400'}`} aria-hidden="true" />
                 <div className="min-w-[4.5rem] flex-1">
-                  {/* An antiparasitic's line says what is due ("Vers · Credelio Plus"): a wormer and a flea product each have one */}
+                  {/* An antiparasitic's line says what is due ("Vermifuge · Credelio Plus"): a wormer and a flea product each have one */}
                   <div className="text-xs font-bold text-slate-100 line-clamp-2 break-words">
-                    {protections && <span className="text-amber-300">{formatProtections(protections, t.health)} · </span>}
+                    {protections && <span className="text-amber-300">{t.health.treatments[getDueTreatment(protections)]} · </span>}
                     {getRecordShortName(record, lang)}
                   </div>
                   <div className="text-xs text-slate-400">{formatShortDate(record.boosterDate!, lang)}</div>

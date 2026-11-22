@@ -85,7 +85,7 @@ describe('buildDueDateIcs: one all-day event on the next date', () => {
   // Owner, 2026-11-22: the reminder says what is due, not the brand; the product given last is in the description
   it('names the dog and what is due, the product in the description, in English', () => {
     const { content } = buildDueDateIcs(credelio, 'Rex', en, 'en');
-    expect(property(content, 'SUMMARY')).toBe('SUMMARY:Rex: dewormer\\, flea and tick treatment due');
+    expect(property(content, 'SUMMARY')).toBe('SUMMARY:Rex: all-in-one antiparasitic due');
     expect(property(content, 'DESCRIPTION')).toBe('DESCRIPTION:Credelio Plus\\nGiven on September 20\\, 2026');
   });
 
@@ -135,7 +135,7 @@ describe('buildDueDateIcs: one all-day event on the next date', () => {
     expect(alarms[1]).toContain('TRIGGER;RELATED=START:PT9H\r\n');
     for (const alarm of alarms) {
       expect(alarm).toContain('ACTION:DISPLAY\r\n');
-      expect(alarm).toContain('DESCRIPTION:Rex: dewormer\\, flea and tick treatment due\r\n');
+      expect(alarm).toContain('DESCRIPTION:Rex: all-in-one antiparasitic due\r\n');
     }
   });
 
@@ -152,7 +152,7 @@ describe('buildDueDateIcs: one all-day event on the next date', () => {
   });
 
   it('names the file <dog>-<what is due>-<date>.ics with safe characters only', () => {
-    expect(buildDueDateIcs(credelio, 'Rex', en, 'en').filename).toBe('rex-dewormer-flea-and-tick-treatment-2026-10-20.ics');
+    expect(buildDueDateIcs(credelio, 'Rex', en, 'en').filename).toBe('rex-all-in-one-antiparasitic-2026-10-20.ics');
     expect(buildDueDateIcs(vaccine, 'Éclair', fr, 'fr').filename).toBe('eclair-chppi-l4-2027-07-01.ics');
   });
 });
@@ -177,8 +177,8 @@ describe('downloadDueDateIcs', () => {
 
     expect(blobs).toHaveLength(1);
     expect(blobs[0].type).toBe('text/calendar;charset=utf-8');
-    expect(await blobs[0].text()).toContain('SUMMARY:Rex: dewormer\\, flea and tick treatment due');
-    expect(clicked).toEqual([{ href: 'blob:calendar', download: 'rex-dewormer-flea-and-tick-treatment-2026-10-20.ics' }]);
+    expect(await blobs[0].text()).toContain('SUMMARY:Rex: all-in-one antiparasitic due');
+    expect(clicked).toEqual([{ href: 'blob:calendar', download: 'rex-all-in-one-antiparasitic-2026-10-20.ics' }]);
     expect(revokeObjectURL).not.toHaveBeenCalled();
 
     vi.advanceTimersByTime(60_000);
@@ -193,7 +193,7 @@ describe('buildGoogleCalendarUrl: the same event as a Google Calendar template l
 
     expect(url.startsWith('https://calendar.google.com/calendar/render?')).toBe(true);
     expect(params(url).get('action')).toBe('TEMPLATE');
-    expect(params(url).get('text')).toBe('Rex: dewormer, flea and tick treatment due');
+    expect(params(url).get('text')).toBe('Rex: all-in-one antiparasitic due');
     expect(params(url).get('dates')).toBe('20261020/20261021');
     expect(params(url).get('details')).toBe('Credelio Plus\nGiven on September 20, 2026');
   });

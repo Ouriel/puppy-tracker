@@ -235,6 +235,22 @@ describe('QuickLogModal labels and notes', () => {
     expect(document.querySelector('label[for="quicklog-quantity-grams"]')!.textContent).toBe('Quantity (g)');
   });
 
+  // Owner, 2026-11-22: an antiparasitic logged as a treatment gets no next date and leaves its "To do" line due
+  it('a treatment named like an antiparasitic says to log it in the health passport, whose button closes the form and opens it', async () => {
+    const onOpenHealthPassport = vi.fn();
+    await renderModal({ initialType: 'medication', onOpenHealthPassport });
+    const passportButton = () => [...document.querySelectorAll('button')].find((button) => button.textContent === 'Health passport');
+
+    await typeKeys('quicklog-medication-name', 'Amoxicilline');
+    expect(document.body.textContent).not.toContain('log it in the health passport');
+    expect(passportButton()).toBeUndefined();
+
+    await typeKeys('quicklog-medication-name', 'milpro');
+    expect(document.body.textContent).toContain('Antiparasitic: log it in the health passport to get its next date.');
+    await act(async () => passportButton()!.click());
+    expect(onOpenHealthPassport).toHaveBeenCalledTimes(1);
+  });
+
   // A long prescription typed as the name was refused on every Save with only "Not saved, try again"
   it('the medication name and notes boxes stop at the lengths the server accepts', async () => {
     await renderModal({ initialType: 'medication' });
