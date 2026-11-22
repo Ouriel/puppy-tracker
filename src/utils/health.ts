@@ -1,6 +1,7 @@
 import healthProtocols from '../data/healthProtocols.json';
 import { containsWords } from '../data/breedsCatalog';
 import type { HealthRecord } from '../types';
+import type { TranslationKeys } from '../i18n/types';
 import { getPuppyAge } from './predictions';
 import { formatLocalDate } from './date';
 
@@ -13,7 +14,6 @@ export interface HealthProtocolData {
   antiparasitics: Array<{
     id: string;
     name: string;
-    label: string;
     category: string;
     minAgeWeeks: number;
     minWeightKg: number;
@@ -33,7 +33,7 @@ export function getHealthProtocols(): HealthProtocolData {
       first.fullName.localeCompare(second.fullName, 'fr', { sensitivity: 'base' })
     ),
     antiparasitics: [...healthProtocols.antiparasitics].sort((first, second) =>
-      first.label.localeCompare(second.label, 'fr', { sensitivity: 'base' })
+      first.name.localeCompare(second.name, 'fr', { sensitivity: 'base' })
     ),
   } as HealthProtocolData;
 }
@@ -130,10 +130,25 @@ function getRenewalKey(record: HealthStatusRecord): string {
 /** What an antiparasitic protects from: worms, fleas and ticks, or both (an all-in-one such as Credelio Plus). */
 export type Protection = 'worms' | 'fleasTicks';
 
+/**
+ * What a product renews, by its category. Advocate and Stronghold (`worms_fleas`) kill fleas but not ticks (to be confirmed
+ * by the owner's vet): they renew the worm dose only, so a flea and tick reminder (Bravecto) stays.
+ */
 const PROTECTIONS_BY_CATEGORY: Record<string, Protection[]> = {
   all_in_one: ['worms', 'fleasTicks'],
   dewormer_only: ['worms'],
   flea_tick_only: ['fleasTicks'],
+  worms_fleas: ['worms'],
+};
+
+/** The one word for a kind of antiparasitic, everywhere: the "À faire" line, the tag, the product list, the calendar. */
+export type Treatment = keyof TranslationKeys['health']['treatments'];
+
+const TREATMENT_BY_CATEGORY: Record<string, Treatment> = {
+  all_in_one: 'allInOne',
+  dewormer_only: 'worms',
+  flea_tick_only: 'fleasTicks',
+  worms_fleas: 'wormsFleas',
 };
 
 /** The product list's entry for a stored or typed product name ('Milbemax Tab Chiot' is Milbemax), if any. */
@@ -163,13 +178,26 @@ export function getOpenProtections(record: HealthStatusRecord, allRecords: Healt
   return protections.filter((protection) => !laterDoses.some((other) => getProtections(other)?.includes(protection)));
 }
 
-/** 'Vers', 'Puces et tiques' or 'Vers, puces et tiques' */
-export function formatProtections(
-  protections: Protection[],
-  labels: { protectionWorms: string; protectionFleasTicks: string; protectionBoth: string }
-): string {
-  if (protections.length > 1) return labels.protectionBoth;
-  return protections[0] === 'worms' ? labels.protectionWorms : labels.protectionFleasTicks;
+/** What kind of antiparasitic a dose is ('Vermifuge', 'Tout-en-un'), from its product; null for a vaccine or "Autre…". */
+export function getProductTreatment(record: Pick<HealthRecord, 'type' | 'name'>): Treatment | null {
+  if (record.type !== 'deworming') return null;
+  const product = findAntiparasitic(record.name);
+  return (product && TREATMENT_BY_CATEGORY[product.category]) ?? null;
+}
+
+/** The treatment still due: the worm dose, the flea and tick one, or both (an all-in-one's). Never called with none. */
+export function getDueTreatment(protections: Protection[]): Treatment {
+  if (protections.length > 1) return 'allInOne';
+  return protections[0] === 'worms' ? 'worms' : 'fleasTicks';
+}
+
+/** The product list's line, in the app's language: 'Milpro • vermifuge • mensuel avant 6 mois, puis tous les 3 mois'. */
+export function getAntiparasiticLabel(product: HealthProtocolData['antiparasitics'][number], health: TranslationKeys['health']): string {
+  const schedule = product.intervalWeeks ? health.scheduleEveryWeeks.replace('{weeks}', String(product.intervalWeeks))
+    : product.intervalMonths === 1 ? health.scheduleMonthly
+    : product.intervalMonths ? health.scheduleEveryMonths.replace('{months}', String(product.intervalMonths))
+    : health.scheduleAgeBased;
+  return [product.name, health.treatmentsInline[TREATMENT_BY_CATEGORY[product.category]], schedule].join(' • ');
 }
 
 function isLater(other: HealthStatusRecord, record: HealthStatusRecord): boolean {

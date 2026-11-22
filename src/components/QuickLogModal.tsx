@@ -9,6 +9,7 @@ import { buildQuickLogActivity, validateQuickLogForm, type QuickLogFormError } f
 import type { GrowthProfile, UnifiedWeightEntry } from '../utils/weight';
 import { WeightHint } from './common/WeightHint';
 import { holdUpdate } from '../registerServiceWorker';
+import { getProductTreatment } from '../utils/health';
 
 interface QuickLogModalProps {
   isOpen: boolean;
@@ -30,6 +31,8 @@ interface QuickLogModalProps {
    */
   onSave: (activity: Omit<Activity, 'id'>, options: { id: string }) => Promise<boolean>;
   currentUser: string;
+  // A treatment named like an antiparasitic ('Milpro'): its hint's button closes the form and opens the health passport
+  onOpenHealthPassport?: () => void;
 }
 
 /** Text shown in a grams / weight box: empty when there is no value, never '0'. */
@@ -49,6 +52,7 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
   onClose,
   onSave,
   currentUser,
+  onOpenHealthPassport,
 }) => {
   const { t } = useI18n();
 
@@ -400,6 +404,17 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
                       }}
                     />
                     {medicationError && <p id="quicklog-medication-name-error" role="alert" className={inputErrorClass}>{medicationError}</p>}
+                    {/* Logged here, an antiparasitic gets no next date and leaves its "À faire" line due: the passport schedules it */}
+                    {getProductTreatment({ type: 'deworming', name: medicationName }) && (
+                      <div className="mt-1.5 text-xs text-slate-400">
+                        <p>{t.health.logInPassport}</p>
+                        {onOpenHealthPassport && (
+                          <button type="button" onClick={onOpenHealthPassport} className="min-h-11 font-semibold text-indigo-300 hover:text-indigo-200 underline">
+                            {t.nav.carnetDeSante}
+                          </button>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )}
 

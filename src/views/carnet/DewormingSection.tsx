@@ -3,7 +3,7 @@ import { flushSync } from 'react-dom';
 import type { PuppyProfile, HealthRecord, Activity } from '../../types';
 import { Pill, Plus, Trash2, Pencil, Check, X, ChevronDown } from 'lucide-react';
 import { Card, Button, Input, Select, ListBox, ListBoxItem, TextArea, toast } from '@heroui/react';
-import { calculateNextAntiparasiticDate, formatProtections, getHealthProtocols, getHealthRecordDateError, getHealthRecordStatus, getOpenProtections, getProtections } from '../../utils/health';
+import { calculateNextAntiparasiticDate, getAntiparasiticLabel, getDueTreatment, getHealthProtocols, getHealthRecordDateError, getHealthRecordStatus, getOpenProtections, getProductTreatment, getProtections } from '../../utils/health';
 import { StatusBadge } from '../../components/common/StatusBadge';
 import { AddToCalendarButton } from '../../components/common/AddToCalendarButton';
 import type { UnifiedWeightEntry } from '../../utils/weight';
@@ -23,7 +23,9 @@ interface DewormingSectionProps {
   currentUser: string;
   onAddActivity: (activity: Omit<Activity, 'id'>) => void;
   t: TranslationKeys;
-  doneName?: string; // a due line's "Done": the add form starts open on this product, dated today
+  // A due line's "Done": the add form starts open on this product, dated today; null: open with no product picked (the line's
+  // product covers more than is due, e.g. a Credelio Plus whose flea part a Bravecto renewed)
+  doneName?: string | null;
 }
 
 const labelClass = 'block text-xs font-semibold text-slate-400 mb-1';
@@ -51,9 +53,10 @@ export const DewormingSection: React.FC<DewormingSectionProps> = ({
   t,
   doneName,
 }) => {
-  const [isAddingDeworming, setIsAddingDeworming] = useState(Boolean(doneName));
+  const [isAddingDeworming, setIsAddingDeworming] = useState(doneName !== undefined);
   // null: the user has not picked one yet, the form shows the default
-  const [selectedProductName, setSelectedProductName] = useState<string | null>(() => (doneName ? productChoice(doneName).listName : null));
+  // null: the default (the last product given); '': none picked yet
+  const [selectedProductName, setSelectedProductName] = useState<string | null>(() => (doneName === undefined ? null : doneName === null ? '' : productChoice(doneName).listName));
   const [otherProductName, setOtherProductName] = useState(() => (doneName ? productChoice(doneName).typedName : ''));
   const [dewormAdminDate, setDewormAdminDate] = useState(() => formatLocalDate());
   const [customDewormNextDate, setCustomDewormNextDate] = useState<string | null>(null);
@@ -79,7 +82,7 @@ export const DewormingSection: React.FC<DewormingSectionProps> = ({
 
   // dewormingLogs is sorted newest first. Default product: the last one given, else Credelio Plus.
   // One the list does not have (typed for "Autre…", or an older one) is a choice of the add form too
-  const productOptions = getHealthProtocols().antiparasitics;
+  const productOptions = getHealthProtocols().antiparasitics.map((product) => ({ id: product.id, name: product.name, label: getAntiparasiticLabel(product, t.health) }));
   const lastProductName = dewormingLogs[0]?.productName || dewormingLogs[0]?.name;
   const addOptions = lastProductName && !productOptions.some((productOption) => productOption.name === lastProductName)
     ? [{ id: lastProductName, name: lastProductName, label: lastProductName }, ...productOptions]
@@ -111,10 +114,16 @@ export const DewormingSection: React.FC<DewormingSectionProps> = ({
   // 'Credelio Plus du 10 sept.': names a row's buttons
   const rowName = (deworming: HealthRecord) =>
     t.health.recordOn.replace('{name}', deworming.productName || deworming.name).replace('{date}', formatShortDate(deworming.date, lang));
-  // What a dose protects from ('Vers'), so a wormer and a flea product given apart read as two schedules; none for "Autre…"
-  const protectionTag = (deworming: HealthRecord) => {
-    const protections = getProtections(deworming);
-    return protections ? formatProtections(protections, t.health) : '';
+  // What kind of product a dose is ('Vermifuge'), so a wormer and a flea product given apart read as two schedules; none for "Autre…"
+  const treatmentTag = (deworming: HealthRecord) => {
+    const treatment = getProductTreatment(deworming);
+    return treatment ? t.health.treatments[treatment] : '';
+  };
+  // 'Prochaine prise (vermifuge)': the next date is for part of the product only, a later dose renewed the rest
+  const nextDoseLabel = (deworming: HealthRecord) => {
+    const openProtections = getOpenProtections(deworming, dewormingLogs);
+    const isPartlyRenewed = openProtections?.length && openProtections.length < (getProtections(deworming)?.length ?? 0);
+    return isPartlyRenewed ? `${t.health.nextDeworming} (${t.health.treatmentsInline[getDueTreatment(openProtections)]})` : t.health.nextDeworming;
   };
   // Open doses in full; renewed ones after them as grey lines, the latest 3 until "Historique (n)" opens the rest
   const statusById = new Map(dewormingLogs.map((deworming) => [deworming.id, getHealthRecordStatus(deworming, dewormingLogs)]));
@@ -226,7 +235,7 @@ export const DewormingSection: React.FC<DewormingSectionProps> = ({
 
   // Opened by a due line's "Done", below the fold: brought into view (the Select's focus does not scroll the page)
   useEffect(() => {
-    if (doneName) addFormRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+    if (doneName !== undefined) addFormRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' });
   }, [doneName]);
 
   return (
@@ -255,9 +264,11 @@ export const DewormingSection: React.FC<DewormingSectionProps> = ({
                 <label id="deworming-product-label" className={labelClass}>{t.health.productName}</label>
                 <Select
                   aria-labelledby="deworming-product-label"
-                  // Opened by "Done": focus starts on the pick, already made
-                  autoFocus={Boolean(doneName)}
-                  value={productName}
+                  // Opened by "Done": focus starts on the pick, already made (or to make)
+                  autoFocus={doneName !== undefined}
+                  value={productName || null}
+                  placeholder={t.health.chooseProduct}
+                  isRequired
                   onChange={(value) => {
                     setSelectedProductName(value as string);
                     setCustomDewormNextDate(null);
@@ -267,7 +278,7 @@ export const DewormingSection: React.FC<DewormingSectionProps> = ({
                     <Select.Value className="truncate block text-left" />
                     <Select.Indicator />
                   </Select.Trigger>
-                  <Select.Popover className="bg-slate-900 border border-slate-800 text-slate-100 max-w-xl w-full">
+                  <Select.Popover className="bg-slate-900 border border-slate-800 text-slate-100 w-full max-w-[min(36rem,calc(100vw-1.5rem))]">
                     <ListBox>{productListItems(addOptions)}</ListBox>
                   </Select.Popover>
                 </Select>
@@ -392,7 +403,7 @@ export const DewormingSection: React.FC<DewormingSectionProps> = ({
                           <Select.Value className="truncate block text-left" />
                           <Select.Indicator />
                         </Select.Trigger>
-                        <Select.Popover className="bg-slate-900 border border-slate-800 text-slate-100 max-w-xl w-full">
+                        <Select.Popover className="bg-slate-900 border border-slate-800 text-slate-100 w-full max-w-[min(36rem,calc(100vw-1.5rem))]">
                           <ListBox>{productListItems(editOptions)}</ListBox>
                         </Select.Popover>
                       </Select>
@@ -502,7 +513,7 @@ export const DewormingSection: React.FC<DewormingSectionProps> = ({
                   className="w-full min-h-11 flex items-center gap-2 px-3.5 rounded-xl text-left text-xs text-slate-400 hover:bg-slate-950/70 transition-colors"
                 >
                   <span className="flex-1 min-w-0 line-clamp-2 break-words">
-                    {[formatShortDate(deworming.date, lang), deworming.productName || deworming.name, protectionTag(deworming)].filter(Boolean).join(' · ')}
+                    {[formatShortDate(deworming.date, lang), deworming.productName || deworming.name, treatmentTag(deworming)].filter(Boolean).join(' · ')}
                   </span>
                   <Pencil className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
                 </button>
@@ -522,9 +533,9 @@ export const DewormingSection: React.FC<DewormingSectionProps> = ({
                   <div className="space-y-0.5 min-w-0 flex-1">
                     <div className="text-xs font-bold text-white flex items-center gap-2 flex-wrap">
                       <span className="line-clamp-2 break-words">{deworming.productName || deworming.name}</span>
-                      {protectionTag(deworming) && (
+                      {treatmentTag(deworming) && (
                         <span className="text-xs font-semibold text-amber-300 bg-amber-950/40 border border-amber-800/40 px-2 py-0.5 rounded-lg">
-                          {protectionTag(deworming)}
+                          {treatmentTag(deworming)}
                         </span>
                       )}
                     </div>
@@ -537,7 +548,7 @@ export const DewormingSection: React.FC<DewormingSectionProps> = ({
 
                 <div className="flex flex-wrap items-center justify-between sm:justify-end gap-3 pt-2 sm:pt-0 border-t border-slate-800/60 sm:border-t-0 shrink-0">
                   <div className="text-left sm:text-right">
-                    <div className="text-xs font-bold text-amber-300">{t.health.nextDeworming}{t.common.colon} {deworming.boosterDate ? formatShortDate(deworming.boosterDate, lang) : '—'}</div>
+                    <div className="text-xs font-bold text-amber-300">{nextDoseLabel(deworming)}{t.common.colon} {deworming.boosterDate ? formatShortDate(deworming.boosterDate, lang) : '—'}</div>
                     {deworming.boosterDate && <StatusBadge status={status} />}
                   </div>
                   <div className="flex items-center gap-1.5 shrink-0 ml-auto">

@@ -76,7 +76,7 @@ describe('"À faire" comes first: every open next date, overdue first (C6), shor
   // Each line ends on its "Fait" button
   const expectedLines = [
     `Rage1 oct.${fr.potty.overdue}${fr.health.markDone}`,
-    `Vers, puces et tiques · Credelio Plus20 oct.${fr.potty.dueSoon}${fr.health.markDone}`,
+    `Tout-en-un · Credelio Plus20 oct.${fr.potty.dueSoon}${fr.health.markDone}`,
     `CHPPi + L41 juil. 2027${fr.health.statusUpToDate}${fr.health.markDone}`,
   ];
 
@@ -175,7 +175,7 @@ describe('Vaccins and Antiparasitaires: open records in full, renewed ones as on
     });
     await renderPassport({ healthRecords: [5, 6, 7, 8, 9].map(monthlyDose) });
 
-    expect(historyLines(fr.health.deworming)).toEqual(['20 août · Credelio Plus · Vers, puces et tiques', '20 juil. · Credelio Plus · Vers, puces et tiques', '20 juin · Credelio Plus · Vers, puces et tiques']);
+    expect(historyLines(fr.health.deworming)).toEqual(['20 août · Credelio Plus · Tout-en-un', '20 juil. · Credelio Plus · Tout-en-un', '20 juin · Credelio Plus · Tout-en-un']);
     const toggle = buttonWithText('Historique (4)');
     expect(toggle.getAttribute('aria-expanded')).toBe('false');
 
@@ -183,7 +183,7 @@ describe('Vaccins and Antiparasitaires: open records in full, renewed ones as on
 
     expect(toggle.getAttribute('aria-expanded')).toBe('true');
     expect(historyLines(fr.health.deworming)).toHaveLength(4);
-    expect(historyLines(fr.health.deworming).at(-1)).toBe('20 mai · Credelio Plus · Vers, puces et tiques');
+    expect(historyLines(fr.health.deworming).at(-1)).toBe('20 mai · Credelio Plus · Tout-en-un');
   });
 
   it('the same for vaccines: the latest 3 renewed shots, then "Historique (4)", which opens the rest', async () => {

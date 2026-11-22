@@ -478,7 +478,7 @@ describe('export utilities — CSV and PDF export test suite', () => {
       expect(toDo).toContain('01/03/2027');
       expect(toDo).not.toContain('01/06/2026'); // the renewed May shot
       // An antiparasitic's line says what is due, as on screen
-      expect(toDo).toContain('Vers, puces et tiques · Credelio Plus');
+      expect(toDo).toContain('Tout-en-un · Credelio Plus');
 
       expect(sectionOf(printed({ vaccines: [], doses: [] }), 'to-do')).toContain('Rien à faire pour l\'instant.');
     });

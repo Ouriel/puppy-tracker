@@ -274,7 +274,7 @@ export const VaccineSection: React.FC<VaccineSectionProps> = ({
                     <Select.Value className="truncate block text-left" />
                     <Select.Indicator />
                   </Select.Trigger>
-                  <Select.Popover className="bg-slate-900 border border-slate-800 text-slate-100 max-w-xl w-full">
+                  <Select.Popover className="bg-slate-900 border border-slate-800 text-slate-100 w-full max-w-[min(36rem,calc(100vw-1.5rem))]">
                     <ListBox>{vaccineListItems(addOptions)}</ListBox>
                   </Select.Popover>
                 </Select>
@@ -441,7 +441,7 @@ export const VaccineSection: React.FC<VaccineSectionProps> = ({
                           <Select.Value className="truncate block text-left" />
                           <Select.Indicator />
                         </Select.Trigger>
-                        <Select.Popover className="bg-slate-900 border border-slate-800 text-slate-100 max-w-xl w-full">
+                        <Select.Popover className="bg-slate-900 border border-slate-800 text-slate-100 w-full max-w-[min(36rem,calc(100vw-1.5rem))]">
                           <ListBox>{vaccineListItems(editOptions)}</ListBox>
                         </Select.Popover>
                       </Select>

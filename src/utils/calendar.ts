@@ -1,7 +1,7 @@
 import type { HealthRecord } from '../types';
 import type { TranslationKeys } from '../i18n/types';
 import type { Language } from '../i18n';
-import { addDays, formatProtections, getProtections, getRecordShortName, type Protection } from './health';
+import { addDays, getDueTreatment, getProtections, getRecordShortName, type Protection } from './health';
 
 type DueHealthRecord = HealthRecord & { boosterDate: string };
 
@@ -42,8 +42,7 @@ const slugify = (value: string) =>
  */
 function dueDateEvent(record: DueHealthRecord, dogName: string, t: TranslationKeys, lang: Language, protections: Protection[] | null = getProtections(record)) {
   const dueDate = record.boosterDate.slice(0, 10);
-  const treatments = { protectionWorms: t.health.calendarWorms, protectionFleasTicks: t.health.calendarFleasTicks, protectionBoth: t.health.calendarBoth };
-  const name = protections?.length ? formatProtections(protections, treatments) : getRecordShortName(record, lang);
+  const name = protections?.length ? t.health.treatmentsInline[getDueTreatment(protections)] : getRecordShortName(record, lang);
   const title = t.health.calendarEventTitle.replace('{dog}', () => dogName).replace('{name}', () => name);
   const givenOn = new Date(`${record.date.slice(0, 10)}T00:00:00Z`).toLocaleDateString(lang === 'fr' ? 'fr-FR' : 'en-US', { dateStyle: 'long', timeZone: 'UTC' });
   const description = [

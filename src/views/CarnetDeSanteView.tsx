@@ -15,6 +15,7 @@ import { printHealthPassportReport, exportHealthPassportToCSV } from '../utils/e
 import { getUnifiedWeightEntries } from '../utils/weight';
 import { getPuppyAge } from '../utils/predictions';
 import { useCloseOnOutsidePress } from '../hooks/useCloseOnOutsidePress';
+import { getOpenProtections, getProtections } from '../utils/health';
 
 interface CarnetDeSanteViewProps {
   activePuppy: PuppyProfile | null;
@@ -31,6 +32,16 @@ interface CarnetDeSanteViewProps {
   onOpenQuickLogModal?: (type: ActivityType) => void;
   onBackToDashboard?: () => void;
   onDeleteActivity?: (id: string) => void;
+}
+
+/**
+ * The product a due antiparasitic line's "Done" starts on: the line's own, unless it covers more than is due (a Credelio
+ * Plus whose flea part a Bravecto renewed: the worm dose may be another product), then null, none picked.
+ */
+function doneDewormingName(record: HealthRecord, dewormingLogs: HealthRecord[]): string | null {
+  const openProtections = getOpenProtections(record, dewormingLogs);
+  if (openProtections && openProtections.length < (getProtections(record)?.length ?? 0)) return null;
+  return record.productName || record.name;
 }
 
 const sortByDateDesc = (records: HealthRecord[]): HealthRecord[] => {
@@ -262,7 +273,7 @@ export const CarnetDeSanteView: React.FC<CarnetDeSanteViewProps> = ({
           {/* Modular Deworming / Parasitology Section */}
           <DewormingSection
             key={doneRecord?.type === 'deworming' ? doneRequest.count : 'dewormings'}
-            doneName={doneRecord?.type === 'deworming' ? doneRecord.productName || doneRecord.name : undefined}
+            doneName={doneRecord?.type === 'deworming' ? doneDewormingName(doneRecord, dewormingLogs) : undefined}
             activePuppy={activePuppy}
             dewormingLogs={dewormingLogs}
             setHealthRecords={setHealthRecords}
