@@ -56,6 +56,7 @@ export default defineConfig({
     // Claude Code session worktrees (.claude/worktrees) are full repo copies: never run their tests too
     exclude: [...configDefaults.exclude, '.claude/**'],
     // The tests expect Paris time, whatever the machine's timezone (npx vitest, an IDE runner)
-    env: { TZ: 'Europe/Paris' },
+    // SUPER_ADMIN_EMAIL: a fictional owner, as the API reads it from the environment
+    env: { TZ: 'Europe/Paris', SUPER_ADMIN_EMAIL: 'owner@example.com' },
   },
 })

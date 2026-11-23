@@ -13,8 +13,8 @@ import type { Activity, HealthRecord, PuppyProfile, UserAccount } from '../types
 
 // The real lock screen loads Google's script; this one signs in with a Google ID token at once.
 vi.mock('../components/AuthLockScreen', () => ({
-  AuthLockScreen: ({ onUnlockWithSSO }: { onUnlockWithSSO: (email: string, name: string, token: string) => unknown }) => (
-    <button id="sign-in" onClick={() => onUnlockWithSSO('owner@example.com', 'Owner', 'google-id-token')}>
+  AuthLockScreen: ({ onUnlockWithSSO }: { onUnlockWithSSO: (token: string) => unknown }) => (
+    <button id="sign-in" onClick={() => onUnlockWithSSO('google-id-token')}>
       Sign in
     </button>
   ),

@@ -382,8 +382,6 @@ export const fr: TranslationKeys = {
     preApprove: 'Inviter',
     revoke: 'Révoquer',
     deleteConfirmBody: 'Supprimer ce compte\u00a0? C\'est définitif, et cet e-mail perd l\'accès.',
-    accessRestricted: 'Accès restreint',
-    onlySuperAdmin: 'Seul le propriétaire peut ouvrir cet espace.',
     activatedAccount: '{email} activé dans «\u00a0{household}\u00a0».',
     movedAccount: '{email} déplacé vers «\u00a0{household}\u00a0».',
     revokedAccess: 'Accès révoqué pour {email}.',

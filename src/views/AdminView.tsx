@@ -12,7 +12,6 @@ import {
 import type { Caretaker, PrivacyRequestItem, RegisteredUserItem } from '../types';
 import { useI18n } from '../i18n';
 import { Button, Input, Card, Chip, toast } from '@heroui/react';
-import { isSuperAdminEmail } from '../utils/auth';
 import { formatShortDate } from '../utils/date';
 import { buildInviteBadge } from '../utils/caretakers';
 import { ConfirmationModal } from '../components/common/ConfirmationModal';
@@ -26,7 +25,6 @@ interface AdminViewProps {
 
 export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail, caretakers, onAddCaretaker }) => {
   const { t, lang } = useI18n();
-  const isSuperAdmin = isSuperAdminEmail(currentUserEmail);
 
   const [users, setUsers] = useState<RegisteredUserItem[]>([]);
   const [privacyRequests, setPrivacyRequests] = useState<PrivacyRequestItem[]>([]);
@@ -72,14 +70,13 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail, caretake
     }
   }, []);
 
+  // Settings shows this panel to the owner only (the session's role); the API refuses everyone else anyway
   useEffect(() => {
-    if (isSuperAdmin) {
-      const timer = setTimeout(() => {
-        void loadData();
-      }, 0);
-      return () => clearTimeout(timer);
-    }
-  }, [isSuperAdmin, loadData]);
+    const timer = setTimeout(() => {
+      void loadData();
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [loadData]);
 
   /** Approval keeps the user in their own household; any other household is an explicit, confirmed choice (27). */
   const handleActivate = (userItem: RegisteredUserItem) => {
@@ -143,8 +140,9 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail, caretake
     }
   };
 
+  // The owner's own row (role SuperAdmin, which only the owner's email gets) offers neither revoke nor delete
   const handleDeactivate = async (email: string) => {
-    if (isSuperAdminEmail(email)) return;
+    if (users.some((registeredUser) => registeredUser.email === email && registeredUser.role === 'SuperAdmin')) return;
     try {
       const res = await updateUser({ email, status: 'PENDING_APPROVAL' });
       if (res.ok) {
@@ -167,7 +165,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail, caretake
 
   const confirmDeleteUser = async () => {
     if (!userToDelete) return;
-    if (isSuperAdminEmail(userToDelete.email)) {
+    if (userToDelete.role === 'SuperAdmin') {
       setUserToDelete(null);
       return;
     }
@@ -228,22 +226,6 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail, caretake
   const pendingUsers = (users || []).filter((registeredUser) => registeredUser.status === 'PENDING_APPROVAL');
   const openPrivacyRequests = privacyRequests.filter((privacyRequest) => !privacyRequest.handledAt).length;
   const activeUsers = (users || []).filter((registeredUser) => registeredUser.status === 'ACTIVE');
-
-  if (!isSuperAdmin) {
-    return (
-      <Card className="bg-slate-900 border-slate-800 border-red-900/40 text-center">
-        <Card.Content className="p-8 space-y-3">
-          <AlertCircle className="w-12 h-12 text-red-400 mx-auto" />
-          <h2 className="text-lg font-bold text-white">
-            {t.admin.accessRestricted}
-          </h2>
-          <p className="text-xs text-slate-400">
-            {t.admin.onlySuperAdmin}
-          </p>
-        </Card.Content>
-      </Card>
-    );
-  }
 
   return (
     <div className="space-y-6 w-full">
@@ -541,7 +523,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail, caretake
 
                   <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto min-w-0">
                     {/* Household badge / mover */}
-                    {isSuperAdminEmail(userItem.email) ? (
+                    {userItem.role === 'SuperAdmin' ? (
                       <Chip color="accent" size="sm" variant="soft" className="font-bold">
                         {t.admin.superAdminOwner}
                       </Chip>

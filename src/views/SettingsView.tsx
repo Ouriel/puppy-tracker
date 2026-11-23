@@ -6,7 +6,6 @@ import { PuppiesView } from './PuppiesView';
 import { HouseholdView } from './HouseholdView';
 import { AdminView } from './AdminView';
 import { useI18n } from '../i18n';
-import { isSuperAdminEmail } from '../utils/auth';
 
 interface SettingsViewProps {
   user: UserAccount;
@@ -42,7 +41,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   onBackToDashboard,
 }) => {
   const { t } = useI18n();
-  const isSuperAdmin = isSuperAdminEmail(user.email);
+  // The owner is the session whose role is SuperAdmin: the browser never knows the owner's email
+  const isSuperAdmin = user.role === 'SuperAdmin';
   const [selectedTab, setSelectedTab] = useState<'dogs' | 'household' | 'admin'>('dogs');
 
   return (

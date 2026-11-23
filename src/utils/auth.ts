@@ -1,17 +1,14 @@
 import type { UserAccount } from '../types/index.js';
 
-const getSuperAdminEmail = (): string => {
-  const globalEnv = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env;
-  if (globalEnv?.SUPER_ADMIN_EMAIL) {
-    return globalEnv.SUPER_ADMIN_EMAIL;
-  }
-  return 'matthieu.jacquet@gmail.com';
-};
+// The owner's email, from SUPER_ADMIN_EMAIL (Vercel production and preview): for the API only. The browser has no
+// process.env, so there it is '' and no one matches: the app knows the owner by the session's role (SuperAdmin).
+const getSuperAdminEmail = (): string =>
+  ((globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env?.SUPER_ADMIN_EMAIL ?? '').trim();
 
 export const SUPER_ADMIN_EMAIL: string = getSuperAdminEmail();
 
 export function isSuperAdminEmail(email?: string | null): boolean {
-  if (!email) return false;
+  if (!email || !SUPER_ADMIN_EMAIL) return false;
   return email.trim().toLowerCase() === SUPER_ADMIN_EMAIL.toLowerCase();
 }
 
