@@ -11,6 +11,7 @@ const dbMock = vi.hoisted(() => ({
   puppies: [] as Array<Record<string, unknown>>,
   updatedValues: [] as Array<Record<string, unknown>>,
   insertedValues: [] as Array<Record<string, unknown>>,
+  batches: 0,
 }));
 
 vi.mock('@neondatabase/serverless', () => ({
@@ -56,6 +57,10 @@ vi.mock('drizzle-orm/neon-http', async () => {
           return { returning: () => Promise.resolve([values]) };
         },
       })),
+      batch: vi.fn((queries: unknown[]) => {
+        dbMock.batches += 1;
+        return Promise.all(queries);
+      }),
     })),
   };
 });
@@ -397,5 +402,59 @@ describe('PUT /api/users: only the owner sets a role', () => {
 
     expect(response.statusCode).toBe(400);
     expect(dbMock.updatedValues).toEqual([]);
+  });
+});
+
+describe("POST /api/users: the owner's invite into a new household", () => {
+  const originalSecret = process.env.SESSION_SECRET;
+
+  beforeEach(() => {
+    process.env.SESSION_SECRET = 'test-secret-key-1234567890-very-secure';
+    dbMock.users = [adminRow, { ...activeElsewhere }];
+    dbMock.puppies = [];
+    dbMock.updatedValues = [];
+    dbMock.insertedValues = [];
+    dbMock.batches = 0;
+  });
+
+  afterEach(() => {
+    process.env.SESSION_SECRET = originalSecret;
+  });
+
+  it('creates the named household and the invitee as its active Admin, in one batch', async () => {
+    const response = createMockResponse();
+    await usersHandler(asOwner({ email: 'New.Person@example.com', role: 'Member', status: 'ACTIVE', newHouseholdName: '  Famille Durand ' }), response);
+
+    expect(response.statusCode).toBe(201);
+    expect(dbMock.batches).toBe(1);
+    const [household, account] = dbMock.insertedValues;
+    expect(household).toEqual({ id: expect.stringMatching(/^house-/), familyPackId: household.id, name: 'Famille Durand' });
+    expect(account).toMatchObject({ householdId: household.id, email: 'new.person@example.com', role: 'Admin', status: 'ACTIVE' });
+  });
+
+  it('asks before moving an account that lives elsewhere, then moves it in as the Admin', async () => {
+    const refused = createMockResponse();
+    await usersHandler(asOwner({ email: activeElsewhere.email, status: 'ACTIVE', newHouseholdName: 'Famille Durand' }), refused);
+    expect(refused.statusCode).toBe(409);
+    expect(dbMock.batches).toBe(0);
+    dbMock.insertedValues = [];
+
+    const response = createMockResponse();
+    await usersHandler(asOwner({ email: activeElsewhere.email, status: 'ACTIVE', newHouseholdName: 'Famille Durand', confirmMove: true }), response);
+
+    expect(response.statusCode).toBe(200);
+    expect(dbMock.batches).toBe(1);
+    const [household] = dbMock.insertedValues;
+    expect(household).toMatchObject({ name: 'Famille Durand' });
+    expect(dbMock.updatedValues).toEqual([{ role: 'Admin', status: 'ACTIVE', householdId: household.id }]);
+  });
+
+  it('refuses a family Admin, and writes nothing', async () => {
+    const response = createMockResponse();
+    await usersHandler(asAdmin({ email: 'new.person@example.com', status: 'ACTIVE', newHouseholdName: 'Famille Durand' }), response);
+
+    expect(response.statusCode).toBe(403);
+    expect(dbMock.insertedValues).toEqual([]);
+    expect(dbMock.batches).toBe(0);
   });
 });

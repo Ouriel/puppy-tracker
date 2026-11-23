@@ -1,4 +1,4 @@
-import type { Activity, PuppyProfile, Caretaker, RegisteredUserItem, HealthRecord, DashboardPayload, MemberRefusalCode, PrivacyRequestItem } from '../types';
+import type { Activity, PuppyProfile, Caretaker, RegisteredUserItem, HealthRecord, DashboardPayload, MemberRefusalCode, PrivacyRequestItem, HouseholdItem } from '../types';
 import { getAuthToken, setAuthToken, clearAuthToken } from '../utils/auth';
 
 export type { RegisteredUserItem, DashboardPayload };
@@ -243,12 +243,19 @@ export async function fetchHousehold(): Promise<ApiResult<{ caretakers: Caretake
   return request<{ caretakers: Caretaker[] }>('/api/households');
 }
 
-export async function fetchAllHouseholds(): Promise<ApiResult<Array<{ id: string; name: string; familyPackId?: string }>>> {
-  const res = await request<{ households: Array<{ id: string; name: string; familyPackId?: string }> }>('/api/households?all=true');
+export async function fetchAllHouseholds(): Promise<ApiResult<HouseholdItem[]>> {
+  const res = await request<{ households: HouseholdItem[] }>('/api/households?all=true');
   if (res.ok) {
     return { ok: true, data: res.data.households };
   }
   return res;
+}
+
+export async function renameHousehold(id: string, name: string): Promise<ApiResult<HouseholdItem>> {
+  return request<HouseholdItem>('/api/households?all=true', {
+    method: 'PUT',
+    body: JSON.stringify({ id, name }),
+  });
 }
 
 export async function createCaretaker(caretaker: Partial<Caretaker>): Promise<ApiResult<Caretaker>> {
@@ -287,8 +294,13 @@ export async function fetchUsers(): Promise<ApiResult<RegisteredUserItem[]>> {
   return request<RegisteredUserItem[]>('/api/users');
 }
 
-/** A 409 means the account lives in another household: resend with confirmMove once the inviter confirms. */
-export async function createUser(user: Partial<RegisteredUserItem> & { confirmMove?: boolean }): Promise<ApiResult<RegisteredUserItem>> {
+/**
+ * A 409 means the account lives in another household: resend with confirmMove once the inviter confirms.
+ * newHouseholdName (owner only) invites into a new household of that name, as its Admin.
+ */
+export async function createUser(
+  user: Partial<RegisteredUserItem> & { confirmMove?: boolean; newHouseholdName?: string }
+): Promise<ApiResult<RegisteredUserItem>> {
   return request<RegisteredUserItem>('/api/users', {
     method: 'POST',
     body: JSON.stringify(user),

@@ -3,10 +3,10 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { neon } from '@neondatabase/serverless';
 import { drizzle } from 'drizzle-orm/neon-http';
 import { eq, and, ne } from 'drizzle-orm';
-import { puppiesTable, usersTable } from '../src/db/schema.js';
+import { householdsTable, puppiesTable, usersTable } from '../src/db/schema.js';
 import { isSuperAdminEmail } from '../src/utils/auth.js';
 import { UserInputSchema } from '../src/utils/schemas.js';
-import { verifyAuth, sendAuthError, setCorsHeaders } from './_auth.js';
+import { verifyAuth, sendAuthError, setCorsHeaders, newHouseholdId } from './_auth.js';
 import { getDatabaseUrl } from './_db.js';
 
 const connectionString = getDatabaseUrl();
@@ -84,6 +84,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
       const body = parsed.data;
       const email = body.email.toLowerCase();
+      if (body.newHouseholdName && !isSuperAdmin) {
+        return res.status(403).json({ error: 'Only SuperAdmin creates households.' });
+      }
       if (body.householdId && body.householdId !== householdId && !isSuperAdmin) {
         return res.status(403).json({ error: 'Only SuperAdmin can choose another household.' });
       }
@@ -91,7 +94,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (body.role && body.role !== 'Member' && !isSuperAdmin) {
         return res.status(403).json({ error: 'Only SuperAdmin can choose a role.' });
       }
-      const targetHouseholdId = body.householdId || householdId;
+      // The owner's invite into a new household: its row and the invitee, its Admin, are written in one batch
+      const newHousehold = body.newHouseholdName ? { id: newHouseholdId(), name: body.newHouseholdName } : null;
+      const insertHousehold = newHousehold
+        ? db.insert(householdsTable).values({ id: newHousehold.id, familyPackId: newHousehold.id, name: newHousehold.name })
+        : null;
+      const role = newHousehold ? 'Admin' : body.role;
+      const targetHouseholdId = newHousehold?.id || body.householdId || householdId;
 
       if (body.role === 'SuperAdmin' && !isSuperAdminEmail(email)) {
         return res.status(403).json({ error: 'SuperAdmin role assignment is restricted.' });
@@ -116,31 +125,33 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (isMove && (isSuperAdmin ? !body.confirmMove : !(await isUnclaimedSignUp(existing)))) {
           return res.status(409).json({ error: 'This person already has an account in another household.' });
         }
-        const [updated] = await db
+        const updateAccount = db
           .update(usersTable)
           .set({
             // Never the name: the account keeps its Google name. An admin's take-in is a Member; an admin re-inviting
             // someone already in the family (themselves included) keeps their role.
-            role: isSuperAdmin ? body.role || existing.role : isMove ? 'Member' : existing.role,
+            role: isSuperAdmin ? role || existing.role : isMove ? 'Member' : existing.role,
             status: body.status || existing.status,
             ...(isMove ? { householdId: targetHouseholdId } : {}),
           })
           .where(eq(usersTable.id, existing.id))
           .returning();
+        const [updated] = insertHousehold ? (await db.batch([insertHousehold, updateAccount]))[1] : await updateAccount;
         return res.status(200).json(updated);
       }
 
-      const [created] = await db
+      const insertAccount = db
         .insert(usersTable)
         .values({
           id: `usr-${randomUUID()}`,
           householdId: targetHouseholdId,
           email,
           name: body.name || email.split('@')[0],
-          role: body.role || 'Member',
+          role: role || 'Member',
           status: body.status || 'PENDING_APPROVAL',
         })
         .returning();
+      const [created] = insertHousehold ? (await db.batch([insertHousehold, insertAccount]))[1] : await insertAccount;
       return res.status(201).json(created);
     }
 
