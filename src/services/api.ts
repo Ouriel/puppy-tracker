@@ -1,4 +1,4 @@
-import type { Activity, PuppyProfile, Caretaker, RegisteredUserItem, HealthRecord, DashboardPayload, MemberRefusalCode } from '../types';
+import type { Activity, PuppyProfile, Caretaker, RegisteredUserItem, HealthRecord, DashboardPayload, MemberRefusalCode, PrivacyRequestItem } from '../types';
 import { getAuthToken, setAuthToken, clearAuthToken } from '../utils/auth';
 
 export type { RegisteredUserItem, DashboardPayload };
@@ -269,6 +269,16 @@ export async function deleteCaretaker(id: string): Promise<ApiResult<{ success: 
   return request<{ success: boolean }>(`/api/households?id=${encodeURIComponent(id)}`, {
     method: 'DELETE',
   });
+}
+
+// ── Privacy requests API (owner only; the /privacy form posts without the app) ──
+
+export async function fetchPrivacyRequests(): Promise<ApiResult<PrivacyRequestItem[]>> {
+  return request<PrivacyRequestItem[]>('/api/privacy-requests');
+}
+
+export async function markPrivacyRequestHandled(id: string): Promise<ApiResult<PrivacyRequestItem>> {
+  return request<PrivacyRequestItem>('/api/privacy-requests', { method: 'PUT', body: JSON.stringify({ id }) });
 }
 
 // ── Users API ──

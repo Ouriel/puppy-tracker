@@ -76,6 +76,17 @@ export interface RegisteredUserItem {
   status: 'ACTIVE' | 'PENDING_APPROVAL';
 }
 
+/** A request sent from the privacy policy's form, listed for the owner in the Admin panel. */
+export interface PrivacyRequestItem {
+  id: string;
+  email: string;
+  kind: 'access' | 'correct' | 'erase' | 'restrict' | 'object' | 'portability' | 'other';
+  message: string | null;
+  lang: string;
+  createdAt: string | null;
+  handledAt: string | null;
+}
+
 export type ScheduleMode = 'daytime_baseline' | 'post_meal_override' | 'night_sleep';
 export type FoodScheduleMode = 'daytime_schedule' | 'goal_reached' | 'night_sleep';
 

@@ -11,8 +11,8 @@
 --        Logs stop at the run time: re-run the seed at the start of each test session.
 -- ANONYMISE  A reset from parent copies production: run this file right after it. Every real name, email and free
 --        text becomes fictional (Membre 1, membre-1@example.com, Badge 1, Note anonymisée, Clinique vétérinaire,
---        Chien 1, Foyer 1), and each log keeps its author's new name. Only the owner's own account and badge (the
---        SUPER_ADMIN_EMAIL default in src/utils/auth.ts) and his household's dogs keep their names.
+--        Chien 1, Foyer 1, demande-1@example.com), and each log keeps its author's new name. Only the owner's own
+--        account and badge (the account whose role is SuperAdmin) and his household's dogs keep their names.
 -- DATA   Real household FAMILY-COCKER-2026: puppy Pistache (Golden Retriever) logged by the household's own badges
 --        (read at run time), and Camille, an account waiting for approval.
 --        'Famille Martin (demo)': Rocky (Labrador, 10 weeks, 300 g, 4 meals), Lucky (Beagle, 2 years, no gram goal);
@@ -27,8 +27,8 @@ DECLARE
   v_today         date := (now() AT TIME ZONE v_tz)::date;
   v_clinic        text := 'Clinique Vétérinaire des Tilleuls (demo)';
   v_pending_email text := 'camille.bernard@example.com';
-  v_owner_email   text := 'matthieu.jacquet@gmail.com';  -- SUPER_ADMIN_EMAIL: his own data stays as it is
-  v_family_loggers text[];  -- the real household's badge names, read at run time (no real names in this file; the only real address is the owner's, already public)
+  v_owner_email   text;  -- the owner's (role SuperAdmin, which only SUPER_ADMIN_EMAIL gets): his own data stays as it is
+  v_family_loggers text[];  -- the real household's badge names, read at run time (no real names in this file)
   d       record;
   v_key   text;
   v_birth date;
@@ -54,6 +54,8 @@ BEGIN
 
   -- 1b. Anonymise the copy of production (rows not from this seed). Rerun-safe: a person keeps their number, which
   --     follows the first time their email appears.
+  SELECT coalesce(min(lower(email)), '(no owner)') INTO v_owner_email FROM users WHERE role = 'SuperAdmin' AND id NOT LIKE 'seed-%';
+
   CREATE TEMP TABLE anon_people ON COMMIT DROP AS
     SELECT email,
            'Membre ' || row_number() OVER (ORDER BY first_seen, email) AS new_name,
@@ -99,6 +101,13 @@ BEGIN
     WHERE coalesce(vet_clinic, '') NOT IN ('', 'Clinique vétérinaire') AND id NOT LIKE 'seed-%' AND household_id NOT LIKE 'seed-%';
   UPDATE puppies SET notes = 'Note anonymisée'
     WHERE coalesce(notes, '') NOT IN ('', 'Note anonymisée') AND id NOT LIKE 'seed-%' AND household_id NOT LIKE 'seed-%';
+  -- Privacy requests sent from /privacy (the table exists once migrations/0003 has run)
+  IF to_regclass('public.privacy_requests') IS NOT NULL THEN
+    UPDATE privacy_requests AS r SET email = 'demande-' || n.rank || '@example.com',
+                                     message = CASE WHEN coalesce(r.message, '') = '' THEN r.message ELSE 'Message anonymisé' END
+      FROM (SELECT id, row_number() OVER (ORDER BY created_at, id) AS rank FROM privacy_requests) AS n
+      WHERE r.id = n.id;
+  END IF;
   -- Other households' names and dogs (the owner's household keeps its dogs' names)
   UPDATE households AS h SET name = 'Foyer ' || n.rank
     FROM (SELECT id, row_number() OVER (ORDER BY id) AS rank FROM households WHERE id NOT LIKE 'seed-%') AS n

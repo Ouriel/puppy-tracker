@@ -1,16 +1,19 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Shield, Send, Users, AlertCircle, UserCheck, UserX, Trash2, RefreshCw, Home } from 'lucide-react';
+import { Shield, Send, Users, AlertCircle, UserCheck, UserX, Trash2, RefreshCw, Home, Mail } from 'lucide-react';
 import {
   fetchUsers,
   createUser,
   updateUser,
   deleteUser,
   fetchAllHouseholds,
+  fetchPrivacyRequests,
+  markPrivacyRequestHandled,
 } from '../services/api';
-import type { Caretaker, RegisteredUserItem } from '../types';
+import type { Caretaker, PrivacyRequestItem, RegisteredUserItem } from '../types';
 import { useI18n } from '../i18n';
 import { Button, Input, Card, Chip, toast } from '@heroui/react';
-import { SUPER_ADMIN_EMAIL, isSuperAdminEmail } from '../utils/auth';
+import { isSuperAdminEmail } from '../utils/auth';
+import { formatShortDate } from '../utils/date';
 import { buildInviteBadge } from '../utils/caretakers';
 import { ConfirmationModal } from '../components/common/ConfirmationModal';
 import { PageHeader } from '../components/common/PageHeader';
@@ -22,10 +25,11 @@ interface AdminViewProps {
 }
 
 export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail, caretakers, onAddCaretaker }) => {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const isSuperAdmin = isSuperAdminEmail(currentUserEmail);
 
   const [users, setUsers] = useState<RegisteredUserItem[]>([]);
+  const [privacyRequests, setPrivacyRequests] = useState<PrivacyRequestItem[]>([]);
   // Until the list loads: the owner's household, named in the app's language
   const [households, setHouseholds] = useState<Array<{ id: string; name: string }>>(() => [
     { id: 'FAMILY-COCKER-2026', name: t.admin.household },
@@ -53,11 +57,13 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail, caretake
   const loadData = useCallback(async () => {
     setIsLoading(true);
     try {
-      const [remoteUsers, remoteHouseholds] = await Promise.all([
+      const [remoteUsers, remoteHouseholds, remotePrivacyRequests] = await Promise.all([
         fetchUsers(),
         fetchAllHouseholds(),
+        fetchPrivacyRequests(),
       ]);
       if (remoteUsers.ok) setUsers(remoteUsers.data);
+      if (remotePrivacyRequests.ok) setPrivacyRequests(remotePrivacyRequests.data);
       if (remoteHouseholds.ok && remoteHouseholds.data.length > 0) setHouseholds(remoteHouseholds.data);
     } catch (err) {
       console.error('Failed to load admin data', err);
@@ -210,7 +216,17 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail, caretake
     await inviteMember(newInviteEmail.trim().toLowerCase(), newInviteHousehold || currentHouseholdId);
   };
 
+  const handleMarkAnswered = async (id: string) => {
+    const res = await markPrivacyRequestHandled(id);
+    if (res.ok) {
+      setPrivacyRequests((previous) => previous.map((privacyRequest) => (privacyRequest.id === id ? res.data : privacyRequest)));
+    } else {
+      toast.danger(t.toasts[res.errorKey]);
+    }
+  };
+
   const pendingUsers = (users || []).filter((registeredUser) => registeredUser.status === 'PENDING_APPROVAL');
+  const openPrivacyRequests = privacyRequests.filter((privacyRequest) => !privacyRequest.handledAt).length;
   const activeUsers = (users || []).filter((registeredUser) => registeredUser.status === 'ACTIVE');
 
   if (!isSuperAdmin) {
@@ -223,8 +239,6 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail, caretake
           </h2>
           <p className="text-xs text-slate-400">
             {t.admin.onlySuperAdmin}
-            <strong className="text-white">{SUPER_ADMIN_EMAIL}</strong>
-            {t.admin.canAccessCenter}
           </p>
         </Card.Content>
       </Card>
@@ -381,6 +395,61 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail, caretake
                         </button>
                       </div>
                     </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </Card.Content>
+      </Card>
+
+      {/* Privacy requests, from the /privacy form: answered by email, then marked here */}
+      <Card className="bg-slate-900 border-slate-800 text-slate-100">
+        <Card.Header className="px-4 pt-4">
+          <Card.Title className="flex flex-wrap items-center justify-between gap-x-2 font-bold">
+            <span className="flex items-center gap-2">
+              <Mail className="w-4 h-4 text-indigo-400 shrink-0" />
+              <span>{t.admin.privacyRequests.replace('{count}', String(openPrivacyRequests))}</span>
+            </span>
+            <span className="text-xs text-slate-400 font-normal">{t.admin.privacyRequestsHint}</span>
+          </Card.Title>
+        </Card.Header>
+        <Card.Content className="p-4">
+          {privacyRequests.length === 0 ? (
+            <p className="text-xs text-slate-400 bg-slate-950/40 p-4 rounded-xl border border-slate-800 text-center">
+              {t.admin.noPrivacyRequests}
+            </p>
+          ) : (
+            <div className="space-y-3">
+              {privacyRequests.map((privacyRequest) => {
+                const hasAccount = users.some((registeredUser) => registeredUser.email.toLowerCase() === privacyRequest.email);
+                return (
+                  <div key={privacyRequest.id} className="p-4 bg-slate-950/40 rounded-xl border border-slate-800 space-y-2">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="min-w-0">
+                        <div className="text-xs font-bold text-slate-100">{t.admin.privacyRequestKinds[privacyRequest.kind] ?? privacyRequest.kind}</div>
+                        <div className="text-xs text-slate-400 mt-0.5 break-all">
+                          {privacyRequest.email} · {privacyRequest.lang.toUpperCase()} · {privacyRequest.createdAt ? formatShortDate(privacyRequest.createdAt, lang) : ''}
+                        </div>
+                        <div className={`text-xs mt-0.5 ${hasAccount ? 'text-emerald-400' : 'text-amber-300'}`}>
+                          {hasAccount ? t.admin.requestFromAccount : t.admin.requestNoAccount}
+                        </div>
+                      </div>
+                      {privacyRequest.handledAt ? (
+                        <span className="text-xs text-slate-400">{t.admin.answeredOn.replace('{date}', formatShortDate(privacyRequest.handledAt, lang))}</span>
+                      ) : (
+                        <Button
+                          size="sm"
+                          onPress={() => void handleMarkAnswered(privacyRequest.id)}
+                          className="min-h-11 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs"
+                        >
+                          {t.admin.markAnswered}
+                        </Button>
+                      )}
+                    </div>
+                    {privacyRequest.message && (
+                      <p className="text-xs text-slate-300 whitespace-pre-wrap break-words">{privacyRequest.message}</p>
+                    )}
                   </div>
                 );
               })}

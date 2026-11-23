@@ -24,7 +24,7 @@ Hand-written SQL, run by hand. Nothing runs these files automatically: no deploy
 
 ## Procedure
 
-1. **Backup branch.** Neon console > Branches > Create branch from `main` (production), named `backup-before-NNNN`. Delete it once the change has lived a few days without trouble.
+1. **Backup branch.** Neon console > Branches > Create branch from `main` (production), named `backup-before-NNNN`. Delete it once the change has lived a few days without trouble. A change that only adds (a new table, a nullable column, an index) needs none: it touches no row, and Neon keeps 6 hours of restore history.
 2. **Preview.** Run the file on the `preview` branch (Neon SQL editor with `preview` selected, or `psql "$PREVIEW_POSTGRES_URL" -f migrations/NNNN_short_name.sql`). Fill "Applied to preview".
 3. **Check the preview deployment.** Open the pull request's preview, use what the change is for, and check that the rest still works (dashboard, a log, the health passport).
 4. **Production, with the owner's OK.** Run the same file on `main`. Fill "Applied to production".

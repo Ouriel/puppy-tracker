@@ -147,7 +147,7 @@ Open it from the health summary, or at `/health-passport`. Under its title, one 
 - Only the owner (or an admin) renames a badge linked to someone else, or unlinks a badge. Only the owner deletes badges.
 - **Invite** (owner or Admin): an email, approved in advance. It joins your family with a badge already linked to it. If that person already has an account in another family, the app asks the owner before moving them, and tells an Admin to ask the owner (unless that account is a sign-up still waiting alone in a household with no dog: it simply joins).
 
-**Owner panel** (owner only): every account, pending ones first. Approve (the person stays in their own household unless you pick another, which asks first; approved alone in their own household, they become its Admin), move to another household, revoke (back to pending), delete, or invite an email into a chosen household.
+**Owner panel** (owner only): every account, pending ones first. Approve (the person stays in their own household unless you pick another, which asks first; approved alone in their own household, they become its Admin), move to another household, revoke (back to pending), delete, or invite an email into a chosen household. It also lists the requests sent from the privacy policy's form (`/privacy`, which shows no email address), with whether an account has the sender's email: answer each by email, then mark it answered.
 
 ## Phone install, offline and updates
 

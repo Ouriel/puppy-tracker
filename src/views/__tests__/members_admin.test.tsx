@@ -15,6 +15,8 @@ const apiMock = vi.hoisted(() => ({
   deleteUser: vi.fn(),
   fetchUsers: vi.fn(),
   fetchAllHouseholds: vi.fn(),
+  fetchPrivacyRequests: vi.fn(),
+  markPrivacyRequestHandled: vi.fn(),
 }));
 vi.mock('../../services/api', () => apiMock);
 
@@ -44,6 +46,7 @@ beforeEach(() => {
   Object.values(apiMock).forEach((mock) => mock.mockReset());
   apiMock.createUser.mockResolvedValue({ ok: true, data: {} });
   apiMock.updateUser.mockResolvedValue({ ok: true, data: {} });
+  apiMock.fetchPrivacyRequests.mockResolvedValue({ ok: true, data: [] });
 });
 
 afterEach(async () => {
@@ -449,6 +452,25 @@ describe('Admin panel (27, 28)', () => {
   }
 
   const assignSelect = () => document.querySelectorAll<HTMLSelectElement>('select')[0];
+
+  it('lists the privacy requests from /privacy, says whether an account has the email, and marks one answered', async () => {
+    const request = { id: 'prq-1', email: 'bob.smith@example.com', kind: 'erase', message: 'Please delete everything', lang: 'fr', createdAt: '2026-11-20T10:00:00.000Z', handledAt: null };
+    const stranger = { ...request, id: 'prq-2', email: 'nobody@example.com', kind: 'access', message: null, lang: 'en' };
+    apiMock.fetchPrivacyRequests.mockResolvedValue({ ok: true, data: [request, stranger] });
+    apiMock.markPrivacyRequestHandled.mockResolvedValue({ ok: true, data: { ...request, handledAt: '2026-11-22T09:00:00.000Z' } });
+    await renderAdmin();
+
+    expect(document.body.textContent).toContain('Privacy requests (2 to answer)');
+    expect(document.body.textContent).toContain('Delete my account and data');
+    expect(document.body.textContent).toContain('Please delete everything');
+    expect(document.body.textContent).toContain('Account found');
+    expect(document.body.textContent).toContain('No account with this email');
+
+    await click(buttons('Mark as answered')[0]);
+    expect(apiMock.markPrivacyRequestHandled).toHaveBeenCalledWith('prq-1');
+    expect(document.body.textContent).toContain('Privacy requests (1 to answer)');
+    expect(document.body.textContent).toMatch(/Answered on/);
+  });
 
   it("'Assign to' defaults to the user's own household, and Approve keeps them there, with no badge in the family", async () => {
     const { onAddCaretaker } = await renderAdmin();
