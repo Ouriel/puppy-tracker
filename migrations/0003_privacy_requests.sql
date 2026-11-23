@@ -7,7 +7,7 @@
 --   DROP TABLE IF EXISTS privacy_requests;
 --   Requests not answered yet are lost: answer them or copy them out first.
 -- Applied to preview: 2026-11-22
--- Applied to production:
+-- Applied to production: 2026-11-23 (no backup branch: a new empty table touches no row; counts unchanged)
 
 CREATE TABLE IF NOT EXISTS privacy_requests (
   id text PRIMARY KEY,
