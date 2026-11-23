@@ -21,7 +21,7 @@
     "@vercel/analytics": "^2.0.1",
     "@vercel/speed-insights": "^2.1.0",
     "drizzle-orm": "^0.45.4",
-    "lucide-react": "^1.75.0",
+    "lucide-react": "^1.77.0",
     "react": "^19.3.1",
     "react-aria": "^3.53.1",
     "react-aria-components": "^1.22.1",
