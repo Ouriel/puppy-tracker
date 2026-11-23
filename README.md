@@ -30,7 +30,7 @@ React 19 · Vite 8 · HeroUI v3 · Tailwind 4 · Vercel serverless functions · 
 ## Signing in and families
 
 - Sign in with Google. The first sign-in of a new person creates an account **waiting for approval**, in a new household of its own; until the owner approves it, the sign-in screen says the request was sent and waits for the family's admin (still shown after a reload on that phone, with "Use another Google account"). Approved there, alone, that person becomes the family's **Admin**: the first member of a new family invites the rest of it.
-- The owner, or a family's Admin, can also **invite** someone by email in advance (Settings > Members). An invited person lands directly in the inviter's family, as a member. Someone who signed in before being invited and still waits alone, in a household with no dog, joins it too.
+- The owner, or a family's Admin, can also **invite** someone by email in advance (Settings > Members). An invited person lands directly in the inviter's family, as a member. The owner can instead invite someone into a **new household**, named in the invite: that person lands there as its Admin. Someone who signed in before being invited and still waits alone, in a household with no dog, joins it too.
 - Several families can use the same app: each household sees only its own dogs, logs and members. Apart from that case, only the owner moves an account from one household to another, and always after a confirmation.
 - A session lasts 90 days and is renewed each time the app is opened. A removed or revoked account is sent back to the sign-in screen on its next request.
 
@@ -147,7 +147,7 @@ Open it from the health summary, or at `/health-passport`. Under its title, one 
 - Only the owner (or an admin) renames a badge linked to someone else, or unlinks a badge. Only the owner deletes badges.
 - **Invite** (owner or Admin): an email, approved in advance. It joins your family with a badge already linked to it. If that person already has an account in another family, the app asks the owner before moving them, and tells an Admin to ask the owner (unless that account is a sign-up still waiting alone in a household with no dog: it simply joins).
 
-**Owner panel** (owner only): every account, pending ones first. Approve (the person stays in their own household unless you pick another, which asks first; approved alone in their own household, they become its Admin), move to another household, revoke (back to pending), delete, or invite an email into a chosen household. It also lists the requests sent from the privacy policy's form (`/privacy`, which shows no email address), with whether an account has the sender's email: answer each by email, then mark it answered.
+**Owner panel** (owner only): every account, pending ones first. Approve (the person stays in their own household unless you pick another, which asks first; approved alone in their own household, they become its Admin), move to another household, revoke (back to pending), delete, or invite an email into a chosen household or a new one (named there; the invitee is its Admin). It lists every household by name, with its number of accounts, and renames them: a household not named yet is called after its Admin (else its first account). Only the owner sees these names. It also lists the requests sent from the privacy policy's form (`/privacy`, which shows no email address), with whether an account has the sender's email: answer each by email, then mark it answered.
 
 ## Phone install, offline and updates
 
@@ -173,7 +173,7 @@ Browser (React SPA, PWA)  ──/api/*──▶  Vercel functions (api/*.ts)  �
 - **SPA**: three routes, `/`, `/health-passport`, `/settings` (history API). Passport, settings, sign-in and the log form are lazy chunks; the log form chunk is prefetched 2 s after the dashboard is ready.
 - **Predictions run in the browser** (`src/utils/predictions.ts`), from the logs loaded on the device. The server only stores and returns rows.
 - **BFF**: `GET /api/dashboard?puppyId=&days=` returns, in one Neon batch: the household's dogs and badges, the dog's logs of the last `days` (default 14, max 90, at most 300 rows), the household's health records, and **every** weight and medication event of the dog (weigh-ins are weeks apart; the passport lists every medication). The app calls it at boot, on every return to the foreground, and every 15 minutes while the app stays visible (never while hidden, and never while one is still running). Switching dogs loads that dog's logs from `/api/activities`; the passport and the health summary share its health records (the passport calls `/api/health-records?puppyId=` only while `/api/dashboard` fails).
-- Other endpoints: `api/activities.ts`, `api/dogs.ts`, `api/health-records.ts`, `api/households.ts` (badges), `api/users.ts` (accounts), `api/auth/session.ts`.
+- Other endpoints: `api/activities.ts`, `api/dogs.ts`, `api/health-records.ts`, `api/households.ts` (badges; with `?all=true`, the owner's list of households and their names), `api/users.ts` (accounts), `api/auth/session.ts`.
 - `vercel.json`: `npm ci` install, SPA rewrite (except `/api/` and files), `/privacy` and `/terms` static pages, long cache on `/assets/`.
   Security headers on every route: `nosniff`, `strict-origin-when-cross-origin`, `X-Frame-Options: DENY`, and a Content-Security-Policy sent as `Content-Security-Policy-Report-Only` until checked on production (violations show in the browser console; scripts only from the app and Google sign-in, no inline script).
 - Vercel Web Analytics and Speed Insights are on; the URLs they send are reduced to the route.
@@ -198,7 +198,7 @@ Browser (React SPA, PWA)  ──/api/*──▶  Vercel functions (api/*.ts)  �
 | Table | Holds |
 |---|---|
 | `users` | Google accounts: email (unique), name, role, status (`ACTIVE` / `PENDING_APPROVAL`), household |
-| `households` | optional display names for household ids |
+| `households` | names the owner gave household ids (a row is created on the first name; `family_pack_id` = `id`) |
 | `puppies` | dog profile: breed, birth date, sex, daily gram goal (0 = no gram goal), meals per day, expected adult weight (custom breeds); `deleted_at` is set on a deleted dog, which every read skips |
 | `caretakers` | badges: name, colour, optional linked email |
 | `activities` | one row per log: `type` (pee, poop, food, weight, medication; the API also accepts `walk`, which the app never sends), timestamp (timestamptz), `logged_by` (badge name), potty place, stool, grams, weight, medication name, notes |

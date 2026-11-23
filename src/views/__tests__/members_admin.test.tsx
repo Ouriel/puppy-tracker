@@ -17,6 +17,7 @@ const apiMock = vi.hoisted(() => ({
   fetchAllHouseholds: vi.fn(),
   fetchPrivacyRequests: vi.fn(),
   markPrivacyRequestHandled: vi.fn(),
+  renameHousehold: vi.fn(),
 }));
 vi.mock('../../services/api', () => apiMock);
 
@@ -440,8 +441,10 @@ describe('Admin panel (27, 28)', () => {
     apiMock.fetchUsers.mockResolvedValue({ ok: true, data: users });
     apiMock.fetchAllHouseholds.mockResolvedValue({
       ok: true,
+      // As the API lists them: a household the owner has not named comes with no name
       data: [
-        { id: 'FAMILY-COCKER-2026', name: 'Family Pack (Main)' },
+        { id: 'FAMILY-COCKER-2026', name: null },
+        { id: 'house-stranger', name: null },
         { id: 'hh-other', name: 'Other Family' },
         { id: 'hh-third', name: 'Third Family' },
       ],
@@ -540,7 +543,7 @@ describe('Admin panel (27, 28)', () => {
     await click(buttons('Approve and assign')[0]);
 
     expect(apiMock.updateUser).not.toHaveBeenCalled();
-    expect(document.body.textContent).toContain('Add jane.doe@example.com to Family Pack (Main)?');
+    expect(document.body.textContent).toContain("Add jane.doe@example.com to Owner Fullname's household?");
 
     await click(buttons('Approve and assign').at(-1)!);
     expect(apiMock.updateUser).toHaveBeenCalledWith({ email: 'jane.doe@example.com', status: 'ACTIVE', householdId: 'FAMILY-COCKER-2026' });
@@ -619,6 +622,53 @@ describe('Admin panel (27, 28)', () => {
     expect(document.body.textContent).toContain('Add jane.doe@example.com to Other Family?');
   });
 
+  async function chooseNewHousehold(name: string) {
+    await setValue(document.querySelectorAll<HTMLSelectElement>('select')[1], '+new');
+    await setValue(document.querySelector<HTMLInputElement>('input[aria-label="Household name"]')!, name);
+  }
+
+  it('"New household…" asks for its name and invites the person as its Admin, with no badge in the owner\'s household', async () => {
+    const { onAddCaretaker } = await renderAdmin();
+    expect(document.querySelector('input[aria-label="Household name"]')).toBeNull();
+    await chooseNewHousehold('  Famille Durand ');
+    await preApprove('new.person@example.com');
+
+    expect(apiMock.createUser.mock.calls[0][0]).toEqual({ email: 'new.person@example.com', status: 'ACTIVE', role: 'Admin', newHouseholdName: 'Famille Durand' });
+    expect(onAddCaretaker).not.toHaveBeenCalled();
+    expect(document.body.textContent).toContain('Invited new.person@example.com as the admin of "Famille Durand".');
+  });
+
+  it('for an account living elsewhere, names the new household in the question, then resends with confirmMove', async () => {
+    apiMock.createUser.mockResolvedValueOnce({ ok: false, status: 409, error: 'exists' });
+    await renderAdmin();
+    await chooseNewHousehold('Famille Durand');
+    await preApprove('jane.doe@example.com');
+
+    expect(document.body.textContent).toContain('Add jane.doe@example.com to Famille Durand?');
+    await click(buttons('Add to household')[0]);
+    expect(apiMock.createUser.mock.calls[1][0]).toEqual({
+      email: 'jane.doe@example.com', status: 'ACTIVE', role: 'Admin', newHouseholdName: 'Famille Durand', confirmMove: true,
+    });
+  });
+
+  it('lists every household by name, one not named yet after its admin, with its accounts, and renames it', async () => {
+    apiMock.renameHousehold.mockResolvedValue({ ok: true, data: { id: 'FAMILY-COCKER-2026', name: 'Famille Cocker' } });
+    await renderAdmin();
+
+    expect(document.body.textContent).toContain('Households (4)');
+    expect(document.body.textContent).toContain("Owner Fullname's household1 account");
+    expect(document.body.textContent).toContain('Third Family0 accounts');
+    await click(document.querySelector<HTMLButtonElement>('button[aria-label="Rename Owner Fullname\'s household"]')!);
+    const nameBox = document.querySelector<HTMLInputElement>('input[aria-label="Household name"]')!;
+    expect(nameBox.value).toBe("Owner Fullname's household");
+    await setValue(nameBox, ' Famille Cocker ');
+    await click(buttons('Save')[0]);
+
+    expect(apiMock.renameHousehold).toHaveBeenCalledWith('FAMILY-COCKER-2026', 'Famille Cocker');
+    expect(document.querySelector('button[aria-label="Rename Famille Cocker"]')).not.toBeNull();
+    expect([...document.querySelectorAll('select')[1].options].map((option) => option.textContent)).toContain('Famille Cocker');
+  });
+
   // App review 2026-10-16, Settings: Admin: at 320 px the selects were 434 px wide (each option carried the household id)
   it('the household selects name each household only (its id in a title) and fit their row; role chips are 12 px', async () => {
     await renderAdmin();
@@ -628,7 +678,8 @@ describe('Admin panel (27, 28)', () => {
     for (const select of selects) {
       expect(select.classList).toContain('w-full');
       expect(select.classList).toContain('min-w-0');
-      for (const option of select.options) {
+      // Every option but the invite's "New household…", which is not a household yet
+      for (const option of [...select.options].filter((option) => option.value !== '+new')) {
         expect(option.textContent).not.toContain(option.value);
         expect(option.title).toBe(option.value);
       }
@@ -646,7 +697,7 @@ describe('Admin panel (27, 28)', () => {
       await setValue(moveSelect(), 'FAMILY-COCKER-2026');
 
       expect(apiMock.updateUser).not.toHaveBeenCalled();
-      expect(document.body.textContent).toContain('Move bob.smith@example.com to Family Pack (Main)?');
+      expect(document.body.textContent).toContain("Move bob.smith@example.com to Owner Fullname's household?");
 
       await click(buttons('Move').at(-1)!);
       expect(apiMock.updateUser).toHaveBeenCalledWith({ email: 'bob.smith@example.com', householdId: 'FAMILY-COCKER-2026' });
@@ -693,7 +744,7 @@ describe('Admin panel (27, 28)', () => {
         await renderAdmin();
         await setValue(document.querySelector<HTMLSelectElement>('select[aria-label="Foyer de Bob Smith"]')!, 'FAMILY-COCKER-2026');
 
-        expect(document.body.textContent).toContain('Déplacer bob.smith@example.com vers Family Pack (Main)\u00a0?');
+        expect(document.body.textContent).toContain('Déplacer bob.smith@example.com vers Foyer de Owner Fullname\u00a0?');
         expect(buttons('Déplacer')).toHaveLength(1);
       } finally {
         localStorage.removeItem('puppace_lang_v1');
@@ -751,7 +802,7 @@ describe('Members and Admin in French: no English left', () => {
   });
 
   // A sign-up's own household has no households row: the message names it as the select does, never by its id
-  it('Admin: approving a sign-up in its own household reads "activé dans « Son propre foyer »", not the household id', async () => {
+  it('Admin: approving a sign-up in its own household reads "activé dans « Foyer de Jane Doe »", not the household id', async () => {
     localStorage.setItem('puppace_lang_v1', 'fr');
     try {
       apiMock.fetchUsers.mockResolvedValue({ ok: true, data: [
@@ -762,7 +813,7 @@ describe('Members and Admin in French: no English left', () => {
       await render(<AdminView currentUserEmail={SUPER_ADMIN_EMAIL} caretakers={badges} onAddCaretaker={vi.fn()} />);
 
       await click(buttons('Approuver et assigner')[0]);
-      expect(document.body.textContent).toContain('jane.doe@example.com activé dans «\u00a0Son propre foyer\u00a0».');
+      expect(document.body.textContent).toContain('jane.doe@example.com activé dans «\u00a0Foyer de Jane Doe\u00a0».');
       // (The pending row still shows the id on its "ID" line, on purpose)
       expect(document.body.textContent).not.toContain('activé dans «\u00a0house-stranger');
     } finally {

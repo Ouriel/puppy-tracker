@@ -7,6 +7,9 @@ import { isSuperAdminEmail } from '../src/utils/auth.js';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getDatabaseUrl } from './_db.js';
 
+/** A new household's id: a sign-up's own, or one the owner's invite creates. */
+export const newHouseholdId = () => `house-${Date.now()}-${randomUUID().slice(0, 8)}`;
+
 export function setCorsHeaders(req: VercelRequest, res: VercelResponse, methods = 'GET, POST, PUT, DELETE, OPTIONS') {
   const origin = (req.headers.origin as string) || '';
   const isAllowed =
@@ -233,12 +236,12 @@ export async function verifyAuth(req: VercelRequest): Promise<AuthContext> {
   // Auto-register user in DB if logging in for the first time
   if (!user) {
     const isSuperAdmin = isSuperAdminEmail(userEmail);
-    const newHouseholdId = isSuperAdmin ? 'FAMILY-COCKER-2026' : `house-${Date.now()}-${randomUUID().slice(0, 8)}`;
+    const householdId = isSuperAdmin ? 'FAMILY-COCKER-2026' : newHouseholdId();
     const [created] = await db
       .insert(usersTable)
       .values({
         id: `usr-${randomUUID()}`,
-        householdId: newHouseholdId,
+        householdId,
         email: userEmail,
         name: payload.name || userEmail.split('@')[0],
         role: isSuperAdmin ? 'SuperAdmin' : 'Member',

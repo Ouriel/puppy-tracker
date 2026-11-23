@@ -99,6 +99,14 @@ export const UserInputSchema = z.object({
   householdId: idText.optional(),
   // POST only: the inviter confirmed moving an account that lives in another household
   confirmMove: z.boolean().optional(),
+  // POST, owner only: invite into a new household of this name, as its Admin
+  newHouseholdName: shortText.trim().min(1).optional(),
+});
+
+// The owner names a household from the Admin panel
+export const HouseholdNameSchema = z.object({
+  id: idText.min(1),
+  name: shortText.trim().min(1, 'Name is required'),
 });
 
 // The privacy policy's form (/privacy), sent by anyone: `website` is a trap field people never see, so a value means a bot

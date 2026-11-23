@@ -76,6 +76,12 @@ export interface RegisteredUserItem {
   status: 'ACTIVE' | 'PENDING_APPROVAL';
 }
 
+/** A household in the owner's Admin panel: `name` is null until the owner names it. */
+export interface HouseholdItem {
+  id: string;
+  name: string | null;
+}
+
 /** A request sent from the privacy policy's form, listed for the owner in the Admin panel. */
 export interface PrivacyRequestItem {
   id: string;

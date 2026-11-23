@@ -2,8 +2,8 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { neon } from '@neondatabase/serverless';
 import { drizzle } from 'drizzle-orm/neon-http';
 import { eq, and } from 'drizzle-orm';
-import { activitiesTable, caretakersTable, householdsTable } from '../src/db/schema.js';
-import { CaretakerInputSchema } from '../src/utils/schemas.js';
+import { activitiesTable, caretakersTable, householdsTable, usersTable } from '../src/db/schema.js';
+import { CaretakerInputSchema, HouseholdNameSchema } from '../src/utils/schemas.js';
 import { verifyAuth, sendAuthError, setCorsHeaders, canDeleteHouseholdData, type AuthContext } from './_auth.js';
 import { getDatabaseUrl } from './_db.js';
 import type { MemberRefusalCode } from '../src/types/index.js';
@@ -73,14 +73,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // GET /api/households — The household's badges (or all households for SuperAdmin)
     if (req.method === 'GET') {
       
+      // A household has a row only once named: the accounts' households without one are listed with no name
       if (req.query.all === 'true' && auth.role === 'SuperAdmin') {
-        const allHouseholds = await db.select().from(householdsTable);
-        // Ensure default household is in the list if not in DB yet
-        const hasMain = allHouseholds.some((household) => household.id === 'FAMILY-COCKER-2026');
-        const list = hasMain
-          ? allHouseholds
-          : [{ id: 'FAMILY-COCKER-2026', familyPackId: 'FAMILY-COCKER-2026', name: 'Family Pack (Main)' }, ...allHouseholds];
-        return res.status(200).json({ households: list });
+        const [named, inUse] = await Promise.all([
+          db.select({ id: householdsTable.id, name: householdsTable.name }).from(householdsTable),
+          db.selectDistinct({ id: usersTable.householdId }).from(usersTable),
+        ]);
+        const unnamed = inUse
+          .filter((account) => !named.some((household) => household.id === account.id))
+          .map((account) => ({ id: account.id, name: null }));
+        return res.status(200).json({ households: [...named, ...unnamed] });
       }
 
       const caretakers = await db
@@ -89,6 +91,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         .where(eq(caretakersTable.householdId, householdId));
 
       return res.status(200).json({ caretakers });
+    }
+
+    // PUT /api/households?all=true — The owner names a household: its row is created on the first name
+    if (req.method === 'PUT' && req.query.all === 'true') {
+      if (auth.role !== 'SuperAdmin') return res.status(403).json({ error: 'Only the owner names households' });
+      const parsed = HouseholdNameSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: 'Invalid household name', details: parsed.error.issues });
+      }
+      const { id, name } = parsed.data;
+      const [[stored], [account]] = await Promise.all([
+        db.select({ id: householdsTable.id }).from(householdsTable).where(eq(householdsTable.id, id)),
+        db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.householdId, id)).limit(1),
+      ]);
+      if (!stored && !account) return res.status(404).json({ error: 'Household not found' });
+      const [household] = await db
+        .insert(householdsTable)
+        .values({ id, familyPackId: id, name })
+        .onConflictDoUpdate({ target: householdsTable.id, set: { name } })
+        .returning({ id: householdsTable.id, name: householdsTable.name });
+      return res.status(200).json(household);
     }
 
     // POST /api/households — Add a new caretaker
