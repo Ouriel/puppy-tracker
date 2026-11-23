@@ -28,7 +28,7 @@ function storePendingEmail(email: string) {
 }
 
 interface AuthLockScreenProps {
-  onUnlockWithSSO: (email: string, name: string, token: string) => Promise<SignInOutcome>;
+  onUnlockWithSSO: (token: string) => Promise<SignInOutcome>;
 }
 
 export const AuthLockScreen: React.FC<AuthLockScreenProps> = ({
@@ -65,7 +65,7 @@ export const AuthLockScreen: React.FC<AuthLockScreenProps> = ({
       const decoded = JSON.parse(jsonPayload);
 
       email = decoded.email;
-      outcome = await onUnlockWithSSO(decoded.email, decoded.name, credential);
+      outcome = await onUnlockWithSSO(credential);
     } catch {
       // An unreadable credential or a thrown error is a failed sign-in
     }

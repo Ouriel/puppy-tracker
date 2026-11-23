@@ -3,7 +3,6 @@ import type { Caretaker, UserAccount } from '../types';
 import { Home, Users, UserPlus, Trash2, Mail, Send, CheckCircle2, UserCheck, Copy, Share2, Pencil, X, Check } from 'lucide-react';
 import { createUser } from '../services/api';
 import { buildInviteBadge, findLinkedCaretaker, firstFreeBadgeColor } from '../utils/caretakers';
-import { isSuperAdminEmail } from '../utils/auth';
 import { useI18n } from '../i18n';
 import { Card, Button, Input, Chip, toast } from '@heroui/react';
 import { ConfirmationModal } from '../components/common/ConfirmationModal';
@@ -47,7 +46,7 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
   const myEmail = user.email.toLowerCase();
   // The same rule as logged-by: the chip and the delete guard follow the email link, never a name guess.
   const linkedCaretaker = findLinkedCaretaker(user, caretakers);
-  const isOwner = isSuperAdminEmail(user.email);
+  const isOwner = user.role === 'SuperAdmin';
   const isEditNameMissing = hasTriedEditSave && !editName.trim();
   // The owner and a family's Admin pre-approve into their own family: the server refuses members.
   const canPreApprove = isOwner || user.role === 'Admin';
@@ -299,7 +298,7 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
                 // 'This is me' on an unlinked badge while no badge carries my email; unticking it on my own badge
                 // (unlinking) is for the owner only, as the server refuses it to members.
                 const canClaim = caretaker.email
-                  ? isLinkedToMe && isSuperAdminEmail(user.email)
+                  ? isLinkedToMe && isOwner
                   : !caretakers.some((item) => item.email?.toLowerCase() === myEmail);
                 // One line each: colour and name, then "This is me", then Save and close
                 return (

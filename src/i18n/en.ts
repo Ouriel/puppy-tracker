@@ -377,8 +377,6 @@ export const en = {
     preApprove: 'Invite',
     revoke: 'Revoke',
     deleteConfirmBody: "Delete this account? This can't be undone, and this email loses access.",
-    accessRestricted: 'Access restricted',
-    onlySuperAdmin: 'Only the owner can open this panel.',
     activatedAccount: 'Activated {email} in "{household}".',
     movedAccount: 'Moved {email} to "{household}".',
     revokedAccess: 'Revoked access for {email}.',

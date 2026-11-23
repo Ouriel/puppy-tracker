@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef, lazy, Suspense, startTransition, type ReactNode, type SetStateAction } from 'react';
 import type { Activity, UserAccount, ActivityType, PottyLocation, FamilyRole, HealthRecord, HealthRecordsLoadState, PuppyProfile, RegisteredUserItem, SignInOutcome } from './types';
 import { getAuthToken, setAuthToken, getStoredAuthUser, setStoredAuthUser } from './utils/auth';
-import { isSuperAdminEmail } from './utils/auth';
 import {
   fetchDashboard,
   fetchDogs,
@@ -448,7 +447,7 @@ function App() {
   useEffect(() => (hasUnsentLogs ? holdUpdate() : undefined), [hasUnsentLogs]);
 
   // The lock screen shows its own busy state during the exchange, so a refused sign-in keeps its message there
-  const handleUnlockWithSSO = async (email: string, name: string, token: string): Promise<SignInOutcome> => {
+  const handleUnlockWithSSO = async (token: string): Promise<SignInOutcome> => {
     const sessionRes = await exchangeSessionToken(token);
     if (sessionRes.ok && sessionRes.data?.user && sessionRes.data.sessionToken) {
       setAuthToken(sessionRes.data.sessionToken);
@@ -462,19 +461,6 @@ function App() {
       }
 
       startTransition(() => setIsLoading(false));
-      return 'signedIn';
-    }
-
-    // Fallback for Super Admin on initial cold setup
-    if (isSuperAdminEmail(email)) {
-      const superUser: UserAccount = {
-        email,
-        name,
-        role: 'SuperAdmin',
-      };
-      setAuthToken(token);
-      setUser(superUser);
-      setStoredAuthUser(superUser);
       return 'signedIn';
     }
 
