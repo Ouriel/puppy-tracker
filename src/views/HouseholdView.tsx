@@ -48,8 +48,8 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
   const linkedCaretaker = findLinkedCaretaker(user, caretakers);
   const isOwner = user.role === 'SuperAdmin';
   const isEditNameMissing = hasTriedEditSave && !editName.trim();
-  // The owner and a family's Admin pre-approve into their own family: the server refuses members.
-  const canPreApprove = isOwner || user.role === 'Admin';
+  // The owner and a family's Admin pre-approve into their own family and delete its badges: the server refuses members.
+  const isAdmin = isOwner || user.role === 'Admin';
 
   // Into the inviter's own household (the server's default): the account keeps its Google name, and the badge
   // carries the invited email.
@@ -117,7 +117,7 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
         title={t.household.title}
         subtitle={t.household.subtitle}
         action={
-          canPreApprove && (
+          isAdmin && (
             <Button
               variant="primary"
               size="sm"
@@ -403,7 +403,7 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
                   )}
 
                   <div className="col-start-3 row-start-1 flex items-center gap-1.5">
-                    {isSelected ? (
+                    {isAdmin && (isSelected ? (
                       <div aria-hidden="true" className="w-11 h-11" />
                     ) : (
                       <button
@@ -414,7 +414,7 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
-                    )}
+                    ))}
 
                     <button
                       type="button"

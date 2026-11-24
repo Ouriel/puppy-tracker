@@ -30,7 +30,8 @@ interface PuppiesViewProps {
   onAddPuppy: (puppy: PuppyProfile) => Promise<boolean>;
   onUpdatePuppy: (puppy: PuppyProfile) => Promise<boolean>;
   onDeletePuppy: (id: string) => void;
-  deletedPuppies: PuppyProfile[]; // only the owner gets any from the server
+  canDelete: boolean; // the owner or the household's Admin: the server refuses a member's delete
+  deletedPuppies: PuppyProfile[]; // only the owner and the household's Admin get any from the server
   onRestorePuppy: (id: string) => void;
 }
 
@@ -111,6 +112,7 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
   onAddPuppy,
   onUpdatePuppy,
   onDeletePuppy,
+  canDelete,
   deletedPuppies,
   onRestorePuppy,
 }) => {
@@ -514,14 +516,16 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
                         <Pencil className="w-4 h-4" />
                       </button>
 
-                      <button
-                        type="button"
-                        onClick={() => setConfirmDelete({ id: puppy.id, type: 'dog' })}
-                        aria-label={t.common.deleteItem.replace('{item}', puppy.name)}
-                        className="p-2 min-h-11 min-w-11 flex items-center justify-center text-slate-400 hover:text-red-400 hover:bg-slate-800 rounded-xl border border-slate-800 bg-slate-950 transition-colors"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                      {canDelete && (
+                        <button
+                          type="button"
+                          onClick={() => setConfirmDelete({ id: puppy.id, type: 'dog' })}
+                          aria-label={t.common.deleteItem.replace('{item}', puppy.name)}
+                          className="p-2 min-h-11 min-w-11 flex items-center justify-center text-slate-400 hover:text-red-400 hover:bg-slate-800 rounded-xl border border-slate-800 bg-slate-950 transition-colors"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
                     </div>
                   </div>
 
@@ -559,7 +563,7 @@ export const PuppiesView: React.FC<PuppiesViewProps> = ({
         </div>
       )}
 
-      {/* Deleted dogs: hidden for everyone, with their logs and records kept; the owner restores one here */}
+      {/* Deleted dogs: hidden for everyone, with their logs and records kept; the owner or the Admin restores one here */}
       {deletedPuppies.length > 0 && (
         <Card className="bg-slate-900 border-slate-800 text-slate-100">
           <Card.Content className="p-3.5 sm:p-5 space-y-3">

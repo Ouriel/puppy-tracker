@@ -68,6 +68,7 @@ async function renderView({
         onAddPuppy={onAddPuppy}
         onUpdatePuppy={onUpdatePuppy}
         onDeletePuppy={vi.fn()}
+        canDelete
         deletedPuppies={[]}
         onRestorePuppy={vi.fn()}
         {...props}
@@ -512,13 +513,21 @@ describe('PuppiesView deleted dogs, in French', () => {
     expect(document.body.textContent).not.toContain('Chiens supprimés');
   });
 
-  it('the delete dialog says the owner can restore the dog, no longer that it cannot be undone', async () => {
+  it('the delete dialog says the dog can be restored, no longer that it cannot be undone', async () => {
     await renderView();
     await click(buttonLabelled('Supprimer Rex')!);
 
     const dialog = document.querySelector('[role="dialog"]')!;
-    expect(dialog.textContent).toContain('le propriétaire peut le restaurer');
+    expect(dialog.textContent).toContain('tu peux le restaurer');
     expect(dialog.textContent).not.toContain('irréversible');
+  });
+
+  // Audit M3: only the owner and the household's Admin delete; a member's delete would always get 403
+  it('shows no delete button to a member, who still edits the dog', async () => {
+    await renderView({ canDelete: false });
+
+    expect(buttonLabelled('Supprimer Rex')).toBeNull();
+    expect(buttonLabelled('Modifier Rex')).not.toBeNull();
   });
 });
 

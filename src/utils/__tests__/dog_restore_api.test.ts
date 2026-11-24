@@ -4,6 +4,7 @@ import dogsHandler from '../../../api/dogs.js';
 import dashboardHandler from '../../../api/dashboard.js';
 import activitiesHandler from '../../../api/activities.js';
 import healthRecordsHandler from '../../../api/health-records.js';
+import householdsHandler from '../../../api/households.js';
 import { signAppSessionToken } from '../../../api/_auth.js';
 import { SUPER_ADMIN_EMAIL } from '../auth.js';
 
@@ -92,6 +93,7 @@ vi.mock('drizzle-orm/neon-http', async () => {
 process.env.SESSION_SECRET = 'test-secret-key-1234567890-very-secure';
 const ownerToken = () => signAppSessionToken({ email: SUPER_ADMIN_EMAIL, name: 'Owner', householdId: 'hh-1', role: 'SuperAdmin' }, 30);
 const memberToken = () => signAppSessionToken({ email: 'member@example.com', name: 'Sam', householdId: 'hh-1', role: 'Member' }, 30);
+const adminToken = () => signAppSessionToken({ email: 'admin@example.com', name: 'Alex', householdId: 'hh-1', role: 'Admin' }, 30);
 
 async function call(
   handler: (request: any, response: any) => Promise<unknown>,
@@ -123,14 +125,20 @@ const ids = (rows: Array<{ id: string }>) => rows.map((row) => row.id);
 beforeEach(() => {
   store.deletedFrom = [];
   store.rows = {
-    users: [{ id: 'usr-1', email: 'member@example.com', name: 'Sam', householdId: 'hh-1', role: 'Member', status: 'ACTIVE' }],
+    users: [
+      { id: 'usr-1', email: 'member@example.com', name: 'Sam', householdId: 'hh-1', role: 'Member', status: 'ACTIVE' },
+      { id: 'usr-2', email: 'admin@example.com', name: 'Alex', householdId: 'hh-1', role: 'Admin', status: 'ACTIVE' },
+    ],
     puppies: [
       { id: 'dog-1', householdId: 'hh-1', name: 'Rex', breed: 'Beagle', birthDate: '2026-05-01', deletedAt: null },
       { id: 'dog-2', householdId: 'hh-1', name: 'Mia', breed: 'Poodle', birthDate: '2026-04-01', deletedAt: null },
       { id: 'dog-other-deleted', householdId: 'hh-2', name: 'Kiwi', breed: 'Pug', birthDate: '2026-03-01', deletedAt: new Date('2026-10-01T10:00:00Z') },
       { id: 'dog-other', householdId: 'hh-2', name: 'Oslo', breed: 'Husky', birthDate: '2026-02-01', deletedAt: null },
     ],
-    caretakers: [{ id: 'ct-1', householdId: 'hh-1', name: 'Sam', role: 'Member', color: '#6366f1', email: 'member@example.com' }],
+    caretakers: [
+      { id: 'ct-1', householdId: 'hh-1', name: 'Sam', role: 'Member', color: '#6366f1', email: 'member@example.com' },
+      { id: 'ct-other', householdId: 'hh-2', name: 'Kim', role: 'Member', color: '#10b981', email: null },
+    ],
     activities: [
       { id: 'act-1', householdId: 'hh-1', puppyId: 'dog-1', type: 'pee', timestamp: new Date(), loggedBy: 'Sam', createdAt: new Date() },
     ],
@@ -159,7 +167,7 @@ describe('restorable dog delete (backlog item 20)', () => {
     expect(store.deletedFrom).toEqual([]);
   });
 
-  it('a deleted dog is absent from the dashboard and GET /api/dogs; only the owner gets it, in deletedPuppies', async () => {
+  it('a deleted dog is absent from the dashboard and GET /api/dogs; a member never gets it in deletedPuppies, the owner does', async () => {
     dog('dog-1').deletedAt = new Date('2026-10-15T10:00:00Z');
 
     const memberDashboard = await call(dashboardHandler, memberToken(), 'GET');
@@ -190,7 +198,7 @@ describe('restorable dog delete (backlog item 20)', () => {
     expect(store.rows.health_records).toHaveLength(1);
   });
 
-  it('only the owner restores a dog, and it comes back with its logs and health records', async () => {
+  it('a member cannot restore a dog; the owner does, and it comes back with its logs and health records', async () => {
     dog('dog-1').deletedAt = new Date('2026-10-15T10:00:00Z');
 
     const byMember = await call(dogsHandler, memberToken(), 'PUT', { query: { id: 'dog-1', restore: 'true' } });
@@ -232,6 +240,57 @@ describe('restorable dog delete (backlog item 20)', () => {
     expect([edit.statusCode, upsert.statusCode]).toEqual([404, 404]);
     expect(dog('dog-1')).toMatchObject({ name: 'Rex', deletedAt: new Date('2026-10-15T10:00:00Z') });
     expect(store.rows.puppies.filter((puppy) => puppy.id === 'dog-1')).toHaveLength(1);
+  });
+});
+
+// Security audit M3: the household's Admin deletes and restores its own dogs and deletes its badges, never another household's
+describe("the household's Admin deletes and restores", () => {
+  const badgeIds = () => ids(store.rows.caretakers as Array<{ id: string }>);
+
+  it('deletes a dog of its household, gets it in deletedPuppies and restores it; deletes a badge of its household', async () => {
+    const deleted = await call(dogsHandler, adminToken(), 'DELETE', { query: { id: 'dog-1' } });
+    expect(deleted.statusCode).toBe(200);
+    expect(dog('dog-1').deletedAt).toBeInstanceOf(Date);
+
+    const dashboard = await call(dashboardHandler, adminToken(), 'GET');
+    expect(ids(dashboard.body.deletedPuppies)).toEqual(['dog-1']);
+
+    const restored = await call(dogsHandler, adminToken(), 'PUT', { query: { id: 'dog-1', restore: 'true' } });
+    expect(restored.statusCode).toBe(200);
+    expect(dog('dog-1').deletedAt).toBeNull();
+
+    const badge = await call(householdsHandler, adminToken(), 'DELETE', { query: { id: 'ct-1' } });
+    expect(badge.statusCode).toBe(200);
+    expect(badgeIds()).toEqual(['ct-other']);
+  });
+
+  it("changes nothing with another household's dog or badge id, and never lists its deleted dogs", async () => {
+    await call(dogsHandler, adminToken(), 'DELETE', { query: { id: 'dog-other' } });
+    const restore = await call(dogsHandler, adminToken(), 'PUT', { query: { id: 'dog-other-deleted', restore: 'true' } });
+    await call(householdsHandler, adminToken(), 'DELETE', { query: { id: 'ct-other' } });
+    const dashboard = await call(dashboardHandler, adminToken(), 'GET');
+
+    expect(dog('dog-other').deletedAt).toBeNull();
+    expect(restore.statusCode).toBe(404);
+    expect(dog('dog-other-deleted').deletedAt).toBeInstanceOf(Date);
+    expect(badgeIds()).toEqual(['ct-1', 'ct-other']);
+    expect(dashboard.body.deletedPuppies).toEqual([]);
+  });
+
+  it('takes the role from the users row: a token claiming Admin for a member is refused (403) and gets no deleted dog', async () => {
+    dog('dog-2').deletedAt = new Date('2026-10-15T10:00:00Z');
+    const claimedAdmin = signAppSessionToken({ email: 'member@example.com', name: 'Sam', householdId: 'hh-1', role: 'Admin' }, 30);
+
+    const deleted = await call(dogsHandler, claimedAdmin, 'DELETE', { query: { id: 'dog-1' } });
+    const restore = await call(dogsHandler, claimedAdmin, 'PUT', { query: { id: 'dog-2', restore: 'true' } });
+    const badge = await call(householdsHandler, claimedAdmin, 'DELETE', { query: { id: 'ct-1' } });
+    const dashboard = await call(dashboardHandler, claimedAdmin, 'GET');
+
+    expect([deleted.statusCode, restore.statusCode, badge.statusCode]).toEqual([403, 403, 403]);
+    expect(dog('dog-1').deletedAt).toBeNull();
+    expect(dog('dog-2').deletedAt).toBeInstanceOf(Date);
+    expect(badgeIds()).toEqual(['ct-1', 'ct-other']);
+    expect(dashboard.body.deletedPuppies).toEqual([]);
   });
 });
 

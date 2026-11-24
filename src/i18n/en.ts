@@ -300,7 +300,7 @@ export const en = {
     namePlaceholder: 'e.g. Cookie',
     notesPlaceholder: 'e.g. Microchip #9810981',
     deleteDogTitle: 'Delete dog',
-    deleteDogMessage: 'Delete this dog? It is hidden for everyone; its activities and health passport are kept, and the owner can restore it.',
+    deleteDogMessage: 'Delete this dog? It is hidden for everyone; its activities and health passport are kept, and you can restore it.',
     deletedDogs: 'Deleted dogs',
     restoreDog: 'Restore',
     meal: 'meal',

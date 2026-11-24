@@ -13,7 +13,7 @@ export function usePuppies(initialPuppies?: PuppyProfile[]) {
     return getStoredPuppies();
   });
   const [activePuppyId, setActivePuppyIdState] = useState<string>(getActivePuppyId);
-  // The owner's deleted dogs (the server hides them from everyone), listed in Settings to restore one
+  // The household's deleted dogs, sent to the owner and the household's Admin only, listed in Settings to restore one
   const [deletedPuppies, setDeletedPuppies] = useState<PuppyProfile[]>([]);
 
   const setPuppies = useCallback((updaterOrValue: PuppyProfile[] | ((previous: PuppyProfile[]) => PuppyProfile[])) => {

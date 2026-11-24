@@ -77,7 +77,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         .orderBy(desc(activitiesTable.timestamp), desc(activitiesTable.createdAt)),
     ]);
 
-    // A deleted dog (deleted_at set) is hidden; only the owner gets the deleted ones, to restore them
+    // A deleted dog (deleted_at set) is hidden; only the owner and the household's Admin get the deleted ones, to restore them
     const puppies = householdPuppies.filter((puppy) => !puppy.deletedAt);
     const deletedPuppies = canDeleteHouseholdData(auth) ? householdPuppies.filter((puppy) => puppy.deletedAt) : [];
 

@@ -199,7 +199,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // DELETE /api/households?id=ct-xxx — Remove a caretaker
     if (req.method === 'DELETE') {
       if (!canDeleteHouseholdData(auth)) {
-        return res.status(403).json({ error: 'Only the owner can remove caretakers' });
+        return res.status(403).json({ error: 'Only the owner or an admin can remove caretakers' });
       }
       const id = (req.query.id || req.query.caretakerId) as string;
       if (!id) return res.status(400).json({ error: 'caretaker id is required' });

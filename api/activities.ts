@@ -127,7 +127,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (!puppy) {
         return res.status(403).json({ error: 'Puppy not found in your household' });
       }
-      // A deleted dog takes no new log until the owner restores it
+      // A deleted dog takes no new log until it is restored
       if (puppy.deletedAt) return res.status(404).json({ error: 'Dog not found' });
 
       if (existing) {
