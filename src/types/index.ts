@@ -53,11 +53,11 @@ export interface UserAccount {
   status?: AccountStatus;
 }
 
-/** PENDING_APPROVAL: a sign-up waiting for approval. REVOKED: the owner removed its access (only the owner sets and clears it). */
-export type AccountStatus = 'ACTIVE' | 'PENDING_APPROVAL' | 'REVOKED';
+/** REVOKED: the owner removed its access (only the owner sets and clears it). */
+export type AccountStatus = 'ACTIVE' | 'REVOKED';
 
-/** How a Google sign-in ended: 'pending' for a 403 (account waiting for approval), 'revoked' for the 403 coded 'revoked'. */
-export type SignInOutcome = 'signedIn' | 'pending' | 'revoked' | 'failed';
+/** How a Google sign-in ended: 'revoked' for the 403 coded 'revoked'. */
+export type SignInOutcome = 'signedIn' | 'revoked' | 'failed';
 
 export interface Caretaker {
   id: string;

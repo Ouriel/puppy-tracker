@@ -12,7 +12,7 @@ interface ConfirmationModalProps {
   confirmLabel?: string;
   /** Default: "Cancel" in the app language */
   cancelLabel?: string;
-  /** 'danger' (default): a delete, red with a warning sign; 'primary': a harmless question (approve, add, move) */
+  /** 'danger' (default): a delete, red with a warning sign; 'primary': a harmless question (add, move) */
   tone?: 'danger' | 'primary';
 }
 

@@ -476,9 +476,8 @@ function App() {
       return 'signedIn';
     }
 
-    if (!sessionRes.ok && sessionRes.code === 'revoked') return 'revoked';
-    // Only a 403 means the account waits for approval; no network, a 5xx or a refused token is a failed sign-in
-    return !sessionRes.ok && sessionRes.status === 403 ? 'pending' : 'failed';
+    // No network, a 5xx or a refused token is a failed sign-in
+    return !sessionRes.ok && sessionRes.code === 'revoked' ? 'revoked' : 'failed';
   };
 
   // Settings > Members: the account is gone, so its session and every household data kept on this phone go too

@@ -83,7 +83,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
 
       if (isSuperAdmin) {
-        // The owner's own account (the panel reads its household from it), then pending and revoked ones, then the newest
+        // The owner's own account (the panel reads its household from it), then revoked ones, then the newest
         const [users, total] = await Promise.all([
           db
             .select()
@@ -201,7 +201,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(403).json({ error: 'Only SuperAdmin can reassign households.' });
       }
 
-      // Approve, revoke and restore are the owner's: an Admin could otherwise undo the owner's revoke
+      // Revoke and restore are the owner's: an Admin could otherwise undo the owner's revoke
       if (body.status && !isSuperAdmin) {
         return res.status(403).json({ error: 'Only SuperAdmin changes an account status.' });
       }
@@ -217,20 +217,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (body.name) updateFields.name = body.name;
       if (body.householdId && isSuperAdmin) updateFields.householdId = body.householdId;
 
-      // The owner's approval of a sign-up that stays alone in its own household makes it that family's Admin,
-      // who can then invite the rest of the family. An Admin approved or moved into another household is a Member there.
-      if (isSuperAdmin && (body.status === 'ACTIVE' || body.householdId)) {
+      // An Admin moved into another household is a Member there.
+      if (isSuperAdmin && body.householdId && !body.role) {
         const [account] = await db.select().from(usersTable).where(eq(usersTable.email, targetEmail));
-        const isMove = !!account && !!body.householdId && body.householdId !== account.householdId;
-        // A stale Admin panel row (an Admin took the sign-up in since) must not move it back out.
-        if (isMove && body.status === 'ACTIVE' && account?.status !== 'PENDING_APPROVAL') {
-          return res.status(409).json({ error: 'This account is no longer waiting for approval.' });
-        }
-        if (!body.role && isMove && account?.role === 'Admin') {
-          updateFields.role = 'Member';
-        } else if (!body.role && !isMove && body.status === 'ACTIVE' && account?.status === 'PENDING_APPROVAL' && !(await householdHasOtherUser(account))) {
-          updateFields.role = 'Admin';
-        }
+        if (account?.role === 'Admin' && body.householdId !== account.householdId) updateFields.role = 'Member';
       }
 
       const whereClause = isSuperAdmin

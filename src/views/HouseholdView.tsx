@@ -51,7 +51,7 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
   const linkedCaretaker = findLinkedCaretaker(user, caretakers);
   const isOwner = user.role === 'SuperAdmin';
   const isEditNameMissing = hasTriedEditSave && !editName.trim();
-  // The owner and a family's Admin pre-approve into their own family and delete its badges: the server refuses members.
+  // The owner and a family's Admin invite into their own family and delete its badges: the server refuses members.
   const isAdmin = isOwner || user.role === 'Admin';
 
   // Into the inviter's own household (the server's default), where the badge carries the invited email. The invitee joins

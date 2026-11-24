@@ -12,24 +12,19 @@ vi.mock('@neondatabase/serverless', () => ({
 // The users rows the lookup returns; null makes it fail
 const usersLookup = vi.hoisted(() => ({ rows: null as unknown[] | null }));
 
-// Like drizzle: a failed query's message carries the SQL and its parameters, here an email. No invite for this email.
-vi.mock('drizzle-orm/neon-http', async () => {
-  const { getTableName } = await import('drizzle-orm');
-  return {
-    drizzle: vi.fn(() => ({
-      select: () => ({
-        from: (table: Parameters<typeof getTableName>[0]) => ({
-          where: () =>
-            getTableName(table) === 'invites'
-              ? Promise.resolve([])
-              : usersLookup.rows
-                ? Promise.resolve(usersLookup.rows)
-                : Promise.reject(new Error('Failed query: select "id", "email" from "users" where "users"."email" = $1\nparams: someone@example.com')),
-        }),
+// Like drizzle: a failed query's message carries the SQL and its parameters, here an email.
+vi.mock('drizzle-orm/neon-http', () => ({
+  drizzle: vi.fn(() => ({
+    select: () => ({
+      from: () => ({
+        where: () =>
+          usersLookup.rows
+            ? Promise.resolve(usersLookup.rows)
+            : Promise.reject(new Error('Failed query: select "id", "email" from "users" where "users"."email" = $1\nparams: someone@example.com')),
       }),
-    })),
-  };
-});
+    }),
+  })),
+}));
 
 import activitiesHandler from '../../../api/activities.js';
 import dashboardHandler from '../../../api/dashboard.js';
@@ -107,17 +102,7 @@ describe('a failed sign-in check answers with no SQL or email (every handler)', 
     expect(response.body).toEqual({ error: 'Invalid token payload' });
   });
 
-  it.each(Object.entries(handlers))('%s: an account pending activation keeps its 403', async (_name, handler) => {
-    usersLookup.rows = [{ id: 'usr-1', householdId: 'house-1', email: 'someone@example.com', name: 'Someone', role: 'Member', status: 'PENDING_APPROVAL' }];
-    const response = createMockResponse();
-
-    await handler(request({ authorization: 'Bearer google-id-token' }), response as never);
-
-    expect(response.statusCode).toBe(403);
-    expect(response.body).toEqual({ error: 'Account pending activation by Super Admin.', code: 'pending' });
-  });
-
-  // Audit S2: the lock screen says "access removed", never "request sent", to an account the owner revoked
+  // Audit S2: the lock screen says "access removed" to an account the owner revoked
   it.each(Object.entries(handlers))('%s: a revoked account is refused at sign-in with its own code', async (_name, handler) => {
     usersLookup.rows = [{ id: 'usr-1', householdId: 'house-1', email: 'someone@example.com', name: 'Someone', role: 'Member', status: 'REVOKED' }];
     const response = createMockResponse();
@@ -128,9 +113,10 @@ describe('a failed sign-in check answers with no SQL or email (every handler)', 
     expect(response.body).toEqual({ error: expect.any(String), code: 'revoked' });
   });
 
+  // Any other status (PENDING_APPROVAL from before sign-ups were open) is refused with no code: its next Google sign-in activates it
   it.each([
     ['REVOKED', 'revoked'],
-    ['PENDING_APPROVAL', 'pending'],
+    ['PENDING_APPROVAL', undefined],
   ])('%s: a request with a session issued before is refused (401) with the code %s', async (status, code) => {
     usersLookup.rows = [{ id: 'usr-1', householdId: 'house-1', email: 'someone@example.com', name: 'Someone', role: 'Member', status }];
     const session = signAppSessionToken({ email: 'someone@example.com', name: 'Someone', householdId: 'house-1', role: 'Member' });
@@ -139,6 +125,6 @@ describe('a failed sign-in check answers with no SQL or email (every handler)', 
     await dashboardHandler(request({ authorization: `Bearer ${session}` }), response as never);
 
     expect(response.statusCode).toBe(401);
-    expect(response.body).toEqual({ error: 'Session revoked', code });
+    expect(response.body).toEqual(code ? { error: 'Session revoked', code } : { error: 'Session revoked' });
   });
 });

@@ -13,7 +13,7 @@ import { toast } from '@heroui/react';
 
 let root: Root | null = null;
 
-// A Google ID token as the lock screen reads it: only the payload (email, name) matters here.
+// A Google ID token: the app sends it as is to /api/auth/session.
 const credential = ['header', btoa(JSON.stringify({ email: 'sitter@example.com', name: 'Sitter' })), 'signature'].join('.');
 
 function stubGoogle() {
@@ -67,9 +67,6 @@ const pageText = () => document.body.textContent ?? '';
 const gsiScript = () => document.getElementById('google-gsi-script')!;
 /** The message a screen reader announces as it appears. */
 const alertText = () => document.querySelector('[role="alert"]')?.textContent ?? '';
-/** The calm "waiting for approval" note (a status, not an alert). */
-const pendingNote = () => [...document.querySelectorAll('[role="status"]')].find((element) => element.querySelector('.lucide-clock'));
-const PENDING_FR = "Demande envoyée. L'admin de ton foyer doit valider ton compte\u00a0; reviens te connecter ensuite.";
 const googleButton = () => document.getElementById('gsi-btn');
 
 /** Google's button is still on the page and visible, so a refused sign-in can be retried without a reload. */
@@ -120,7 +117,7 @@ afterEach(async () => {
 });
 
 describe('Sign-in screen', () => {
-  it('a pending account keeps the sign-in screen while the session request runs, then sees the pending message in its language; Google is set up and One Tap shown once', async () => {
+  it('keeps the sign-in screen while the session request runs; a refusal without a code is a failed sign-in in its language; Google is set up and One Tap shown once', async () => {
     localStorage.setItem('puppace_lang_v1', 'fr');
     const googleId = stubGoogle();
     let answerSession!: (response: Response) => void;
@@ -132,97 +129,31 @@ describe('Sign-in screen', () => {
     expect(pageText()).toContain(fr.auth.signingIn);
     expect(googleButton()!.parentElement!.classList.contains('hidden')).toBe(true);
 
-    answerSession(new Response(JSON.stringify({ error: 'Account pending activation by Super Admin.' }), { status: 403 }));
+    answerSession(new Response(JSON.stringify({ error: 'Account not active.' }), { status: 403 }));
     await settle();
     await act(async () => vi.advanceTimersByTime(5 * 60_000));
 
-    expect(pendingNote()?.textContent).toContain(fr.auth.pendingActivation);
-    expect(pageText()).not.toContain('Account pending activation by Super Admin.');
+    expect(alertText()).toContain(fr.auth.ssoFailed);
+    expect(pageText()).not.toContain('Account not active.');
     expect(pageText()).not.toContain(fr.auth.signingIn);
     expectGoogleButtonUsable(googleId);
     expect(googleId.initialize).toHaveBeenCalledTimes(1);
     expect(googleId.prompt).toHaveBeenCalledTimes(1);
-    // No session and no app data for an account waiting for approval
     expect(getAuthToken()).toBeNull();
     expect(getStoredAuthUser()).toBeNull();
     expect(vi.mocked(fetch).mock.calls.map(([url]) => url)).toEqual(['/api/auth/session']);
   });
 
-  // App review 2026-10-16, Sign-in, and owner decision 14: a new member waiting for approval saw a red ⚠️ box, gone after a reload
-  describe('waiting for approval', () => {
-    async function signInPending(googleId: ReturnType<typeof stubGoogle>) {
-      stubSession(() => Promise.resolve(new Response(JSON.stringify({ error: 'pending' }), { status: 403 })));
-      await signInWithGoogle(googleId);
-      await settle();
-    }
+  // Sign-ups are open (owner, 2026-11-24): nobody waits for an approval, so the screen never says a request was sent
+  it.each(['en', 'fr'])('says nothing about approval, even for an email an older version noted as waiting (%s)', async (lang) => {
+    localStorage.setItem('puppace_lang_v1', lang);
+    localStorage.setItem('puppace_pending_email', 'sitter@example.com');
+    stubGoogle();
+    await renderApp();
 
-    async function reload() {
-      await act(async () => root?.unmount());
-      document.body.innerHTML = '';
-      await renderApp();
-    }
-
-    it("is a calm note, not an error: it says the household's admin approves, what to do next, and which account waits", async () => {
-      localStorage.setItem('puppace_lang_v1', 'fr');
-      const googleId = stubGoogle();
-      await renderApp();
-      await signInPending(googleId);
-
-      expect(pendingNote()?.textContent).toContain(PENDING_FR);
-      expect(pendingNote()?.textContent).toContain('sitter@example.com');
-      expect(document.querySelector('[role="alert"]')).toBeNull();
-      // No warning triangle, the icon of the sign-in errors
-      expect(document.querySelector('[class*="triangle-alert"], [class*="alert-triangle"]')).toBeNull();
-    });
-
-    it('is still there after a reload, with no sign-in and no request', async () => {
-      localStorage.setItem('puppace_lang_v1', 'fr');
-      const googleId = stubGoogle();
-      await renderApp();
-      await signInPending(googleId);
-      vi.mocked(fetch).mockClear();
-
-      await reload();
-
-      expect(pendingNote()?.textContent).toContain(PENDING_FR);
-      expect(pendingNote()?.textContent).toContain('sitter@example.com');
-      expect(fetch).not.toHaveBeenCalled();
-    });
-
-    it('"Utiliser un autre compte Google" removes it for good and stops Google picking the same account by itself', async () => {
-      localStorage.setItem('puppace_lang_v1', 'fr');
-      const googleId = stubGoogle();
-      await renderApp();
-      await signInPending(googleId);
-
-      const otherAccount = [...document.querySelectorAll('button')].find((button) => button.textContent === 'Utiliser un autre compte Google')!;
-      expect(otherAccount.classList).toContain('min-h-11');
-      await act(async () => otherAccount.click());
-
-      expect(pendingNote()).toBeUndefined();
-      expect(googleId.disableAutoSelect).toHaveBeenCalledTimes(1);
-      expectGoogleButtonUsable(googleId);
-      await reload();
-      expect(pendingNote()).toBeUndefined();
-    });
-
-    it('is gone once the account, approved, signs in: a later visit to the sign-in screen does not show it', async () => {
-      const googleId = stubGoogle();
-      await renderApp();
-      await signInPending(googleId);
-      expect(pendingNote()).toBeDefined();
-
-      const session = { user: { email: 'sitter@example.com', name: 'Sitter', householdId: 'hh-1', role: 'Member' }, sessionToken: 'session-token', expiresInDays: 90 };
-      stubSession(() => Promise.resolve(new Response(JSON.stringify(session), { status: 200 })));
-      await signInWithGoogle(googleId);
-      await settle();
-      expect(getAuthToken()).toBe('session-token');
-
-      // The session ends (401 from the API): back to the sign-in screen
-      await act(async () => window.dispatchEvent(new Event('puppace:unauthorized')));
-      for (let round = 0; round < 50 && !document.querySelector('img[alt="PupPace Logo"]'); round += 1) await settle();
-      expect(pendingNote()).toBeUndefined();
-    });
+    expect(document.querySelector('[role="status"]')).toBeNull();
+    expect(pageText()).not.toContain('sitter@example.com');
+    expect(pageText()).not.toMatch(/approv|request sent|valid|demande envoyée|en attente/i);
   });
 
   // App review 2026-10-16, Sign-in, and owner decision 14: the legal links left the app for English pages; jargon on the screen
@@ -271,7 +202,7 @@ describe('Sign-in screen', () => {
     ['no network', () => Promise.reject(new TypeError('Failed to fetch'))],
     ['a server error', () => Promise.resolve(new Response(JSON.stringify({ error: 'Internal server error' }), { status: 500 }))],
     ['a refused token (401)', () => Promise.resolve(new Response(JSON.stringify({ error: 'User account not found' }), { status: 401 }))],
-  ])('a sign-in that fails on %s says it failed, not that the account is pending', async (_case, answer) => {
+  ])('a sign-in that fails on %s says it failed', async (_case, answer) => {
     const googleId = stubGoogle();
     stubSession(answer);
     await renderApp();
@@ -280,8 +211,6 @@ describe('Sign-in screen', () => {
     await settle();
 
     expect(alertText()).toContain(en.auth.ssoFailed);
-    expect(pageText()).not.toContain(en.auth.pendingActivation);
-    expect(pageText()).not.toContain('Account pending activation');
     expectGoogleButtonUsable(googleId);
   });
 
@@ -332,21 +261,37 @@ describe('Sign-in screen', () => {
   });
 });
 
-// Audit S2: an account the owner revoked is told so, in its own words, and never as a request waiting for approval
+// Audit S2: an account the owner revoked is told so, in its own words
 describe('Revoked access', () => {
-  it('a revoked sign-in says the access was removed, not "request sent", and keeps no pending note', async () => {
-    const googleId = stubGoogle();
+  async function signInRevoked(googleId: ReturnType<typeof stubGoogle>) {
     stubSession(() => Promise.resolve(new Response(JSON.stringify({ error: 'Access removed by the owner.', code: 'revoked' }), { status: 403 })));
-    await renderApp();
-
     await signInWithGoogle(googleId);
     await settle();
+  }
 
-    expect(pageText()).toContain(en.auth.accessRemoved);
-    expect(pageText()).not.toContain(en.auth.pendingActivation);
-    expect(pendingNote()).toBeUndefined();
-    expect(localStorage.getItem('puppace_pending_email')).toBeNull();
+  it('a revoked sign-in says the access was removed, as a note, not an error', async () => {
+    const googleId = stubGoogle();
+    await renderApp();
+    await signInRevoked(googleId);
+
+    expect(document.querySelector('[role="status"]')?.textContent).toContain(en.auth.accessRemoved);
+    expect(document.querySelector('[role="alert"]')).toBeNull();
     expect(getAuthToken()).toBeNull();
+    expectGoogleButtonUsable(googleId);
+  });
+
+  it('"Utiliser un autre compte Google" removes the note and stops Google picking the same account by itself', async () => {
+    localStorage.setItem('puppace_lang_v1', 'fr');
+    const googleId = stubGoogle();
+    await renderApp();
+    await signInRevoked(googleId);
+
+    const otherAccount = [...document.querySelectorAll('button')].find((button) => button.textContent === 'Utiliser un autre compte Google')!;
+    expect(otherAccount.classList).toContain('min-h-11');
+    await act(async () => otherAccount.click());
+
+    expect(pageText()).not.toContain(fr.auth.accessRemoved);
+    expect(googleId.disableAutoSelect).toHaveBeenCalledTimes(1);
     expectGoogleButtonUsable(googleId);
   });
 
@@ -360,7 +305,6 @@ describe('Revoked access', () => {
     await renderApp();
 
     expect(pageText()).toContain(fr.auth.accessRemoved);
-    expect(pageText()).not.toContain(fr.auth.pendingActivation);
     expect(getAuthToken()).toBeNull();
   });
 });
