@@ -305,7 +305,7 @@ export const fr: TranslationKeys = {
     namePlaceholder: 'ex.\u00a0: Cookie',
     notesPlaceholder: 'ex.\u00a0: puce n°\u00a09810981',
     deleteDogTitle: 'Supprimer le chien',
-    deleteDogMessage: 'Supprimer ce chien\u00a0? Il est masqué pour tous\u00a0; ses activités et son carnet de santé sont conservés, et le propriétaire peut le restaurer.',
+    deleteDogMessage: 'Supprimer ce chien\u00a0? Il est masqué pour tous\u00a0; ses activités et son carnet de santé sont conservés, et tu peux le restaurer.',
     deletedDogs: 'Chiens supprimés',
     restoreDog: 'Restaurer',
     meal: 'repas',

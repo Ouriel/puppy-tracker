@@ -296,7 +296,7 @@ describe('row buttons named after their row, 44 px targets (French)', () => {
   });
 
   it('dogs: "Modifier Pistache" / "Supprimer Pistache", 44 px; Femelle / Mâle say which is chosen', async () => {
-    await render(<PuppiesView puppies={[PISTACHE]} activePuppyId={PISTACHE.id} onSelectPuppy={vi.fn()} onAddPuppy={vi.fn()} onUpdatePuppy={vi.fn()} onDeletePuppy={vi.fn()} deletedPuppies={[]} onRestorePuppy={vi.fn()} />, 'fr');
+    await render(<PuppiesView puppies={[PISTACHE]} activePuppyId={PISTACHE.id} onSelectPuppy={vi.fn()} onAddPuppy={vi.fn()} onUpdatePuppy={vi.fn()} onDeletePuppy={vi.fn()} canDelete deletedPuppies={[]} onRestorePuppy={vi.fn()} />, 'fr');
     expect(is44(button('Supprimer Pistache'))).toBe(true);
     await act(async () => button('Modifier Pistache')!.click());
     const sexButtons = [...document.querySelectorAll<HTMLButtonElement>('button')].filter((element) => /Femelle|Mâle/.test(element.textContent!));

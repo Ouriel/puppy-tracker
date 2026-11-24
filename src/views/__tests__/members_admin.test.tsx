@@ -245,10 +245,22 @@ describe('Members tab identity (22)', () => {
       { id: 'c-1', name: 'Alex', role: 'Member', color: '#EC4899' },
       { id: 'c-2', name: 'Alex', role: 'Member', color: '#10B981', email: 'alex@example.com' },
     ];
-    await renderMembers({ ...member, email: 'alex@example.com', name: 'Alex' }, twins);
+    await renderMembers({ ...familyAdmin, email: 'alex@example.com', name: 'Alex' }, twins);
 
     expect(document.body.textContent?.match(/Active/g)).toHaveLength(1);
     expect(document.querySelectorAll('[aria-label="Delete Alex"]')).toHaveLength(1);
+  });
+
+  // Audit M3: the owner and the family's Admin delete badges; a member's delete would always get 403
+  it("shows the family's Admin a delete button on each badge", async () => {
+    await renderMembers(familyAdmin);
+    expect(document.querySelectorAll('[aria-label^="Delete "]')).toHaveLength(2);
+  });
+
+  it('shows a member no delete button, only the pencils', async () => {
+    await renderMembers(member);
+    expect(document.querySelectorAll('[aria-label^="Delete "]')).toHaveLength(0);
+    expect(document.querySelectorAll('[aria-label^="Edit "]')).toHaveLength(2);
   });
 
   it('"This is me" links my unlinked badge to my login, and is not offered on a badge linked to someone else', async () => {

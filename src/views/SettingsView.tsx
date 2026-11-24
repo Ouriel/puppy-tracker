@@ -43,6 +43,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const { t } = useI18n();
   // The owner is the session whose role is SuperAdmin: the browser never knows the owner's email
   const isSuperAdmin = user.role === 'SuperAdmin';
+  // The owner and the household's Admin delete dogs and badges; the server refuses members
+  const canDelete = isSuperAdmin || user.role === 'Admin';
   const [selectedTab, setSelectedTab] = useState<'dogs' | 'household' | 'admin'>('dogs');
 
   return (
@@ -125,6 +127,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             onAddPuppy={onAddPuppy}
             onUpdatePuppy={onUpdatePuppy}
             onDeletePuppy={onDeletePuppy}
+            canDelete={canDelete}
             deletedPuppies={deletedPuppies}
             onRestorePuppy={onRestorePuppy}
           />

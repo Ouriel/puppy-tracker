@@ -173,7 +173,7 @@ export type HealthRecordsLoadState = 'loading' | 'loaded' | 'failed';
 
 export interface DashboardPayload {
   puppies: PuppyProfile[];
-  deletedPuppies?: PuppyProfile[]; // the owner only: dogs deleted, which they can restore
+  deletedPuppies?: PuppyProfile[]; // the owner and the household's Admin only: dogs deleted, which they can restore
   caretakers: Caretaker[];
   activities: Activity[];
   healthRecords?: HealthRecord[];

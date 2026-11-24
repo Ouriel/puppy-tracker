@@ -105,7 +105,7 @@ describe('usePuppies: a refused change rolls back only its own dog', () => {
       await second;
     });
     await act(async () => {
-      pendingAnswers[0](new Response(JSON.stringify({ error: 'Only the owner can delete dogs' }), { status: 403 }));
+      pendingAnswers[0](new Response(JSON.stringify({ error: 'Only the owner or an admin can delete dogs' }), { status: 403 }));
       await first;
     });
 
@@ -122,7 +122,7 @@ describe('usePuppies: a refused change rolls back only its own dog', () => {
     await act(async () => hook.setPuppies([rex, max, luna]));
 
     await act(async () => {
-      pendingAnswers[0](new Response(JSON.stringify({ error: 'Only the owner can delete dogs' }), { status: 403 }));
+      pendingAnswers[0](new Response(JSON.stringify({ error: 'Only the owner or an admin can delete dogs' }), { status: 403 }));
       await deletion;
     });
 
@@ -152,7 +152,7 @@ describe('usePuppies: restorable delete', () => {
   it('a refused restore leaves the dog in deletedPuppies and the list as it was', async () => {
     await act(async () => root!.render(<HookProbe key="max-only" puppies={[max]} onRender={(state) => { hook = state; }} />));
     await act(async () => hook.setDeletedPuppies([rex]));
-    answerWith(403, { error: 'Only the owner can restore dogs' });
+    answerWith(403, { error: 'Only the owner or an admin can restore dogs' });
 
     await act(async () => hook.restorePuppy('pup-1'));
 

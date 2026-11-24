@@ -71,9 +71,12 @@ export interface AuthContext {
   role: string;
 }
 
-/** Only the owner (SuperAdmin, recognised by email, never by a role claim) may delete a dog or a caretaker. */
+/**
+ * The owner (recognised by email, never by a role claim) or the household's Admin (role read from the users row by
+ * verifyAuth) deletes and restores dogs and deletes badges. Callers scope every write to auth.householdId.
+ */
 export function canDeleteHouseholdData(auth: AuthContext): boolean {
-  return isSuperAdminEmail(auth.email);
+  return isSuperAdminEmail(auth.email) || auth.role === 'Admin';
 }
 
 /** The role a request acts with: SuperAdmin for the owner's email only, never from a stored or claimed role. */

@@ -504,7 +504,7 @@ describe('API Security & Session Token Validation Test Suite', () => {
       expect(response.body).toMatchObject({ name: 'Alice' });
     });
 
-    it('forbids a Husband from deleting a dog or a caretaker: only the owner (SuperAdmin) deletes (owner decision)', async () => {
+    it('forbids a Husband from deleting a dog or a caretaker: only the owner (SuperAdmin) or the household Admin deletes', async () => {
       dbMock.rowsByTable.users = [{ ...activeUserRow, role: 'Husband' }];
       const dogResponse = createMockResponse();
       const caretakerResponse = createMockResponse();

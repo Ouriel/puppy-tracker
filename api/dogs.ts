@@ -58,7 +58,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         .from(puppiesTable)
         .where(and(eq(puppiesTable.id, id), eq(puppiesTable.householdId, householdId)));
 
-      // A deleted dog is not edited (its id stays taken): the owner restores it first
+      // A deleted dog is not edited (its id stays taken): the owner or an Admin restores it first
       if (existing?.deletedAt) return res.status(404).json({ error: 'Dog not found' });
 
       if (existing) {
@@ -99,10 +99,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(201).json(created);
     }
 
-    // PUT /api/dogs?id=xxx&restore=true: the owner brings a deleted dog back, with its logs and health records
+    // PUT /api/dogs?id=xxx&restore=true: the owner or the household's Admin brings a deleted dog back, with its logs and health records
     if (req.method === 'PUT' && req.query.restore === 'true') {
       if (!canDeleteHouseholdData(auth)) {
-        return res.status(403).json({ error: 'Only the owner can restore dogs' });
+        return res.status(403).json({ error: 'Only the owner or an admin can restore dogs' });
       }
       const restoreParsed = parseDeleteId(req);
       if (!restoreParsed.success) return res.status(400).json({ error: 'Valid id is required' });
@@ -140,10 +140,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(200).json(updated);
     }
 
-    // DELETE /api/dogs: hides the dog (deleted_at), keeps its logs and health records; the owner can restore it
+    // DELETE /api/dogs: hides the dog (deleted_at), keeps its logs and health records; the owner or an Admin can restore it
     if (req.method === 'DELETE') {
       if (!canDeleteHouseholdData(auth)) {
-        return res.status(403).json({ error: 'Only the owner can delete dogs' });
+        return res.status(403).json({ error: 'Only the owner or an admin can delete dogs' });
       }
 
       const deleteParsed = parseDeleteId(req);
