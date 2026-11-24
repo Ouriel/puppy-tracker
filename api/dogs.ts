@@ -3,8 +3,8 @@ import { neon } from '@neondatabase/serverless';
 import { drizzle } from 'drizzle-orm/neon-http';
 import { eq, and, isNull } from 'drizzle-orm';
 import { puppiesTable } from '../src/db/schema.js';
-import { DogInputSchema, parseDeleteId } from '../src/utils/schemas.js';
-import { verifyAuth, sendAuthError, setCorsHeaders, canDeleteHouseholdData } from './_auth.js';
+import { DogInputSchema, HOUSEHOLD_LIMITS, parseDeleteId } from '../src/utils/schemas.js';
+import { verifyAuth, sendAuthError, sendLimitReached, setCorsHeaders, canDeleteHouseholdData } from './_auth.js';
 import { getDatabaseUrl } from './_db.js';
 
 const connectionString = getDatabaseUrl();
@@ -53,10 +53,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const body = parsed.data;
       const id = body.id || `dog-${Date.now()}`;
 
-      const [existing] = await db
-        .select()
-        .from(puppiesTable)
-        .where(and(eq(puppiesTable.id, id), eq(puppiesTable.householdId, householdId)));
+      // The household's dogs, deleted ones included: deleting a dog does not free its place
+      const [[existing], dogCount] = await Promise.all([
+        db
+          .select()
+          .from(puppiesTable)
+          .where(and(eq(puppiesTable.id, id), eq(puppiesTable.householdId, householdId))),
+        db.$count(puppiesTable, eq(puppiesTable.householdId, householdId)),
+      ]);
 
       // A deleted dog is not edited (its id stays taken): the owner or an Admin restores it first
       if (existing?.deletedAt) return res.status(404).json({ error: 'Dog not found' });
@@ -80,6 +84,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(200).json(updated);
       }
 
+      // shortcut: two requests at once can both pass the count and go one over; fine at this load, a conditional insert if it matters
+      if (dogCount >= HOUSEHOLD_LIMITS.dogs) return sendLimitReached(res);
       const [created] = await db
         .insert(puppiesTable)
         .values({

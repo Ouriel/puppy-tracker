@@ -703,6 +703,36 @@ describe('useActivities: a quick log kept as not saved', () => {
     expect(ids()).toContain(peeId);
     expect(hook.unsavedActivityIds.has(peeId)).toBe(true);
   });
+
+  // Audit M2: at the household's daily limit a Retry would fail until tomorrow, so the log goes, as a form's does
+  const limitReached = { error: 'Limit reached for this household', code: 'limitReached' };
+
+  it("refused at the household's daily limit, it is not kept: gone, not marked, and the toast says why", async () => {
+    const danger = vi.spyOn(toast, 'danger');
+    await start(() => hook.addActivity(newLog('pee'), { keepUnsaved: true }));
+    const peeId = posts()[0].body!.id;
+
+    await posts()[0].answer(429, limitReached);
+
+    expect(ids()).not.toContain(peeId);
+    expect(hook.unsavedActivityIds.has(peeId)).toBe(false);
+    expect(danger).toHaveBeenCalledWith(en.toasts.limitReached);
+  });
+
+  it('a Retry refused at the limit drops it the same way', async () => {
+    const danger = vi.spyOn(toast, 'danger');
+    await start(() => hook.addActivity(newLog('pee'), { keepUnsaved: true }));
+    const unsaved = hook.activities[0];
+    await posts()[0].answer(500, { error: 'Internal server error' });
+    expect(hook.unsavedActivityIds.has(unsaved.id)).toBe(true);
+
+    await start(() => hook.retryActivity(unsaved));
+    await posts()[1].answer(429, limitReached);
+
+    expect(ids()).not.toContain(unsaved.id);
+    expect(hook.unsavedActivityIds.has(unsaved.id)).toBe(false);
+    expect(danger).toHaveBeenLastCalledWith(en.toasts.limitReached);
+  });
 });
 
 // A save whose answer is lost may be stored: the log form keeps one id while open, so Save again never stores it twice

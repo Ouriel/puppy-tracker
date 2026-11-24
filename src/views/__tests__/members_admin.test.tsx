@@ -434,8 +434,8 @@ describe('Admin panel (27, 28)', () => {
   const ownerRow = { id: 'usr-owner', email: SUPER_ADMIN_EMAIL, name: 'Owner Fullname', householdId: 'FAMILY-COCKER-2026', role: 'SuperAdmin', status: 'ACTIVE' };
   const activeElsewhere = { id: 'usr-bob', email: 'bob.smith@example.com', name: 'Bob Smith', householdId: 'hh-other', role: 'Member', status: 'ACTIVE' };
 
-  async function renderAdmin(users = [ownerRow, pendingStranger, activeElsewhere]) {
-    apiMock.fetchUsers.mockResolvedValue({ ok: true, data: users });
+  async function renderAdmin(users = [ownerRow, pendingStranger, activeElsewhere], total = users.length) {
+    apiMock.fetchUsers.mockResolvedValue({ ok: true, data: { users, total } });
     apiMock.fetchAllHouseholds.mockResolvedValue({
       ok: true,
       // As the API lists them: a household the owner has not named comes with no name
@@ -470,6 +470,18 @@ describe('Admin panel (27, 28)', () => {
     expect(apiMock.markPrivacyRequestHandled).toHaveBeenCalledWith('prq-1');
     expect(document.body.textContent).toContain('Privacy requests (1 to answer)');
     expect(document.body.textContent).toMatch(/Answered on/);
+    // Every account is loaded: no "Showing … of …" line
+    expect(document.body.textContent).not.toContain('Showing');
+  });
+
+  it('a list the API cut (500 accounts at most) says how many accounts there are, and never says a request has no account', async () => {
+    const stranger = { id: 'prq-2', email: 'nobody@example.com', kind: 'access', message: null, lang: 'en', createdAt: '2026-11-20T10:00:00.000Z', handledAt: null };
+    apiMock.fetchPrivacyRequests.mockResolvedValue({ ok: true, data: [stranger] });
+    await renderAdmin([ownerRow, pendingStranger, activeElsewhere], 1200);
+
+    expect(document.body.textContent).toContain('Showing 3 of 1200 accounts');
+    // The email may belong to an account the list did not load
+    expect(document.body.textContent).not.toContain('No account with this email');
   });
 
   it("'Assign to' defaults to the user's own household, and Approve keeps them there, with no badge in the family", async () => {
@@ -750,10 +762,10 @@ describe('Members and Admin in French: no English left', () => {
   it('Admin: roles, the e-mail placeholder and the status messages read in French', async () => {
     localStorage.setItem('puppace_lang_v1', 'fr');
     try {
-      apiMock.fetchUsers.mockResolvedValue({ ok: true, data: [
+      apiMock.fetchUsers.mockResolvedValue({ ok: true, data: { total: 2, users: [
         { id: 'usr-owner', email: SUPER_ADMIN_EMAIL, name: 'Owner Fullname', householdId: 'FAMILY-COCKER-2026', role: 'SuperAdmin', status: 'ACTIVE' },
         { id: 'usr-bob', email: 'bob.smith@example.com', name: 'Bob Smith', householdId: 'hh-other', role: 'Member', status: 'ACTIVE' },
-      ] });
+      ] } });
       apiMock.fetchAllHouseholds.mockResolvedValue({ ok: true, data: [{ id: 'FAMILY-COCKER-2026', name: 'Family Pack (Main)' }, { id: 'hh-other', name: 'Other Family' }] });
       await render(<AdminView currentUserEmail={SUPER_ADMIN_EMAIL} caretakers={badges} onAddCaretaker={vi.fn()} />);
 
@@ -782,10 +794,10 @@ describe('Members and Admin in French: no English left', () => {
   it('Admin: approving a sign-up in its own household reads "activé dans « Foyer de Jane Doe »", not the household id', async () => {
     localStorage.setItem('puppace_lang_v1', 'fr');
     try {
-      apiMock.fetchUsers.mockResolvedValue({ ok: true, data: [
+      apiMock.fetchUsers.mockResolvedValue({ ok: true, data: { total: 2, users: [
         { id: 'usr-owner', email: SUPER_ADMIN_EMAIL, name: 'Owner Fullname', householdId: 'FAMILY-COCKER-2026', role: 'SuperAdmin', status: 'ACTIVE' },
         { id: 'usr-jane', email: 'jane.doe@example.com', name: 'Jane Doe', householdId: 'house-stranger', role: 'Member', status: 'PENDING_APPROVAL' },
-      ] });
+      ] } });
       apiMock.fetchAllHouseholds.mockResolvedValue({ ok: true, data: [{ id: 'FAMILY-COCKER-2026', name: 'Family Pack (Main)' }] });
       await render(<AdminView currentUserEmail={SUPER_ADMIN_EMAIL} caretakers={badges} onAddCaretaker={vi.fn()} />);
 

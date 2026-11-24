@@ -2,11 +2,11 @@ import { randomUUID } from 'crypto';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { neon } from '@neondatabase/serverless';
 import { drizzle } from 'drizzle-orm/neon-http';
-import { eq, and, ne, lt, sql as sqlTag } from 'drizzle-orm';
+import { eq, and, ne, lt, gte, desc, sql as sqlTag } from 'drizzle-orm';
 import { activitiesTable, caretakersTable, healthRecordsTable, householdsTable, invitesTable, puppiesTable, usersTable } from '../src/db/schema.js';
 import { isSuperAdminEmail } from '../src/utils/auth.js';
-import { UserInputSchema } from '../src/utils/schemas.js';
-import { verifyAuth, sendAuthError, setCorsHeaders, newHouseholdId } from './_auth.js';
+import { HOUSEHOLD_LIMITS, UserInputSchema } from '../src/utils/schemas.js';
+import { verifyAuth, sendAuthError, sendLimitReached, setCorsHeaders, newHouseholdId } from './_auth.js';
 import { getDatabaseUrl } from './_db.js';
 
 const connectionString = getDatabaseUrl();
@@ -26,6 +26,8 @@ function householdHasOtherUser(account: UserRow) {
 
 // An invite nobody answered is deleted at the next invite anyone sends after this
 const INVITE_MAX_AGE_MS = 90 * 24 * 60 * 60 * 1000;
+// The owner's account list loads at most this many accounts, and says how many there are
+export const OWNER_ACCOUNT_LIST_LIMIT = 500;
 
 /**
  * Every account deletion (its own, the owner's, an Admin's): the account, the invites addressed to its email and its badges
@@ -80,10 +82,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(200).json(user);
       }
 
-      const users = isSuperAdmin
-        ? await db.select().from(usersTable)
-        : await db.select().from(usersTable).where(eq(usersTable.householdId, householdId));
-      return res.status(200).json(users);
+      if (isSuperAdmin) {
+        // The owner's own account (the panel reads its household from it), then pending and revoked ones, then the newest
+        const [users, total] = await Promise.all([
+          db
+            .select()
+            .from(usersTable)
+            .orderBy(
+              desc(sqlTag`${usersTable.email} = ${auth.email.toLowerCase()}`),
+              desc(sqlTag`${usersTable.status} <> 'ACTIVE'`),
+              sqlTag`${usersTable.createdAt} desc nulls last`
+            )
+            .limit(OWNER_ACCOUNT_LIST_LIMIT),
+          db.$count(usersTable),
+        ]);
+        return res.status(200).json({ users, total });
+      }
+      const users = await db.select().from(usersTable).where(eq(usersTable.householdId, householdId));
+      return res.status(200).json({ users, total: users.length });
     }
 
     // DELETE /api/users?email=<own email> — anyone but the owner deletes their own account, found from the session
@@ -135,11 +151,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         ]);
         if (!namedHousehold && !householdAccount) return res.status(404).json({ error: 'Household not found' });
       }
-      const [existing] = await db.select({ householdId: usersTable.householdId }).from(usersTable).where(eq(usersTable.email, email));
+      // Pending invites into that household for other emails: a new invite to an email already invited updates its row
+      const [[existing], pendingInvites] = await Promise.all([
+        db.select({ householdId: usersTable.householdId }).from(usersTable).where(eq(usersTable.email, email)),
+        isSuperAdmin
+          ? 0
+          : db.$count(invitesTable, and(
+            eq(invitesTable.householdId, targetHouseholdId),
+            ne(invitesTable.email, email),
+            gte(invitesTable.createdAt, new Date(Date.now() - INVITE_MAX_AGE_MS))
+          )),
+      ]);
       // Already in that household, or the owner (whose account never moves): nothing to write, and the same answer
       if (existing?.householdId === targetHouseholdId || isSuperAdminEmail(email)) {
         return res.status(201).json({ email });
       }
+      // shortcut: two invites at once can both pass the count and go one over; fine at this load, a conditional insert if it matters
+      if (pendingInvites >= HOUSEHOLD_LIMITS.pendingInvites) return sendLimitReached(res);
 
       await db.batch([
         db.delete(invitesTable).where(lt(invitesTable.createdAt, new Date(Date.now() - INVITE_MAX_AGE_MS))),

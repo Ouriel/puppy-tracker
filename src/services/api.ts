@@ -4,14 +4,14 @@ import { getAuthToken, setAuthToken, clearAuthToken } from '../utils/auth';
 export type { RegisteredUserItem, DashboardPayload };
 
 /** The `t.toasts` message of a failure: no answer is 'offline', a refusal the app explains has its own key, anything else is generic. */
-export type ApiErrorKey = 'offline' | 'errorGeneric' | MemberRefusalCode | 'inviteLeaveFirst';
+export type ApiErrorKey = 'offline' | 'errorGeneric' | MemberRefusalCode | 'inviteLeaveFirst' | 'limitReached';
 
 /** `code`: the refusal's code as the server sent it, e.g. 'revoked' for an account the owner revoked. */
 export type ApiResult<T> =
   | { ok: true; data: T }
   | { ok: false; errorKey: ApiErrorKey; status: number; code?: string };
 
-const REFUSAL_CODES: readonly unknown[] = ['memberNameTaken', 'memberEmailTaken', 'memberAdminOnly', 'inviteLeaveFirst'] satisfies ApiErrorKey[];
+const REFUSAL_CODES: readonly unknown[] = ['memberNameTaken', 'memberEmailTaken', 'memberAdminOnly', 'inviteLeaveFirst', 'limitReached'] satisfies ApiErrorKey[];
 
 /** A refused request's message key, and the `code` of its JSON body. */
 async function refusalOf(response: Response): Promise<{ errorKey: ApiErrorKey; code?: string }> {
@@ -296,8 +296,9 @@ export async function markPrivacyRequestHandled(id: string): Promise<ApiResult<P
 
 // ── Users API ──
 
-export async function fetchUsers(): Promise<ApiResult<RegisteredUserItem[]>> {
-  return request<RegisteredUserItem[]>('/api/users');
+/** The owner gets at most 500 accounts (their own, then pending and revoked ones, then the newest); `total` counts them all. */
+export async function fetchUsers(): Promise<ApiResult<{ users: RegisteredUserItem[]; total: number }>> {
+  return request<{ users: RegisteredUserItem[]; total: number }>('/api/users');
 }
 
 /**

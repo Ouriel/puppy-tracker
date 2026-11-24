@@ -208,6 +208,8 @@ Browser (React SPA, PWA)  ──/api/*──▶  Vercel functions (api/*.ts)  �
 
 APIs return timestamps as ISO strings. Inputs are validated with Zod (`src/utils/schemas.ts`). Schema changes go in `src/db/schema.ts` with a hand-written SQL file in `migrations/`, run by hand on the preview branch then on production (`migrations/README.md`), and must carry existing production data over.
 
+**Limits.** Zod caps each row's size; `HOUSEHOLD_LIMITS` (`src/utils/schemas.ts`) caps how many rows a household adds: 500 logs created in 24 hours (a resend of a stored log id still succeeds), 20 dogs (deleted ones count), 1000 health records, 30 badges and 30 pending invites (under 90 days old; the owner's are not capped). At a limit the API answers 429 `{ code: 'limitReached' }` and writes nothing, and the app says "Limit reached for your household". The owner's account list (`GET /api/users`) loads at most 500 accounts (the owner's own, then pending and revoked ones, then the newest) and their total. Per IP, a Vercel Firewall rule ("API rate limit", set in Vercel, not in code) answers 429 past 120 requests to `/api/` in 60 s (fixed window).
+
 ## Caching and freshness
 
 | Layer | Rule |

@@ -11,6 +11,18 @@ const longText = z.string().max(2000); // notes
 const emailText = (message: string) =>
   z.string().max(254).email(message).refine((email) => email.split('@')[0].length <= 64, message);
 
+/**
+ * Row count limits per household, the other half of the size limits above: each API that adds rows counts the household's
+ * rows first and answers 429 { code: 'limitReached' } at the limit, writing nothing.
+ */
+export const HOUSEHOLD_LIMITS = {
+  logsPerDay: 500, // POST /api/activities: logs created in the last 24 hours (a resend of a stored id is not a new one)
+  dogs: 20, // POST /api/dogs: deleted dogs count, so a create/delete loop stays capped
+  healthRecords: 1000, // POST /api/health-records
+  badges: 30, // POST /api/households
+  pendingInvites: 30, // POST /api/users: invites under 90 days old; the owner's are not capped
+} as const;
+
 export const DashboardQuerySchema = z.object({
   puppyId: z.string().optional().transform((value) => (value && value.trim().length > 0 ? value.trim() : undefined)),
   days: z.preprocess(

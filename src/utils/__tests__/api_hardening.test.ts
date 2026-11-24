@@ -59,6 +59,8 @@ vi.mock('drizzle-orm/neon-http', async () => {
           return query;
         }),
       })),
+      // The household limits' counts (HOUSEHOLD_LIMITS): never reached here
+      $count: vi.fn(() => Promise.resolve(0)),
       insert: vi.fn(() => ({
         values: (values: Record<string, unknown>) => {
           dbMock.insertedValues.push(values);

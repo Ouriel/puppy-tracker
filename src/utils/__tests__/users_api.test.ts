@@ -2,9 +2,10 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import type { SQL, Table } from 'drizzle-orm';
 import { PgDialect } from 'drizzle-orm/pg-core';
 import { signAppSessionToken, verifyAuth } from '../../../api/_auth.js';
-import usersHandler from '../../../api/users.js';
+import usersHandler, { OWNER_ACCOUNT_LIST_LIMIT } from '../../../api/users.js';
 import invitesHandler from '../../../api/invites.js';
 import { SUPER_ADMIN_EMAIL } from '../auth.js';
+import { HOUSEHOLD_LIMITS } from '../schemas.js';
 
 type Row = Record<string, unknown>;
 
@@ -28,6 +29,8 @@ const dbMock = vi.hoisted(() => ({
   // The `set` of each insert ... on conflict do update (a repeated invite)
   conflictSets: [] as Array<Record<string, unknown>>,
   batches: 0,
+  // The ORDER BY of the owner's account list
+  orderBy: [] as unknown[],
 }));
 
 vi.mock('@neondatabase/serverless', () => ({
@@ -41,11 +44,12 @@ vi.mock('drizzle-orm/neon-http', async () => {
   const matching = (table: Table, condition: SQL) => {
     const { sql, params } = new PgDialect().sqlToQuery(condition);
     return tableRows(table).filter((row) =>
-      [...sql.matchAll(/(lower\((?:"\w+"\.)?)?"(\w+)"\)? (=|<>|<) \$(\d+)/g)].every(([, lower, column, operator, index]) => {
+      [...sql.matchAll(/(lower\((?:"\w+"\.)?)?"(\w+)"\)? (=|<>|<|>=) \$(\d+)/g)].every(([, lower, column, operator, index]) => {
         const field = column.replace(/_(\w)/g, (_match, letter: string) => letter.toUpperCase());
         const value = lower ? String(row[field] ?? '').toLowerCase() : row[field];
         const param = params[Number(index) - 1];
         if (operator === '<') return new Date(value as string).getTime() < new Date(param as string).getTime();
+        if (operator === '>=') return new Date(value as string).getTime() >= new Date(param as string).getTime();
         return (value === param) === (operator === '=');
       })
     );
@@ -58,8 +62,14 @@ vi.mock('drizzle-orm/neon-http', async () => {
             const rows = Promise.resolve(matching(table, condition));
             return Object.assign(rows, { limit: (count: number) => rows.then((found) => found.slice(0, count)) });
           }),
+          // The owner's account list: the rows in stored order (the ORDER BY is kept for the test to read)
+          orderBy: (...clauses: unknown[]) => {
+            dbMock.orderBy = clauses;
+            return { limit: (count: number) => Promise.resolve(tableRows(table).slice(0, count)) };
+          },
         })),
       })),
+      $count: vi.fn((table: Table, condition?: SQL) => Promise.resolve(condition ? matching(table, condition).length : tableRows(table).length)),
       update: vi.fn((table: Table) => ({
         set: (values: Record<string, unknown>) => {
           dbMock.updatedValues.push(values);
@@ -250,6 +260,99 @@ describe('POST /api/users: an invite, never an account', () => {
     await usersHandler(asAdmin({ email: 'new.person@example.com' }), response);
 
     expect(ids(dbMock.invites)).toEqual(['inv-recent']);
+  });
+});
+
+// Security audit M2: a household's pending invites are capped (HOUSEHOLD_LIMITS.pendingInvites); the owner's are not
+describe(`POST /api/users: at most ${HOUSEHOLD_LIMITS.pendingInvites} pending invites per household`, () => {
+  const originalSecret = process.env.SESSION_SECRET;
+  const invites = (householdId: string, count: number, createdAt = daysAgo(1)) =>
+    Array.from({ length: count }, (_, index) => ({ id: `inv-${householdId}-${index}`, email: `invited${index}@example.com`, householdId, role: 'Member', createdAt }));
+
+  beforeEach(() => resetDb([adminRow]));
+
+  afterEach(() => {
+    process.env.SESSION_SECRET = originalSecret;
+  });
+
+  it("at the limit, an Admin's invite to a new email is refused with 429 limitReached, and nothing is written", async () => {
+    dbMock.invites = invites(adminRow.householdId, HOUSEHOLD_LIMITS.pendingInvites);
+    const response = createMockResponse();
+    await usersHandler(asAdmin({ email: 'new.person@example.com' }), response);
+
+    expect(response.statusCode).toBe(429);
+    expect(response.body).toEqual({ error: 'Limit reached for this household', code: 'limitReached' });
+    expect(dbMock.insertedValues).toEqual([]);
+    expect(dbMock.batches).toBe(0);
+  });
+
+  it('at the limit, inviting an email already invited updates its invite (not a new row)', async () => {
+    dbMock.invites = invites(adminRow.householdId, HOUSEHOLD_LIMITS.pendingInvites);
+    const response = createMockResponse();
+    await usersHandler(asAdmin({ email: 'invited0@example.com' }), response);
+
+    expect(response.statusCode).toBe(201);
+    expect(dbMock.conflictSets).toHaveLength(1);
+  });
+
+  it("invites over 90 days old and other households' invites do not count", async () => {
+    dbMock.invites = [...invites(adminRow.householdId, HOUSEHOLD_LIMITS.pendingInvites, daysAgo(91)), ...invites('hh-other', HOUSEHOLD_LIMITS.pendingInvites)];
+    const response = createMockResponse();
+    await usersHandler(asAdmin({ email: 'new.person@example.com' }), response);
+
+    expect(response.statusCode).toBe(201);
+    expect(dbMock.insertedValues).toEqual([expect.objectContaining({ email: 'new.person@example.com', householdId: adminRow.householdId })]);
+  });
+
+  it('the owner is not capped', async () => {
+    dbMock.users.push({ ...activeElsewhere });
+    dbMock.invites = invites('hh-other', HOUSEHOLD_LIMITS.pendingInvites);
+    const response = createMockResponse();
+    await usersHandler(asOwner({ email: 'new.person@example.com', householdId: 'hh-other' }), response);
+
+    expect(response.statusCode).toBe(201);
+    expect(dbMock.insertedValues).toEqual([expect.objectContaining({ email: 'new.person@example.com', householdId: 'hh-other' })]);
+  });
+});
+
+describe("GET /api/users: the owner's account list loads at most 500 accounts", () => {
+  const originalSecret = process.env.SESSION_SECRET;
+  const getAs = (identity: { email: string; householdId: string; role: string }) => {
+    const token = signAppSessionToken({ ...identity, name: 'Reader' }, 30);
+    return { method: 'GET', headers: { authorization: `Bearer ${token}` }, query: {} } as any;
+  };
+  const accounts = (count: number) =>
+    Array.from({ length: count }, (_, index) => ({ id: `usr-${index}`, email: `user${index}@example.com`, name: `User ${index}`, householdId: `house-${index}`, role: 'Admin', status: 'ACTIVE' }));
+
+  afterEach(() => {
+    process.env.SESSION_SECRET = originalSecret;
+  });
+
+  it(`sends ${OWNER_ACCOUNT_LIST_LIMIT} accounts and the total: the owner's own first, then pending and revoked ones, then the newest`, async () => {
+    resetDb(accounts(OWNER_ACCOUNT_LIST_LIMIT + 1));
+    const response = createMockResponse();
+    await usersHandler(getAs({ email: SUPER_ADMIN_EMAIL, householdId: 'hh-owner', role: 'SuperAdmin' }), response);
+
+    expect(response.statusCode).toBe(200);
+    expect(response.body.users).toHaveLength(OWNER_ACCOUNT_LIST_LIMIT);
+    expect(response.body.total).toBe(OWNER_ACCOUNT_LIST_LIMIT + 1);
+    const orderBy = dbMock.orderBy.map((clause) => new PgDialect().sqlToQuery(clause as SQL));
+    expect(orderBy.map((clause) => clause.sql)).toEqual([
+      '"users"."email" = $1 desc',
+      `"users"."status" <> 'ACTIVE' desc`,
+      '"users"."created_at" desc nulls last',
+    ]);
+    expect(orderBy[0].params).toEqual([SUPER_ADMIN_EMAIL.toLowerCase()]);
+  });
+
+  it("an Admin gets its household's accounts, all of them, with their number", async () => {
+    resetDb([adminRow, { ...activeElsewhere }, { ...adminRow, id: 'usr-family', email: 'family@example.com' }]);
+    const response = createMockResponse();
+    await usersHandler(getAs({ email: adminRow.email, householdId: adminRow.householdId, role: 'Admin' }), response);
+
+    expect(response.statusCode).toBe(200);
+    expect(ids(response.body.users)).toEqual(['usr-admin', 'usr-family']);
+    expect(response.body.total).toBe(2);
   });
 });
 

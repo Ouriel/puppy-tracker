@@ -15,6 +15,8 @@ vi.mock('drizzle-orm/neon-http', () => ({
         where: () => Promise.resolve([{ id: 'usr-1', email: 'user@example.com', name: 'Owner', householdId: 'hh-1', role: 'Admin', status: 'ACTIVE' }]),
       })),
     })),
+    // The household limits' counts (HOUSEHOLD_LIMITS): never reached here
+    $count: vi.fn(() => Promise.resolve(0)),
     insert: vi.fn(() => ({
       values: (values: Record<string, unknown>) => ({ returning: () => Promise.resolve([values]) }),
     })),

@@ -58,6 +58,8 @@ vi.mock('drizzle-orm/neon-http', async () => {
           return resolved(tableName === 'puppies' ? [{ id: 'pup-1', householdId: 'hh-1' }] : []);
         }),
       })),
+      // The household limits' counts (HOUSEHOLD_LIMITS): never reached here
+      $count: vi.fn(() => Promise.resolve(0)),
       insert: vi.fn((table: Table) => ({
         values: (values: Record<string, unknown>) => {
           if (getTableName(table) === 'caretakers') {
