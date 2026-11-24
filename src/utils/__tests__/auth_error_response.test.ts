@@ -12,19 +12,24 @@ vi.mock('@neondatabase/serverless', () => ({
 // The users rows the lookup returns; null makes it fail
 const usersLookup = vi.hoisted(() => ({ rows: null as unknown[] | null }));
 
-// Like drizzle: a failed query's message carries the SQL and its parameters, here an email
-vi.mock('drizzle-orm/neon-http', () => ({
-  drizzle: vi.fn(() => ({
-    select: () => ({
-      from: () => ({
-        where: () =>
-          usersLookup.rows
-            ? Promise.resolve(usersLookup.rows)
-            : Promise.reject(new Error('Failed query: select "id", "email" from "users" where "users"."email" = $1\nparams: someone@example.com')),
+// Like drizzle: a failed query's message carries the SQL and its parameters, here an email. No invite for this email.
+vi.mock('drizzle-orm/neon-http', async () => {
+  const { getTableName } = await import('drizzle-orm');
+  return {
+    drizzle: vi.fn(() => ({
+      select: () => ({
+        from: (table: Parameters<typeof getTableName>[0]) => ({
+          where: () =>
+            getTableName(table) === 'invites'
+              ? Promise.resolve([])
+              : usersLookup.rows
+                ? Promise.resolve(usersLookup.rows)
+                : Promise.reject(new Error('Failed query: select "id", "email" from "users" where "users"."email" = $1\nparams: someone@example.com')),
+        }),
       }),
-    }),
-  })),
-}));
+    })),
+  };
+});
 
 import activitiesHandler from '../../../api/activities.js';
 import dashboardHandler from '../../../api/dashboard.js';

@@ -2,7 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { neon } from '@neondatabase/serverless';
 import { drizzle } from 'drizzle-orm/neon-http';
 import { eq, and, desc, gte, inArray } from 'drizzle-orm';
-import { activitiesTable, caretakersTable, puppiesTable, healthRecordsTable } from '../src/db/schema.js';
+import { activitiesTable, caretakersTable, puppiesTable, healthRecordsTable, invitesTable, householdsTable } from '../src/db/schema.js';
 import { DashboardQuerySchema } from '../src/utils/schemas.js';
 import { verifyAuth, sendAuthError, setCorsHeaders, canDeleteHouseholdData } from './_auth.js';
 import { getDatabaseUrl } from './_db.js';
@@ -54,8 +54,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       allTimeActivitiesWhere = and(allTimeActivitiesWhere, eq(activitiesTable.puppyId, puppyId));
     }
 
-    // Execute all 5 dashboard queries concurrently in a single HTTP batch pipe to Neon
-    const [householdPuppies, caretakers, rawActivities, healthRecords, rawAllTimeActivities] = await db.batch([
+    // Execute all 6 dashboard queries concurrently in a single HTTP batch pipe to Neon
+    const [householdPuppies, caretakers, rawActivities, healthRecords, rawAllTimeActivities, invites] = await db.batch([
       db.select().from(puppiesTable).where(eq(puppiesTable.householdId, householdId)),
       db.select().from(caretakersTable).where(eq(caretakersTable.householdId, householdId)),
       db
@@ -75,6 +75,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         .from(activitiesTable)
         .where(allTimeActivitiesWhere)
         .orderBy(desc(activitiesTable.timestamp), desc(activitiesTable.createdAt)),
+      // The invites addressed to the signed-in email, for the dashboard's invite card (api/invites.ts answers them)
+      db
+        .select({ id: invitesTable.id, invitedBy: invitesTable.invitedBy, householdName: householdsTable.name })
+        .from(invitesTable)
+        .leftJoin(householdsTable, eq(householdsTable.id, invitesTable.householdId))
+        .where(eq(invitesTable.email, auth.email.toLowerCase())),
     ]);
 
     // A deleted dog (deleted_at set) is hidden; only the owner and the household's Admin get the deleted ones, to restore them
@@ -94,6 +100,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       healthRecords,
       // Weight and medication events. The key predates medications: an app not updated yet keeps only the weight rows
       weightActivities: rawAllTimeActivities.map(formatActivity),
+      invites,
     });
   } catch (err) {
     console.error('Error fetching dashboard payload:', err);

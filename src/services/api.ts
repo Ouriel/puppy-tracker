@@ -4,20 +4,20 @@ import { getAuthToken, setAuthToken, clearAuthToken } from '../utils/auth';
 export type { RegisteredUserItem, DashboardPayload };
 
 /** The `t.toasts` message of a failure: no answer is 'offline', a refusal the app explains has its own key, anything else is generic. */
-export type ApiErrorKey = 'offline' | 'errorGeneric' | MemberRefusalCode;
+export type ApiErrorKey = 'offline' | 'errorGeneric' | MemberRefusalCode | 'inviteLeaveFirst';
 
 /** `code`: the refusal's code as the server sent it, e.g. 'revoked' for an account the owner revoked. */
 export type ApiResult<T> =
   | { ok: true; data: T }
   | { ok: false; errorKey: ApiErrorKey; status: number; code?: string };
 
-const MEMBER_REFUSAL_CODES: readonly unknown[] = ['memberNameTaken', 'memberEmailTaken', 'memberAdminOnly'] satisfies MemberRefusalCode[];
+const REFUSAL_CODES: readonly unknown[] = ['memberNameTaken', 'memberEmailTaken', 'memberAdminOnly', 'inviteLeaveFirst'] satisfies ApiErrorKey[];
 
 /** A refused request's message key, and the `code` of its JSON body. */
 async function refusalOf(response: Response): Promise<{ errorKey: ApiErrorKey; code?: string }> {
   const body = await response.json().catch(() => ({}));
   const code = typeof body?.code === 'string' ? body.code : undefined;
-  return { errorKey: MEMBER_REFUSAL_CODES.includes(code) ? (code as MemberRefusalCode) : 'errorGeneric', code };
+  return { errorKey: REFUSAL_CODES.includes(code) ? (code as ApiErrorKey) : 'errorGeneric', code };
 }
 
 /** The session ended: back to the lock screen, which reads the refusal's code (detail) to say why. */
@@ -301,16 +301,23 @@ export async function fetchUsers(): Promise<ApiResult<RegisteredUserItem[]>> {
 }
 
 /**
- * A 409 means the account lives in another household: resend with confirmMove once the inviter confirms.
- * newHouseholdName (owner only) invites into a new household of that name, as its Admin.
+ * Invites an email into the inviter's household (the owner: `householdId`, or a new one named `newHouseholdName`, as its Admin).
+ * The answer is the same whether or not the email has an account: the invitee joins from their dashboard.
  */
-export async function createUser(
-  user: Partial<RegisteredUserItem> & { confirmMove?: boolean; newHouseholdName?: string }
-): Promise<ApiResult<RegisteredUserItem>> {
-  return request<RegisteredUserItem>('/api/users', {
+export async function sendInvite(invite: { email: string; householdId?: string; newHouseholdName?: string }): Promise<ApiResult<{ email: string }>> {
+  return request<{ email: string }>('/api/users', {
     method: 'POST',
-    body: JSON.stringify(user),
+    body: JSON.stringify(invite),
   });
+}
+
+/** Joins the invite's household. Refused (409, 'inviteLeaveFirst') while the caller's household has dogs or other accounts. */
+export async function acceptInvite(id: string): Promise<ApiResult<{ success: boolean }>> {
+  return request<{ success: boolean }>('/api/invites', { method: 'POST', body: JSON.stringify({ id }) });
+}
+
+export async function declineInvite(id: string): Promise<ApiResult<{ success: boolean }>> {
+  return request<{ success: boolean }>(`/api/invites?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
 }
 
 export async function updateUser(user: Partial<RegisteredUserItem>): Promise<ApiResult<RegisteredUserItem>> {

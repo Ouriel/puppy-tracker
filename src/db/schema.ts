@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, date, doublePrecision, integer, index } from 'drizzle-orm/pg-core';
+import { pgTable, text, timestamp, date, doublePrecision, integer, index, uniqueIndex } from 'drizzle-orm/pg-core';
 
 export const householdsTable = pgTable('households', {
   id: text('id').primaryKey(),
@@ -91,6 +91,18 @@ export const healthRecordsTable = pgTable('health_records', {
 }, (table) => [
   index('idx_health_records_household_date').on(table.householdId, table.date.desc()),
   index('idx_health_records_tenant_pup_date').on(table.householdId, table.puppyId, table.date.desc()),
+]);
+
+// An invite into a household, waiting for the invitee's yes (api/invites.ts): it never creates or moves an account by itself
+export const invitesTable = pgTable('invites', {
+  id: text('id').primaryKey(),
+  email: text('email').notNull(),
+  householdId: text('household_id').notNull(),
+  role: text('role').notNull().default('Member'),
+  invitedBy: text('invited_by'),
+  createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).defaultNow(),
+}, (table) => [
+  uniqueIndex('idx_invites_email_household').on(table.email, table.householdId),
 ]);
 
 // Requests sent from the privacy policy's form (/privacy); the owner answers them by email and marks them handled

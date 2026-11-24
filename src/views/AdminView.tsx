@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Shield, Send, Users, AlertCircle, UserCheck, UserX, Trash2, RefreshCw, Home, Mail, Pencil, X } from 'lucide-react';
 import {
   fetchUsers,
-  createUser,
+  sendInvite,
   updateUser,
   deleteUser,
   fetchAllHouseholds,
@@ -20,8 +20,6 @@ import { PageHeader } from '../components/common/PageHeader';
 
 // The invite form's household choice that creates a new one (no household id starts with '+')
 const NEW_HOUSEHOLD = '+new';
-
-type Invite = { email: string; householdId?: string; newHouseholdName?: string };
 
 interface AdminViewProps {
   currentUserEmail: string;
@@ -45,7 +43,6 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail, caretake
   const [statusMessage, setStatusMessage] = useState('');
   const [userToDelete, setUserToDelete] = useState<RegisteredUserItem | null>(null);
   const [userToJoin, setUserToJoin] = useState<{ email: string; householdId: string } | null>(null);
-  const [inviteToMove, setInviteToMove] = useState<Invite | null>(null);
   const [accountToMove, setAccountToMove] = useState<{ email: string; householdId: string } | null>(null);
 
   const currentHouseholdId = users.find((registeredUser) => registeredUser.email.toLowerCase() === currentUserEmail.toLowerCase())?.householdId;
@@ -199,17 +196,12 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail, caretake
     }
   };
 
-  // The account keeps its Google name. Into the admin's own household, the same badge as the Members tab (28).
-  // Into a new household, the server makes the invitee its Admin; their badge comes with their first log.
-  const inviteMember = async (invite: Invite, confirmMove = false) => {
+  // The invitee joins from their own dashboard. Into the admin's own household, the same badge as the Members tab (28).
+  // Into a new household, the server makes the invite an Admin one; their badge comes with their first log.
+  const inviteMember = async (invite: { email: string; householdId?: string; newHouseholdName?: string }) => {
     const { email, householdId, newHouseholdName: newName } = invite;
     try {
-      const res = await createUser({
-        email,
-        status: 'ACTIVE',
-        ...(newName ? { role: 'Admin', newHouseholdName: newName } : { role: 'Member', householdId }),
-        ...(confirmMove ? { confirmMove } : {}),
-      });
+      const res = await sendInvite(newName ? { email, newHouseholdName: newName } : { email, householdId });
 
       if (res.ok) {
         const badge = !newName && householdId === currentHouseholdId ? buildInviteBadge(email, caretakers) : null;
@@ -218,19 +210,13 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail, caretake
         setNewInviteEmail('');
         setNewInviteHousehold('');
         setNewHouseholdName('');
-        setStatusMessage(
-          newName
-            ? t.admin.invitedAsAdmin.replace('{email}', email).replace('{household}', newName)
-            : t.admin.preApprovedAccount.replace('{email}', email).replace('{household}', householdName(householdId))
-        );
+        setStatusMessage(t.household.inviteSent.replace('{email}', email));
         setTimeout(() => setStatusMessage(''), 3500);
-      } else if (res.status === 409) {
-        setInviteToMove(invite);
       } else {
         toast.danger(t.toasts[res.errorKey]);
       }
     } catch (err) {
-      console.error('Failed to pre-approve user', err);
+      console.error('Failed to send invite', err);
     }
   };
 
@@ -309,22 +295,6 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail, caretake
         tone="primary"
         onConfirm={() => userToJoin && void activateUser(userToJoin.email, userToJoin.householdId)}
         onClose={() => setUserToJoin(null)}
-      />
-
-      <ConfirmationModal
-        isOpen={!!inviteToMove}
-        title={t.household.addToFamily}
-        tone="primary"
-        message={
-          inviteToMove?.householdId === currentHouseholdId
-            ? t.household.alreadyHasAccount
-            : t.admin.joinHousehold
-              .replace('{email}', inviteToMove?.email ?? '')
-              .replace('{household}', inviteToMove?.newHouseholdName ?? householdName(inviteToMove?.householdId))
-        }
-        confirmLabel={t.household.addToFamily}
-        onConfirm={() => inviteToMove && void inviteMember(inviteToMove, true)}
-        onClose={() => setInviteToMove(null)}
       />
 
       <ConfirmationModal

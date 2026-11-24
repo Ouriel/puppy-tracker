@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef, lazy, Suspense, startTransition, type ReactNode, type SetStateAction } from 'react';
-import type { Activity, UserAccount, ActivityType, PottyLocation, FamilyRole, HealthRecord, HealthRecordsLoadState, PuppyProfile, RegisteredUserItem, SignInOutcome } from './types';
+import type { Activity, UserAccount, ActivityType, PottyLocation, FamilyRole, HealthRecord, HealthRecordsLoadState, HouseholdInvite, PuppyProfile, RegisteredUserItem, SignInOutcome } from './types';
 import { getAuthToken, setAuthToken, getStoredAuthUser, setStoredAuthUser, clearAuthToken } from './utils/auth';
 import {
   fetchDashboard,
@@ -8,6 +8,8 @@ import {
   exchangeSessionToken,
   clearApiCache,
   deleteUser,
+  acceptInvite,
+  declineInvite,
 } from './services/api';
 import { calculatePredictions, excludeFutureLogs, suggestNextMealGrams } from './utils/predictions';
 import { buildQuickActionActivity } from './utils/activityPayloads';
@@ -18,6 +20,7 @@ import { PredictorWidget } from './components/PredictorWidget';
 import { ActivityTimeline } from './components/ActivityTimeline';
 import { DogHealthSummary } from './components/DogHealthSummary';
 import { ConfirmationModal } from './components/common/ConfirmationModal';
+import { InviteCard } from './components/InviteCard';
 
 const SettingsView = lazy(() => import('./views/SettingsView').then((module) => ({ default: module.SettingsView })));
 const CarnetDeSanteView = lazy(() => import('./views/CarnetDeSanteView').then((module) => ({ default: module.CarnetDeSanteView })));
@@ -72,6 +75,8 @@ function App() {
   const [offlineDataTime, setOfflineDataTime] = useState<number | null>(null);
   // The health records came with a dashboard answer (this one's, or kept on the phone): until then the passport and the health summary never say "nothing recorded"
   const [areHealthRecordsLoaded, setAreHealthRecordsLoaded] = useState<boolean>(() => getStoredHealthRecords() !== null);
+  // Invites into another household addressed to this account, from the last dashboard answer
+  const [invites, setInvites] = useState<HouseholdInvite[]>([]);
 
   const [isLoading, setIsLoading] = useState<boolean>(() => {
     if (!getAuthToken()) return false;
@@ -155,9 +160,10 @@ function App() {
     setOfflineDataTime(!dashboardRes.ok && dashboardRes.errorKey === 'offline' ? getStoredRecentActivitiesTime(puppyId) : null);
     setIsDashboardDown(!dashboardRes.ok);
     if (!dashboardRes.ok) return false;
-    const { puppies, deletedPuppies, caretakers, activities, healthRecords: records, weightActivities } = dashboardRes.data;
+    const { puppies, deletedPuppies, caretakers, activities, healthRecords: records, weightActivities, invites: pendingInvites } = dashboardRes.data;
     // The owner's deleted dogs (none for anyone else), even when every dog is deleted
     setDeletedPuppies(deletedPuppies ?? []);
+    setInvites(pendingInvites ?? []);
     if (puppies && puppies.length > 0) {
       // The stored dog is gone, so these are its logs (none): load the first dog's instead
       if (puppyId && !puppies.some((puppy) => puppy.id === puppyId)) return loadDashboard(puppies[0].id);
@@ -490,6 +496,37 @@ function App() {
     setUser(null);
   };
 
+  // The invite card's Join: the account moves to the invite's household, so nothing of the old one stays on the phone, and
+  // the session is read again for the role the invite gives (a Member, or the Admin of a household the owner created)
+  const handleJoinInvite = async (inviteId: string) => {
+    const res = await acceptInvite(inviteId);
+    if (!res.ok) {
+      toast.danger(t.toasts[res.errorKey]);
+      return;
+    }
+    clearStoredHouseholdData();
+    clearApiCache();
+    setInvites([]);
+    setIsLoading(true);
+    const sessionRes = await exchangeSessionToken();
+    if (sessionRes.ok && sessionRes.data?.user) {
+      const userAccount = toUserAccount(sessionRes.data.user);
+      setUser(userAccount);
+      setStoredAuthUser(userAccount);
+    }
+    if (!(await loadDashboard(''))) await loadDogsAndHouseholdIfSignedIn();
+    startTransition(() => setIsLoading(false));
+  };
+
+  const handleDeclineInvite = async (inviteId: string) => {
+    const res = await declineInvite(inviteId);
+    if (!res.ok) {
+      toast.danger(t.toasts[res.errorKey]);
+      return;
+    }
+    setInvites((previous) => previous.filter((invite) => invite.id !== inviteId));
+  };
+
   // Skeletons while the first dashboard answer is awaited; "unavailable" once it failed with no records known (the passport tries its own load first)
   const healthRecordsState: HealthRecordsLoadState = areHealthRecordsLoaded ? 'loaded' : isDashboardDown ? 'failed' : 'loading';
 
@@ -602,6 +639,14 @@ function App() {
 
       {/* Main Content Area */}
       <main className="flex-1 max-w-6xl w-full mx-auto px-4 py-6">
+        {currentView === 'dashboard' && invites.length > 0 && (
+          <div className="space-y-3 mb-6">
+            {invites.map((invite) => (
+              <InviteCard key={invite.id} invite={invite} onJoin={handleJoinInvite} onDecline={handleDeclineInvite} />
+            ))}
+          </div>
+        )}
+
         {currentView === 'carnetdesante' ? (
           /* Full Page View for Health Passport */
           <div className="space-y-4">

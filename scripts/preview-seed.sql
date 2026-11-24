@@ -11,8 +11,9 @@
 --        Logs stop at the run time: re-run the seed at the start of each test session.
 -- ANONYMISE  A reset from parent copies production: run this file right after it. Every real name, email and free
 --        text becomes fictional (Membre 1, membre-1@example.com, Badge 1, Note anonymisée, Clinique vétérinaire,
---        Chien 1, Foyer 1, demande-1@example.com), and each log keeps its author's new name. Only the owner's own
---        account and badge (the account whose role is SuperAdmin) and his household's dogs keep their names.
+--        Chien 1, Foyer 1, demande-1@example.com, invite-1@example.com), and each log and invite keeps its author's new
+--        name. Only the owner's own account and badge (the account whose role is SuperAdmin) and his household's dogs
+--        keep their names.
 -- DATA   Real household FAMILY-COCKER-2026: puppy Pistache (Golden Retriever) logged by the household's own badges
 --        (read at run time), and Camille, an account waiting for approval.
 --        'Famille Martin (demo)': Rocky (Labrador, 10 weeks, 300 g, 4 meals), Lucky (Beagle, 2 years, no gram goal);
@@ -51,6 +52,10 @@ BEGIN
   DELETE FROM users          WHERE id LIKE 'seed-%';
   DELETE FROM puppies        WHERE id LIKE 'seed-%' OR household_id LIKE 'seed-%';
   DELETE FROM households     WHERE id LIKE 'seed-%';
+  -- Invites into seeded households (the owner can send them from the Admin panel); the table exists once migrations/0004 has run
+  IF to_regclass('public.invites') IS NOT NULL THEN
+    DELETE FROM invites WHERE id LIKE 'seed-%' OR household_id LIKE 'seed-%';
+  END IF;
 
   -- 1b. Anonymise the copy of production (rows not from this seed). Rerun-safe: a person keeps their number, which
   --     follows the first time their email appears.
@@ -79,6 +84,20 @@ BEGIN
     FROM caretakers AS c
     LEFT JOIN anon_people AS p ON p.email = lower(c.email)
     WHERE c.id NOT LIKE 'seed-%' AND c.household_id NOT LIKE 'seed-%' AND lower(coalesce(c.email, '')) <> v_owner_email;
+
+  -- Invites (the table exists once migrations/0004 has run): the invited email, and the inviter's name as that account's new
+  -- name, read before the accounts are renamed below. The owner's own name stays; a name no account carries any more is
+  -- 'Ancien membre'.
+  IF to_regclass('public.invites') IS NOT NULL THEN
+    UPDATE invites AS i SET email = 'invite-' || n.rank || '@example.com',
+                            invited_by = CASE
+                              WHEN i.invited_by IS NULL OR i.invited_by IN (SELECT name FROM users WHERE lower(email) = v_owner_email) THEN i.invited_by
+                              ELSE coalesce((SELECT min(p.new_name) FROM users AS u JOIN anon_people AS p ON p.email = lower(u.email)
+                                             WHERE u.name = i.invited_by), 'Ancien membre')
+                            END
+      FROM (SELECT id, row_number() OVER (ORDER BY created_at, id) AS rank FROM invites) AS n
+      WHERE i.id = n.id;
+  END IF;
 
   UPDATE users AS u SET name = p.new_name, email = p.new_email
     FROM anon_people AS p WHERE lower(u.email) = p.email AND u.id NOT LIKE 'seed-%';

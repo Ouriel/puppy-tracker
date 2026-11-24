@@ -10,7 +10,7 @@ import { HouseholdView } from '../HouseholdView';
 import { AdminView } from '../AdminView';
 
 const apiMock = vi.hoisted(() => ({
-  createUser: vi.fn(),
+  sendInvite: vi.fn(),
   updateUser: vi.fn(),
   deleteUser: vi.fn(),
   fetchUsers: vi.fn(),
@@ -45,7 +45,7 @@ beforeAll(() => {
 
 beforeEach(() => {
   Object.values(apiMock).forEach((mock) => mock.mockReset());
-  apiMock.createUser.mockResolvedValue({ ok: true, data: {} });
+  apiMock.sendInvite.mockResolvedValue({ ok: true, data: {} });
   apiMock.updateUser.mockResolvedValue({ ok: true, data: {} });
   apiMock.fetchPrivacyRequests.mockResolvedValue({ ok: true, data: [] });
 });
@@ -101,57 +101,36 @@ async function inviteFromMembersTab(email: string) {
 }
 
 describe('Members tab invite (19, 20, 42)', () => {
-  it('creates the badge linked to the invited email, named from it, in the first free colour, and sends no name', async () => {
+  it('creates the badge linked to the invited email, named from it, in the first free colour, and sends the email only', async () => {
     const { onAddCaretaker } = await renderMembers(owner);
     await inviteFromMembersTab('Jane.Doe@example.com');
 
-    expect(apiMock.createUser).toHaveBeenCalledTimes(1);
-    expect(apiMock.createUser.mock.calls[0][0]).toEqual({ email: 'jane.doe@example.com', role: 'Member', status: 'ACTIVE' });
+    expect(apiMock.sendInvite).toHaveBeenCalledTimes(1);
+    expect(apiMock.sendInvite.mock.calls[0][0]).toEqual({ email: 'jane.doe@example.com' });
     expect(onAddCaretaker).toHaveBeenCalledWith(
       expect.objectContaining({ name: 'Jane', email: 'jane.doe@example.com', color: FIRST_FREE_COLOR, role: 'Member' })
     );
   });
 
-  it('asks before moving someone who already has an account, then resends with confirmMove and only then adds the badge', async () => {
-    apiMock.createUser.mockResolvedValueOnce({ ok: false, status: 409, error: 'exists' });
-    const { onAddCaretaker } = await renderMembers(owner);
+  // Audit M1 and S1: the answer never says whether the email has an account, so the tab has one message and no question
+  it("says the invite is sent and that they'll be asked to join, with no question about an existing account", async () => {
+    await renderMembers(familyAdmin);
     await inviteFromMembersTab('jane.doe@example.com');
 
-    expect(document.body.textContent).toContain('This person already has an account. Add them to your household?');
-    expect(onAddCaretaker).not.toHaveBeenCalled();
-
-    await click(buttons('Add to household')[0]);
-    expect(apiMock.createUser).toHaveBeenCalledTimes(2);
-    expect(apiMock.createUser.mock.calls[1][0]).toMatchObject({ email: 'jane.doe@example.com', confirmMove: true });
-    expect(onAddCaretaker).toHaveBeenCalledWith(expect.objectContaining({ email: 'jane.doe@example.com' }));
+    expect(document.body.textContent).toContain("Invite sent to jane.doe@example.com. They'll be asked to join when they open PupPace.");
+    expect(document.querySelector('[role="dialog"]')).toBeNull();
+    expect(buttons('Copy link')).toHaveLength(1);
   });
 
-  it('Cancel on that question moves nobody, adds no badge and closes it', async () => {
-    apiMock.createUser.mockResolvedValueOnce({ ok: false, status: 409, error: 'exists' });
-    const { onAddCaretaker } = await renderMembers(owner);
+  it('a refused invite says why in a toast and adds no badge', async () => {
+    const danger = vi.spyOn(toast, 'danger').mockImplementation(() => '');
+    apiMock.sendInvite.mockResolvedValueOnce({ ok: false, status: 0, errorKey: 'offline' });
+    const { onAddCaretaker } = await renderMembers(familyAdmin);
     await inviteFromMembersTab('jane.doe@example.com');
 
-    await click(buttons('Cancel').at(-1)!);
-    // The modal leaves with an exit animation.
-    await act(async () => new Promise((resolve) => setTimeout(resolve, 400)));
-
-    expect(apiMock.createUser).toHaveBeenCalledTimes(1);
+    expect(danger).toHaveBeenCalledWith('No connection, nothing was saved.');
     expect(onAddCaretaker).not.toHaveBeenCalled();
-    expect(document.body.textContent).not.toContain('This person already has an account');
-  });
-
-  it('Escape on that question moves nobody and adds no badge', async () => {
-    apiMock.createUser.mockResolvedValueOnce({ ok: false, status: 409, error: 'exists' });
-    const { onAddCaretaker } = await renderMembers(owner);
-    await inviteFromMembersTab('jane.doe@example.com');
-
-    await act(async () => {
-      document.querySelector('[role="dialog"]')!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
-    });
-    await act(async () => new Promise((resolve) => setTimeout(resolve, 400)));
-
-    expect(apiMock.createUser).toHaveBeenCalledTimes(1);
-    expect(onAddCaretaker).not.toHaveBeenCalled();
+    danger.mockRestore();
   });
 
   it('shows the pre-approve button to an Admin, not to a member (the server refuses members)', async () => {
@@ -168,31 +147,18 @@ describe('Members tab invite (19, 20, 42)', () => {
     const { onAddCaretaker } = await renderMembers(familyAdmin);
     await inviteFromMembersTab('jane.doe@example.com');
 
-    expect(apiMock.createUser.mock.calls[0][0]).toEqual({ email: 'jane.doe@example.com', role: 'Member', status: 'ACTIVE' });
+    expect(apiMock.sendInvite.mock.calls[0][0]).toEqual({ email: 'jane.doe@example.com' });
     expect(onAddCaretaker).toHaveBeenCalledWith(expect.objectContaining({ name: 'Jane', email: 'jane.doe@example.com' }));
-  });
-
-  it('tells an Admin to ask the owner for someone who already has an account elsewhere: no move question, no badge', async () => {
-    const danger = vi.spyOn(toast, 'danger').mockImplementation(() => '');
-    apiMock.createUser.mockResolvedValueOnce({ ok: false, status: 409, error: 'exists' });
-    const { onAddCaretaker } = await renderMembers(familyAdmin);
-    await inviteFromMembersTab('jane.doe@example.com');
-
-    expect(danger).toHaveBeenCalledWith('This person already has an account. Ask the owner to add them.');
-    expect(document.body.textContent).not.toContain('Add them to your household?');
-    expect(apiMock.createUser).toHaveBeenCalledTimes(1);
-    expect(onAddCaretaker).not.toHaveBeenCalled();
-    danger.mockRestore();
   });
 
   it('a second tap on Invite while the invite is in flight sends nothing more', async () => {
     let answer!: (result: unknown) => void;
-    apiMock.createUser.mockReturnValueOnce(new Promise((resolve) => { answer = resolve; }));
+    apiMock.sendInvite.mockReturnValueOnce(new Promise((resolve) => { answer = resolve; }));
     const { onAddCaretaker } = await renderMembers(owner);
     await inviteFromMembersTab('jane.doe@example.com');
     await click(buttons('Invite')[0]);
 
-    expect(apiMock.createUser).toHaveBeenCalledTimes(1);
+    expect(apiMock.sendInvite).toHaveBeenCalledTimes(1);
     expect(buttons('Invite')[0].disabled).toBe(true);
     await act(async () => answer({ ok: true, data: {} }));
     expect(onAddCaretaker).toHaveBeenCalledTimes(1);
@@ -320,20 +286,12 @@ describe('Members tab identity (22)', () => {
     expect(document.querySelector('input[type="checkbox"]')).toBeNull();
   });
 
-  it('reads "C\'est moi" and the move question in French', async () => {
+  it('reads "C\'est moi" in French', async () => {
     localStorage.setItem('puppace_lang_v1', 'fr');
     try {
-      apiMock.createUser.mockResolvedValueOnce({ ok: false, status: 409, error: 'exists' });
       await renderMembers(owner, [{ id: 'c-guest', name: 'Guest', role: 'Member', color: '#F59E0B' }]);
       await click(document.querySelector<HTMLButtonElement>('[aria-label="Modifier Guest"]')!);
       expect(document.body.textContent).toContain("C'est moi");
-
-      await click([...document.querySelectorAll('button')].find((button) => /Inviter un membre/.test(button.textContent ?? ''))!);
-      await setValue(document.querySelector<HTMLInputElement>('form input[type="email"]')!, 'x@example.com');
-      await act(async () => document.querySelector<HTMLFormElement>('form:has(input[type="email"])')!.requestSubmit());
-
-      expect(document.body.textContent).toContain("Cette personne a déjà un compte. L'ajouter à ton foyer\u00a0?");
-      expect(buttons('Ajouter')).toHaveLength(1);
     } finally {
       localStorage.removeItem('puppace_lang_v1');
     }
@@ -633,59 +591,25 @@ describe('Admin panel (27, 28)', () => {
     await click(buttons('Invite')[0]);
   }
 
-  it('pre-approving into the own household creates the same linked badge as the Members tab, and sends no name', async () => {
+  it('inviting into the own household creates the same linked badge as the Members tab, and says the invite is sent', async () => {
     const { onAddCaretaker } = await renderAdmin();
     await preApprove('new.person@example.com');
 
-    expect(apiMock.createUser.mock.calls[0][0]).toEqual({
-      email: 'new.person@example.com',
-      role: 'Member',
-      status: 'ACTIVE',
-      householdId: 'FAMILY-COCKER-2026',
-    });
+    expect(apiMock.sendInvite.mock.calls[0][0]).toEqual({ email: 'new.person@example.com', householdId: 'FAMILY-COCKER-2026' });
     expect(onAddCaretaker).toHaveBeenCalledWith(
       expect.objectContaining({ name: 'New', email: 'new.person@example.com', color: FIRST_FREE_COLOR })
     );
+    expect(document.body.textContent).toContain("Invite sent to new.person@example.com. They'll be asked to join when they open PupPace.");
+    expect(document.querySelector('[role="dialog"]')).toBeNull();
   });
 
-  it('pre-approving into another household creates no badge', async () => {
+  it('inviting into another household creates no badge', async () => {
     const { onAddCaretaker } = await renderAdmin();
     await setValue(document.querySelectorAll<HTMLSelectElement>('select')[1], 'hh-other');
     await preApprove('new.person@example.com');
 
-    expect(apiMock.createUser.mock.calls[0][0]).toMatchObject({ householdId: 'hh-other' });
+    expect(apiMock.sendInvite.mock.calls[0][0]).toMatchObject({ householdId: 'hh-other' });
     expect(onAddCaretaker).not.toHaveBeenCalled();
-  });
-
-  it('asks before moving an existing account, then resends with confirmMove', async () => {
-    apiMock.createUser.mockResolvedValueOnce({ ok: false, status: 409, error: 'exists' });
-    const { onAddCaretaker } = await renderAdmin();
-    await preApprove('jane.doe@example.com');
-
-    expect(document.body.textContent).toContain('This person already has an account. Add them to your household?');
-    await click(buttons('Add to household')[0]);
-
-    expect(apiMock.createUser.mock.calls[1][0]).toMatchObject({ email: 'jane.doe@example.com', householdId: 'FAMILY-COCKER-2026', confirmMove: true });
-    expect(onAddCaretaker).toHaveBeenCalledWith(expect.objectContaining({ email: 'jane.doe@example.com' }));
-  });
-
-  it('Cancel on that question moves nobody and adds no badge', async () => {
-    apiMock.createUser.mockResolvedValueOnce({ ok: false, status: 409, error: 'exists' });
-    const { onAddCaretaker } = await renderAdmin();
-    await preApprove('jane.doe@example.com');
-    await click(buttons('Cancel').at(-1)!);
-
-    expect(apiMock.createUser).toHaveBeenCalledTimes(1);
-    expect(onAddCaretaker).not.toHaveBeenCalled();
-  });
-
-  it('names the other household in that question when the invite targets it', async () => {
-    apiMock.createUser.mockResolvedValueOnce({ ok: false, status: 409, error: 'exists' });
-    await renderAdmin();
-    await setValue(document.querySelectorAll<HTMLSelectElement>('select')[1], 'hh-other');
-    await preApprove('jane.doe@example.com');
-
-    expect(document.body.textContent).toContain('Add jane.doe@example.com to Other Family?');
   });
 
   async function chooseNewHousehold(name: string) {
@@ -699,22 +623,9 @@ describe('Admin panel (27, 28)', () => {
     await chooseNewHousehold('  Famille Durand ');
     await preApprove('new.person@example.com');
 
-    expect(apiMock.createUser.mock.calls[0][0]).toEqual({ email: 'new.person@example.com', status: 'ACTIVE', role: 'Admin', newHouseholdName: 'Famille Durand' });
+    expect(apiMock.sendInvite.mock.calls[0][0]).toEqual({ email: 'new.person@example.com', newHouseholdName: 'Famille Durand' });
     expect(onAddCaretaker).not.toHaveBeenCalled();
-    expect(document.body.textContent).toContain('Invited new.person@example.com as the admin of "Famille Durand".');
-  });
-
-  it('for an account living elsewhere, names the new household in the question, then resends with confirmMove', async () => {
-    apiMock.createUser.mockResolvedValueOnce({ ok: false, status: 409, error: 'exists' });
-    await renderAdmin();
-    await chooseNewHousehold('Famille Durand');
-    await preApprove('jane.doe@example.com');
-
-    expect(document.body.textContent).toContain('Add jane.doe@example.com to Famille Durand?');
-    await click(buttons('Add to household')[0]);
-    expect(apiMock.createUser.mock.calls[1][0]).toEqual({
-      email: 'jane.doe@example.com', status: 'ACTIVE', role: 'Admin', newHouseholdName: 'Famille Durand', confirmMove: true,
-    });
+    expect(document.body.textContent).toContain("Invite sent to new.person@example.com. They'll be asked to join when they open PupPace.");
   });
 
   it('lists every household by name, one not named yet after its admin, with its accounts, and renames it', async () => {
@@ -829,7 +740,7 @@ describe('Members and Admin in French: no English left', () => {
       await setValue(document.querySelector<HTMLInputElement>('form input[type="email"]')!, 'jane.doe@example.com');
       await act(async () => document.querySelector<HTMLFormElement>('form:has(input[type="email"])')!.requestSubmit());
 
-      expect(document.body.textContent).toContain('jane.doe@example.com peut maintenant se connecter.');
+      expect(document.body.textContent).toContain('Invitation envoyée à jane.doe@example.com. PupPace lui proposera de rejoindre le foyer à son ouverture.');
       expect(document.body.textContent).not.toContain('authorized');
     } finally {
       localStorage.removeItem('puppace_lang_v1');
@@ -855,7 +766,7 @@ describe('Members and Admin in French: no English left', () => {
 
       await setValue(email, 'new.person@example.com');
       await click(buttons('Inviter')[0]);
-      expect(document.body.textContent).toContain('new.person@example.com invité dans «\u00a0Family Pack (Main)\u00a0»');
+      expect(document.body.textContent).toContain('Invitation envoyée à new.person@example.com.');
       expect(document.body.textContent).not.toMatch(/Pre-approved|Activated|Moved/);
       // Each trash says whose account, 44 px; each select is named
       const trash = document.querySelector<HTMLButtonElement>('button[aria-label="Supprimer bob.smith@example.com"]')!;

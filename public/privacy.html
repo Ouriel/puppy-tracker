@@ -155,6 +155,7 @@
       <li><strong>Dogs:</strong> name, breed, sex, birth date, expected adult weight, meal goals, notes and health passport (vaccines, antiparasitics, treatments, batch numbers, vet clinic).</li>
       <li><strong>Activities:</strong> potty breaks (pee or poop, stool, location), meals, weigh-ins and treatments, with the time, optional notes and the name of the member who logged them.</li>
       <li><strong>Household badges:</strong> the names of the household's members, and their email when a badge is linked to an account.</li>
+      <li><strong>Invites:</strong> the email address invited to join a household, that household, the name of who invited and when.</li>
       <li><strong>Visits:</strong> anonymous page views and loading times, measured by Vercel without cookies.</li>
       <li><strong>Technical data:</strong> your IP address and request details, which our host processes to deliver the app.</li>
       <li><strong>Privacy requests:</strong> the email address, the request and the details you send with the form in section 8.</li>
@@ -172,6 +173,7 @@
     <h2>4. Who sees your data</h2>
     <ul>
       <li>The members of your household see its dogs, activities, health passport and badges.</li>
+      <li>Someone you invite sees your name in the invite, and the household's name if the owner gave it one. Inviting someone tells you nothing about whether they have an account; you see their data only once they accept and join your household.</li>
       <li>The app's owner sees every account's name, email, household, role and status, to approve and manage accounts.</li>
       <li>Vercel Inc. hosts the app, runs its server in Frankfurt (Germany) and measures visits.</li>
       <li>Neon stores the database in Frankfurt (Germany).</li>
@@ -186,7 +188,8 @@
       <li><strong>Account:</strong> until you delete it in the app, ask us to delete it, or the owner deletes it, including an account that is never approved or whose access the owner removed.</li>
       <li><strong>Dogs, activities and health passport:</strong> as long as the household uses the app. A dog deleted in the app is hidden, not erased, so the app's owner or your household's admin can restore it: ask us to erase it for good.</li>
       <li><strong>When you leave:</strong> your account and its badge are deleted. The dogs' records stay with the household while it has other accounts, since they use them; we remove your name from the activities you logged if you ask.</li>
-      <li><strong>When a household's last account is deleted:</strong> its name, dogs (hidden ones too), activities, health passports and badges are deleted with it.</li>
+      <li><strong>When a household's last account is deleted:</strong> its name, dogs (hidden ones too), activities, health passports, badges and invites into it are deleted with it.</li>
+      <li><strong>Invites:</strong> deleted once answered (joined or declined), with the invited account or the household when either is deleted, and, when nobody answers within 90 days, at the next invite anyone sends.</li>
       <li><strong>Backups:</strong> erased data leaves the database's restore history within 6 hours.</li>
       <li><strong>Privacy requests:</strong> one year after we answer them, as a record that we did.</li>
       <li><strong>Server logs:</strong> 1 hour.</li>
@@ -247,6 +250,7 @@
       <li><strong>Chiens&nbsp;:</strong> nom, race, sexe, date de naissance, poids adulte prévu, objectifs de repas, notes et carnet de santé (vaccins, antiparasitaires, traitements, numéros de lot, clinique vétérinaire).</li>
       <li><strong>Activités&nbsp;:</strong> besoins (pipi ou caca, selles, lieu), repas, pesées et traitements, avec l'heure, des notes facultatives et le nom du membre qui les a enregistrés.</li>
       <li><strong>Badges du foyer&nbsp;:</strong> les noms des membres du foyer, et leur e-mail quand un badge est lié à un compte.</li>
+      <li><strong>Invitations&nbsp;:</strong> l'adresse e-mail invitée à rejoindre un foyer, ce foyer, le nom de la personne qui a invité et la date.</li>
       <li><strong>Visites&nbsp;:</strong> pages vues et temps de chargement, anonymes, mesurés par Vercel sans cookie.</li>
       <li><strong>Données techniques&nbsp;:</strong> ton adresse IP et le détail des requêtes, traités par notre hébergeur pour faire fonctionner l'app.</li>
       <li><strong>Demandes de confidentialité&nbsp;:</strong> l'adresse e-mail, la demande et les précisions envoyées avec le formulaire de la section 8.</li>
@@ -264,6 +268,7 @@
     <h2>4. Qui voit tes données</h2>
     <ul>
       <li>Les membres de ton foyer voient ses chiens, ses activités, son carnet de santé et ses badges.</li>
+      <li>Une personne que tu invites voit ton nom dans l'invitation, et le nom du foyer si le propriétaire lui en a donné un. Inviter quelqu'un ne t'apprend pas s'il a un compte&nbsp;; tu ne vois ses données qu'une fois l'invitation acceptée et ton foyer rejoint.</li>
       <li>Le propriétaire de l'app voit le nom, l'e-mail, le foyer, le rôle et l'état de chaque compte, pour valider et gérer les comptes.</li>
       <li>Vercel Inc. héberge l'app, fait tourner son serveur à Francfort (Allemagne) et mesure les visites.</li>
       <li>Neon héberge la base de données à Francfort (Allemagne).</li>
@@ -278,7 +283,8 @@
       <li><strong>Compte&nbsp;:</strong> jusqu'à ce que tu le supprimes dans l'app, que tu nous demandes de le supprimer ou que le propriétaire le supprime, y compris un compte jamais validé ou dont le propriétaire a retiré l'accès.</li>
       <li><strong>Chiens, activités et carnet de santé&nbsp;:</strong> tant que le foyer utilise l'app. Un chien supprimé dans l'app est masqué, pas effacé, pour que le propriétaire de l'app ou l'admin de ton foyer puisse le restaurer&nbsp;: demande-nous de l'effacer définitivement.</li>
       <li><strong>Quand tu pars&nbsp;:</strong> ton compte et son badge sont supprimés. Les données des chiens restent au foyer tant qu'il a d'autres comptes, car ils s'en servent&nbsp;; nous retirons ton nom des activités que tu as enregistrées si tu le demandes.</li>
-      <li><strong>Quand le dernier compte d'un foyer est supprimé&nbsp;:</strong> son nom, ses chiens (masqués compris), activités, carnets de santé et badges sont supprimés avec lui.</li>
+      <li><strong>Quand le dernier compte d'un foyer est supprimé&nbsp;:</strong> son nom, ses chiens (masqués compris), activités, carnets de santé, badges et les invitations à le rejoindre sont supprimés avec lui.</li>
+      <li><strong>Invitations&nbsp;:</strong> supprimées dès la réponse (rejoindre ou refuser), avec le compte invité ou le foyer quand l'un ou l'autre est supprimé, et, sans réponse au bout de 90&nbsp;jours, à la prochaine invitation envoyée par quiconque.</li>
       <li><strong>Sauvegardes&nbsp;:</strong> les données effacées sortent de l'historique de restauration de la base en 6&nbsp;heures.</li>
       <li><strong>Demandes de confidentialité&nbsp;:</strong> un an après notre réponse, pour garder trace de la réponse.</li>
       <li><strong>Journaux du serveur&nbsp;:</strong> 1&nbsp;heure.</li>

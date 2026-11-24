@@ -68,9 +68,9 @@ describe('migrations/ build the schema of src/db/schema.ts', () => {
     expect([...migrated.keys()].sort()).toEqual(expected.map(({ column }) => column).sort());
   });
 
-  it('every index, on the same columns and order, and every unique column', () => {
-    const indexes = [...migrationsSql.matchAll(/CREATE INDEX IF NOT EXISTS (\w+) ON (\w+) \(([^)]*)\)/g)]
-      .map(([, name, table, columns]) => `${table}.${name} (${columns.replaceAll('"', '')})`)
+  it('every index, on the same columns and order, unique or not, and every unique column', () => {
+    const indexes = [...migrationsSql.matchAll(/CREATE (UNIQUE )?INDEX IF NOT EXISTS (\w+) ON (\w+) \(([^)]*)\)/g)]
+      .map(([, unique, name, table, columns]) => `${table}.${name} (${columns.replaceAll('"', '')})${unique ? ' UNIQUE' : ''}`)
       .sort();
     const uniques = [...migrationsSql.matchAll(/CONSTRAINT (\w+) UNIQUE \((\w+)\)/g)].map(([, name, column]) => `${name} (${column})`).sort();
 
@@ -82,7 +82,7 @@ describe('migrations/ build the schema of src/db/schema.ts', () => {
               const indexed = column as { name: string; indexConfig?: { order?: string } };
               return indexed.indexConfig?.order === 'desc' ? `${indexed.name} DESC` : indexed.name;
             });
-            return `${name}.${config.name} (${columns.join(', ')})`;
+            return `${name}.${config.name} (${columns.join(', ')})${config.unique ? ' UNIQUE' : ''}`;
           })
         )
         .sort()

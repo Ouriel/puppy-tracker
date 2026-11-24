@@ -97,8 +97,6 @@ export const UserInputSchema = z.object({
   role: z.enum(['Husband', 'Wife', 'Partner', 'Child', 'Dog Walker', 'Sitter', 'Relative', 'Member', 'Admin', 'SuperAdmin'] satisfies FamilyRole[]).optional(),
   status: z.enum(['ACTIVE', 'PENDING_APPROVAL', 'REVOKED'] satisfies AccountStatus[]).optional(),
   householdId: idText.optional(),
-  // POST only: the inviter confirmed moving an account that lives in another household
-  confirmMove: z.boolean().optional(),
   // POST, owner only: invite into a new household of this name, as its Admin
   newHouseholdName: shortText.trim().min(1).optional(),
 });
