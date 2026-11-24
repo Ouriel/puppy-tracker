@@ -113,7 +113,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       // Verify puppy belongs to this household; caretakers resolve who is logging (never the body's loggedBy);
       // a log sent again (same id) returns the stored one, even at the daily limit
-      const [[puppy], caretakers, [existing], logsToday] = await Promise.all([
+      const [[puppy], caretakers, [existing], dogLogsToday] = await Promise.all([
         db
           .select()
           .from(puppiesTable)
@@ -123,8 +123,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           .select()
           .from(activitiesTable)
           .where(and(eq(activitiesTable.id, id), eq(activitiesTable.householdId, householdId))),
-        // Created in the last 24 h, whatever the log's own time (a log can be backdated)
-        db.$count(activitiesTable, and(eq(activitiesTable.householdId, householdId), gte(activitiesTable.createdAt, new Date(Date.now() - 24 * 60 * 60 * 1000)))),
+        // This dog's logs created in the last 24 h, whatever the log's own time (a log can be backdated)
+        db.$count(activitiesTable, and(
+          eq(activitiesTable.householdId, householdId),
+          eq(activitiesTable.puppyId, body.puppyId),
+          gte(activitiesTable.createdAt, new Date(Date.now() - 24 * 60 * 60 * 1000)),
+        )),
       ]);
       if (!puppy) {
         return res.status(403).json({ error: 'Puppy not found in your household' });
@@ -136,7 +140,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(200).json(existing);
       }
       // shortcut: two requests at once can both pass the count and go one over; fine at this load, a conditional insert if it matters
-      if (logsToday >= HOUSEHOLD_LIMITS.logsPerDay) return sendLimitReached(res);
+      if (dogLogsToday >= HOUSEHOLD_LIMITS.logsPerDogPerDay) return sendLimitReached(res);
 
       const loggedBy = await loggedByName(auth, caretakers);
       const [created] = await db

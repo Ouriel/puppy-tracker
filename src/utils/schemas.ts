@@ -16,11 +16,11 @@ const emailText = (message: string) =>
  * rows first and answers 429 { code: 'limitReached' } at the limit, writing nothing.
  */
 export const HOUSEHOLD_LIMITS = {
-  logsPerDay: 500, // POST /api/activities: logs created in the last 24 hours (a resend of a stored id is not a new one)
-  dogs: 20, // POST /api/dogs: deleted dogs count, so a create/delete loop stays capped
+  logsPerDogPerDay: 50, // POST /api/activities: one dog's logs created in the last 24 hours (a resend of a stored id is not a new one)
+  dogs: 10, // POST /api/dogs: deleted dogs count, so a create/delete loop stays capped
   healthRecords: 1000, // POST /api/health-records
   badges: 30, // POST /api/households
-  pendingInvites: 30, // POST /api/users: invites under 90 days old; the owner's are not capped
+  pendingInvites: 10, // POST /api/users: invites under 90 days old; the owner's are not capped
 } as const;
 
 export const DashboardQuerySchema = z.object({
