@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import type { FamilyRole } from '../types/index.js';
+import type { AccountStatus, FamilyRole } from '../types/index.js';
 
 const PottyLocationSchema = z.enum(['outside', 'indoor_accident']);
 
@@ -95,7 +95,7 @@ export const UserInputSchema = z.object({
   email: emailText('Valid email is required'),
   name: shortText.optional(),
   role: z.enum(['Husband', 'Wife', 'Partner', 'Child', 'Dog Walker', 'Sitter', 'Relative', 'Member', 'Admin', 'SuperAdmin'] satisfies FamilyRole[]).optional(),
-  status: z.enum(['ACTIVE', 'PENDING_APPROVAL']).optional(),
+  status: z.enum(['ACTIVE', 'PENDING_APPROVAL', 'REVOKED'] satisfies AccountStatus[]).optional(),
   householdId: idText.optional(),
   // POST only: the inviter confirmed moving an account that lives in another household
   confirmMove: z.boolean().optional(),

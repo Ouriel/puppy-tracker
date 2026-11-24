@@ -277,7 +277,7 @@ describe('row buttons named after their row, 44 px targets (French)', () => {
       { id: 'c-me', name: 'Sam', role: 'Member' as const, color: '#EC4899', email: 'sam@example.com' },
       { id: 'c-marie', name: 'Marie', role: 'Member' as const, color: '#10B981' },
     ];
-    await render(<HouseholdView caretakers={badges} user={{ email: 'sam@example.com', name: 'Sam', role: 'Admin' }} onAddCaretaker={vi.fn()} onUpdateCaretaker={vi.fn()} onDeleteCaretaker={vi.fn()} />, 'fr');
+    await render(<HouseholdView caretakers={badges} user={{ email: 'sam@example.com', name: 'Sam', role: 'Admin' }} onAddCaretaker={vi.fn()} onUpdateCaretaker={vi.fn()} onDeleteCaretaker={vi.fn()} onDeleteMyAccount={vi.fn()} />, 'fr');
     expect(is44(button('Modifier Marie'))).toBe(true);
     expect(is44(button('Supprimer Marie'))).toBe(true);
 
@@ -306,7 +306,7 @@ describe('row buttons named after their row, 44 px targets (French)', () => {
 
   it('settings: the tabs say which one is open, and the back button is 44 px', async () => {
     await render(
-      <SettingsView user={{ email: 'sam@example.com', name: 'Sam', role: 'Member' }} puppies={[PISTACHE]} activePuppyId={PISTACHE.id} onSelectPuppy={vi.fn()} onAddPuppy={vi.fn()} onUpdatePuppy={vi.fn()} onDeletePuppy={vi.fn()} deletedPuppies={[]} onRestorePuppy={vi.fn()} caretakers={[]} onAddCaretaker={vi.fn()} onUpdateCaretaker={vi.fn()} onDeleteCaretaker={vi.fn()} onBackToDashboard={vi.fn()} />,
+      <SettingsView user={{ email: 'sam@example.com', name: 'Sam', role: 'Member' }} puppies={[PISTACHE]} activePuppyId={PISTACHE.id} onSelectPuppy={vi.fn()} onAddPuppy={vi.fn()} onUpdatePuppy={vi.fn()} onDeletePuppy={vi.fn()} deletedPuppies={[]} onRestorePuppy={vi.fn()} caretakers={[]} onAddCaretaker={vi.fn()} onUpdateCaretaker={vi.fn()} onDeleteCaretaker={vi.fn()} onDeleteMyAccount={vi.fn()} onBackToDashboard={vi.fn()} />,
       'fr'
     );
     const tabs = [...document.querySelectorAll<HTMLButtonElement>('button[aria-pressed]')];

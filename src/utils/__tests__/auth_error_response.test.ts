@@ -33,6 +33,7 @@ import healthRecordsHandler from '../../../api/health-records.js';
 import householdsHandler from '../../../api/households.js';
 import usersHandler from '../../../api/users.js';
 import sessionHandler from '../../../api/auth/session.js';
+import { signAppSessionToken } from '../../../api/_auth.js';
 
 const handlers = { activitiesHandler, dashboardHandler, dogsHandler, healthRecordsHandler, householdsHandler, usersHandler, sessionHandler };
 
@@ -108,6 +109,31 @@ describe('a failed sign-in check answers with no SQL or email (every handler)', 
     await handler(request({ authorization: 'Bearer google-id-token' }), response as never);
 
     expect(response.statusCode).toBe(403);
-    expect(response.body).toEqual({ error: 'Account pending activation by Super Admin.' });
+    expect(response.body).toEqual({ error: 'Account pending activation by Super Admin.', code: 'pending' });
+  });
+
+  // Audit S2: the lock screen says "access removed", never "request sent", to an account the owner revoked
+  it.each(Object.entries(handlers))('%s: a revoked account is refused at sign-in with its own code', async (_name, handler) => {
+    usersLookup.rows = [{ id: 'usr-1', householdId: 'house-1', email: 'someone@example.com', name: 'Someone', role: 'Member', status: 'REVOKED' }];
+    const response = createMockResponse();
+
+    await handler(request({ authorization: 'Bearer google-id-token' }), response as never);
+
+    expect(response.statusCode).toBe(403);
+    expect(response.body).toEqual({ error: expect.any(String), code: 'revoked' });
+  });
+
+  it.each([
+    ['REVOKED', 'revoked'],
+    ['PENDING_APPROVAL', 'pending'],
+  ])('%s: a request with a session issued before is refused (401) with the code %s', async (status, code) => {
+    usersLookup.rows = [{ id: 'usr-1', householdId: 'house-1', email: 'someone@example.com', name: 'Someone', role: 'Member', status }];
+    const session = signAppSessionToken({ email: 'someone@example.com', name: 'Someone', householdId: 'house-1', role: 'Member' });
+    const response = createMockResponse();
+
+    await dashboardHandler(request({ authorization: `Bearer ${session}` }), response as never);
+
+    expect(response.statusCode).toBe(401);
+    expect(response.body).toEqual({ error: 'Session revoked', code });
   });
 });

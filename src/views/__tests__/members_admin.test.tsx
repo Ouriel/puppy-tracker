@@ -90,7 +90,7 @@ const badges: Caretaker[] = [
 const FIRST_FREE_COLOR = '#F59E0B';
 
 function renderMembers(user: UserAccount, caretakers: Caretaker[] = badges) {
-  const handlers = { onAddCaretaker: vi.fn(), onUpdateCaretaker: vi.fn(), onDeleteCaretaker: vi.fn() };
+  const handlers = { onAddCaretaker: vi.fn(), onUpdateCaretaker: vi.fn(), onDeleteCaretaker: vi.fn(), onDeleteMyAccount: vi.fn() };
   return render(<HouseholdView caretakers={caretakers} user={user} {...handlers} />).then(() => handlers);
 }
 
@@ -416,6 +416,33 @@ describe('Members list layout', () => {
 });
 
 // Improvement backlog 18: the boxes stop where the server's limit stops, so a typed name is never refused on save
+// Audit S3: anyone but the owner deletes their own account from the Members tab
+describe('Members tab: Delete my account', () => {
+  it('asks first, saying what goes, then calls the handler once', async () => {
+    const { onDeleteMyAccount } = await renderMembers(member);
+    expect(document.body.textContent).toContain('Your account');
+    expect(document.body.textContent).toContain(member.email);
+
+    await click(buttons('Delete my account')[0]);
+    expect(document.body.textContent).toContain("If you are your household's last account, its dogs, activities, health passports and badges will be deleted too.");
+    expect(onDeleteMyAccount).not.toHaveBeenCalled();
+
+    await click(buttons('Delete my account').at(-1)!);
+    expect(onDeleteMyAccount).toHaveBeenCalledTimes(1);
+  });
+
+  it('is offered to an Admin, not to the owner', async () => {
+    await renderMembers(familyAdmin);
+    expect(buttons('Delete my account')).toHaveLength(1);
+    await act(async () => root?.unmount());
+    document.body.innerHTML = '';
+
+    await renderMembers(owner);
+    expect(buttons('Delete my account')).toHaveLength(0);
+    expect(document.body.textContent).not.toContain('Your account');
+  });
+});
+
 describe('Members tab name limits', () => {
   it('the new badge and badge rename boxes stop at the length the server accepts', async () => {
     await renderMembers(owner);
@@ -515,6 +542,33 @@ describe('Admin panel (27, 28)', () => {
     expect(danger).toHaveBeenCalledWith('No connection, nothing was saved.');
     expect(buttons('Revoke')).toHaveLength(1);
     danger.mockRestore();
+  });
+
+  // Audit S2: a revoked account is no longer "pending"; the owner alone restores it, in its household and role
+  it('Revoke sets REVOKED and moves the account to "Revoked accounts", shown only when it lists someone', async () => {
+    await renderAdmin();
+    expect(document.body.textContent).not.toContain('Revoked accounts');
+
+    await click(buttons('Revoke')[0]);
+
+    expect(apiMock.updateUser).toHaveBeenCalledWith({ email: activeElsewhere.email, status: 'REVOKED' });
+    expect(document.body.textContent).toContain('Revoked accounts (1)');
+    expect(document.body.textContent).toContain('Pending accounts (1)');
+    expect(document.body.textContent).toContain('Active accounts (1)');
+    expect(buttons('Restore access')).toHaveLength(1);
+  });
+
+  it('"Restore access" makes a revoked account active again, with no household or role sent', async () => {
+    await renderAdmin([ownerRow, pendingStranger, { ...activeElsewhere, status: 'REVOKED' }]);
+    expect(document.body.textContent).toContain('Revoked accounts (1)');
+    expect(document.body.textContent).toContain('Pending accounts (1)');
+
+    await click(buttons('Restore access')[0]);
+
+    expect(apiMock.updateUser).toHaveBeenCalledWith({ email: activeElsewhere.email, status: 'ACTIVE' });
+    expect(document.body.textContent).not.toContain('Revoked accounts');
+    expect(document.body.textContent).toContain('Active accounts (2)');
+    expect(document.body.textContent).toContain('Restored access for bob.smith@example.com.');
   });
 
   it('a Delete the server never takes says why in a toast, and the account stays listed', async () => {

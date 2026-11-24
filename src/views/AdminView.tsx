@@ -152,26 +152,27 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail, caretake
     }
   };
 
-  // The owner's own row (role SuperAdmin, which only the owner's email gets) offers neither revoke nor delete
-  const handleDeactivate = async (email: string) => {
+  // Revoke, or restore (same household and role). The owner's own row (role SuperAdmin, which only the owner's email gets)
+  // offers neither revoke nor delete.
+  const changeAccess = async (email: string, status: 'REVOKED' | 'ACTIVE') => {
     if (users.some((registeredUser) => registeredUser.email === email && registeredUser.role === 'SuperAdmin')) return;
     try {
-      const res = await updateUser({ email, status: 'PENDING_APPROVAL' });
+      const res = await updateUser({ email, status });
       if (res.ok) {
         setUsers((previous) =>
           previous.map((registeredUser) =>
             registeredUser.email === email
-              ? { ...registeredUser, status: 'PENDING_APPROVAL' as const }
+              ? { ...registeredUser, status }
               : registeredUser
           )
         );
-        setStatusMessage(t.admin.revokedAccess.replace('{email}', email));
+        setStatusMessage((status === 'REVOKED' ? t.admin.revokedAccess : t.admin.restoredAccess).replace('{email}', email));
         setTimeout(() => setStatusMessage(''), 3500);
       } else {
         toast.danger(t.toasts[res.errorKey]);
       }
     } catch (err) {
-      console.error('Failed to deactivate user', err);
+      console.error('Failed to change user access', err);
     }
   };
 
@@ -270,6 +271,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail, caretake
   const pendingUsers = (users || []).filter((registeredUser) => registeredUser.status === 'PENDING_APPROVAL');
   const openPrivacyRequests = privacyRequests.filter((privacyRequest) => !privacyRequest.handledAt).length;
   const activeUsers = (users || []).filter((registeredUser) => registeredUser.status === 'ACTIVE');
+  const revokedUsers = (users || []).filter((registeredUser) => registeredUser.status === 'REVOKED');
 
   return (
     <div className="space-y-6 w-full">
@@ -675,7 +677,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail, caretake
                         <div className="flex items-center gap-2">
                           <Button
                             size="sm"
-                            onPress={() => handleDeactivate(userItem.email)}
+                            onPress={() => void changeAccess(userItem.email, 'REVOKED')}
                             className="min-h-11 bg-slate-950 border border-slate-800 text-amber-300 font-bold text-xs hover:bg-slate-800"
                           >
                             <UserX className="w-3.5 h-3.5 mr-1 inline" />
@@ -699,6 +701,50 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail, caretake
           )}
         </Card.Content>
       </Card>
+
+      {/* Revoked accounts: signed out and refused until the owner restores them */}
+      {revokedUsers.length > 0 && (
+        <Card className="bg-slate-900 border-slate-800 text-slate-100">
+          <Card.Header className="px-4 pt-4">
+            <Card.Title className="flex items-center gap-2 font-bold">
+              <UserX className="w-4 h-4 text-amber-400 shrink-0" />
+              <span>{t.admin.revokedAccounts.replace('{count}', String(revokedUsers.length))}</span>
+            </Card.Title>
+          </Card.Header>
+          <Card.Content className="p-4 space-y-3">
+            {revokedUsers.map((userItem) => (
+              <div
+                key={userItem.id}
+                className="flex flex-wrap items-center justify-between gap-3 p-3.5 bg-slate-950/60 rounded-xl border border-slate-800"
+              >
+                <div className="min-w-0">
+                  <div className="text-xs font-bold text-slate-100 break-words">{userItem.name}</div>
+                  <div className="text-xs text-slate-400 mt-0.5 break-all">{userItem.email}</div>
+                  <div className="text-xs text-slate-400 mt-0.5 break-words">{householdName(userItem.householdId)}</div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    onPress={() => void changeAccess(userItem.email, 'ACTIVE')}
+                    className="min-h-11 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs"
+                  >
+                    <UserCheck className="w-3.5 h-3.5 mr-1 inline" />
+                    {t.admin.restoreAccess}
+                  </Button>
+                  <button
+                    type="button"
+                    onClick={() => setUserToDelete(userItem)}
+                    aria-label={t.common.deleteItem.replace('{item}', userItem.email)}
+                    className="min-h-11 min-w-11 flex items-center justify-center text-slate-400 hover:text-red-400 hover:bg-slate-800 rounded-xl border border-slate-800 bg-slate-950 transition-colors"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </Card.Content>
+        </Card>
+      )}
     </div>
   );
 };

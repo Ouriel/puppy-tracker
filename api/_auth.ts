@@ -47,19 +47,27 @@ function getSessionSecret(): string {
   return secret;
 }
 
-/** A deliberate refusal from verifyAuth: its status and message are safe to send. */
+/** Why an existing account is refused: the lock screen tells a revoked account apart from one waiting for approval. */
+type AccountRefusalCode = 'revoked' | 'pending';
+
+/** A deliberate refusal from verifyAuth: its status, message and code are safe to send. */
 export class AuthError {
   status: number;
   message: string;
-  constructor(status: number, message: string) {
+  code?: AccountRefusalCode;
+  constructor(status: number, message: string, code?: AccountRefusalCode) {
     this.status = status;
     this.message = message;
+    this.code = code;
   }
 }
 
+/** The refusal code of an account that is not ACTIVE. */
+const refusalCodeOf = (status: string): AccountRefusalCode => (status === 'REVOKED' ? 'revoked' : 'pending');
+
 /** Answers a failed verifyAuth. Any error other than an AuthError (a database error carries SQL and the email) is logged and answers a generic 500. */
 export function sendAuthError(res: VercelResponse, error: unknown) {
-  if (error instanceof AuthError) return res.status(error.status).json({ error: error.message });
+  if (error instanceof AuthError) return res.status(error.status).json({ error: error.message, ...(error.code ? { code: error.code } : {}) });
   console.error('Authentication failed:', error);
   return res.status(500).json({ error: 'Internal server error' });
 }
@@ -179,9 +187,8 @@ export async function verifyAuth(req: VercelRequest): Promise<AuthContext> {
       console.error('verifyAuth users lookup failed:', error);
       throw new AuthError(500, 'Internal server error');
     }
-    if (!user || user.status !== 'ACTIVE') {
-      throw new AuthError(401, 'Session revoked');
-    }
+    if (!user) throw new AuthError(401, 'Session revoked');
+    if (user.status !== 'ACTIVE') throw new AuthError(401, 'Session revoked', refusalCodeOf(user.status));
     return {
       email: appSession.email,
       name: user.name || appSession.name,
@@ -255,7 +262,7 @@ export async function verifyAuth(req: VercelRequest): Promise<AuthContext> {
   }
 
   if (user.status !== 'ACTIVE') {
-    throw new AuthError(403, 'Account pending activation by Super Admin.');
+    throw new AuthError(403, user.status === 'REVOKED' ? 'Access removed by the owner.' : 'Account pending activation by Super Admin.', refusalCodeOf(user.status));
   }
 
   return {

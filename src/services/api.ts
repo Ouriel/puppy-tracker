@@ -6,16 +6,23 @@ export type { RegisteredUserItem, DashboardPayload };
 /** The `t.toasts` message of a failure: no answer is 'offline', a refusal the app explains has its own key, anything else is generic. */
 export type ApiErrorKey = 'offline' | 'errorGeneric' | MemberRefusalCode;
 
+/** `code`: the refusal's code as the server sent it, e.g. 'revoked' for an account the owner revoked. */
 export type ApiResult<T> =
   | { ok: true; data: T }
-  | { ok: false; errorKey: ApiErrorKey; status: number };
+  | { ok: false; errorKey: ApiErrorKey; status: number; code?: string };
 
 const MEMBER_REFUSAL_CODES: readonly unknown[] = ['memberNameTaken', 'memberEmailTaken', 'memberAdminOnly'] satisfies MemberRefusalCode[];
 
-/** The message key of a refused request, from the `code` of its JSON body. */
-async function errorKeyOf(response: Response): Promise<ApiErrorKey> {
+/** A refused request's message key, and the `code` of its JSON body. */
+async function refusalOf(response: Response): Promise<{ errorKey: ApiErrorKey; code?: string }> {
   const body = await response.json().catch(() => ({}));
-  return MEMBER_REFUSAL_CODES.includes(body?.code) ? (body.code as MemberRefusalCode) : 'errorGeneric';
+  const code = typeof body?.code === 'string' ? body.code : undefined;
+  return { errorKey: MEMBER_REFUSAL_CODES.includes(code) ? (code as MemberRefusalCode) : 'errorGeneric', code };
+}
+
+/** The session ended: back to the lock screen, which reads the refusal's code (detail) to say why. */
+function dispatchUnauthorized(code?: string) {
+  if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('puppace:unauthorized', { detail: code }));
 }
 
 const apiCache = new Map<string, { data: any; timestamp: number }>();
@@ -85,19 +92,18 @@ async function request<T>(url: string, options: RequestInit = {}): Promise<ApiRe
         return { ok: true, data: data as T };
       }
 
+      const refusal = await refusalOf(res);
       // Only the token that was sent is rejected: a sign-in while this request was in flight stays
       if (res.status === 401) {
         if (getAuthToken() === sentToken) {
           clearAuthToken();
           apiCache.clear();
-          if (typeof window !== 'undefined') {
-            window.dispatchEvent(new CustomEvent('puppace:unauthorized'));
-          }
+          dispatchUnauthorized(refusal.code);
         }
-        return { ok: false, errorKey: 'errorGeneric', status: 401 };
+        return { ok: false, errorKey: 'errorGeneric', status: 401, code: refusal.code };
       }
 
-      return { ok: false, errorKey: await errorKeyOf(res), status: res.status };
+      return { ok: false, ...refusal, status: res.status };
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Network error connecting to server.';
       console.error(`API request error on ${url}:`, message);
@@ -343,13 +349,14 @@ export async function exchangeSessionToken(rawToken?: string): Promise<ApiResult
       }
       return { ok: true, data };
     }
+    const refusal = await refusalOf(res);
     // Revoked or pending account: end the session. A 5xx (e.g. a Neon cold start) keeps it.
     if ((res.status === 401 || res.status === 403) && isStillCurrentSession) {
       clearAuthToken();
       apiCache.clear();
-      window.dispatchEvent(new CustomEvent('puppace:unauthorized'));
+      dispatchUnauthorized(refusal.code);
     }
-    return { ok: false, errorKey: await errorKeyOf(res), status: res.status };
+    return { ok: false, ...refusal, status: res.status };
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Network error';
     console.error('Failed to exchange session token', message);

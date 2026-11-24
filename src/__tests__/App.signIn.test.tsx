@@ -5,7 +5,7 @@ import { createRoot, type Root } from 'react-dom/client';
 import App from '../App';
 import { en } from '../i18n/en';
 import { fr } from '../i18n/fr';
-import { clearAuthToken, getAuthToken, getStoredAuthUser } from '../utils/auth';
+import { clearAuthToken, getAuthToken, getStoredAuthUser, setAuthToken, setStoredAuthUser } from '../utils/auth';
 import { clearApiCache } from '../services/api';
 
 // The real lock screen, with a stand-in for Google Identity Services (window.google.accounts.id).
@@ -328,5 +328,85 @@ describe('Sign-in screen', () => {
     expect(alertText()).toContain(en.auth.googleScriptFailed);
     const buttons = [...document.querySelectorAll('button')].map((button) => button.textContent);
     expect(buttons).toContain(en.auth.retry);
+  });
+});
+
+// Audit S2: an account the owner revoked is told so, in its own words, and never as a request waiting for approval
+describe('Revoked access', () => {
+  it('a revoked sign-in says the access was removed, not "request sent", and keeps no pending note', async () => {
+    const googleId = stubGoogle();
+    stubSession(() => Promise.resolve(new Response(JSON.stringify({ error: 'Access removed by the owner.', code: 'revoked' }), { status: 403 })));
+    await renderApp();
+
+    await signInWithGoogle(googleId);
+    await settle();
+
+    expect(pageText()).toContain(en.auth.accessRemoved);
+    expect(pageText()).not.toContain(en.auth.pendingActivation);
+    expect(pendingNote()).toBeUndefined();
+    expect(localStorage.getItem('puppace_pending_email')).toBeNull();
+    expect(getAuthToken()).toBeNull();
+    expectGoogleButtonUsable(googleId);
+  });
+
+  it('a signed-in account revoked since is sent back to the lock screen, which says why', async () => {
+    localStorage.setItem('puppace_lang_v1', 'fr');
+    stubGoogle();
+    setAuthToken('app-session');
+    setStoredAuthUser({ email: 'sitter@example.com', name: 'Sitter', role: 'Member' });
+    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(new Response(JSON.stringify({ error: 'Session revoked', code: 'revoked' }), { status: 401 }))));
+
+    await renderApp();
+
+    expect(pageText()).toContain(fr.auth.accessRemoved);
+    expect(pageText()).not.toContain(fr.auth.pendingActivation);
+    expect(getAuthToken()).toBeNull();
+  });
+});
+
+// Audit S3: after "Delete my account", nothing of the account or its household stays on the phone, and Google does not
+// sign it straight back in (that would create a new sign-up)
+describe('Delete my account', () => {
+  const sitter = { email: 'sitter@example.com', name: 'Sitter', role: 'Member' as const };
+  const puppy = { id: 'pup-1', name: 'Rex', breed: 'Beagle', birthDate: '2026-01-01', targetMealsPerDay: 3, dailyFoodGramGoal: 200 };
+  const householdKeys = ['puppace_active_puppy', 'puppace_cached_puppies', 'puppace_cached_caretakers', 'puppace_cached_activities_recent', 'puppace_cached_health_records'];
+  const button = (text: string) => [...document.querySelectorAll('button')].filter((element) => element.textContent?.includes(text));
+
+  it('confirms, deletes the account, clears the session and the household data kept on the phone, and shows the lock screen', async () => {
+    const googleId = stubGoogle();
+    setAuthToken('app-session');
+    setStoredAuthUser(sitter);
+    window.history.pushState({}, '', '/settings');
+    const deleted: string[] = [];
+    vi.stubGlobal('fetch', vi.fn((url: string, init?: RequestInit) => {
+      if (url.startsWith('/api/dashboard')) {
+        const badge = { id: 'c-1', name: 'Sitter', role: 'Member', color: '#EC4899', email: sitter.email };
+        return Promise.resolve(new Response(JSON.stringify({ puppies: [puppy], caretakers: [badge], activities: [], healthRecords: [] })));
+      }
+      if (url.startsWith('/api/users') && init?.method === 'DELETE') {
+        deleted.push(url);
+        return Promise.resolve(new Response(JSON.stringify({ success: true })));
+      }
+      return Promise.resolve(new Response('{}', { status: 404 }));
+    }));
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    root = createRoot(container);
+    await act(async () => root!.render(<App />));
+    for (let round = 0; round < 50 && button(en.settings.householdMembers).length === 0; round += 1) await settle();
+    expect(localStorage.getItem('puppace_cached_puppies')).toContain('Rex');
+
+    await act(async () => button(en.settings.householdMembers)[0].click());
+    await act(async () => button(en.household.deleteMyAccount)[0].click());
+    expect(pageText()).toContain(en.household.deleteMyAccountMessage);
+    await act(async () => button(en.household.deleteMyAccount).at(-1)!.click());
+    for (let round = 0; round < 50 && !document.querySelector('img[alt="PupPace Logo"]'); round += 1) await settle();
+
+    expect(deleted).toEqual(['/api/users?email=sitter%40example.com']);
+    expect(getAuthToken()).toBeNull();
+    expect(getStoredAuthUser()).toBeNull();
+    expect(householdKeys.map((key) => localStorage.getItem(key))).toEqual(householdKeys.map(() => null));
+    expect(googleId.initialize).toHaveBeenCalledWith(expect.objectContaining({ auto_select: false }));
+    expect(googleId.disableAutoSelect).toHaveBeenCalled();
   });
 });

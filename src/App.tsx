@@ -1,12 +1,13 @@
 import { useState, useEffect, useCallback, useMemo, useRef, lazy, Suspense, startTransition, type ReactNode, type SetStateAction } from 'react';
 import type { Activity, UserAccount, ActivityType, PottyLocation, FamilyRole, HealthRecord, HealthRecordsLoadState, PuppyProfile, RegisteredUserItem, SignInOutcome } from './types';
-import { getAuthToken, setAuthToken, getStoredAuthUser, setStoredAuthUser } from './utils/auth';
+import { getAuthToken, setAuthToken, getStoredAuthUser, setStoredAuthUser, clearAuthToken } from './utils/auth';
 import {
   fetchDashboard,
   fetchDogs,
   fetchHousehold,
   exchangeSessionToken,
   clearApiCache,
+  deleteUser,
 } from './services/api';
 import { calculatePredictions, excludeFutureLogs, suggestNextMealGrams } from './utils/predictions';
 import { buildQuickActionActivity } from './utils/activityPayloads';
@@ -32,7 +33,7 @@ import { useActivities, mergeOlderActivities } from './hooks/useActivities';
 import { getUnifiedWeightEntries } from './utils/weight';
 import { holdUpdate } from './registerServiceWorker';
 
-import { getActivePuppyId, getStoredHealthRecords, getStoredRecentActivities, getStoredRecentActivitiesTime, setStoredHealthRecords } from './utils/storage';
+import { clearStoredHouseholdData, getActivePuppyId, getStoredHealthRecords, getStoredRecentActivities, getStoredRecentActivitiesTime, setStoredHealthRecords } from './utils/storage';
 
 // One list for the sign-in and the deferred session exchange, so a returning Admin keeps the role the sign-in test pins.
 const FAMILY_ROLES: readonly string[] = ['Husband', 'Wife', 'Partner', 'Child', 'Dog Walker', 'Sitter', 'Relative', 'Member', 'Admin', 'SuperAdmin'];
@@ -55,6 +56,8 @@ function App() {
     const token = getAuthToken();
     return token ? getStoredAuthUser() : null;
   });
+  // Why the lock screen shows: the owner revoked this account, or it was just deleted (Google must not sign it straight back in)
+  const [lockReason, setLockReason] = useState<'' | 'revoked' | 'accountDeleted'>('');
 
   // Domain state hooks
   const puppyState = usePuppies();
@@ -205,9 +208,12 @@ function App() {
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
-  // A revoked session (401/403 from the API) returns to the lock screen
+  // A revoked session (401/403 from the API) returns to the lock screen, which says so when the owner revoked the account
   useEffect(() => {
-    const handleUnauthorized = () => setUser(null);
+    const handleUnauthorized = (event: Event) => {
+      setLockReason((event as CustomEvent<string | undefined>).detail === 'revoked' ? 'revoked' : '');
+      setUser(null);
+    };
     window.addEventListener('puppace:unauthorized', handleUnauthorized);
     return () => window.removeEventListener('puppace:unauthorized', handleUnauthorized);
   }, []);
@@ -464,8 +470,24 @@ function App() {
       return 'signedIn';
     }
 
+    if (!sessionRes.ok && sessionRes.code === 'revoked') return 'revoked';
     // Only a 403 means the account waits for approval; no network, a 5xx or a refused token is a failed sign-in
     return !sessionRes.ok && sessionRes.status === 403 ? 'pending' : 'failed';
+  };
+
+  // Settings > Members: the account is gone, so its session and every household data kept on this phone go too
+  const handleDeleteMyAccount = async () => {
+    if (!user) return;
+    const res = await deleteUser(user.email);
+    if (!res.ok) {
+      toast.danger(t.toasts[res.errorKey]);
+      return;
+    }
+    clearAuthToken();
+    clearStoredHouseholdData();
+    clearApiCache();
+    setLockReason('accountDeleted');
+    setUser(null);
   };
 
   // Skeletons while the first dashboard answer is awaited; "unavailable" once it failed with no records known (the passport tries its own load first)
@@ -562,7 +584,7 @@ function App() {
           </div>
         }
       >
-        <AuthLockScreen onUnlockWithSSO={handleUnlockWithSSO} />
+        <AuthLockScreen onUnlockWithSSO={handleUnlockWithSSO} reason={lockReason} />
       </Suspense>
     );
   }
@@ -631,6 +653,7 @@ function App() {
               onAddCaretaker={caretakerState.addCaretaker}
               onUpdateCaretaker={caretakerState.updateCaretaker}
               onDeleteCaretaker={caretakerState.deleteCaretaker}
+              onDeleteMyAccount={handleDeleteMyAccount}
               onBackToDashboard={() => handleNavigate('dashboard')}
             />
           </Suspense>
