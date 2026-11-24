@@ -265,12 +265,26 @@ export function useActivities(
     }
   }, [t]);
 
+  /** Drops a log kept as not saved, without sending anything. */
+  const discardActivity = useCallback((id: string) => {
+    pendingAddIdsRef.current.delete(id);
+    setUnsavedIds((previous) => new Set([...previous].filter((unsavedId) => unsavedId !== id)));
+    setActivities((previous) => previous.filter((activity) => activity.id !== id));
+    setAllTimeActivities((previous) => replaceAllTimeRow(previous, id));
+  }, []);
+
   /** Sends a log kept as not saved again, under the same id (the server keeps one copy). The saved log, or undefined. */
   const retryActivity = useCallback(async function retry(unsaved: Activity): Promise<Activity | undefined> {
     // Discarded, or saved by an earlier Retry
     if (!pendingAddIdsRef.current.has(unsaved.id)) return;
     // The mark stays until the answer: its row (and its open day) stays in view meanwhile
     const result = await trackMutation(mutationsRef.current, createActivity(unsaved));
+    // The household's daily limit: a Retry would fail until tomorrow, so the log goes
+    if (!result.ok && result.errorKey === 'limitReached') {
+      discardActivity(unsaved.id);
+      toast.danger(t.toasts.limitReached);
+      return;
+    }
     if (!result.ok) {
       toastNotSaved(t, result.errorKey, () => void retry(unsaved));
       return;
@@ -284,7 +298,7 @@ export function useActivities(
     });
     toast.success(t.toasts.activityLogged);
     return result.data;
-  }, [t]);
+  }, [t, discardActivity]);
 
   /** Whether the edit of `target` (the row as shown) was saved; refused, the row gets its old values back. */
   const saveEdit = useCallback(async (target: Activity, updatedFields: Partial<Activity> & { id: string }): Promise<boolean> => {
@@ -344,7 +358,9 @@ export function useActivities(
 
       pendingAddIdsRef.current.add(newActivity.id);
       const result = await trackMutation(mutationsRef.current, createActivity(newActivity));
-      if (result.ok || !options?.keepUnsaved) pendingAddIdsRef.current.delete(newActivity.id);
+      // The household's daily limit: a Retry would fail until tomorrow, so a one-tap log goes, as a form's does
+      const keepUnsaved = options?.keepUnsaved && (result.ok || result.errorKey !== 'limitReached');
+      if (result.ok || !keepUnsaved) pendingAddIdsRef.current.delete(newActivity.id);
       if (result.ok) {
         storeAcceptedChange(result.data.puppyId, withSavedLog(result.data));
         startTransition(() => {
@@ -376,7 +392,7 @@ export function useActivities(
           },
         });
         return saved;
-      } else if (options?.keepUnsaved) {
+      } else if (keepUnsaved) {
         // Still on screen, marked: a second tap within the window stays a double tap
         setUnsavedIds((previous) => new Set(previous).add(newActivity.id));
         // ponytail: the toast's Retry skips App's badge reload (an account's first log); the next dashboard load brings the badge
@@ -393,14 +409,6 @@ export function useActivities(
     },
     [activePuppy, t, retryActivity, removeActivity, saveEdit]
   );
-
-  /** Drops a log kept as not saved, without sending anything. */
-  const discardActivity = useCallback((id: string) => {
-    pendingAddIdsRef.current.delete(id);
-    setUnsavedIds((previous) => new Set([...previous].filter((unsavedId) => unsavedId !== id)));
-    setActivities((previous) => previous.filter((activity) => activity.id !== id));
-    setAllTimeActivities((previous) => replaceAllTimeRow(previous, id));
-  }, []);
 
   /** Whether the edit was saved; refused, the row gets its old values back. */
   const updateActivity = useCallback(async (updatedFields: Partial<Activity> & { id: string }): Promise<boolean> => {

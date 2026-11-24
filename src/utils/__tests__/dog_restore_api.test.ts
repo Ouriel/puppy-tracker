@@ -7,6 +7,7 @@ import healthRecordsHandler from '../../../api/health-records.js';
 import householdsHandler from '../../../api/households.js';
 import { signAppSessionToken } from '../../../api/_auth.js';
 import { SUPER_ADMIN_EMAIL } from '../auth.js';
+import { HOUSEHOLD_LIMITS } from '../schemas.js';
 
 type Row = Record<string, unknown>;
 
@@ -21,18 +22,21 @@ vi.mock('drizzle-orm/neon-http', async () => {
   const { getTableName, getTableColumns } = await import('drizzle-orm');
   const { PgDialect } = await import('drizzle-orm/pg-core');
   const dialect = new PgDialect();
-  // Like Postgres for the conditions these handlers send: "col" = $n, "col" is null, "col" is not null (others match every row)
+  // Like Postgres for the conditions these handlers send: "col" = $n, "col" >= $n (a date), "col" is null, "col" is not null
+  // (others match every row)
   const matcher = (table: Table, condition?: SQL) => {
     if (!condition) return () => true;
     const { sql, params } = dialect.sqlToQuery(condition);
     const keyOf = Object.fromEntries(Object.entries(getTableColumns(table)).map(([key, column]) => [column.name, key]));
-    const checks = [...sql.matchAll(/"(\w+)" (?:= \$(\d+)|(is null)|(is not null))/g)].map(
-      ([, column, index, isNull, isNotNull]) =>
+    const checks = [...sql.matchAll(/"(\w+)" (?:(=|>=) \$(\d+)|(is null)|(is not null))/g)].map(
+      ([, column, operator, index, isNull, isNotNull]) =>
         (row: Row) => {
           const value = row[keyOf[column]];
           if (isNull) return value == null;
           if (isNotNull) return value != null;
-          return value === params[Number(index) - 1];
+          const param = params[Number(index) - 1];
+          if (operator === '>=') return new Date(value as Date).getTime() >= new Date(param as string).getTime();
+          return value === param;
         }
     );
     return (row: Row) => checks.every((check) => check(row));
@@ -88,6 +92,7 @@ vi.mock('drizzle-orm/neon-http', async () => {
           }),
       }),
       batch: (queries: unknown[]) => Promise.all(queries),
+      $count: (table: Table, condition?: SQL) => Promise.resolve(rowsOf(table).filter(matcher(table, condition)).length),
     })),
   };
 });
@@ -326,5 +331,127 @@ describe("a dog's legacy profile weight (puppies.weight_kg)", () => {
     await call(dogsHandler, memberToken(), 'POST', { body: { id: 'dog-2', name: 'Mia', breed: 'Poodle', birthDate: '2026-04-01', weightKg: 4.5 } });
 
     expect(dog('dog-2').weightKg).toBe(6.2);
+  });
+});
+
+// Security audit M2: a row's size is capped by the schemas, the number of rows per household by HOUSEHOLD_LIMITS
+describe('household limits: 429 limitReached at the limit, nothing written', () => {
+  const HOUR_MS = 60 * 60 * 1000;
+  /** `count` more rows in `table`, made by `row`. */
+  const fill = (table: string, count: number, row: (index: number) => Row) => {
+    store.rows[table].push(...Array.from({ length: count }, (_, index) => row(index)));
+  };
+  const logRow = (householdId: string, createdAt: Date) => (index: number) =>
+    ({ id: `act-${householdId}-${createdAt.getTime()}-${index}`, householdId, puppyId: 'dog-1', type: 'pee', timestamp: createdAt, loggedBy: 'Sam', createdAt });
+  const limitReached = { error: 'Limit reached for this household', code: 'limitReached' };
+
+  describe(`logs: ${HOUSEHOLD_LIMITS.logsPerDay} created in 24 hours`, () => {
+    beforeEach(() => {
+      // act-1 (created now) and these fill the household's last 24 hours
+      fill('activities', HOUSEHOLD_LIMITS.logsPerDay - 1, logRow('hh-1', new Date(Date.now() - HOUR_MS)));
+    });
+
+    it('at the limit, a new log is refused and not stored', async () => {
+      const response = await call(activitiesHandler, memberToken(), 'POST', { body: { id: 'act-new', puppyId: 'dog-1', type: 'pee' } });
+
+      expect(response.statusCode).toBe(429);
+      expect(response.body).toEqual(limitReached);
+      expect(store.rows.activities.some((row) => row.id === 'act-new')).toBe(false);
+    });
+
+    it('at the limit, a log sent again (an id already stored) still answers the stored log', async () => {
+      const response = await call(activitiesHandler, memberToken(), 'POST', { body: { id: 'act-1', puppyId: 'dog-1', type: 'pee' } });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.body).toMatchObject({ id: 'act-1', householdId: 'hh-1' });
+    });
+
+    it("logs created over 24 hours ago, and other households' logs, do not count", async () => {
+      store.rows.activities = store.rows.activities.filter((row) => row.householdId !== 'hh-1');
+      fill('activities', HOUSEHOLD_LIMITS.logsPerDay, logRow('hh-1', new Date(Date.now() - 25 * HOUR_MS)));
+      fill('activities', HOUSEHOLD_LIMITS.logsPerDay, logRow('hh-2', new Date()));
+
+      const response = await call(activitiesHandler, memberToken(), 'POST', { body: { id: 'act-new', puppyId: 'dog-1', type: 'pee' } });
+
+      expect(response.statusCode).toBe(201);
+      expect(store.rows.activities.some((row) => row.id === 'act-new')).toBe(true);
+    });
+  });
+
+  describe(`dogs: ${HOUSEHOLD_LIMITS.dogs}, deleted ones included`, () => {
+    const newDog = { id: 'dog-new', name: 'Max', breed: 'Beagle', birthDate: '2026-09-01' };
+    const dogRow = (householdId: string, deletedAt: Date | null) => (index: number) =>
+      ({ id: `dog-${householdId}-${index}`, householdId, name: 'Old', breed: 'Pug', birthDate: '2026-01-01', deletedAt });
+
+    it('at the limit (deleted dogs count), a new dog is refused and not stored; an edit through the upsert still saves', async () => {
+      fill('puppies', HOUSEHOLD_LIMITS.dogs - 2, dogRow('hh-1', new Date('2026-10-01T10:00:00Z')));
+
+      const created = await call(dogsHandler, memberToken(), 'POST', { body: newDog });
+      const edited = await call(dogsHandler, memberToken(), 'POST', { body: { id: 'dog-1', name: 'Rexy', breed: 'Beagle', birthDate: '2026-05-01' } });
+
+      expect(created.statusCode).toBe(429);
+      expect(created.body).toEqual(limitReached);
+      expect(store.rows.puppies.some((row) => row.id === 'dog-new')).toBe(false);
+      expect(edited.statusCode).toBe(200);
+      expect(dog('dog-1').name).toBe('Rexy');
+    });
+
+    it('under the limit, whatever other households hold, a new dog is stored', async () => {
+      fill('puppies', HOUSEHOLD_LIMITS.dogs, dogRow('hh-2', null));
+
+      const response = await call(dogsHandler, memberToken(), 'POST', { body: newDog });
+
+      expect(response.statusCode).toBe(201);
+      expect(dog('dog-new')).toMatchObject({ householdId: 'hh-1', name: 'Max' });
+    });
+  });
+
+  describe(`health records: ${HOUSEHOLD_LIMITS.healthRecords}`, () => {
+    const record = { id: 'hr-new', puppyId: 'dog-1', type: 'vaccination', name: 'Rage', date: '2026-10-01' };
+    const recordRow = (householdId: string) => (index: number) =>
+      ({ id: `hr-${householdId}-${index}`, householdId, puppyId: 'dog-1', type: 'vaccination', name: 'Rage', date: '2026-08-01' });
+
+    it('at the limit, a new record is refused and not stored', async () => {
+      fill('health_records', HOUSEHOLD_LIMITS.healthRecords - 1, recordRow('hh-1'));
+
+      const response = await call(healthRecordsHandler, memberToken(), 'POST', { body: record });
+
+      expect(response.statusCode).toBe(429);
+      expect(response.body).toEqual(limitReached);
+      expect(store.rows.health_records.some((row) => row.id === 'hr-new')).toBe(false);
+    });
+
+    it('under the limit, whatever other households hold, a new record is stored', async () => {
+      fill('health_records', HOUSEHOLD_LIMITS.healthRecords, recordRow('hh-2'));
+
+      const response = await call(healthRecordsHandler, memberToken(), 'POST', { body: record });
+
+      expect(response.statusCode).toBe(201);
+      expect(store.rows.health_records.some((row) => row.id === 'hr-new')).toBe(true);
+    });
+  });
+
+  describe(`badges: ${HOUSEHOLD_LIMITS.badges}`, () => {
+    const badgeRow = (householdId: string) => (index: number) =>
+      ({ id: `ct-${householdId}-${index}`, householdId, name: `Badge ${index}`, role: 'Member', color: '#6366f1', email: null });
+
+    it('at the limit, a new badge is refused and not stored', async () => {
+      fill('caretakers', HOUSEHOLD_LIMITS.badges - 1, badgeRow('hh-1'));
+
+      const response = await call(householdsHandler, adminToken(), 'POST', { body: { id: 'ct-new', name: 'Nanny' } });
+
+      expect(response.statusCode).toBe(429);
+      expect(response.body).toEqual(limitReached);
+      expect(store.rows.caretakers.some((row) => row.id === 'ct-new')).toBe(false);
+    });
+
+    it('under the limit, whatever other households hold, a new badge is stored', async () => {
+      fill('caretakers', HOUSEHOLD_LIMITS.badges, badgeRow('hh-2'));
+
+      const response = await call(householdsHandler, adminToken(), 'POST', { body: { id: 'ct-new', name: 'Nanny' } });
+
+      expect(response.statusCode).toBe(201);
+      expect(store.rows.caretakers.some((row) => row.id === 'ct-new')).toBe(true);
+    });
   });
 });

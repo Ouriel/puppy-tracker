@@ -72,6 +72,11 @@ export function sendAuthError(res: VercelResponse, error: unknown) {
   return res.status(500).json({ error: 'Internal server error' });
 }
 
+/** A household limit (HOUSEHOLD_LIMITS) is reached: nothing was written. */
+export function sendLimitReached(res: VercelResponse) {
+  return res.status(429).json({ error: 'Limit reached for this household', code: 'limitReached' });
+}
+
 export interface AuthContext {
   email: string;
   name: string;

@@ -415,6 +415,7 @@ export const fr: TranslationKeys = {
     noActiveAccounts: 'Aucun compte actif enregistré.',
     superAdminOwner: 'Propriétaire',
     refreshUserList: 'Actualiser la liste',
+    showingAccounts: '{shown} comptes affichés sur {total}',
     confirmDeletionFor: 'Supprimer {email}',
     assignTo: 'Assigner à\u00a0:',
     approveAndAssign: 'Approuver et assigner',
@@ -515,5 +516,6 @@ export const fr: TranslationKeys = {
     memberEmailTaken: 'Cet e-mail est déjà lié, ou n\'est pas le tien.',
     memberAdminOnly: 'Seul un admin peut faire ce changement.',
     inviteLeaveFirst: 'Impossible de rejoindre\u00a0: ton foyer a déjà des chiens ou d\'autres membres.',
+    limitReached: 'Limite atteinte pour ton foyer : supprime quelque chose ou réessaie demain.',
   },
 };

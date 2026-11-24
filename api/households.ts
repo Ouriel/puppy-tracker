@@ -3,8 +3,8 @@ import { neon } from '@neondatabase/serverless';
 import { drizzle } from 'drizzle-orm/neon-http';
 import { eq, and } from 'drizzle-orm';
 import { activitiesTable, caretakersTable, householdsTable, usersTable } from '../src/db/schema.js';
-import { CaretakerInputSchema, HouseholdNameSchema } from '../src/utils/schemas.js';
-import { verifyAuth, sendAuthError, setCorsHeaders, canDeleteHouseholdData, type AuthContext } from './_auth.js';
+import { CaretakerInputSchema, HOUSEHOLD_LIMITS, HouseholdNameSchema } from '../src/utils/schemas.js';
+import { verifyAuth, sendAuthError, sendLimitReached, setCorsHeaders, canDeleteHouseholdData, type AuthContext } from './_auth.js';
 import { getDatabaseUrl } from './_db.js';
 import type { MemberRefusalCode } from '../src/types/index.js';
 
@@ -129,6 +129,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         .where(eq(caretakersTable.householdId, householdId));
       const refusal = badgeWriteRefusal(auth, householdBadges, { name: body.name, email });
       if (refusal) return res.status(refusal.status).json({ error: refusal.error, code: refusal.code });
+      // The household's badges are already loaded: no count query. shortcut: two adds at once can go one over; fine at this load
+      if (householdBadges.length >= HOUSEHOLD_LIMITS.badges) return sendLimitReached(res);
 
       const id = body.id || `ct-${Date.now()}`;
       const color = body.color || 'bg-amber-500';

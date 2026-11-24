@@ -5,8 +5,8 @@ import { drizzle } from 'drizzle-orm/neon-http';
 import { eq, and, desc, gte } from 'drizzle-orm';
 import { activitiesTable, caretakersTable, puppiesTable } from '../src/db/schema.js';
 import { buildInviteBadge, findLinkedCaretaker, getCurrentCaretakerName } from '../src/utils/caretakers.js';
-import { ActivityInputSchema, parseDeleteId } from '../src/utils/schemas.js';
-import { verifyAuth, sendAuthError, setCorsHeaders, type AuthContext } from './_auth.js';
+import { ActivityInputSchema, HOUSEHOLD_LIMITS, parseDeleteId } from '../src/utils/schemas.js';
+import { verifyAuth, sendAuthError, sendLimitReached, setCorsHeaders, type AuthContext } from './_auth.js';
 import { getDatabaseUrl } from './_db.js';
 
 const connectionString = getDatabaseUrl();
@@ -112,8 +112,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const id = body.id || `act-${randomUUID()}`;
 
       // Verify puppy belongs to this household; caretakers resolve who is logging (never the body's loggedBy);
-      // a log sent again (same id) returns the stored one
-      const [[puppy], caretakers, [existing]] = await Promise.all([
+      // a log sent again (same id) returns the stored one, even at the daily limit
+      const [[puppy], caretakers, [existing], logsToday] = await Promise.all([
         db
           .select()
           .from(puppiesTable)
@@ -123,6 +123,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           .select()
           .from(activitiesTable)
           .where(and(eq(activitiesTable.id, id), eq(activitiesTable.householdId, householdId))),
+        // Created in the last 24 h, whatever the log's own time (a log can be backdated)
+        db.$count(activitiesTable, and(eq(activitiesTable.householdId, householdId), gte(activitiesTable.createdAt, new Date(Date.now() - 24 * 60 * 60 * 1000)))),
       ]);
       if (!puppy) {
         return res.status(403).json({ error: 'Puppy not found in your household' });
@@ -133,6 +135,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (existing) {
         return res.status(200).json(existing);
       }
+      // shortcut: two requests at once can both pass the count and go one over; fine at this load, a conditional insert if it matters
+      if (logsToday >= HOUSEHOLD_LIMITS.logsPerDay) return sendLimitReached(res);
 
       const loggedBy = await loggedByName(auth, caretakers);
       const [created] = await db

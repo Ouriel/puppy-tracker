@@ -3,8 +3,8 @@ import { neon } from '@neondatabase/serverless';
 import { drizzle } from 'drizzle-orm/neon-http';
 import { eq, and, desc } from 'drizzle-orm';
 import { healthRecordsTable, puppiesTable } from '../src/db/schema.js';
-import { HealthRecordInputSchema, parseDeleteId } from '../src/utils/schemas.js';
-import { verifyAuth, sendAuthError, setCorsHeaders } from './_auth.js';
+import { HealthRecordInputSchema, HOUSEHOLD_LIMITS, parseDeleteId } from '../src/utils/schemas.js';
+import { verifyAuth, sendAuthError, sendLimitReached, setCorsHeaders } from './_auth.js';
 import { getDatabaseUrl } from './_db.js';
 
 const connectionString = getDatabaseUrl();
@@ -68,15 +68,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (dateError) return res.status(400).json({ error: dateError });
 
       // Verify puppy belongs to this household
-      const [puppy] = await db
-        .select()
-        .from(puppiesTable)
-        .where(and(eq(puppiesTable.id, body.puppyId), eq(puppiesTable.householdId, householdId)));
+      const [[puppy], recordCount] = await Promise.all([
+        db
+          .select()
+          .from(puppiesTable)
+          .where(and(eq(puppiesTable.id, body.puppyId), eq(puppiesTable.householdId, householdId))),
+        db.$count(healthRecordsTable, eq(healthRecordsTable.householdId, householdId)),
+      ]);
       if (!puppy) {
         return res.status(403).json({ error: 'Puppy not found in your household' });
       }
       // A deleted dog takes no new record until it is restored
       if (puppy.deletedAt) return res.status(404).json({ error: 'Dog not found' });
+      // shortcut: two requests at once can both pass the count and go one over; fine at this load, a conditional insert if it matters
+      if (recordCount >= HOUSEHOLD_LIMITS.healthRecords) return sendLimitReached(res);
 
       const id = body.id || `hr-${Date.now()}`;
 

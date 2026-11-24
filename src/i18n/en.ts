@@ -411,6 +411,8 @@ export const en = {
     noActiveAccounts: 'No active accounts registered yet.',
     superAdminOwner: 'Owner',
     refreshUserList: 'Refresh list',
+    // The owner's list loads at most 500 accounts (api/users.ts)
+    showingAccounts: 'Showing {shown} of {total} accounts',
     confirmDeletionFor: 'Delete {email}',
     assignTo: 'Assign to:',
     approveAndAssign: 'Approve and assign',
@@ -511,5 +513,6 @@ export const en = {
     memberEmailTaken: 'This email is already linked, or is not yours.',
     memberAdminOnly: 'Only an admin can make this change.',
     inviteLeaveFirst: "You can't join: your household already has dogs or other members.",
+    limitReached: 'Limit reached for your household: delete something or try again tomorrow.',
   },
 };

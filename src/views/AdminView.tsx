@@ -31,6 +31,8 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail, caretake
   const { t, lang } = useI18n();
 
   const [users, setUsers] = useState<RegisteredUserItem[]>([]);
+  // Accounts the list did not load (the API sends at most 500): kept apart from users, which deletes shorten
+  const [hiddenAccounts, setHiddenAccounts] = useState(0);
   const [privacyRequests, setPrivacyRequests] = useState<PrivacyRequestItem[]>([]);
   const [households, setHouseholds] = useState<HouseholdItem[]>([]);
   const [targetHouseholds, setTargetHouseholds] = useState<Record<string, string>>({});
@@ -69,7 +71,10 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail, caretake
         fetchAllHouseholds(),
         fetchPrivacyRequests(),
       ]);
-      if (remoteUsers.ok) setUsers(remoteUsers.data);
+      if (remoteUsers.ok) {
+        setUsers(remoteUsers.data.users);
+        setHiddenAccounts(remoteUsers.data.total - remoteUsers.data.users.length);
+      }
       if (remotePrivacyRequests.ok) setPrivacyRequests(remotePrivacyRequests.data);
       if (remoteHouseholds.ok && remoteHouseholds.data.length > 0) setHouseholds(remoteHouseholds.data);
     } catch (err) {
@@ -280,6 +285,12 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail, caretake
         }
       />
 
+      {hiddenAccounts > 0 && (
+        <p className="text-xs text-slate-400">
+          {t.admin.showingAccounts.replace('{shown}', String(users.length)).replace('{total}', String(users.length + hiddenAccounts))}
+        </p>
+      )}
+
       {/* Status Alert Notification */}
       {statusMessage && (
         <div className="bg-emerald-950/80 border border-emerald-700/80 text-emerald-300 px-4 py-3 rounded-xl text-xs font-semibold shadow-lg">
@@ -431,9 +442,12 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUserEmail, caretake
                         <div className="text-xs text-slate-400 mt-0.5 break-all">
                           {privacyRequest.email} · {privacyRequest.lang.toUpperCase()} · {privacyRequest.createdAt ? formatShortDate(privacyRequest.createdAt, lang) : ''}
                         </div>
-                        <div className={`text-xs mt-0.5 ${hasAccount ? 'text-emerald-400' : 'text-amber-300'}`}>
-                          {hasAccount ? t.admin.requestFromAccount : t.admin.requestNoAccount}
-                        </div>
+                        {/* An account the list did not load may hold this email: never say there is none then */}
+                        {(hasAccount || hiddenAccounts === 0) && (
+                          <div className={`text-xs mt-0.5 ${hasAccount ? 'text-emerald-400' : 'text-amber-300'}`}>
+                            {hasAccount ? t.admin.requestFromAccount : t.admin.requestNoAccount}
+                          </div>
+                        )}
                       </div>
                       {privacyRequest.handledAt ? (
                         <span className="text-xs text-slate-400">{t.admin.answeredOn.replace('{date}', formatShortDate(privacyRequest.handledAt, lang))}</span>
