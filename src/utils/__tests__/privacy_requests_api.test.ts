@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import type { Table } from 'drizzle-orm';
+import type { SQL, Table } from 'drizzle-orm';
+import { PgDialect } from 'drizzle-orm/pg-core';
 import { signAppSessionToken } from '../../../api/_auth.js';
 import handler, { HOURLY_REQUEST_CAP } from '../../../api/privacy-requests.js';
 import { SUPER_ADMIN_EMAIL } from '../auth.js';
@@ -12,6 +13,7 @@ const dbMock = vi.hoisted(() => ({
   inserted: [] as Array<Record<string, unknown>>,
   updated: [] as Array<Record<string, unknown>>,
   deletes: 0,
+  deleteConditions: [] as string[],
 }));
 
 vi.mock('@neondatabase/serverless', () => ({ neon: vi.fn(() => vi.fn()) }));
@@ -33,8 +35,9 @@ vi.mock('drizzle-orm/neon-http', async () => {
         },
       })),
       delete: vi.fn(() => ({
-        where: () => {
+        where: (condition: SQL) => {
           dbMock.deletes += 1;
+          dbMock.deleteConditions.push(new PgDialect().sqlToQuery(condition).sql);
           return Promise.resolve();
         },
       })),
@@ -89,6 +92,7 @@ describe('/api/privacy-requests: the privacy policy form', () => {
     dbMock.inserted = [];
     dbMock.updated = [];
     dbMock.deletes = 0;
+    dbMock.deleteConditions = [];
   });
 
   afterEach(() => {
@@ -147,6 +151,8 @@ describe('/api/privacy-requests: the privacy policy form', () => {
     await handler(signedIn('GET', SUPER_ADMIN_EMAIL, 'SuperAdmin'), owner);
     expect(owner.statusCode).toBe(200);
     expect(dbMock.deletes).toBe(1);
+    // Answered over a year ago, or never answered and sent over a year ago
+    expect(dbMock.deleteConditions[0]).toMatch(/"handled_at" < \$1 or \("privacy_requests"\."handled_at" is null and "privacy_requests"\."created_at" < \$2\)/);
     expect(owner.body).toEqual([{ id: 'prq-1', email: 'a@example.com', kind: 'access', message: null, lang: 'en', createdAt: '2026-11-20T10:00:00.000Z', handledAt: null }]);
   });
 
