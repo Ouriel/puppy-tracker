@@ -1,0 +1,86 @@
+name: Production health
+
+# Every 6 hours, checks production and the free plans' limits. A failed run is the alert:
+# GitHub emails whoever last edited this cron line (the owner), as for the CI weekly run.
+# The repo is public, so its logs are too: print paths, statuses and totals, never request details.
+on:
+  schedule:
+    - cron: "23 */6 * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+env:
+  SITE_URL: https://puppace.vercel.app
+  NEON_PROJECT_ID: sweet-leaf-79926943 # puppace-db
+  VERCEL_SCOPE: ouriel-s-projects
+  VERCEL_PROJECT_ID: prj_XMfkGwrA1x4zLQf939og95FtEBS0
+  ALERT_SHARE: "0.75" # alert at 75% of a limit
+
+jobs:
+  health:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      # A paused Vercel project (a Hobby limit reached) or a broken deploy answers something else
+      - name: Site and API answer
+        run: |
+          fail=0
+          check() {
+            status=$(curl -s -o /dev/null -w '%{http_code}' --max-time 30 --retry 2 "$SITE_URL$1" || true) # 000: no answer
+            echo "$1: $status (expected $2)"
+            [ "$status" = "$2" ] || { echo "::error title=Site down::$1 answered $status, expected $2"; fail=1; }
+          }
+          check / 200
+          check /api/dashboard 401 # no session: answered before any database query
+          exit $fail
+
+      # Neon Free plan, checked 2026-11-24: 100 CU-hours and 5 GB transfer a month (the compute stops when one runs
+      # out), 1 GB storage (writes fail). Storage limit is read from the API; the other two are not in it.
+      # Neon counts storage as the sum of the branches' logical sizes, so a fresh preview copy counts twice.
+      - name: Neon limits
+        if: ${{ !cancelled() }}
+        env:
+          NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
+        run: |
+          set -euo pipefail
+          : "${NEON_API_KEY:?Add the NEON_API_KEY repository secret: a Neon API key for the puppace-db project}"
+          api() { curl -fsS --max-time 30 --retry 2 -H "Authorization: Bearer $NEON_API_KEY" "https://console.neon.tech/api/v2/projects/$NEON_PROJECT_ID$1"; }
+          report=$(jq -rn --argjson project "$(api '')" --argjson branches "$(api /branches)" --argjson share "$ALERT_SHARE" '
+            $project.project as $p
+            | [ { name: "Compute", used: ($p.compute_time_seconds / 3600), limit: 100, unit: "CU-hours this month" },
+                { name: "Network transfer", used: ($p.data_transfer_bytes / 1e9), limit: 5, unit: "GB this month" },
+                { name: "Storage (all branches)", used: ([$branches.branches[].logical_size // 0] | add / 1e9),
+                  limit: ($p.branch_logical_size_limit_bytes / 1e9), unit: "GB" } ]
+            | .[] | (if .used >= $share * .limit then "OVER " else "ok   " end)
+              + "\(.name): \(.used * 100 | round / 100) of \(.limit * 100 | round / 100) \(.unit)"')
+          echo "$report"
+          if grep -q '^OVER' <<<"$report"; then
+            grep '^OVER' <<<"$report" | while read -r line; do echo "::error title=Neon limit near::${line#OVER }"; done
+            exit 1
+          fi
+
+      # Hobby keeps request records 12 hours (runtime logs only 1 hour): 7 hours covers a late scheduled run,
+      # so one error can alert twice, never zero times.
+      - name: Server errors (5xx) in the last 7 hours
+        if: ${{ !cancelled() }}
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          set -u
+          : "${VERCEL_TOKEN:?Add the VERCEL_TOKEN repository secret: a Vercel token for the ouriel-s-projects team}"
+          out=$(npx -y vercel@65.9.0 logs requests --token "$VERCEL_TOKEN" --scope "$VERCEL_SCOPE" \
+            --project "$VERCEL_PROJECT_ID" -e production --since 7h --query 'httpStatus >= 500' --json -n 100 2>&1) || true
+          # Lines that are not JSON (CLI notices) are skipped; no summary line = the query itself failed (expired token)
+          if ! jq -Re 'fromjson? | select(.type == "summary")' <<<"$out" >/dev/null; then
+            echo "::error title=Vercel logs unreadable::$(jq -Rr 'fromjson? | .message // empty' <<<"$out" | head -1)"
+            exit 1
+          fi
+          errors=$(jq -Rr 'fromjson? | select(.type == "request") | .data
+            | "\(.timestamp) \(.requestMethod) \(.requestPath | split("?")[0]) \(.httpStatus)"' <<<"$out")
+          if [ -n "$errors" ]; then
+            echo "$errors"
+            echo "::error title=Server errors::$(wc -l <<<"$errors") request(s) answered 5xx in production, e.g. $(head -1 <<<"$errors")"
+            exit 1
+          fi
+          echo "No 5xx in production in the last 7 hours"
