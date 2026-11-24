@@ -15,7 +15,7 @@ const allRoutes = vercelConfig.headers.find((block) => block.source === '/(.*)')
 const header = (key: string) => allRoutes?.headers.find((entry) => entry.key === key)?.value;
 
 const policy = new Map(
-  (header('Content-Security-Policy-Report-Only') ?? '').split(';').map((directive) => {
+  (header('Content-Security-Policy') ?? '').split(';').map((directive) => {
     const [name, ...sources] = directive.trim().split(/\s+/);
     return [name, sources] as const;
   })
@@ -47,8 +47,8 @@ describe('vercel.json security headers', () => {
     expect(header('X-Frame-Options')).toBe('DENY');
   });
 
-  it('only report the Content-Security-Policy until it is checked on production', () => {
-    expect(header('Content-Security-Policy')).toBeUndefined();
+  it('enforce the Content-Security-Policy', () => {
+    expect(header('Content-Security-Policy-Report-Only')).toBeUndefined();
     expect(policy.get('default-src')).toEqual(["'self'"]);
     expect(policy.get('frame-ancestors')).toEqual(["'none'"]);
     expect(policy.get('object-src')).toEqual(["'none'"]);
