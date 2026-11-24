@@ -345,10 +345,10 @@ describe('household limits: 429 limitReached at the limit, nothing written', () 
     ({ id: `act-${householdId}-${createdAt.getTime()}-${index}`, householdId, puppyId: 'dog-1', type: 'pee', timestamp: createdAt, loggedBy: 'Sam', createdAt });
   const limitReached = { error: 'Limit reached for this household', code: 'limitReached' };
 
-  describe(`logs: ${HOUSEHOLD_LIMITS.logsPerDay} created in 24 hours`, () => {
+  describe(`logs: ${HOUSEHOLD_LIMITS.logsPerDogPerDay} per dog created in 24 hours`, () => {
     beforeEach(() => {
       // act-1 (created now) and these fill the household's last 24 hours
-      fill('activities', HOUSEHOLD_LIMITS.logsPerDay - 1, logRow('hh-1', new Date(Date.now() - HOUR_MS)));
+      fill('activities', HOUSEHOLD_LIMITS.logsPerDogPerDay - 1, logRow('hh-1', new Date(Date.now() - HOUR_MS)));
     });
 
     it('at the limit, a new log is refused and not stored', async () => {
@@ -368,10 +368,17 @@ describe('household limits: 429 limitReached at the limit, nothing written', () 
 
     it("logs created over 24 hours ago, and other households' logs, do not count", async () => {
       store.rows.activities = store.rows.activities.filter((row) => row.householdId !== 'hh-1');
-      fill('activities', HOUSEHOLD_LIMITS.logsPerDay, logRow('hh-1', new Date(Date.now() - 25 * HOUR_MS)));
-      fill('activities', HOUSEHOLD_LIMITS.logsPerDay, logRow('hh-2', new Date()));
+      fill('activities', HOUSEHOLD_LIMITS.logsPerDogPerDay, logRow('hh-1', new Date(Date.now() - 25 * HOUR_MS)));
+      fill('activities', HOUSEHOLD_LIMITS.logsPerDogPerDay, logRow('hh-2', new Date()));
 
       const response = await call(activitiesHandler, memberToken(), 'POST', { body: { id: 'act-new', puppyId: 'dog-1', type: 'pee' } });
+
+      expect(response.statusCode).toBe(201);
+      expect(store.rows.activities.some((row) => row.id === 'act-new')).toBe(true);
+    });
+
+    it('a dog at its limit does not block the household\'s other dog', async () => {
+      const response = await call(activitiesHandler, memberToken(), 'POST', { body: { id: 'act-new', puppyId: 'dog-2', type: 'pee' } });
 
       expect(response.statusCode).toBe(201);
       expect(store.rows.activities.some((row) => row.id === 'act-new')).toBe(true);
