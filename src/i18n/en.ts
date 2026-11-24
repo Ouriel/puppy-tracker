@@ -389,7 +389,7 @@ export const en = {
     revokedAccess: 'Revoked access for {email}.',
     deletedAccount: 'Deleted account {email}.',
     privacyRequests: 'Privacy requests ({count} to answer)',
-    privacyRequestsHint: 'Sent from the privacy policy. Answer by email within one month.',
+    privacyRequestsHint: 'Anyone can send one: confirm it from the account\'s email before acting. Answer within one month.',
     noPrivacyRequests: 'No privacy requests.',
     markAnswered: 'Mark as answered',
     answeredOn: 'Answered on {date}',

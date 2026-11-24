@@ -2,7 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { randomUUID } from 'node:crypto';
 import { neon } from '@neondatabase/serverless';
 import { drizzle } from 'drizzle-orm/neon-http';
-import { count, desc, eq, gt, lt } from 'drizzle-orm';
+import { and, count, desc, eq, gt, isNull, lt, or } from 'drizzle-orm';
 import { privacyRequestsTable } from '../src/db/schema.js';
 import { PrivacyRequestSchema, PrivacyRequestHandledSchema } from '../src/utils/schemas.js';
 import { isSuperAdminEmail } from '../src/utils/auth.js';
@@ -64,8 +64,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     if (req.method === 'GET') {
-      // Kept one year after the answer, as the privacy policy says
-      await db.delete(privacyRequestsTable).where(lt(privacyRequestsTable.handledAt, new Date(Date.now() - YEAR_MS)));
+      // Kept one year after the answer, and one never answered one year after it was sent, as the privacy policy says
+      const yearAgo = new Date(Date.now() - YEAR_MS);
+      await db.delete(privacyRequestsTable).where(or(
+        lt(privacyRequestsTable.handledAt, yearAgo),
+        and(isNull(privacyRequestsTable.handledAt), lt(privacyRequestsTable.createdAt, yearAgo)),
+      ));
       const rows = await db.select().from(privacyRequestsTable).orderBy(desc(privacyRequestsTable.createdAt));
       return res.status(200).json(rows.map((row) => ({
         ...row,

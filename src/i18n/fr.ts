@@ -393,7 +393,7 @@ export const fr: TranslationKeys = {
     revokedAccess: 'Accès révoqué pour {email}.',
     deletedAccount: 'Compte supprimé\u00a0: {email}.',
     privacyRequests: 'Demandes de confidentialité ({count} à traiter)',
-    privacyRequestsHint: 'Envoyées depuis la politique de confidentialité. Réponds par e-mail sous un mois.',
+    privacyRequestsHint: 'N\'importe qui peut en envoyer\u00a0: confirme-la avec l\'e-mail du compte avant d\'agir. Réponds sous un mois.',
     noPrivacyRequests: 'Aucune demande de confidentialité.',
     markAnswered: 'Marquer comme traitée',
     answeredOn: 'Traitée le {date}',
