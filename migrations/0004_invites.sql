@@ -8,8 +8,8 @@
 -- Rollback: roll the code back first, then
 --   DROP TABLE IF EXISTS invites;
 --   Invites not answered yet are lost: the inviter sends them again.
--- Applied to preview: not yet
--- Applied to production: not yet
+-- Applied to preview: 2026-11-24
+-- Applied to production: 2026-11-24 (no backup branch: a new empty table touches no row; counts unchanged)
 
 CREATE TABLE IF NOT EXISTS invites (
   id text PRIMARY KEY,
