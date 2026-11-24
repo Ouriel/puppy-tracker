@@ -296,7 +296,7 @@ export async function markPrivacyRequestHandled(id: string): Promise<ApiResult<P
 
 // ── Users API ──
 
-/** The owner gets at most 500 accounts (their own, then pending and revoked ones, then the newest); `total` counts them all. */
+/** The owner gets at most 500 accounts (their own, then revoked ones, then the newest); `total` counts them all. */
 export async function fetchUsers(): Promise<ApiResult<{ users: RegisteredUserItem[]; total: number }>> {
   return request<{ users: RegisteredUserItem[]; total: number }>('/api/users');
 }
@@ -358,7 +358,7 @@ export async function exchangeSessionToken(rawToken?: string): Promise<ApiResult
       return { ok: true, data };
     }
     const refusal = await refusalOf(res);
-    // Revoked or pending account: end the session. A 5xx (e.g. a Neon cold start) keeps it.
+    // Revoked or refused account: end the session. A 5xx (e.g. a Neon cold start) keeps it.
     if ((res.status === 401 || res.status === 403) && isStillCurrentSession) {
       clearAuthToken();
       apiCache.clear();

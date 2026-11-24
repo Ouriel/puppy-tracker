@@ -133,7 +133,7 @@ describe('Members tab invite (19, 20, 42)', () => {
     danger.mockRestore();
   });
 
-  it('shows the pre-approve button to an Admin, not to a member (the server refuses members)', async () => {
+  it('shows the invite button to an Admin, not to a member (the server refuses members)', async () => {
     await renderMembers(member);
     expect(buttons('Invite a member')).toHaveLength(0);
     await act(async () => root?.unmount());
@@ -430,11 +430,10 @@ describe('Members tab name limits', () => {
 });
 
 describe('Admin panel (27, 28)', () => {
-  const pendingStranger = { id: 'usr-jane', email: 'jane.doe@example.com', name: 'Jane Doe', householdId: 'house-stranger', role: 'Member', status: 'PENDING_APPROVAL' };
   const ownerRow = { id: 'usr-owner', email: SUPER_ADMIN_EMAIL, name: 'Owner Fullname', householdId: 'FAMILY-COCKER-2026', role: 'SuperAdmin', status: 'ACTIVE' };
   const activeElsewhere = { id: 'usr-bob', email: 'bob.smith@example.com', name: 'Bob Smith', householdId: 'hh-other', role: 'Member', status: 'ACTIVE' };
 
-  async function renderAdmin(users = [ownerRow, pendingStranger, activeElsewhere], total = users.length) {
+  async function renderAdmin(users: Array<Record<string, string>> = [ownerRow, activeElsewhere], total = users.length) {
     apiMock.fetchUsers.mockResolvedValue({ ok: true, data: { users, total } });
     apiMock.fetchAllHouseholds.mockResolvedValue({
       ok: true,
@@ -451,7 +450,7 @@ describe('Admin panel (27, 28)', () => {
     return { onAddCaretaker };
   }
 
-  const assignSelect = () => document.querySelectorAll<HTMLSelectElement>('select')[0];
+  const inviteSelect = () => document.querySelector<HTMLSelectElement>('select[aria-label="Household"]')!;
 
   it('lists the privacy requests from /privacy, says whether an account has the email, and marks one answered', async () => {
     const request = { id: 'prq-1', email: 'bob.smith@example.com', kind: 'erase', message: 'Please delete everything', lang: 'fr', createdAt: '2026-11-20T10:00:00.000Z', handledAt: null };
@@ -477,29 +476,11 @@ describe('Admin panel (27, 28)', () => {
   it('a list the API cut (500 accounts at most) says how many accounts there are, and never says a request has no account', async () => {
     const stranger = { id: 'prq-2', email: 'nobody@example.com', kind: 'access', message: null, lang: 'en', createdAt: '2026-11-20T10:00:00.000Z', handledAt: null };
     apiMock.fetchPrivacyRequests.mockResolvedValue({ ok: true, data: [stranger] });
-    await renderAdmin([ownerRow, pendingStranger, activeElsewhere], 1200);
+    await renderAdmin([ownerRow, activeElsewhere], 1200);
 
-    expect(document.body.textContent).toContain('Showing 3 of 1200 accounts');
+    expect(document.body.textContent).toContain('Showing 2 of 1200 accounts');
     // The email may belong to an account the list did not load
     expect(document.body.textContent).not.toContain('No account with this email');
-  });
-
-  it("'Assign to' defaults to the user's own household, and Approve keeps them there, with no badge in the family", async () => {
-    const { onAddCaretaker } = await renderAdmin();
-    expect(assignSelect().value).toBe('house-stranger');
-
-    await click(buttons('Approve and assign')[0]);
-    expect(apiMock.updateUser).toHaveBeenCalledWith({ email: 'jane.doe@example.com', status: 'ACTIVE', householdId: 'house-stranger' });
-    expect(onAddCaretaker).not.toHaveBeenCalled();
-  });
-
-  it('shows the role the approval gave: a sign-up approved alone in its household is its Admin', async () => {
-    apiMock.updateUser.mockResolvedValueOnce({ ok: true, data: { ...pendingStranger, status: 'ACTIVE', role: 'Admin' } });
-    await renderAdmin();
-    await click(buttons('Approve and assign')[0]);
-
-    const janeRow = [...document.querySelectorAll('div')].find((element) => element.childElementCount === 0 && element.textContent === pendingStranger.email)!.parentElement!;
-    expect(janeRow.textContent).toContain('Admin');
   });
 
   // Offline, Revoke did nothing and Delete closed its dialog with the account still listed, both without a word
@@ -514,7 +495,16 @@ describe('Admin panel (27, 28)', () => {
     danger.mockRestore();
   });
 
-  // Audit S2: a revoked account is no longer "pending"; the owner alone restores it, in its household and role
+  // Sign-ups are open (owner, 2026-11-24): an account from before, still PENDING_APPROVAL, is activated at its next sign-in
+  it('has no pending card and no approve button, even with an account from before sign-ups were open', async () => {
+    await renderAdmin([ownerRow, { id: 'usr-jane', email: 'jane.doe@example.com', name: 'Jane Doe', householdId: 'house-stranger', role: 'Member', status: 'PENDING_APPROVAL' }, activeElsewhere]);
+
+    expect(document.body.textContent).not.toMatch(/pending|approv/i);
+    expect(document.body.textContent).toContain('Active accounts (2)');
+    expect(document.body.textContent).toContain('Move accounts between households and revoke access');
+  });
+
+  // Audit S2: the owner alone revokes and restores an account, in its household and role
   it('Revoke sets REVOKED and moves the account to "Revoked accounts", shown only when it lists someone', async () => {
     await renderAdmin();
     expect(document.body.textContent).not.toContain('Revoked accounts');
@@ -523,15 +513,13 @@ describe('Admin panel (27, 28)', () => {
 
     expect(apiMock.updateUser).toHaveBeenCalledWith({ email: activeElsewhere.email, status: 'REVOKED' });
     expect(document.body.textContent).toContain('Revoked accounts (1)');
-    expect(document.body.textContent).toContain('Pending accounts (1)');
     expect(document.body.textContent).toContain('Active accounts (1)');
     expect(buttons('Restore access')).toHaveLength(1);
   });
 
   it('"Restore access" makes a revoked account active again, with no household or role sent', async () => {
-    await renderAdmin([ownerRow, pendingStranger, { ...activeElsewhere, status: 'REVOKED' }]);
+    await renderAdmin([ownerRow, { ...activeElsewhere, status: 'REVOKED' }]);
     expect(document.body.textContent).toContain('Revoked accounts (1)');
-    expect(document.body.textContent).toContain('Pending accounts (1)');
 
     await click(buttons('Restore access')[0]);
 
@@ -553,51 +541,7 @@ describe('Admin panel (27, 28)', () => {
     danger.mockRestore();
   });
 
-  // A stale row: a family Admin took the sign-up in since the panel loaded, and the server refuses (409).
-  it('reloads the accounts when an approval is refused, so a stale row shows where the account is now', async () => {
-    apiMock.updateUser.mockResolvedValueOnce({ ok: false, status: 409, error: 'no longer pending' });
-    await renderAdmin();
-    expect(apiMock.fetchUsers).toHaveBeenCalledTimes(1);
-
-    await click(buttons('Approve and assign')[0]);
-    expect(apiMock.fetchUsers).toHaveBeenCalledTimes(2);
-  });
-
-  it('an approval the server never takes says why in a toast', async () => {
-    const danger = vi.spyOn(toast, 'danger').mockImplementation(() => '');
-    apiMock.updateUser.mockResolvedValueOnce({ ok: false, status: 0, errorKey: 'offline' });
-    await renderAdmin();
-    await click(buttons('Approve and assign')[0]);
-
-    expect(danger).toHaveBeenCalledWith('No connection, nothing was saved.');
-    danger.mockRestore();
-  });
-
-  it("joining the owner's family is an explicit choice, confirmed first, and creates the same linked badge as an invite", async () => {
-    const { onAddCaretaker } = await renderAdmin();
-    await setValue(assignSelect(), 'FAMILY-COCKER-2026');
-    await click(buttons('Approve and assign')[0]);
-
-    expect(apiMock.updateUser).not.toHaveBeenCalled();
-    expect(document.body.textContent).toContain("Add jane.doe@example.com to Owner Fullname's household?");
-
-    await click(buttons('Approve and assign').at(-1)!);
-    expect(apiMock.updateUser).toHaveBeenCalledWith({ email: 'jane.doe@example.com', status: 'ACTIVE', householdId: 'FAMILY-COCKER-2026' });
-    expect(onAddCaretaker).toHaveBeenCalledWith(
-      expect.objectContaining({ name: 'Jane', email: 'jane.doe@example.com', color: FIRST_FREE_COLOR })
-    );
-  });
-
-  it('Cancel on the join question approves nobody', async () => {
-    await renderAdmin();
-    await setValue(assignSelect(), 'FAMILY-COCKER-2026');
-    await click(buttons('Approve and assign')[0]);
-    await click(buttons('Cancel').at(-1)!);
-
-    expect(apiMock.updateUser).not.toHaveBeenCalled();
-  });
-
-  async function preApprove(email: string) {
+  async function inviteEmail(email: string) {
     const form = [...document.querySelectorAll('form')].at(-1)!;
     await setValue(form.querySelector<HTMLInputElement>('input[type="email"]')!, email);
     await click(buttons('Invite')[0]);
@@ -605,7 +549,7 @@ describe('Admin panel (27, 28)', () => {
 
   it('inviting into the own household creates the same linked badge as the Members tab, and says the invite is sent', async () => {
     const { onAddCaretaker } = await renderAdmin();
-    await preApprove('new.person@example.com');
+    await inviteEmail('new.person@example.com');
 
     expect(apiMock.sendInvite.mock.calls[0][0]).toEqual({ email: 'new.person@example.com', householdId: 'FAMILY-COCKER-2026' });
     expect(onAddCaretaker).toHaveBeenCalledWith(
@@ -617,15 +561,15 @@ describe('Admin panel (27, 28)', () => {
 
   it('inviting into another household creates no badge', async () => {
     const { onAddCaretaker } = await renderAdmin();
-    await setValue(document.querySelectorAll<HTMLSelectElement>('select')[1], 'hh-other');
-    await preApprove('new.person@example.com');
+    await setValue(inviteSelect(), 'hh-other');
+    await inviteEmail('new.person@example.com');
 
     expect(apiMock.sendInvite.mock.calls[0][0]).toMatchObject({ householdId: 'hh-other' });
     expect(onAddCaretaker).not.toHaveBeenCalled();
   });
 
   async function chooseNewHousehold(name: string) {
-    await setValue(document.querySelectorAll<HTMLSelectElement>('select')[1], '+new');
+    await setValue(inviteSelect(), '+new');
     await setValue(document.querySelector<HTMLInputElement>('input[aria-label="Household name"]')!, name);
   }
 
@@ -633,7 +577,7 @@ describe('Admin panel (27, 28)', () => {
     const { onAddCaretaker } = await renderAdmin();
     expect(document.querySelector('input[aria-label="Household name"]')).toBeNull();
     await chooseNewHousehold('  Famille Durand ');
-    await preApprove('new.person@example.com');
+    await inviteEmail('new.person@example.com');
 
     expect(apiMock.sendInvite.mock.calls[0][0]).toEqual({ email: 'new.person@example.com', newHouseholdName: 'Famille Durand' });
     expect(onAddCaretaker).not.toHaveBeenCalled();
@@ -655,7 +599,7 @@ describe('Admin panel (27, 28)', () => {
 
     expect(apiMock.renameHousehold).toHaveBeenCalledWith('FAMILY-COCKER-2026', 'Famille Cocker');
     expect(document.querySelector('button[aria-label="Rename Famille Cocker"]')).not.toBeNull();
-    expect([...document.querySelectorAll('select')[1].options].map((option) => option.textContent)).toContain('Famille Cocker');
+    expect([...inviteSelect().options].map((option) => option.textContent)).toContain('Famille Cocker');
   });
 
   // App review 2026-10-16, Settings: Admin: at 320 px the selects were 434 px wide (each option carried the household id)
@@ -663,7 +607,7 @@ describe('Admin panel (27, 28)', () => {
     await renderAdmin();
 
     const selects = [...document.querySelectorAll('select')];
-    expect(selects).toHaveLength(3);
+    expect(selects).toHaveLength(2);
     for (const select of selects) {
       expect(select.classList).toContain('w-full');
       expect(select.classList).toContain('min-w-0');
@@ -681,7 +625,7 @@ describe('Admin panel (27, 28)', () => {
   describe("'Active accounts' household select", () => {
     const moveSelect = () => document.querySelector<HTMLSelectElement>('select[aria-label="Household for Bob Smith"]')!;
 
-    it("asks before moving; confirming a move into the owner's household moves it and creates the same linked badge as an approval", async () => {
+    it("asks before moving; confirming a move into the owner's household moves it and creates the same linked badge as an invite", async () => {
       const { onAddCaretaker } = await renderAdmin();
       await setValue(moveSelect(), 'FAMILY-COCKER-2026');
 
@@ -708,7 +652,7 @@ describe('Admin panel (27, 28)', () => {
 
     it('shows the role the move gave: an Admin moved into another household is a Member there', async () => {
       apiMock.updateUser.mockResolvedValueOnce({ ok: true, data: { ...activeElsewhere, householdId: 'hh-third', role: 'Member' } });
-      await renderAdmin([ownerRow, pendingStranger, { ...activeElsewhere, role: 'Admin' }]);
+      await renderAdmin([ownerRow, { ...activeElsewhere, role: 'Admin' }]);
       await setValue(moveSelect(), 'hh-third');
       await click(buttons('Move').at(-1)!);
 
@@ -791,20 +735,21 @@ describe('Members and Admin in French: no English left', () => {
   });
 
   // A sign-up's own household has no households row: the message names it as the select does, never by its id
-  it('Admin: approving a sign-up in its own household reads "activé dans « Foyer de Jane Doe »", not the household id', async () => {
+  it('Admin: a move into a sign-up\'s own household reads "déplacé vers « Foyer de Jane Doe »", not the household id', async () => {
     localStorage.setItem('puppace_lang_v1', 'fr');
     try {
-      apiMock.fetchUsers.mockResolvedValue({ ok: true, data: { total: 2, users: [
+      apiMock.fetchUsers.mockResolvedValue({ ok: true, data: { total: 3, users: [
         { id: 'usr-owner', email: SUPER_ADMIN_EMAIL, name: 'Owner Fullname', householdId: 'FAMILY-COCKER-2026', role: 'SuperAdmin', status: 'ACTIVE' },
-        { id: 'usr-jane', email: 'jane.doe@example.com', name: 'Jane Doe', householdId: 'house-stranger', role: 'Member', status: 'PENDING_APPROVAL' },
+        { id: 'usr-jane', email: 'jane.doe@example.com', name: 'Jane Doe', householdId: 'house-stranger', role: 'Admin', status: 'ACTIVE' },
+        { id: 'usr-bob', email: 'bob.smith@example.com', name: 'Bob Smith', householdId: 'hh-other', role: 'Member', status: 'ACTIVE' },
       ] } });
-      apiMock.fetchAllHouseholds.mockResolvedValue({ ok: true, data: [{ id: 'FAMILY-COCKER-2026', name: 'Family Pack (Main)' }] });
+      apiMock.fetchAllHouseholds.mockResolvedValue({ ok: true, data: [{ id: 'FAMILY-COCKER-2026', name: 'Family Pack (Main)' }, { id: 'house-stranger', name: null }, { id: 'hh-other', name: 'Other Family' }] });
       await render(<AdminView currentUserEmail={SUPER_ADMIN_EMAIL} caretakers={badges} onAddCaretaker={vi.fn()} />);
 
-      await click(buttons('Approuver et assigner')[0]);
-      expect(document.body.textContent).toContain('jane.doe@example.com activé dans «\u00a0Foyer de Jane Doe\u00a0».');
-      // (The pending row still shows the id on its "ID" line, on purpose)
-      expect(document.body.textContent).not.toContain('activé dans «\u00a0house-stranger');
+      await setValue(document.querySelector<HTMLSelectElement>('select[aria-label="Foyer de Bob Smith"]')!, 'house-stranger');
+      await click(buttons('Déplacer').at(-1)!);
+      expect(document.body.textContent).toContain('bob.smith@example.com déplacé vers «\u00a0Foyer de Jane Doe\u00a0».');
+      expect(document.body.textContent).not.toContain('house-stranger');
     } finally {
       localStorage.removeItem('puppace_lang_v1');
     }

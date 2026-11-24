@@ -15,7 +15,7 @@
 --        name. Only the owner's own account and badge (the account whose role is SuperAdmin) and his household's dogs
 --        keep their names.
 -- DATA   Real household FAMILY-COCKER-2026: puppy Pistache (Golden Retriever) logged by the household's own badges
---        (read at run time), and Camille, an account waiting for approval.
+--        (read at run time), and an invite into it for Camille (camille.bernard@example.com), who has no account.
 --        'Famille Martin (demo)': Rocky (Labrador, 10 weeks, 300 g, 4 meals), Lucky (Beagle, 2 years, no gram goal);
 --        Claire (Admin), Paul, Léa (no badge: her first log creates one), badge Mamie (no login).
 --        'Famille Dupont (demo)': Caramel (Labradoodle typed under Other, 5 months, adult 25 kg, last dose missed); Julien.
@@ -27,7 +27,7 @@ DECLARE
   v_tz            text := 'Europe/Paris';
   v_today         date := (now() AT TIME ZONE v_tz)::date;
   v_clinic        text := 'Clinique Vétérinaire des Tilleuls (demo)';
-  v_pending_email text := 'camille.bernard@example.com';
+  v_invitee_email text := 'camille.bernard@example.com';
   v_owner_email   text;  -- the owner's (role SuperAdmin, which only SUPER_ADMIN_EMAIL gets): his own data stays as it is
   v_family_loggers text[];  -- the real household's badge names, read at run time (no real names in this file)
   d       record;
@@ -45,10 +45,10 @@ BEGIN
   END IF;
 
   -- 1. Previous seed: seed ids, plus what the app attached to seeded households or dogs (logs, the badge Léa's
-  --    first log creates) and the badge an approval gives Camille in the real household.
+  --    first log creates) and a badge carrying Camille's email in the real household.
   DELETE FROM activities     WHERE id LIKE 'seed-%' OR household_id LIKE 'seed-%' OR puppy_id LIKE 'seed-%';
   DELETE FROM health_records WHERE id LIKE 'seed-%' OR household_id LIKE 'seed-%' OR puppy_id LIKE 'seed-%';
-  DELETE FROM caretakers     WHERE id LIKE 'seed-%' OR household_id LIKE 'seed-%' OR lower(email) = v_pending_email;
+  DELETE FROM caretakers     WHERE id LIKE 'seed-%' OR household_id LIKE 'seed-%' OR lower(email) = v_invitee_email;
   DELETE FROM users          WHERE id LIKE 'seed-%';
   DELETE FROM puppies        WHERE id LIKE 'seed-%' OR household_id LIKE 'seed-%';
   DELETE FROM households     WHERE id LIKE 'seed-%';
@@ -150,7 +150,6 @@ BEGIN
 
   -- 3. Accounts, all fictional @example.com (they cannot sign in: Google SSO)
   INSERT INTO users (id, household_id, email, name, role, status) VALUES
-    ('seed-usr-camille', 'FAMILY-COCKER-2026', v_pending_email,             'Camille Bernard', 'Member', 'PENDING_APPROVAL'),
     ('seed-usr-claire',  'seed-hh-martin',     'claire.martin@example.com', 'Claire Martin',   'Admin',  'ACTIVE'),
     ('seed-usr-paul',    'seed-hh-martin',     'paul.martin@example.com',   'Paul Martin',     'Member', 'ACTIVE'),
     ('seed-usr-lea',     'seed-hh-martin',     'lea.martin@example.com',    'Léa Martin',      'Member', 'ACTIVE'),
@@ -162,6 +161,13 @@ BEGIN
     ('seed-ct-paul',   'seed-hh-martin', 'Paul',   'Husband',  '#10B981', 'paul.martin@example.com'),
     ('seed-ct-mamie',  'seed-hh-martin', 'Mamie',  'Relative', '#F59E0B', NULL),
     ('seed-ct-julien', 'seed-hh-dupont', 'Julien', 'Member',   '#0EA5E9', 'julien.dupont@example.com');
+
+  -- Camille's invite into the real household, from the owner, as a Member (the table exists once migrations/0004 has run)
+  IF to_regclass('public.invites') IS NOT NULL THEN
+    INSERT INTO invites (id, email, household_id, role, invited_by)
+      VALUES ('seed-inv-camille', v_invitee_email, 'FAMILY-COCKER-2026', 'Member',
+              (SELECT name FROM users WHERE lower(email) = v_owner_email));
+  END IF;
 
   -- 5. Dogs. Growth curve (Gompertz): adult_kg * exp(-4.32 * exp(-0.0146 * age in days)), ~15 % of adult at 8 weeks,
   --    ~45 % at 4 months, ~98 % at 1 year. Jitter comes from md5 of the row id, so a rerun the same day is identical.

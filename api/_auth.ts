@@ -2,12 +2,12 @@ import { createHmac, timingSafeEqual, randomUUID } from 'crypto';
 import { neon } from '@neondatabase/serverless';
 import { drizzle } from 'drizzle-orm/neon-http';
 import { eq } from 'drizzle-orm';
-import { invitesTable, usersTable } from '../src/db/schema.js';
+import { usersTable } from '../src/db/schema.js';
 import { isSuperAdminEmail } from '../src/utils/auth.js';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getDatabaseUrl } from './_db.js';
 
-/** A new household's id: a sign-up's own (an invited person's too), or one the owner's invite creates. */
+/** A new household's id: a sign-up's own, or one the owner's invite creates. */
 export const newHouseholdId = () => `house-${Date.now()}-${randomUUID().slice(0, 8)}`;
 
 export function setCorsHeaders(req: VercelRequest, res: VercelResponse, methods = 'GET, POST, PUT, DELETE, OPTIONS') {
@@ -47,8 +47,8 @@ function getSessionSecret(): string {
   return secret;
 }
 
-/** Why an existing account is refused: the lock screen tells a revoked account apart from one waiting for approval. */
-type AccountRefusalCode = 'revoked' | 'pending';
+/** Why an existing account is refused: the lock screen says when the owner revoked it. */
+type AccountRefusalCode = 'revoked';
 
 /** A deliberate refusal from verifyAuth: its status, message and code are safe to send. */
 export class AuthError {
@@ -62,8 +62,8 @@ export class AuthError {
   }
 }
 
-/** The refusal code of an account that is not ACTIVE. */
-const refusalCodeOf = (status: string): AccountRefusalCode => (status === 'REVOKED' ? 'revoked' : 'pending');
+/** The refusal code of an account that is not ACTIVE: none for any other status, whose next Google sign-in activates it. */
+const refusalCodeOf = (status: string): AccountRefusalCode | undefined => (status === 'REVOKED' ? 'revoked' : undefined);
 
 /** Answers a failed verifyAuth. Any error other than an AuthError (a database error carries SQL and the email) is logged and answers a generic 500. */
 export function sendAuthError(res: VercelResponse, error: unknown) {
@@ -249,13 +249,9 @@ export async function verifyAuth(req: VercelRequest): Promise<AuthContext> {
     .where(eq(usersTable.email, userEmail));
 
   const isSuperAdmin = isSuperAdminEmail(userEmail);
-  // Someone invited signs in active, as the Admin of a household of their own, and joins the inviter's with a yes
-  // (the dashboard's invite card). A sign-up waiting for approval since before the invite is activated the same way;
-  // a REVOKED account never is.
-  const isInvited = !isSuperAdmin && (!user || user.status === 'PENDING_APPROVAL')
-    && (await db.select({ id: invitesTable.id }).from(invitesTable).where(eq(invitesTable.email, userEmail))).length > 0;
 
-  // Auto-register user in DB if logging in for the first time
+  // A first sign-in creates an active account, the Admin of a household of its own; it joins another household only
+  // with its own yes to an invite (the dashboard's invite card).
   if (!user) {
     const householdId = isSuperAdmin ? 'FAMILY-COCKER-2026' : newHouseholdId();
     const [created] = await db
@@ -265,12 +261,14 @@ export async function verifyAuth(req: VercelRequest): Promise<AuthContext> {
         householdId,
         email: userEmail,
         name: payload.name || userEmail.split('@')[0],
-        role: isSuperAdmin ? 'SuperAdmin' : isInvited ? 'Admin' : 'Member',
-        status: isSuperAdmin || isInvited ? 'ACTIVE' : 'PENDING_APPROVAL',
+        role: isSuperAdmin ? 'SuperAdmin' : 'Admin',
+        status: 'ACTIVE',
       })
       .returning();
     user = created;
-  } else if (isInvited) {
+  } else if (!isSuperAdmin && user.status !== 'ACTIVE' && user.status !== 'REVOKED') {
+    // A sign-up from when accounts waited for approval (PENDING_APPROVAL), or any other unknown status: activated the same
+    // way, in a new household, never the one it sat in. REVOKED stays refused below.
     [user] = await db
       .update(usersTable)
       .set({ householdId: newHouseholdId(), role: 'Admin', status: 'ACTIVE' })
@@ -279,7 +277,7 @@ export async function verifyAuth(req: VercelRequest): Promise<AuthContext> {
   }
 
   if (user.status !== 'ACTIVE') {
-    throw new AuthError(403, user.status === 'REVOKED' ? 'Access removed by the owner.' : 'Account pending activation by Super Admin.', refusalCodeOf(user.status));
+    throw new AuthError(403, user.status === 'REVOKED' ? 'Access removed by the owner.' : 'Account not active.', refusalCodeOf(user.status));
   }
 
   return {

@@ -1,31 +1,10 @@
 import React, { useState, useEffect, useEffectEvent, useRef } from 'react';
-import { Lock, ShieldCheck, FileText, Shield, Sparkles, ChevronDown, ChevronUp, Clock, Globe, AlertTriangle, UserX } from 'lucide-react';
+import { Lock, FileText, Shield, Sparkles, ChevronDown, ChevronUp, Globe, AlertTriangle, UserX } from 'lucide-react';
 import { Card, Button } from '@heroui/react';
 import { PrivacyPolicyModal } from './PrivacyPolicyModal';
 import { TermsOfServiceModal } from './TermsOfServiceModal';
 import { useI18n } from '../i18n';
 import type { SignInOutcome } from '../types';
-
-// The account waiting for approval on this device, so the note is still there after a reload (app review decision 14)
-const PENDING_EMAIL_KEY = 'puppace_pending_email';
-
-function readPendingEmail(): string {
-  try {
-    return localStorage.getItem(PENDING_EMAIL_KEY) ?? '';
-  } catch {
-    return '';
-  }
-}
-
-/** '' forgets it. */
-function storePendingEmail(email: string) {
-  try {
-    if (email) localStorage.setItem(PENDING_EMAIL_KEY, email);
-    else localStorage.removeItem(PENDING_EMAIL_KEY);
-  } catch {
-    // Private mode: the note lasts until the page closes
-  }
-}
 
 interface AuthLockScreenProps {
   onUnlockWithSSO: (token: string) => Promise<SignInOutcome>;
@@ -40,8 +19,6 @@ export const AuthLockScreen: React.FC<AuthLockScreenProps> = ({
   const { t, lang, changeLanguage } = useI18n();
   // A key of t.auth, so the message follows the language
   const [error, setError] = useState<'' | 'ssoFailed' | 'googleScriptFailed'>('');
-  const [pendingEmail, setPendingEmail] = useState(readPendingEmail);
-  // Never stored: a revoked account is not waiting for anything
   const [isRevoked, setIsRevoked] = useState(reason === 'revoked');
   const [isSigningIn, setIsSigningIn] = useState(false);
   const [showAboutDetails, setShowAboutDetails] = useState(false);
@@ -56,23 +33,10 @@ export const AuthLockScreen: React.FC<AuthLockScreenProps> = ({
     setError('');
     setIsSigningIn(true);
     let outcome: SignInOutcome = 'failed';
-    let email = '';
     try {
-      const base64Url = credential.split('.')[1];
-      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-      const jsonPayload = decodeURIComponent(
-        window
-          .atob(base64)
-          .split('')
-          .map((char) => '%' + ('00' + char.charCodeAt(0).toString(16)).slice(-2))
-          .join('')
-      );
-      const decoded = JSON.parse(jsonPayload);
-
-      email = decoded.email;
       outcome = await onUnlockWithSSO(credential);
     } catch {
-      // An unreadable credential or a thrown error is a failed sign-in
+      // A thrown error is a failed sign-in
     }
     setIsSigningIn(false);
     if (outcome === 'failed') {
@@ -80,17 +44,11 @@ export const AuthLockScreen: React.FC<AuthLockScreenProps> = ({
       return;
     }
     setIsRevoked(outcome === 'revoked');
-    // Waiting for approval: noted for the next visit. Signed in (approved) or revoked: nothing waits any more.
-    const waitingEmail = outcome === 'pending' ? email : '';
-    setPendingEmail(waitingEmail);
-    storePendingEmail(waitingEmail);
   });
 
-  // Google stops signing in the waiting account by itself (One Tap's auto-select), so another can be picked
+  // Google stops signing in the revoked account by itself (One Tap's auto-select), so another can be picked
   const handleUseAnotherAccount = () => {
     setIsRevoked(false);
-    setPendingEmail('');
-    storePendingEmail('');
     window.google?.accounts?.id?.disableAutoSelect?.();
   };
 
@@ -203,16 +161,11 @@ export const AuthLockScreen: React.FC<AuthLockScreenProps> = ({
             </p>
           </div>
 
-          {(pendingEmail || isRevoked) && (
+          {isRevoked && (
             <div role="status" className="relative z-10 bg-indigo-950/40 border border-indigo-800/50 text-indigo-200 p-3.5 rounded-xl text-xs leading-relaxed flex items-start gap-2.5">
-              {isRevoked ? (
-                <UserX className="w-5 h-5 text-indigo-400 shrink-0 mt-0.5" aria-hidden="true" />
-              ) : (
-                <Clock className="w-5 h-5 text-indigo-400 shrink-0 mt-0.5" aria-hidden="true" />
-              )}
+              <UserX className="w-5 h-5 text-indigo-400 shrink-0 mt-0.5" aria-hidden="true" />
               <div className="min-w-0 space-y-1">
-                <p className="font-semibold">{isRevoked ? t.auth.accessRemoved : t.auth.pendingActivation}</p>
-                {!isRevoked && <p className="text-indigo-300/90 break-all">{pendingEmail}</p>}
+                <p className="font-semibold">{t.auth.accessRemoved}</p>
                 <button
                   type="button"
                   onClick={handleUseAnotherAccount}
@@ -252,12 +205,6 @@ export const AuthLockScreen: React.FC<AuthLockScreenProps> = ({
               {/* Hidden, not removed, while signing in: Google renders its button here once */}
               <div ref={googleBtnRef} className={`w-full justify-center min-h-[44px] ${isSigningIn ? 'hidden' : 'flex'}`} />
             </div>
-          </div>
-
-          {/* Security Footer Note */}
-          <div className="pt-2 border-t border-slate-800/80 text-center text-xs text-slate-400 flex items-center justify-center gap-1">
-            <ShieldCheck className="w-3.5 h-3.5 text-indigo-400" />
-            <span>{t.auth.requireActivationNote}</span>
           </div>
         </Card.Content>
       </Card>

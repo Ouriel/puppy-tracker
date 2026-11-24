@@ -95,7 +95,7 @@ describe("/api/households?all=true: the owner's household names", () => {
     dbMock.users = [
       { id: 'usr-owner', email: SUPER_ADMIN_EMAIL, name: 'Owner', householdId: 'FAMILY-COCKER-2026', role: 'SuperAdmin', status: 'ACTIVE' },
       familyAdmin,
-      { id: 'usr-jane', email: 'jane@example.com', name: 'Jane', householdId: 'house-jane', role: 'Member', status: 'PENDING_APPROVAL' },
+      { id: 'usr-jane', email: 'jane@example.com', name: 'Jane', householdId: 'house-jane', role: 'Admin', status: 'ACTIVE' },
     ];
     dbMock.caretakers = [{ id: 'ct-1', householdId: 'hh-martin', name: 'Badge' }];
     dbMock.upserts = [];

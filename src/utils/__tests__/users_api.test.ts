@@ -163,7 +163,7 @@ describe('POST /api/users: an invite, never an account', () => {
   it.each([
     ['an email with no account', 'New.Person@example.com'],
     ['an active account of another household', activeElsewhere.email],
-    ['a sign-up waiting for approval', pendingStranger.email],
+    ['an account from before sign-ups were open (PENDING_APPROVAL)', pendingStranger.email],
     ['a revoked account', revokedElsewhere.email],
   ])("answers the same 201 for %s, creates or moves no account, and stores a Member invite into the Admin's household", async (_label, email) => {
     const response = createMockResponse();
@@ -328,7 +328,7 @@ describe("GET /api/users: the owner's account list loads at most 500 accounts", 
     process.env.SESSION_SECRET = originalSecret;
   });
 
-  it(`sends ${OWNER_ACCOUNT_LIST_LIMIT} accounts and the total: the owner's own first, then pending and revoked ones, then the newest`, async () => {
+  it(`sends ${OWNER_ACCOUNT_LIST_LIMIT} accounts and the total: the owner's own first, then revoked ones, then the newest`, async () => {
     resetDb(accounts(OWNER_ACCOUNT_LIST_LIMIT + 1));
     const response = createMockResponse();
     await usersHandler(getAs({ email: SUPER_ADMIN_EMAIL, householdId: 'hh-owner', role: 'SuperAdmin' }), response);
@@ -450,6 +450,7 @@ describe('POST and DELETE /api/invites: the invitee answers', () => {
   });
 });
 
+// Sign-ups are open (owner, 2026-11-24): nobody waits for the owner's approval
 describe('First Google sign-in (verifyAuth)', () => {
   const originalSecret = process.env.SESSION_SECRET;
   const email = 'jane.doe@example.com';
@@ -459,7 +460,8 @@ describe('First Google sign-in (verifyAuth)', () => {
   beforeEach(() => {
     resetDb([adminRow]);
     vi.stubEnv('VITE_GOOGLE_CLIENT_ID', 'test-client-id');
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({ aud: 'test-client-id', email: 'Jane.Doe@example.com', email_verified: 'true', name: 'Jane Doe' })));
+    // A new Response each time: a body is read once
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async () => new Response(JSON.stringify({ aud: 'test-client-id', email: 'Jane.Doe@example.com', email_verified: 'true', name: 'Jane Doe' })));
   });
 
   afterEach(() => {
@@ -468,31 +470,38 @@ describe('First Google sign-in (verifyAuth)', () => {
     vi.restoreAllMocks();
   });
 
-  it('with an invite: creates the account active, the Admin of a new household of its own, never the inviter\'s', async () => {
-    dbMock.invites = [{ ...invite }];
-
+  it('creates the account active, the Admin of a new household of its own; the next sign-in reuses it', async () => {
     const auth = await signIn();
 
     expect(dbMock.insertedValues).toEqual([
       { id: expect.stringMatching(/^usr-/), householdId: expect.stringMatching(/^house-/), email, name: 'Jane Doe', role: 'Admin', status: 'ACTIVE' },
     ]);
     expect(auth).toEqual({ email, name: 'Jane Doe', householdId: dbMock.insertedValues[0].householdId, role: 'Admin' });
-    expect(dbMock.invites).toHaveLength(1);
+
+    dbMock.users.push({ ...dbMock.insertedValues[0] });
+    dbMock.insertedValues = [];
+    expect(await signIn()).toEqual(auth);
+    expect(dbMock.insertedValues).toEqual([]);
+    expect(dbMock.updatedValues).toEqual([]);
   });
 
-  it('without an invite: creates the account waiting for approval, as before, and refuses it (403, pending)', async () => {
-    await expect(signIn()).rejects.toMatchObject({ status: 403, code: 'pending' });
-    expect(dbMock.insertedValues).toEqual([expect.objectContaining({ email, role: 'Member', status: 'PENDING_APPROVAL', householdId: expect.stringMatching(/^house-/) })]);
-  });
-
-  it('activates a sign-up waiting since before the invite: active, the Admin of a new household of its own', async () => {
-    dbMock.users.push({ ...pendingStranger });
+  it("with an invite: the same, never the inviter's household, and the invite waits for a yes", async () => {
     dbMock.invites = [{ ...invite }];
 
     const auth = await signIn();
 
+    expect(dbMock.insertedValues).toEqual([expect.objectContaining({ email, role: 'Admin', status: 'ACTIVE' })]);
+    expect(auth.householdId).not.toBe(adminRow.householdId);
+    expect(dbMock.invites).toHaveLength(1);
+  });
+
+  it('activates an account from before sign-ups were open (PENDING_APPROVAL) in a new household, never the one it sat in', async () => {
+    dbMock.users.push({ ...pendingStranger, householdId: adminRow.householdId });
+
+    const auth = await signIn();
+
     expect(dbMock.updatedValues).toEqual([{ householdId: expect.stringMatching(/^house-/), role: 'Admin', status: 'ACTIVE' }]);
-    expect(dbMock.updatedValues[0].householdId).not.toBe(pendingStranger.householdId);
+    expect(dbMock.updatedValues[0].householdId).not.toBe(adminRow.householdId);
     expect(auth).toMatchObject({ email, role: 'Admin', householdId: dbMock.updatedValues[0].householdId });
     expect(dbMock.insertedValues).toEqual([]);
   });
@@ -545,76 +554,6 @@ describe("PUT /api/users: the Admin panel's 'Active accounts' household select",
     expect(response.statusCode).toBe(200);
     expect(dbMock.updatedValues).toEqual([{ householdId: 'hh-owner', role: 'Member' }]);
     expect(response.body).toMatchObject({ role: 'Member', householdId: 'hh-owner' });
-  });
-});
-
-// Backlog 12: the first member of a new family becomes its Admin, so they can invite the rest of it.
-describe("PUT /api/users: the owner's approval (Admin panel 'Approve and assign')", () => {
-  const originalSecret = process.env.SESSION_SECRET;
-  const put = (request: { method: string }) => ({ ...request, method: 'PUT' });
-
-  beforeEach(() => {
-    process.env.SESSION_SECRET = 'test-secret-key-1234567890-very-secure';
-    dbMock.users = [adminRow, { ...pendingStranger }, { ...activeElsewhere }];
-    dbMock.updatedValues = [];
-  });
-
-  afterEach(() => {
-    process.env.SESSION_SECRET = originalSecret;
-  });
-
-  it.each([
-    ['naming its own household', { householdId: pendingStranger.householdId }],
-    ['naming no household', {}],
-  ])('makes a sign-up that stays alone in its own household its Admin (%s)', async (_label, household) => {
-    const response = createMockResponse();
-    await usersHandler(put(asOwner({ email: pendingStranger.email, status: 'ACTIVE', ...household })) as any, response);
-
-    expect(response.statusCode).toBe(200);
-    expect(dbMock.updatedValues[0]).toMatchObject({ status: 'ACTIVE', role: 'Admin' });
-    expect(response.body).toMatchObject({ email: pendingStranger.email, role: 'Admin', status: 'ACTIVE' });
-  });
-
-  it('keeps Member when approving into another household', async () => {
-    const response = createMockResponse();
-    await usersHandler(put(asOwner({ email: pendingStranger.email, status: 'ACTIVE', householdId: activeElsewhere.householdId })) as any, response);
-
-    expect(response.statusCode).toBe(200);
-    expect(dbMock.updatedValues[0]).not.toHaveProperty('role');
-    expect(response.body).toMatchObject({ role: 'Member', householdId: activeElsewhere.householdId });
-  });
-
-  // Revoke keeps the role: a revoked Admin approved into another household is a Member there.
-  it('makes a revoked Admin approved into another household a Member', async () => {
-    dbMock.users.push({ id: 'usr-revoked-admin', email: 'revoked.admin@example.com', name: 'Revoked Admin', householdId: 'house-ra', role: 'Admin', status: 'PENDING_APPROVAL' });
-    const response = createMockResponse();
-    await usersHandler(put(asOwner({ email: 'revoked.admin@example.com', status: 'ACTIVE', householdId: 'hh-owner' })) as any, response);
-
-    expect(response.statusCode).toBe(200);
-    expect(dbMock.updatedValues[0]).toMatchObject({ status: 'ACTIVE', householdId: 'hh-owner', role: 'Member' });
-    expect(response.body).toMatchObject({ role: 'Member', householdId: 'hh-owner' });
-  });
-
-  // A stale Admin panel row: an Admin took the sign-up in since the panel loaded. Approving it would move it back out.
-  it('answers 409 to an approval into another household of an account no longer pending, and changes nothing', async () => {
-    dbMock.users = dbMock.users.map((row) =>
-      row.email === pendingStranger.email ? { ...row, householdId: adminRow.householdId, status: 'ACTIVE' } : row
-    );
-    const response = createMockResponse();
-    await usersHandler(put(asOwner({ email: pendingStranger.email, status: 'ACTIVE', householdId: pendingStranger.householdId })) as any, response);
-
-    expect(response.statusCode).toBe(409);
-    expect(response.body).toEqual({ error: expect.any(String) });
-    expect(dbMock.updatedValues).toEqual([]);
-  });
-
-  it('keeps Member when re-approving a revoked member who shares the household', async () => {
-    dbMock.users.push({ id: 'usr-revoked', email: 'revoked@example.com', name: 'Revoked', householdId: adminRow.householdId, role: 'Member', status: 'PENDING_APPROVAL' });
-    const response = createMockResponse();
-    await usersHandler(put(asOwner({ email: 'revoked@example.com', status: 'ACTIVE', householdId: adminRow.householdId })) as any, response);
-
-    expect(response.statusCode).toBe(200);
-    expect(dbMock.updatedValues[0]).not.toHaveProperty('role');
   });
 });
 
@@ -688,12 +627,19 @@ describe('PUT /api/users: only the owner changes an account status', () => {
   it.each([
     ['restore a revoked account of its household', revokedMember.email, 'ACTIVE'],
     ['revoke an account of its household', activeMember.email, 'REVOKED'],
-    ['set an account of its household back to pending', activeMember.email, 'PENDING_APPROVAL'],
   ])('refuses (403) an Admin who tries to %s, and changes nothing', async (_label, email, status) => {
     const response = createMockResponse();
     await usersHandler(put(asAdmin({ email, status })) as any, response);
 
     expect(response.statusCode).toBe(403);
+    expect(dbMock.updatedValues).toEqual([]);
+  });
+
+  it.each(['PENDING_APPROVAL', 'INACTIVE'])('refuses (400) the status %s, even from the owner, and changes nothing', async (status) => {
+    const response = createMockResponse();
+    await usersHandler(put(asOwner({ email: activeMember.email, status })) as any, response);
+
+    expect(response.statusCode).toBe(400);
     expect(dbMock.updatedValues).toEqual([]);
   });
 
