@@ -2,8 +2,8 @@ import { randomUUID } from 'crypto';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { neon } from '@neondatabase/serverless';
 import { drizzle } from 'drizzle-orm/neon-http';
-import { eq, and, ne } from 'drizzle-orm';
-import { householdsTable, puppiesTable, usersTable } from '../src/db/schema.js';
+import { eq, and, ne, sql as sqlTag } from 'drizzle-orm';
+import { activitiesTable, caretakersTable, healthRecordsTable, householdsTable, puppiesTable, usersTable } from '../src/db/schema.js';
 import { isSuperAdminEmail } from '../src/utils/auth.js';
 import { UserInputSchema } from '../src/utils/schemas.js';
 import { verifyAuth, sendAuthError, setCorsHeaders, newHouseholdId } from './_auth.js';
@@ -24,7 +24,7 @@ function householdHasOtherUser(account: UserRow) {
     .then((rows) => rows.length > 0);
 }
 
-/** A sign-up still waiting for approval, alone in a household with no dog. */
+/** A sign-up still waiting for approval, alone in a household with no dog. Never a REVOKED account: only the owner restores it. */
 async function isUnclaimedSignUp(account: UserRow) {
   if (account.status !== 'PENDING_APPROVAL') return false;
   const [hasOtherUser, dogs] = await Promise.all([
@@ -32,6 +32,26 @@ async function isUnclaimedSignUp(account: UserRow) {
     db.select({ id: puppiesTable.id }).from(puppiesTable).where(eq(puppiesTable.householdId, account.householdId)).limit(1),
   ]);
   return !hasOtherUser && dogs.length === 0;
+}
+
+/**
+ * Every account deletion (its own, the owner's, an Admin's): the account and its badges in its household go. The household's
+ * last account takes the whole household with it: dogs (deleted ones too), logs, health records, badges and the household row.
+ */
+async function deleteAccount(account: UserRow) {
+  const { householdId, email } = account;
+  // shortcut: checked before the batch, so an account joining the household meanwhile finds it emptied, and two last accounts
+  // deleted at once both keep it; one SQL statement (DELETE ... WHERE NOT EXISTS) if households ever see concurrent changes.
+  const isLastAccount = !(await householdHasOtherUser(account));
+  await db.batch([
+    db.delete(usersTable).where(eq(usersTable.id, account.id)),
+    ...(isLastAccount
+      ? [
+          ...[puppiesTable, activitiesTable, healthRecordsTable, caretakersTable].map((table) => db.delete(table).where(eq(table.householdId, householdId))),
+          db.delete(householdsTable).where(eq(householdsTable.id, householdId)),
+        ]
+      : [db.delete(caretakersTable).where(and(eq(caretakersTable.householdId, householdId), sqlTag`lower(${caretakersTable.email}) = ${email.toLowerCase()}`))]),
+  ]);
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -71,6 +91,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(200).json(users);
     }
 
+    // DELETE /api/users?email=<own email> — anyone but the owner deletes their own account, found from the session
+    const deleteEmail = req.method === 'DELETE' ? ((req.query.email as string) || req.body?.email || '').toLowerCase() : '';
+    if (deleteEmail && deleteEmail === auth.email.toLowerCase()) {
+      if (isSuperAdminEmail(auth.email)) {
+        return res.status(403).json({ error: 'SuperAdmin account cannot be deleted.' });
+      }
+      const [account] = await db.select().from(usersTable).where(eq(usersTable.email, auth.email.toLowerCase()));
+      if (!account) return res.status(404).json({ error: 'User not found' });
+      await deleteAccount(account);
+      return res.status(200).json({ success: true, deletedEmail: account.email });
+    }
+
     // Admin role check for mutation operations (POST, PUT, DELETE)
     if (auth.role !== 'Admin' && auth.role !== 'SuperAdmin') {
       return res.status(403).json({ error: 'Only admins can perform user management actions' });
@@ -89,6 +121,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
       if (body.householdId && body.householdId !== householdId && !isSuperAdmin) {
         return res.status(403).json({ error: 'Only SuperAdmin can choose another household.' });
+      }
+      if (body.status === 'REVOKED' && !isSuperAdmin) {
+        return res.status(403).json({ error: 'Only SuperAdmin revokes access.' });
       }
       // An admin's invitees are Members of the admin's own family.
       if (body.role && body.role !== 'Member' && !isSuperAdmin) {
@@ -118,6 +153,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         .where(eq(usersTable.email, email));
 
       if (existing) {
+        // An Admin's invite never gives back the access the owner removed
+        if (existing.status === 'REVOKED' && !isSuperAdmin) {
+          return res.status(409).json({ error: 'This person already has an account. Ask the owner to add them.' });
+        }
         const isMove = existing.householdId !== targetHouseholdId;
         // The owner moves an account between households once confirmed. An admin takes in only a sign-up waiting
         // alone in a household with no dog (a second parent who signed in before being invited); never another
@@ -176,6 +215,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(403).json({ error: 'Only SuperAdmin can reassign households.' });
       }
 
+      // Approve, revoke and restore are the owner's: an Admin could otherwise undo the owner's revoke
+      if (body.status && !isSuperAdmin) {
+        return res.status(403).json({ error: 'Only SuperAdmin changes an account status.' });
+      }
+
       // As in POST: an Admin's family members are Members.
       if (body.role && body.role !== 'Member' && !isSuperAdmin) {
         return res.status(403).json({ error: 'Only SuperAdmin can choose a role.' });
@@ -227,17 +271,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(403).json({ error: 'SuperAdmin account cannot be deleted.' });
       }
 
-      if (targetEmail === auth.email.toLowerCase()) {
-        return res.status(400).json({ error: 'Cannot delete your own account' });
-      }
-
       const whereClause = isSuperAdmin
         ? eq(usersTable.email, targetEmail)
         : and(eq(usersTable.email, targetEmail), eq(usersTable.householdId, householdId));
 
-      await db
-        .delete(usersTable)
-        .where(whereClause);
+      const [account] = await db.select().from(usersTable).where(whereClause);
+      if (account) await deleteAccount(account);
       return res.status(200).json({ success: true, deletedEmail: targetEmail });
     }
 

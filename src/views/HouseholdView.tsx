@@ -14,6 +14,8 @@ interface HouseholdViewProps {
   onAddCaretaker: (caretaker: Caretaker) => void;
   onUpdateCaretaker: (id: string, updatedFields: Partial<Caretaker>) => void;
   onDeleteCaretaker: (id: string) => void;
+  /** Deletes the signed-in account (never the owner's) and ends its session on this phone */
+  onDeleteMyAccount: () => void;
 }
 
 export const HouseholdView: React.FC<HouseholdViewProps> = ({
@@ -22,6 +24,7 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
   onAddCaretaker,
   onUpdateCaretaker,
   onDeleteCaretaker,
+  onDeleteMyAccount,
 }) => {
   const { t } = useI18n();
   const [isAdding, setIsAdding] = useState(false);
@@ -32,6 +35,7 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
   const [isInviting, setIsInviting] = useState(false);
   const [emailToMove, setEmailToMove] = useState<string | null>(null);
   const [badgeToDelete, setBadgeToDelete] = useState<Caretaker | null>(null);
+  const [isDeleteMyAccountOpen, setIsDeleteMyAccountOpen] = useState(false);
 
   const [name, setName] = useState('');
   const [color, setColor] = useState('#EC4899');
@@ -147,6 +151,15 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
         message={t.household.deleteMemberMessage.replace('{name}', badgeToDelete?.name ?? '')}
         onConfirm={() => badgeToDelete && onDeleteCaretaker(badgeToDelete.id)}
         onClose={() => setBadgeToDelete(null)}
+      />
+
+      <ConfirmationModal
+        isOpen={isDeleteMyAccountOpen}
+        title={t.household.deleteMyAccount}
+        message={t.household.deleteMyAccountMessage}
+        confirmLabel={t.household.deleteMyAccount}
+        onConfirm={onDeleteMyAccount}
+        onClose={() => setIsDeleteMyAccountOpen(false)}
       />
 
       {/* Email Registration Box */}
@@ -437,6 +450,22 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
           </ul>
         </Card.Content>
       </Card>
+
+      {/* Anyone but the owner deletes their own account */}
+      {!isOwner && (
+        <Card className="bg-slate-900 border-slate-800 text-slate-100">
+          <Card.Content className="p-4 sm:p-6 flex flex-row flex-wrap items-center justify-between gap-3">
+            <div className="min-w-0">
+              <h3 className="text-sm font-bold text-white">{t.household.yourAccount}</h3>
+              <p className="text-xs text-slate-400 break-all">{user.email}</p>
+            </div>
+            <Button variant="danger" size="sm" onPress={() => setIsDeleteMyAccountOpen(true)} className="min-h-11 text-xs font-bold">
+              <Trash2 className="w-3.5 h-3.5 mr-1 inline" />
+              {t.household.deleteMyAccount}
+            </Button>
+          </Card.Content>
+        </Card>
+      )}
     </div>
   );
 };

@@ -50,11 +50,14 @@ export interface UserAccount {
   role: FamilyRole;
   avatarColor?: string;
   familyPackId?: string;
-  status?: 'ACTIVE' | 'PENDING_APPROVAL';
+  status?: AccountStatus;
 }
 
-/** How a Google sign-in ended: 'pending' only for a 403 (account waiting for approval). */
-export type SignInOutcome = 'signedIn' | 'pending' | 'failed';
+/** PENDING_APPROVAL: a sign-up waiting for approval. REVOKED: the owner removed its access (only the owner sets and clears it). */
+export type AccountStatus = 'ACTIVE' | 'PENDING_APPROVAL' | 'REVOKED';
+
+/** How a Google sign-in ended: 'pending' for a 403 (account waiting for approval), 'revoked' for the 403 coded 'revoked'. */
+export type SignInOutcome = 'signedIn' | 'pending' | 'revoked' | 'failed';
 
 export interface Caretaker {
   id: string;
@@ -73,7 +76,7 @@ export interface RegisteredUserItem {
   email: string;
   name: string;
   role: string;
-  status: 'ACTIVE' | 'PENDING_APPROVAL';
+  status: AccountStatus;
 }
 
 /** A household in the owner's Admin panel: `name` is null until the owner names it. */

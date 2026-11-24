@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useEffectEvent, useRef } from 'react';
-import { Lock, ShieldCheck, FileText, Shield, Sparkles, ChevronDown, ChevronUp, Clock, Globe, AlertTriangle } from 'lucide-react';
+import { Lock, ShieldCheck, FileText, Shield, Sparkles, ChevronDown, ChevronUp, Clock, Globe, AlertTriangle, UserX } from 'lucide-react';
 import { Card, Button } from '@heroui/react';
 import { PrivacyPolicyModal } from './PrivacyPolicyModal';
 import { TermsOfServiceModal } from './TermsOfServiceModal';
@@ -29,15 +29,20 @@ function storePendingEmail(email: string) {
 
 interface AuthLockScreenProps {
   onUnlockWithSSO: (token: string) => Promise<SignInOutcome>;
+  /** 'revoked': the owner removed this account's access. 'accountDeleted': Google must not sign the deleted account straight back in (a new sign-up). */
+  reason?: '' | 'revoked' | 'accountDeleted';
 }
 
 export const AuthLockScreen: React.FC<AuthLockScreenProps> = ({
   onUnlockWithSSO,
+  reason = '',
 }) => {
   const { t, lang, changeLanguage } = useI18n();
   // A key of t.auth, so the message follows the language
   const [error, setError] = useState<'' | 'ssoFailed' | 'googleScriptFailed'>('');
   const [pendingEmail, setPendingEmail] = useState(readPendingEmail);
+  // Never stored: a revoked account is not waiting for anything
+  const [isRevoked, setIsRevoked] = useState(reason === 'revoked');
   const [isSigningIn, setIsSigningIn] = useState(false);
   const [showAboutDetails, setShowAboutDetails] = useState(false);
 
@@ -74,7 +79,8 @@ export const AuthLockScreen: React.FC<AuthLockScreenProps> = ({
       setError('ssoFailed');
       return;
     }
-    // Waiting for approval: noted for the next visit. Signed in: approved, so nothing waits any more.
+    setIsRevoked(outcome === 'revoked');
+    // Waiting for approval: noted for the next visit. Signed in (approved) or revoked: nothing waits any more.
     const waitingEmail = outcome === 'pending' ? email : '';
     setPendingEmail(waitingEmail);
     storePendingEmail(waitingEmail);
@@ -82,6 +88,7 @@ export const AuthLockScreen: React.FC<AuthLockScreenProps> = ({
 
   // Google stops signing in the waiting account by itself (One Tap's auto-select), so another can be picked
   const handleUseAnotherAccount = () => {
+    setIsRevoked(false);
     setPendingEmail('');
     storePendingEmail('');
     window.google?.accounts?.id?.disableAutoSelect?.();
@@ -98,9 +105,10 @@ export const AuthLockScreen: React.FC<AuthLockScreenProps> = ({
     const initGoogleSignIn = () => {
       if (!googleBtnRef.current || !window.google?.accounts?.id) return;
       try {
+        const isAccountDeleted = reason === 'accountDeleted';
         window.google.accounts.id.initialize({
           client_id: googleClientId,
-          auto_select: true,
+          auto_select: !isAccountDeleted,
           callback: (response: { credential: string }) => handleGoogleCredential(response.credential),
         });
 
@@ -110,6 +118,9 @@ export const AuthLockScreen: React.FC<AuthLockScreenProps> = ({
           size: 'large',
           width: '100%',
         });
+
+        // Remembered by Google (a cookie), so a reload does not sign the deleted account back in either
+        if (isAccountDeleted) window.google.accounts.id.disableAutoSelect?.();
 
         // Trigger Google One-Tap seamless auto-sign-in
         try {
@@ -145,7 +156,7 @@ export const AuthLockScreen: React.FC<AuthLockScreenProps> = ({
       script.removeEventListener('load', initGoogleSignIn);
       script.removeEventListener('error', handleScriptError);
     };
-  }, [googleClientId]);
+  }, [googleClientId, reason]);
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center p-4 selection:bg-indigo-500 selection:text-white flex-col py-8">
@@ -192,12 +203,16 @@ export const AuthLockScreen: React.FC<AuthLockScreenProps> = ({
             </p>
           </div>
 
-          {pendingEmail && (
+          {(pendingEmail || isRevoked) && (
             <div role="status" className="relative z-10 bg-indigo-950/40 border border-indigo-800/50 text-indigo-200 p-3.5 rounded-xl text-xs leading-relaxed flex items-start gap-2.5">
-              <Clock className="w-5 h-5 text-indigo-400 shrink-0 mt-0.5" aria-hidden="true" />
+              {isRevoked ? (
+                <UserX className="w-5 h-5 text-indigo-400 shrink-0 mt-0.5" aria-hidden="true" />
+              ) : (
+                <Clock className="w-5 h-5 text-indigo-400 shrink-0 mt-0.5" aria-hidden="true" />
+              )}
               <div className="min-w-0 space-y-1">
-                <p className="font-semibold">{t.auth.pendingActivation}</p>
-                <p className="text-indigo-300/90 break-all">{pendingEmail}</p>
+                <p className="font-semibold">{isRevoked ? t.auth.accessRemoved : t.auth.pendingActivation}</p>
+                {!isRevoked && <p className="text-indigo-300/90 break-all">{pendingEmail}</p>}
                 <button
                   type="button"
                   onClick={handleUseAnotherAccount}

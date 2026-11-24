@@ -84,7 +84,7 @@ describe('Members tab: deleting a badge asks first (owner decision D13)', () => 
   it('the trash opens a question naming the badge; only "Supprimer" deletes it', async () => {
     const onDeleteCaretaker = vi.fn();
     await render(
-      <HouseholdView caretakers={badges} user={{ email: 'sam@example.com', name: 'Sam', role: 'Admin' }} onAddCaretaker={vi.fn()} onUpdateCaretaker={vi.fn()} onDeleteCaretaker={onDeleteCaretaker} />,
+      <HouseholdView caretakers={badges} user={{ email: 'sam@example.com', name: 'Sam', role: 'Admin' }} onAddCaretaker={vi.fn()} onUpdateCaretaker={vi.fn()} onDeleteCaretaker={onDeleteCaretaker} onDeleteMyAccount={vi.fn()} />,
       'fr'
     );
     const trash = document.querySelector<HTMLButtonElement>('button:has(.lucide-trash-2)')!;

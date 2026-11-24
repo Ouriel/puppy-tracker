@@ -5,10 +5,17 @@ import { signAppSessionToken } from '../../../api/_auth.js';
 import usersHandler from '../../../api/users.js';
 import { SUPER_ADMIN_EMAIL } from '../auth.js';
 
-// Hermetic DB: users and puppies rows are filtered by every `"column" = $n` / `"column" <> $n` of the WHERE.
+type Row = Record<string, unknown>;
+
+// Hermetic DB: rows are filtered by every `"column" = $n` / `"column" <> $n` / `lower("column") = $n` of the WHERE.
+// A delete removes the matching rows at once, so the rows left are what the database would keep.
 const dbMock = vi.hoisted(() => ({
-  users: [] as Array<Record<string, unknown>>,
-  puppies: [] as Array<Record<string, unknown>>,
+  users: [] as Row[],
+  puppies: [] as Row[],
+  caretakers: [] as Row[],
+  activities: [] as Row[],
+  health_records: [] as Row[],
+  households: [] as Row[],
   updatedValues: [] as Array<Record<string, unknown>>,
   insertedValues: [] as Array<Record<string, unknown>>,
   batches: 0,
@@ -21,13 +28,14 @@ vi.mock('@neondatabase/serverless', () => ({
 
 vi.mock('drizzle-orm/neon-http', async () => {
   const { getTableName } = await import('drizzle-orm');
+  const tableRows = (table: Table) => (dbMock as unknown as Record<string, Row[]>)[getTableName(table)] ?? [];
   const matching = (table: Table, condition: SQL) => {
     const { sql, params } = new PgDialect().sqlToQuery(condition);
-    const rows = { users: dbMock.users, puppies: dbMock.puppies }[getTableName(table)] ?? [];
-    return rows.filter((row) =>
-      [...sql.matchAll(/"(\w+)" (=|<>) \$(\d+)/g)].every(([, column, operator, index]) => {
+    return tableRows(table).filter((row) =>
+      [...sql.matchAll(/(lower\((?:"\w+"\.)?)?"(\w+)"\)? (=|<>) \$(\d+)/g)].every(([, lower, column, operator, index]) => {
         const field = column.replace(/_(\w)/g, (_match, letter: string) => letter.toUpperCase());
-        return (row[field] === params[Number(index) - 1]) === (operator === '=');
+        const value = lower ? String(row[field] ?? '').toLowerCase() : row[field];
+        return (value === params[Number(index) - 1]) === (operator === '=');
       })
     );
   };
@@ -55,6 +63,13 @@ vi.mock('drizzle-orm/neon-http', async () => {
         values: (values: Record<string, unknown>) => {
           dbMock.insertedValues.push(values);
           return { returning: () => Promise.resolve([values]) };
+        },
+      })),
+      delete: vi.fn((table: Table) => ({
+        where: (condition: SQL) => {
+          const removed = new Set(matching(table, condition));
+          (dbMock as unknown as Record<string, Row[]>)[getTableName(table)] = tableRows(table).filter((row) => !removed.has(row));
+          return Promise.resolve();
         },
       })),
       batch: vi.fn((queries: unknown[]) => {
@@ -150,10 +165,15 @@ describe('POST /api/users: pre-approving someone who already has an account (20)
     expect(dbMock.updatedValues[0]).toMatchObject({ role: 'Member' });
   });
 
-  // Only the owner moves any other account between households. A revoked member is PENDING_APPROVAL too, so
-  // a pending account of a family with a dog or other members is refused like an active one, with no row data.
+  // Only the owner moves any other account between households: a pending account of a family with a dog or other
+  // members is refused like an active one, and a revoked one even alone with no dog (audit S2), with no row data.
   it.each([
     ['an active member of another household', activeElsewhere.email, () => {}],
+    ['a revoked account alone in a household with no dog', pendingStranger.email, () => {
+      dbMock.users = dbMock.users.map((row) => (row.email === pendingStranger.email ? { ...row, status: 'REVOKED' } : row));
+    }],
+    ['a revoked account of its own household', 'revoked@example.com', () =>
+      dbMock.users.push({ id: 'usr-revoked', email: 'revoked@example.com', name: 'Revoked', householdId: adminRow.householdId, role: 'Member', status: 'REVOKED' })],
     ['a pending account of another household with a dog', pendingStranger.email, () => dbMock.puppies.push({ id: 'pup-jane', householdId: pendingStranger.householdId })],
     ['a pending account of another household with another account', pendingStranger.email, () =>
       dbMock.users.push({ id: 'usr-partner', email: 'partner@example.com', name: 'Partner', householdId: pendingStranger.householdId, role: 'Admin', status: 'ACTIVE' })],
@@ -456,5 +476,152 @@ describe("POST /api/users: the owner's invite into a new household", () => {
     expect(response.statusCode).toBe(403);
     expect(dbMock.insertedValues).toEqual([]);
     expect(dbMock.batches).toBe(0);
+  });
+});
+
+// Audit S2: REVOKED is set and cleared by the owner only, so a family Admin can never undo the owner's revoke.
+describe('PUT /api/users: only the owner changes an account status', () => {
+  const originalSecret = process.env.SESSION_SECRET;
+  const put = (request: { method: string }) => ({ ...request, method: 'PUT' });
+  const revokedMember = { id: 'usr-revoked', email: 'revoked@example.com', name: 'Revoked', householdId: adminRow.householdId, role: 'Admin', status: 'REVOKED' };
+  const activeMember = { id: 'usr-member', email: 'member@example.com', name: 'Member', householdId: adminRow.householdId, role: 'Member', status: 'ACTIVE' };
+
+  beforeEach(() => {
+    process.env.SESSION_SECRET = 'test-secret-key-1234567890-very-secure';
+    dbMock.users = [adminRow, { ...revokedMember }, { ...activeMember }];
+    dbMock.updatedValues = [];
+  });
+
+  afterEach(() => {
+    process.env.SESSION_SECRET = originalSecret;
+  });
+
+  it.each([
+    ['restore a revoked account of its household', revokedMember.email, 'ACTIVE'],
+    ['revoke an account of its household', activeMember.email, 'REVOKED'],
+    ['set an account of its household back to pending', activeMember.email, 'PENDING_APPROVAL'],
+  ])('refuses (403) an Admin who tries to %s, and changes nothing', async (_label, email, status) => {
+    const response = createMockResponse();
+    await usersHandler(put(asAdmin({ email, status })) as any, response);
+
+    expect(response.statusCode).toBe(403);
+    expect(dbMock.updatedValues).toEqual([]);
+  });
+
+  it('lets the owner revoke an account', async () => {
+    const response = createMockResponse();
+    await usersHandler(put(asOwner({ email: activeMember.email, status: 'REVOKED' })) as any, response);
+
+    expect(response.statusCode).toBe(200);
+    expect(dbMock.updatedValues).toEqual([{ status: 'REVOKED' }]);
+    expect(response.body).toMatchObject({ email: activeMember.email, status: 'REVOKED' });
+  });
+
+  it('lets the owner restore access: active again, same household and role', async () => {
+    dbMock.users = [{ ...revokedMember, householdId: 'house-alone' }];
+    const response = createMockResponse();
+    await usersHandler(put(asOwner({ email: revokedMember.email, status: 'ACTIVE' })) as any, response);
+
+    expect(response.statusCode).toBe(200);
+    expect(dbMock.updatedValues).toEqual([{ status: 'ACTIVE' }]);
+    expect(response.body).toMatchObject({ householdId: 'house-alone', role: 'Admin', status: 'ACTIVE' });
+  });
+});
+
+// Audit S3: anyone but the owner deletes their own account; the household's last account takes the household with it.
+describe('DELETE /api/users: account deletion and its cleanup', () => {
+  const originalSecret = process.env.SESSION_SECRET;
+  const member = { id: 'usr-member', email: 'member@example.com', name: 'Member', householdId: adminRow.householdId, role: 'Member', status: 'ACTIVE' };
+  const deleteAs = (identity: { email: string; householdId: string; role: string }, email: string) => ({
+    ...postAs(identity, undefined),
+    method: 'DELETE',
+    query: { email },
+  });
+  const asMember = (email: string) => deleteAs({ email: member.email, householdId: member.householdId, role: 'Member' }, email);
+  // One row of each kind in the admin's household, and the same in another household that must stay
+  const householdRows = (householdId: string, suffix: string) => ({
+    puppies: [{ id: `pup-${suffix}`, householdId }, { id: `pup-${suffix}-deleted`, householdId, deletedAt: new Date() }],
+    activities: [{ id: `act-${suffix}`, householdId }],
+    health_records: [{ id: `hr-${suffix}`, householdId }],
+    caretakers: [
+      { id: `badge-${suffix}-member`, householdId, email: 'Member@Example.com' },
+      { id: `badge-${suffix}-admin`, householdId, email: adminRow.email },
+      { id: `badge-${suffix}-unlinked`, householdId, email: null },
+    ],
+    households: [{ id: householdId }],
+  });
+  const ids = (rows: Row[]) => rows.map((row) => row.id);
+
+  beforeEach(() => {
+    process.env.SESSION_SECRET = 'test-secret-key-1234567890-very-secure';
+    dbMock.users = [adminRow, { ...member }, { ...activeElsewhere }];
+    const own = householdRows(adminRow.householdId, 'own');
+    const other = householdRows(activeElsewhere.householdId, 'other');
+    for (const table of ['puppies', 'activities', 'health_records', 'caretakers', 'households'] as const) {
+      dbMock[table] = [...own[table], ...other[table]];
+    }
+    dbMock.batches = 0;
+  });
+
+  afterEach(() => {
+    process.env.SESSION_SECRET = originalSecret;
+  });
+
+  it("lets a Member delete their own account: the account and its badge go, the household's other rows stay", async () => {
+    const response = createMockResponse();
+    await usersHandler(asMember(member.email) as any, response);
+
+    expect(response.statusCode).toBe(200);
+    expect(dbMock.batches).toBe(1);
+    expect(ids(dbMock.users)).toEqual([adminRow.id, activeElsewhere.id]);
+    expect(ids(dbMock.caretakers)).toEqual(['badge-own-admin', 'badge-own-unlinked', 'badge-other-member', 'badge-other-admin', 'badge-other-unlinked']);
+    expect(dbMock.puppies).toHaveLength(4);
+    expect(dbMock.activities).toHaveLength(2);
+    expect(dbMock.health_records).toHaveLength(2);
+    expect(dbMock.households).toHaveLength(2);
+  });
+
+  it("deletes the whole household with its last account: dogs (deleted ones too), logs, health records, badges and the household row", async () => {
+    dbMock.users = [{ ...member }, { ...activeElsewhere }];
+    const response = createMockResponse();
+    await usersHandler(asMember(member.email) as any, response);
+
+    expect(response.statusCode).toBe(200);
+    expect(dbMock.batches).toBe(1);
+    expect(ids(dbMock.users)).toEqual([activeElsewhere.id]);
+    expect(ids(dbMock.puppies)).toEqual(['pup-other', 'pup-other-deleted']);
+    expect(ids(dbMock.activities)).toEqual(['act-other']);
+    expect(ids(dbMock.health_records)).toEqual(['hr-other']);
+    expect(ids(dbMock.caretakers)).toEqual(['badge-other-member', 'badge-other-admin', 'badge-other-unlinked']);
+    expect(ids(dbMock.households)).toEqual([activeElsewhere.householdId]);
+  });
+
+  it("refuses (403) a Member deleting someone else's account, and deletes nothing", async () => {
+    const response = createMockResponse();
+    await usersHandler(asMember(adminRow.email) as any, response);
+
+    expect(response.statusCode).toBe(403);
+    expect(dbMock.batches).toBe(0);
+    expect(dbMock.users).toHaveLength(3);
+  });
+
+  it("refuses (403) the owner deleting the owner's own account", async () => {
+    dbMock.users.push({ id: 'usr-owner', email: SUPER_ADMIN_EMAIL, name: 'Owner', householdId: 'hh-owner', role: 'SuperAdmin', status: 'ACTIVE' });
+    const response = createMockResponse();
+    await usersHandler(deleteAs({ email: SUPER_ADMIN_EMAIL, householdId: 'hh-owner', role: 'SuperAdmin' }, SUPER_ADMIN_EMAIL) as any, response);
+
+    expect(response.statusCode).toBe(403);
+    expect(dbMock.batches).toBe(0);
+    expect(dbMock.users).toHaveLength(4);
+  });
+
+  it("uses the same cleanup when an Admin deletes a member of its household", async () => {
+    const response = createMockResponse();
+    await usersHandler(deleteAs({ email: adminRow.email, householdId: adminRow.householdId, role: 'Admin' }, member.email) as any, response);
+
+    expect(response.statusCode).toBe(200);
+    expect(ids(dbMock.users)).toEqual([adminRow.id, activeElsewhere.id]);
+    expect(ids(dbMock.caretakers)).not.toContain('badge-own-member');
+    expect(dbMock.puppies).toHaveLength(4);
   });
 });

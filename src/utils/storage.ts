@@ -114,3 +114,12 @@ export function setStoredHealthRecords(records: HealthRecord[]): void {
     localStorage.setItem(STORAGE_KEY_CACHED_HEALTH_RECORDS, JSON.stringify(records));
   } catch {}
 }
+
+/** After the account is deleted: nothing of its household stays on this phone (the language choice does). */
+export function clearStoredHouseholdData(): void {
+  try {
+    for (const key of [STORAGE_KEY_ACTIVE_PUPPY, STORAGE_KEY_CACHED_PUPPIES, STORAGE_KEY_CACHED_CARETAKERS, STORAGE_KEY_CACHED_ACTIVITIES, STORAGE_KEY_CACHED_HEALTH_RECORDS]) {
+      localStorage.removeItem(key);
+    }
+  } catch {}
+}

@@ -21,6 +21,7 @@ interface SettingsViewProps {
   onAddCaretaker: (caretaker: Caretaker) => void;
   onUpdateCaretaker: (id: string, updatedFields: Partial<Caretaker>) => void;
   onDeleteCaretaker: (id: string) => void;
+  onDeleteMyAccount: () => void;
   onBackToDashboard?: () => void;
 }
 
@@ -38,6 +39,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   onAddCaretaker,
   onUpdateCaretaker,
   onDeleteCaretaker,
+  onDeleteMyAccount,
   onBackToDashboard,
 }) => {
   const { t } = useI18n();
@@ -140,6 +142,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             onAddCaretaker={onAddCaretaker}
             onUpdateCaretaker={onUpdateCaretaker}
             onDeleteCaretaker={onDeleteCaretaker}
+            onDeleteMyAccount={onDeleteMyAccount}
           />
         )}
 
