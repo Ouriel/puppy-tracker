@@ -7,6 +7,7 @@ import { en } from '../i18n/en';
 import { fr } from '../i18n/fr';
 import { clearAuthToken, getAuthToken, getStoredAuthUser, setAuthToken, setStoredAuthUser } from '../utils/auth';
 import { clearApiCache } from '../services/api';
+import { toast } from '@heroui/react';
 
 // The real lock screen, with a stand-in for Google Identity Services (window.google.accounts.id).
 
@@ -408,5 +409,90 @@ describe('Delete my account', () => {
     expect(householdKeys.map((key) => localStorage.getItem(key))).toEqual(householdKeys.map(() => null));
     expect(googleId.initialize).toHaveBeenCalledWith(expect.objectContaining({ auto_select: false }));
     expect(googleId.disableAutoSelect).toHaveBeenCalled();
+  });
+});
+
+// Audit M1 and S1: an invite waits on the invitee's dashboard; nobody joins a household without tapping Join
+describe('Invite card', () => {
+  const jane = { email: 'jane.doe@example.com', name: 'Jane Doe', role: 'Admin' as const };
+  const puppy = { id: 'pup-1', name: 'Rex', breed: 'Beagle', birthDate: '2026-01-01', targetMealsPerDay: 3, dailyFoodGramGoal: 200 };
+  const oldBadge = { id: 'c-old', name: 'Jane alone', role: 'Member', color: '#EC4899', email: jane.email };
+  const newBadge = { id: 'c-new', name: 'Jane', role: 'Member', color: '#10B981', email: jane.email };
+  const button = (text: string) => [...document.querySelectorAll('button')].find((element) => element.textContent?.trim() === text);
+
+  /** Signed in alone in an empty household, with one invite; `joinAnswer` answers Join. */
+  async function renderWithInvite(invite: { householdName: string | null }, joinAnswer = () => new Response(JSON.stringify({ success: true }))) {
+    stubGoogle();
+    setAuthToken('app-session');
+    setStoredAuthUser(jane);
+    let hasJoined = false;
+    const calls: Array<{ url: string; method: string; body?: string }> = [];
+    vi.stubGlobal('fetch', vi.fn((url: string, init?: RequestInit) => {
+      calls.push({ url, method: init?.method ?? 'GET', body: init?.body as string | undefined });
+      if (url.startsWith('/api/dashboard')) {
+        const payload = hasJoined
+          ? { puppies: [puppy], caretakers: [newBadge], activities: [], healthRecords: [], invites: [] }
+          : { puppies: [], caretakers: [oldBadge], activities: [], healthRecords: [], invites: [{ id: 'inv-1', invitedBy: 'Claire', ...invite }] };
+        return Promise.resolve(new Response(JSON.stringify(payload)));
+      }
+      if (url === '/api/invites' && init?.method === 'POST') {
+        const answer = joinAnswer();
+        hasJoined = answer.ok;
+        return Promise.resolve(answer);
+      }
+      if (url.startsWith('/api/invites?id=') && init?.method === 'DELETE') return Promise.resolve(new Response(JSON.stringify({ success: true })));
+      if (url === '/api/auth/session') {
+        return Promise.resolve(new Response(JSON.stringify({ user: { ...jane, householdId: 'hh-martin', role: 'Member' }, sessionToken: 'session-after-join' })));
+      }
+      return Promise.resolve(new Response('{}', { status: 404 }));
+    }));
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    root = createRoot(container);
+    await act(async () => root!.render(<App />));
+    for (let round = 0; round < 50 && !button(en.dashboard.joinInvite) && !button(fr.dashboard.joinInvite); round += 1) await settle();
+    return calls;
+  }
+
+  it('shows who invited, at the top of the dashboard; Join moves the account, drops the old household kept on the phone and loads the new one as a Member', async () => {
+    const calls = await renderWithInvite({ householdName: null });
+    expect(pageText()).toContain('Claire invited you to join their household.');
+    expect(localStorage.getItem('puppace_cached_caretakers')).toContain('Jane alone');
+
+    await act(async () => button(en.dashboard.joinInvite)!.click());
+    for (let round = 0; round < 50 && !pageText().includes('Rex'); round += 1) await settle();
+
+    expect(calls.filter((call) => call.url === '/api/invites')).toEqual([{ url: '/api/invites', method: 'POST', body: JSON.stringify({ id: 'inv-1' }) }]);
+    expect(pageText()).not.toContain('Claire invited you');
+    expect(pageText()).toContain('Rex');
+    expect(localStorage.getItem('puppace_cached_caretakers')).not.toContain('Jane alone');
+    expect(getStoredAuthUser()?.role).toBe('Member');
+    expect(getAuthToken()).toBe('session-after-join');
+  });
+
+  it('a household with dogs or other members is refused: a toast says so, the invite stays and nothing moves', async () => {
+    const danger = vi.spyOn(toast, 'danger').mockImplementation(() => '');
+    const calls = await renderWithInvite({ householdName: null }, () => new Response(JSON.stringify({ error: 'x', code: 'inviteLeaveFirst' }), { status: 409 }));
+
+    await act(async () => button(en.dashboard.joinInvite)!.click());
+    await settle();
+
+    expect(danger).toHaveBeenCalledWith(en.toasts.inviteLeaveFirst);
+    expect(pageText()).toContain('Claire invited you to join their household.');
+    expect(calls.some((call) => call.url === '/api/auth/session')).toBe(false);
+    expect(getStoredAuthUser()?.role).toBe('Admin');
+  });
+
+  it('names a household the owner named, in French too; Refuser declines it and joins nothing', async () => {
+    localStorage.setItem('puppace_lang_v1', 'fr');
+    const calls = await renderWithInvite({ householdName: 'Famille Martin' });
+    expect(pageText()).toContain('Claire t\'invite à rejoindre « Famille Martin ».');
+
+    await act(async () => button(fr.dashboard.declineInvite)!.click());
+    await settle();
+
+    expect(calls.filter((call) => call.url.startsWith('/api/invites'))).toEqual([{ url: '/api/invites?id=inv-1', method: 'DELETE', body: undefined }]);
+    expect(pageText()).not.toContain('Claire');
+    expect(getStoredAuthUser()?.role).toBe('Admin');
   });
 });

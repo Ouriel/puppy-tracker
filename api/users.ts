@@ -2,8 +2,8 @@ import { randomUUID } from 'crypto';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { neon } from '@neondatabase/serverless';
 import { drizzle } from 'drizzle-orm/neon-http';
-import { eq, and, ne, sql as sqlTag } from 'drizzle-orm';
-import { activitiesTable, caretakersTable, healthRecordsTable, householdsTable, puppiesTable, usersTable } from '../src/db/schema.js';
+import { eq, and, ne, lt, sql as sqlTag } from 'drizzle-orm';
+import { activitiesTable, caretakersTable, healthRecordsTable, householdsTable, invitesTable, puppiesTable, usersTable } from '../src/db/schema.js';
 import { isSuperAdminEmail } from '../src/utils/auth.js';
 import { UserInputSchema } from '../src/utils/schemas.js';
 import { verifyAuth, sendAuthError, setCorsHeaders, newHouseholdId } from './_auth.js';
@@ -24,19 +24,13 @@ function householdHasOtherUser(account: UserRow) {
     .then((rows) => rows.length > 0);
 }
 
-/** A sign-up still waiting for approval, alone in a household with no dog. Never a REVOKED account: only the owner restores it. */
-async function isUnclaimedSignUp(account: UserRow) {
-  if (account.status !== 'PENDING_APPROVAL') return false;
-  const [hasOtherUser, dogs] = await Promise.all([
-    householdHasOtherUser(account),
-    db.select({ id: puppiesTable.id }).from(puppiesTable).where(eq(puppiesTable.householdId, account.householdId)).limit(1),
-  ]);
-  return !hasOtherUser && dogs.length === 0;
-}
+// An invite nobody answered is deleted at the next invite anyone sends after this
+const INVITE_MAX_AGE_MS = 90 * 24 * 60 * 60 * 1000;
 
 /**
- * Every account deletion (its own, the owner's, an Admin's): the account and its badges in its household go. The household's
- * last account takes the whole household with it: dogs (deleted ones too), logs, health records, badges and the household row.
+ * Every account deletion (its own, the owner's, an Admin's): the account, the invites addressed to its email and its badges
+ * in its household go. The household's last account takes the whole household with it: dogs (deleted ones too), logs, health
+ * records, badges, invites into it and the household row.
  */
 async function deleteAccount(account: UserRow) {
   const { householdId, email } = account;
@@ -45,9 +39,10 @@ async function deleteAccount(account: UserRow) {
   const isLastAccount = !(await householdHasOtherUser(account));
   await db.batch([
     db.delete(usersTable).where(eq(usersTable.id, account.id)),
+    db.delete(invitesTable).where(eq(invitesTable.email, email.toLowerCase())),
     ...(isLastAccount
       ? [
-          ...[puppiesTable, activitiesTable, healthRecordsTable, caretakersTable].map((table) => db.delete(table).where(eq(table.householdId, householdId))),
+          ...[puppiesTable, activitiesTable, healthRecordsTable, caretakersTable, invitesTable].map((table) => db.delete(table).where(eq(table.householdId, householdId))),
           db.delete(householdsTable).where(eq(householdsTable.id, householdId)),
         ]
       : [db.delete(caretakersTable).where(and(eq(caretakersTable.householdId, householdId), sqlTag`lower(${caretakersTable.email}) = ${email.toLowerCase()}`))]),
@@ -108,7 +103,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(403).json({ error: 'Only admins can perform user management actions' });
     }
 
-    // POST /api/users — Pre-approve or register a user
+    // POST /api/users — Invite an email into a household. It never creates, activates or moves an account: the invitee
+    // joins with their own yes (api/invites.ts). The answer is the same whether or not the email has an account.
     if (req.method === 'POST') {
       const parsed = UserInputSchema.safeParse(req.body);
       if (!parsed.success) {
@@ -122,76 +118,38 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (body.householdId && body.householdId !== householdId && !isSuperAdmin) {
         return res.status(403).json({ error: 'Only SuperAdmin can choose another household.' });
       }
-      if (body.status === 'REVOKED' && !isSuperAdmin) {
-        return res.status(403).json({ error: 'Only SuperAdmin revokes access.' });
-      }
       // An admin's invitees are Members of the admin's own family.
       if (body.role && body.role !== 'Member' && !isSuperAdmin) {
         return res.status(403).json({ error: 'Only SuperAdmin can choose a role.' });
       }
-      // The owner's invite into a new household: its row and the invitee, its Admin, are written in one batch
+      // The owner's invite into a new household: its row and the invite, as its Admin, are written in one batch
       const newHousehold = body.newHouseholdName ? { id: newHouseholdId(), name: body.newHouseholdName } : null;
-      const insertHousehold = newHousehold
-        ? db.insert(householdsTable).values({ id: newHousehold.id, familyPackId: newHousehold.id, name: newHousehold.name })
-        : null;
-      const role = newHousehold ? 'Admin' : body.role;
       const targetHouseholdId = newHousehold?.id || body.householdId || householdId;
+      const role = newHousehold ? 'Admin' : 'Member';
 
-      if (body.role === 'SuperAdmin' && !isSuperAdminEmail(email)) {
-        return res.status(403).json({ error: 'SuperAdmin role assignment is restricted.' });
+      // The owner's household select lists the households that have a row or an account
+      if (targetHouseholdId !== householdId && !newHousehold) {
+        const [[namedHousehold], [householdAccount]] = await Promise.all([
+          db.select({ id: householdsTable.id }).from(householdsTable).where(eq(householdsTable.id, targetHouseholdId)),
+          db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.householdId, targetHouseholdId)).limit(1),
+        ]);
+        if (!namedHousehold && !householdAccount) return res.status(404).json({ error: 'Household not found' });
+      }
+      const [existing] = await db.select({ householdId: usersTable.householdId }).from(usersTable).where(eq(usersTable.email, email));
+      // Already in that household, or the owner (whose account never moves): nothing to write, and the same answer
+      if (existing?.householdId === targetHouseholdId || isSuperAdminEmail(email)) {
+        return res.status(201).json({ email });
       }
 
-      // As in PUT: only the owner manages the owner's account.
-      if (isSuperAdminEmail(email) && !isSuperAdminEmail(auth.email)) {
-        return res.status(403).json({ error: 'This person already has an account. Ask the owner to add them.' });
-      }
-
-      // Looked up in every household: the email is unique, so an existing account is moved, never re-created.
-      const [existing] = await db
-        .select()
-        .from(usersTable)
-        .where(eq(usersTable.email, email));
-
-      if (existing) {
-        // An Admin's invite never gives back the access the owner removed
-        if (existing.status === 'REVOKED' && !isSuperAdmin) {
-          return res.status(409).json({ error: 'This person already has an account. Ask the owner to add them.' });
-        }
-        const isMove = existing.householdId !== targetHouseholdId;
-        // The owner moves an account between households once confirmed. An admin takes in only a sign-up waiting
-        // alone in a household with no dog (a second parent who signed in before being invited); never another
-        // family's account. Refusals carry no row data.
-        if (isMove && (isSuperAdmin ? !body.confirmMove : !(await isUnclaimedSignUp(existing)))) {
-          return res.status(409).json({ error: 'This person already has an account in another household.' });
-        }
-        const updateAccount = db
-          .update(usersTable)
-          .set({
-            // Never the name: the account keeps its Google name. An admin's take-in is a Member; an admin re-inviting
-            // someone already in the family (themselves included) keeps their role.
-            role: isSuperAdmin ? role || existing.role : isMove ? 'Member' : existing.role,
-            status: body.status || existing.status,
-            ...(isMove ? { householdId: targetHouseholdId } : {}),
-          })
-          .where(eq(usersTable.id, existing.id))
-          .returning();
-        const [updated] = insertHousehold ? (await db.batch([insertHousehold, updateAccount]))[1] : await updateAccount;
-        return res.status(200).json(updated);
-      }
-
-      const insertAccount = db
-        .insert(usersTable)
-        .values({
-          id: `usr-${randomUUID()}`,
-          householdId: targetHouseholdId,
-          email,
-          name: body.name || email.split('@')[0],
-          role: role || 'Member',
-          status: body.status || 'PENDING_APPROVAL',
-        })
-        .returning();
-      const [created] = insertHousehold ? (await db.batch([insertHousehold, insertAccount]))[1] : await insertAccount;
-      return res.status(201).json(created);
+      await db.batch([
+        db.delete(invitesTable).where(lt(invitesTable.createdAt, new Date(Date.now() - INVITE_MAX_AGE_MS))),
+        db
+          .insert(invitesTable)
+          .values({ id: `inv-${randomUUID()}`, email, householdId: targetHouseholdId, role, invitedBy: auth.name })
+          .onConflictDoUpdate({ target: [invitesTable.email, invitesTable.householdId], set: { role, invitedBy: auth.name, createdAt: new Date() } }),
+        ...(newHousehold ? [db.insert(householdsTable).values({ id: newHousehold.id, familyPackId: newHousehold.id, name: newHousehold.name })] : []),
+      ]);
+      return res.status(201).json({ email });
     }
 
     // PUT /api/users — Update user role, status, or household assignment

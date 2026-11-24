@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import type { Caretaker, UserAccount } from '../types';
 import { Home, Users, UserPlus, Trash2, Mail, Send, CheckCircle2, UserCheck, Copy, Share2, Pencil, X, Check } from 'lucide-react';
-import { createUser } from '../services/api';
+import { sendInvite } from '../services/api';
 import { buildInviteBadge, findLinkedCaretaker, firstFreeBadgeColor } from '../utils/caretakers';
 import { useI18n } from '../i18n';
 import { Card, Button, Input, Chip, toast } from '@heroui/react';
@@ -33,7 +33,6 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
   const [inviteSuccess, setInviteSuccess] = useState('');
   // An invite in flight: a second tap on Send must not send it twice
   const [isInviting, setIsInviting] = useState(false);
-  const [emailToMove, setEmailToMove] = useState<string | null>(null);
   const [badgeToDelete, setBadgeToDelete] = useState<Caretaker | null>(null);
   const [isDeleteMyAccountOpen, setIsDeleteMyAccountOpen] = useState(false);
 
@@ -55,23 +54,19 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
   // The owner and a family's Admin pre-approve into their own family and delete its badges: the server refuses members.
   const isAdmin = isOwner || user.role === 'Admin';
 
-  // Into the inviter's own household (the server's default): the account keeps its Google name, and the badge
-  // carries the invited email.
-  const inviteMember = async (email: string, confirmMove = false) => {
+  // Into the inviter's own household (the server's default), where the badge carries the invited email. The invitee joins
+  // from their own dashboard; the answer never says whether the email has an account.
+  const inviteMember = async (email: string) => {
     if (isInviting) return;
     setIsInviting(true);
-    const result = await createUser({ email, role: 'Member', status: 'ACTIVE', ...(confirmMove ? { confirmMove } : {}) });
+    const result = await sendInvite({ email });
     setIsInviting(false);
 
     if (result.ok) {
-      setInviteSuccess(t.household.inviteAuthorized.replace('{email}', email));
+      setInviteSuccess(t.household.inviteSent.replace('{email}', email));
       setInviteEmail('');
       const badge = buildInviteBadge(email, caretakers);
       if (badge) onAddCaretaker(badge);
-    } else if (result.status === 409) {
-      // Only the owner moves an account out of another household.
-      if (isOwner) setEmailToMove(email);
-      else toast.danger(t.household.askOwnerToAdd);
     } else {
       toast.danger(t.toasts[result.errorKey]);
     }
@@ -133,16 +128,6 @@ export const HouseholdView: React.FC<HouseholdViewProps> = ({
             </Button>
           )
         }
-      />
-
-      <ConfirmationModal
-        isOpen={!!emailToMove}
-        title={t.household.addToFamily}
-        message={t.household.alreadyHasAccount}
-        confirmLabel={t.household.addToFamily}
-        tone="primary"
-        onConfirm={() => emailToMove && void inviteMember(emailToMove, true)}
-        onClose={() => setEmailToMove(null)}
       />
 
       <ConfirmationModal

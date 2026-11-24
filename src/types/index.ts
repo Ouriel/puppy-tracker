@@ -181,6 +181,14 @@ export interface DashboardPayload {
   activities: Activity[];
   healthRecords?: HealthRecord[];
   weightActivities?: Activity[]; // every weight and medication event, whatever its date (the key predates medications)
+  invites?: HouseholdInvite[]; // invites addressed to the signed-in email, answered from the dashboard's invite card
+}
+
+/** An invite into another household, waiting for the signed-in person's answer. `householdName`: null until the owner names it. */
+export interface HouseholdInvite {
+  id: string;
+  invitedBy: string | null;
+  householdName: string | null;
 }
 
 export interface EffectiveWeightInfo {

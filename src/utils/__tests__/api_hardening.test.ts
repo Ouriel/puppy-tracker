@@ -62,9 +62,11 @@ vi.mock('drizzle-orm/neon-http', async () => {
       insert: vi.fn(() => ({
         values: (values: Record<string, unknown>) => {
           dbMock.insertedValues.push(values);
-          return { returning: () => Promise.resolve([values]) };
+          return { returning: () => Promise.resolve([values]), onConflictDoUpdate: () => Promise.resolve([values]) };
         },
       })),
+      delete: vi.fn(() => ({ where: () => Promise.resolve() })),
+      batch: vi.fn((queries: unknown[]) => Promise.all(queries)),
     })),
   };
 });
@@ -225,11 +227,11 @@ describe('API input, error and pagination hardening', () => {
       expect(dbMock.insertedValues[0].id).toBe('act-1754000000000');
     });
 
-    it('POST /api/users for a new email stores usr-<uuid>', async () => {
+    it('POST /api/users for a new email stores an invite inv-<uuid>', async () => {
       const response = createMockResponse();
       await usersHandler(getRequest({}, 'POST', { email: 'new.member@example.com', name: 'New' }), response);
       expect(response.statusCode).toBe(201);
-      expect(dbMock.insertedValues[0].id).toMatch(new RegExp(`^usr-${UUID}$`));
+      expect(dbMock.insertedValues[0].id).toMatch(new RegExp(`^inv-${UUID}$`));
     });
 
     it('services/api createActivity sends act-<uuid> when the activity has no id', async () => {

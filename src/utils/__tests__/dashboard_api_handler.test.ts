@@ -44,11 +44,12 @@ function rowsByTable(): Record<string, unknown[]> {
     caretakers: mockCaretakers,
     activities: dbMock.activities ?? mockActivities,
     health_records: mockHealthRecords,
+    invites: dbMock.invites,
   };
 }
 
 // WHERE clause received by each table's query, to check household scoping; activity rows to serve instead of the default.
-const dbMock = vi.hoisted(() => ({ whereByTable: new Map<string, SQL>(), wheres: [] as SQL[], batchSizes: [] as number[], activities: null as unknown[] | null }));
+const dbMock = vi.hoisted(() => ({ whereByTable: new Map<string, SQL>(), wheres: [] as SQL[], batchSizes: [] as number[], activities: null as unknown[] | null, invites: [] as unknown[] }));
 
 vi.mock('drizzle-orm/neon-http', async () => {
   const { getTableName, getTableColumns } = await import('drizzle-orm');
@@ -79,7 +80,9 @@ vi.mock('drizzle-orm/neon-http', async () => {
           let whereParams: unknown[] = [];
           // Like the WHERE clause: a query for types ('weight', 'medication') gets only rows of those types
           const matchesType = (row: any) => !whereParams.includes('weight') || whereParams.includes(row.type);
-          const rows = () => sortRows(table, rowsByTable()[tableName].filter(matchesType), orderClauses);
+          // and the invites query gets only the invites addressed to its email
+          const matchesEmail = (row: any) => tableName !== 'invites' || whereParams.includes(row.email);
+          const rows = () => sortRows(table, rowsByTable()[tableName].filter((row: any) => matchesType(row) && matchesEmail(row)), orderClauses);
           const queryChain: any = {
             where: vi.fn((condition: SQL) => {
               dbMock.whereByTable.set(tableName, condition);
@@ -87,6 +90,7 @@ vi.mock('drizzle-orm/neon-http', async () => {
               whereParams = dialect.sqlToQuery(condition).params;
               return queryChain;
             }),
+            leftJoin: vi.fn(() => queryChain),
             orderBy: vi.fn((...clauses: SQL[]) => {
               orderClauses = clauses;
               return queryChain;
@@ -111,6 +115,7 @@ describe('Dashboard API Serverless Handler Unit Tests', () => {
   beforeEach(() => {
     process.env.SESSION_SECRET = 'test-secret-key-1234567890-very-secure';
     dbMock.activities = null;
+    dbMock.invites = [];
     dbMock.wheres = [];
     dbMock.batchSizes = [];
   });
@@ -233,6 +238,7 @@ describe('Dashboard API Serverless Handler Unit Tests', () => {
       activities: [{ ...mockActivities[0], timestamp: '2026-08-30T10:00:00.000Z' }],
       healthRecords: mockHealthRecords,
       weightActivities: [],
+      invites: [],
     });
 
     // Every query is scoped to the household carried by the session token
@@ -296,7 +302,7 @@ describe('Dashboard API Serverless Handler Unit Tests', () => {
     await handler({ method: 'GET', headers: { authorization: `Bearer ${token}` }, query: { puppyId: 'pup-1', days: '14' } } as any, res);
 
     expect(res.status).toHaveBeenCalledWith(200);
-    expect(dbMock.batchSizes).toEqual([5]);
+    expect(dbMock.batchSizes).toEqual([6]);
     expect(res.body.weightActivities.map((activity: { id: string; timestamp: string }) => [activity.id, activity.timestamp])).toEqual([
       ['act-weight-new', '2026-08-20T10:00:00.000Z'],
       ['act-medication-old', '2026-06-01T10:00:00.000Z'],
@@ -308,5 +314,24 @@ describe('Dashboard API Serverless Handler Unit Tests', () => {
     expect(weightQuery.sql).toContain('"activities"."puppy_id"');
     expect(weightQuery.sql).not.toContain('"activities"."timestamp"');
     expect(weightQuery.params).toEqual(['hh-123', 'weight', 'medication', 'pup-1']);
+  });
+
+  // Audit M1: an invite waits for the invitee's yes, on their own dashboard; nobody else sees it
+  it("sends the invites addressed to the signed-in email only, with the inviter's name and the household's", async () => {
+    dbMock.invites = [
+      { id: 'inv-mine', email: 'sam@example.com', invitedBy: 'Claire', householdName: 'Famille Martin' },
+      { id: 'inv-other', email: 'someone.else@example.com', invitedBy: 'Claire', householdName: 'Famille Martin' },
+    ];
+    const token = signAppSessionToken({ email: 'Sam@Example.com', name: 'Sam', householdId: 'hh-123', role: 'Husband' }, 30);
+    const res = createMockResponse();
+
+    await handler({ method: 'GET', headers: { authorization: `Bearer ${token}` }, query: { days: '14' } } as any, res);
+
+    expect(res.statusCode).toBe(200);
+    expect(dbMock.batchSizes).toEqual([6]);
+    expect(res.body.invites).toEqual([expect.objectContaining({ id: 'inv-mine', invitedBy: 'Claire', householdName: 'Famille Martin' })]);
+    const invitesQuery = new PgDialect().sqlToQuery(dbMock.whereByTable.get('invites')!);
+    expect(invitesQuery.sql).toBe('"invites"."email" = $1');
+    expect(invitesQuery.params).toEqual(['sam@example.com']);
   });
 });

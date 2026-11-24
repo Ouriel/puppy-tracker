@@ -54,6 +54,8 @@ vi.mock('drizzle-orm/neon-http', async () => {
               return chain;
             },
             orderBy: () => chain,
+            // The dashboard's invites: the invites table's own rows (no household name)
+            leftJoin: () => chain,
             limit: () => chain,
             offset: () => chain,
             ...answer(() => rowsOf(table).filter(matcher(table, condition)).map((row) => ({ ...row }))),
@@ -143,6 +145,7 @@ beforeEach(() => {
       { id: 'act-1', householdId: 'hh-1', puppyId: 'dog-1', type: 'pee', timestamp: new Date(), loggedBy: 'Sam', createdAt: new Date() },
     ],
     health_records: [{ id: 'hr-1', householdId: 'hh-1', puppyId: 'dog-1', type: 'vaccination', name: 'Rage', date: '2026-08-01' }],
+    invites: [],
   };
 });
 

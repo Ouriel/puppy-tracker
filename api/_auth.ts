@@ -2,12 +2,12 @@ import { createHmac, timingSafeEqual, randomUUID } from 'crypto';
 import { neon } from '@neondatabase/serverless';
 import { drizzle } from 'drizzle-orm/neon-http';
 import { eq } from 'drizzle-orm';
-import { usersTable } from '../src/db/schema.js';
+import { invitesTable, usersTable } from '../src/db/schema.js';
 import { isSuperAdminEmail } from '../src/utils/auth.js';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getDatabaseUrl } from './_db.js';
 
-/** A new household's id: a sign-up's own, or one the owner's invite creates. */
+/** A new household's id: a sign-up's own (an invited person's too), or one the owner's invite creates. */
 export const newHouseholdId = () => `house-${Date.now()}-${randomUUID().slice(0, 8)}`;
 
 export function setCorsHeaders(req: VercelRequest, res: VercelResponse, methods = 'GET, POST, PUT, DELETE, OPTIONS') {
@@ -243,9 +243,15 @@ export async function verifyAuth(req: VercelRequest): Promise<AuthContext> {
     .from(usersTable)
     .where(eq(usersTable.email, userEmail));
 
+  const isSuperAdmin = isSuperAdminEmail(userEmail);
+  // Someone invited signs in active, as the Admin of a household of their own, and joins the inviter's with a yes
+  // (the dashboard's invite card). A sign-up waiting for approval since before the invite is activated the same way;
+  // a REVOKED account never is.
+  const isInvited = !isSuperAdmin && (!user || user.status === 'PENDING_APPROVAL')
+    && (await db.select({ id: invitesTable.id }).from(invitesTable).where(eq(invitesTable.email, userEmail))).length > 0;
+
   // Auto-register user in DB if logging in for the first time
   if (!user) {
-    const isSuperAdmin = isSuperAdminEmail(userEmail);
     const householdId = isSuperAdmin ? 'FAMILY-COCKER-2026' : newHouseholdId();
     const [created] = await db
       .insert(usersTable)
@@ -254,11 +260,17 @@ export async function verifyAuth(req: VercelRequest): Promise<AuthContext> {
         householdId,
         email: userEmail,
         name: payload.name || userEmail.split('@')[0],
-        role: isSuperAdmin ? 'SuperAdmin' : 'Member',
-        status: isSuperAdmin ? 'ACTIVE' : 'PENDING_APPROVAL',
+        role: isSuperAdmin ? 'SuperAdmin' : isInvited ? 'Admin' : 'Member',
+        status: isSuperAdmin || isInvited ? 'ACTIVE' : 'PENDING_APPROVAL',
       })
       .returning();
     user = created;
+  } else if (isInvited) {
+    [user] = await db
+      .update(usersTable)
+      .set({ householdId: newHouseholdId(), role: 'Admin', status: 'ACTIVE' })
+      .where(eq(usersTable.id, user.id))
+      .returning();
   }
 
   if (user.status !== 'ACTIVE') {
